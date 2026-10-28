@@ -132,6 +132,11 @@ typedef struct fiftyone_degrees_dataset_base_t {
 															   values by 
 															   property */
     const void *config; /**< Pointer to the config used to create the dataset */
+	const void *state; /**< Pointer to the engine specific state the data set
+	                       was created with, or NULL. Opaque here: it is set by
+	                       the engine to its own copy so that a reload can pass
+	                       it to the replacement data set through
+	                       #fiftyoneDegreesPropertiesRequired.state */
 } fiftyoneDegreesDataSetBase;
 
 /**

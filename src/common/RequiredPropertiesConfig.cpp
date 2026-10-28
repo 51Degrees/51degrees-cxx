@@ -39,6 +39,7 @@ RequiredPropertiesConfig::RequiredPropertiesConfig() {
 	conf.array = nullptr;
 	conf.existing = nullptr;
 	conf.string = nullptr;
+	conf.state = nullptr;
 }
 
 RequiredPropertiesConfig::RequiredPropertiesConfig(

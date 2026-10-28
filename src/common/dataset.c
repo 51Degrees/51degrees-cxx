@@ -117,6 +117,7 @@ void fiftyoneDegreesDataSetReset(fiftyoneDegreesDataSetBase *dataSet) {
 	dataSet->overridable = NULL;
 	dataSet->indexPropertyProfile = NULL;
 	dataSet->config = NULL;
+	dataSet->state = NULL;
 	dataSet->handle = NULL;
 }
 
@@ -140,8 +141,10 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetInitProperties(
 		return REQ_PROP_NOT_PRESENT;
 	}
 
-	// Check there are properties available for retrieval.
-	if (dataSet->available->count == 0) {
+	// Check there are properties available for retrieval. Where the engine has
+	// provided state it can produce output which is not a stored property, so
+	// an empty set is legitimate.
+	if (dataSet->available->count == 0 && dataSet->state == NULL) {
 		return REQ_PROP_NOT_PRESENT;
 	}
 
@@ -282,6 +285,7 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromMemory(
 	// Reference the properties and config from the existing data set in the
 	// replacement.
 	properties.existing = ((DataSetBase*)manager->active->resource)->available;
+	properties.state = ((DataSetBase*)manager->active->resource)->state;
 	config = ((DataSetBase*)manager->active->resource)->config;
 
 	// Allocate memory for the replacement dataset.
@@ -332,6 +336,7 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromFile(
 	// Reference the properties and config from the existing data set in the
 	// replacement.
 	properties.existing = ((DataSetBase*)manager->active->resource)->available;
+	properties.state = ((DataSetBase*)manager->active->resource)->state;
 	config = ((DataSetBase*)manager->active->resource)->config;
 	
 	// Allocate memory for the replacement dataset.
