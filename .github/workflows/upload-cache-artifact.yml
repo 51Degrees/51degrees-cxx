@@ -1,0 +1,45 @@
+name: Upload Cache As Artifact
+
+# Manual utility: restore a date-keyed assets cache (the enterprise .ipi data
+# file the nightly stores via common-ci's fetch-assets) and re-upload it as a
+# downloadable artifact. There is no public API to download an Actions cache
+# blob directly, so this round-trips it through a workflow run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      cache-key:
+        description: 'Exact cache key to restore (e.g. 20260618-DA39A3EE5E6B4B0D3255BFEF95601890AFD80709)'
+        required: true
+        type: string
+      path:
+        description: 'Path that was cached (common-ci caches the "assets" dir)'
+        required: false
+        default: 'assets'
+        type: string
+
+jobs:
+  upload-cache-artifact:
+    name: Restore cache and upload artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore cache
+        id: restore
+        uses: actions/cache/restore@v5
+        with:
+          key: ${{ inputs.cache-key }}
+          path: ${{ inputs.path }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+
+      - name: List restored files
+        shell: bash
+        run: ls -la "${{ inputs.path }}"
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-${{ inputs.cache-key }}
+          path: ${{ inputs.path }}
+          retention-days: 1
+          compression-level: 0

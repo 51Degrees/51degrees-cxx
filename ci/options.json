@@ -1,0 +1,113 @@
+[
+  {
+    "Image": "windows-latest",
+    "Name": "Windows_VS_x64_Debug",
+    "Configuration": "Debug",
+    "Arch": "x64",
+    "BuildMethod": "msbuild",
+    "Products": ["common"]
+  },
+  {
+    "Image": "windows-latest",
+    "Name": "Windows_VS_x86_Debug",
+    "Configuration": "Debug",
+    "Arch": "x86",
+    "BuildMethod": "msbuild",
+    "Products": ["common"]
+  },
+  {
+    "Image": "windows-latest",
+    "Name": "Windows_VS_x64_Release",
+    "Configuration": "Release",
+    "Arch": "x64",
+    "BuildMethod": "msbuild",
+    "Products": ["common", "dd"]
+  },
+  {
+    "Image": "windows-latest",
+    "Name": "Windows_VS_x86_Release",
+    "Configuration": "Release",
+    "Arch": "x86",
+    "BuildMethod": "msbuild",
+    "Products": ["common", "dd"]
+  },
+  {
+    "Image": "windows-latest",
+    "Name": "Windows_x64_Debug",
+    "Configuration": "Debug",
+    "Arch": "x64",
+    "BuildMethod": "cmake",
+    "Products": ["common"]
+  },
+  {
+    "Image": "windows-latest",
+    "Name": "Windows_x64_Release",
+    "Configuration": "Release",
+    "Arch": "x64",
+    "BuildMethod": "cmake",
+    "RunPerformance": true,
+    "Products": ["common", "dd", "ipi"]
+  },
+  {
+    "Image": "windows-latest",
+    "Name": "Windows_x86_Debug",
+    "Configuration": "Debug",
+    "Arch": "x86",
+    "BuildMethod": "cmake",
+    "Products": ["common"]
+  },
+  {
+    "Image": "windows-latest",
+    "Name": "Windows_x86_Release",
+    "Configuration": "Release",
+    "Arch": "x86",
+    "BuildMethod": "cmake",
+    "RunPerformance": true,
+    "Products": ["common", "dd"]
+  },
+  {
+    "Image": "ubuntu-latest",
+    "Name": "Ubuntu_x64_Debug",
+    "Configuration": "Debug",
+    "Arch": "x64",
+    "Products": ["common", "dd", "ipi"]
+  },
+  {
+    "Image": "ubuntu-latest",
+    "Name": "Ubuntu_x86_Release",
+    "Configuration": "Release",
+    "Arch": "x86",
+    "RunPerformance": true,
+    "Products": ["common", "dd"]
+  },
+  {
+    "Image": "ubuntu-latest",
+    "Name": "Ubuntu_x86_Debug",
+    "Configuration": "Debug",
+    "Arch": "x86",
+    "Products": ["common", "dd"]
+  },
+  {
+    "Image": "ubuntu-latest",
+    "Name": "Ubuntu_x64_Release",
+    "Configuration": "Release",
+    "Arch": "x64",
+    "RunPerformance": true,
+    "PackageRequirement": true,
+    "Products": ["common", "dd", "ipi"]
+  },
+  {
+    "Image": "ubuntu-24.04-arm",
+    "Name": "Ubuntu_arm64_Release",
+    "Configuration": "Release",
+    "Arch": "arm64",
+    "Products": ["ipi"]
+  },
+  {
+    "Image": "macos-latest",
+    "Name": "Mac_x64_Debug",
+    "Configuration": "Debug",
+    "Arch": "x64",
+    "Products": ["common", "dd"]
+  }
+]
