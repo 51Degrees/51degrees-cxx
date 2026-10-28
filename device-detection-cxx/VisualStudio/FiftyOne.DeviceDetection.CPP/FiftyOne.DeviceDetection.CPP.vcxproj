@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(SolutionDir)..\src\common-cxx\VisualStudio\Library++.Build.props" />
+  <ItemGroup>
+    <ClCompile Include="..\..\src\ConfigDeviceDetection.cpp" />
+    <ClCompile Include="..\..\src\EngineDeviceDetection.cpp" />
+    <ClCompile Include="..\..\src\EvidenceDeviceDetection.cpp" />
+    <ClCompile Include="..\..\src\ResultsDeviceDetection.cpp" />
+    <ClCompile Include="..\..\src\Transform.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\ConfigDeviceDetection.hpp" />
+    <ClInclude Include="..\..\src\EngineDeviceDetection.hpp" />
+    <ClInclude Include="..\..\src\EvidenceDeviceDetection.hpp" />
+    <ClInclude Include="..\..\src\ResultsDeviceDetection.hpp" />
+    <ClInclude Include="..\..\src\Transform.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\common-cxx\VisualStudio\FiftyOne.Common.CPP\FiftyOne.Common.CPP.vcxproj">
+      <Project>{01dccd38-27cc-4c1a-851f-f1700edf8bb5}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\FiftyOne.DeviceDetection.C\FiftyOne.DeviceDetection.C.vcxproj">
+      <Project>{ccbbb20e-10a3-4e1b-9d71-27a84c548e6e}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{79B9D213-082A-40D9-B5A7-2758AEDFCBEC}</ProjectGuid>
+    <RootNamespace>FiftyOneDeviceDetectionCPP</RootNamespace>
+  </PropertyGroup>
+</Project>

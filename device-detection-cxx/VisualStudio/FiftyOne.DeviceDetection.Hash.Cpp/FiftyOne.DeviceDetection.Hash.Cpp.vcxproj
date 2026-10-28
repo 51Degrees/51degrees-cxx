@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(SolutionDir)..\src\common-cxx\VisualStudio\Library++.Build.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\FiftyOne.DeviceDetection.CPP\FiftyOne.DeviceDetection.CPP.vcxproj">
+      <Project>{79b9d213-082a-40d9-b5a7-2758aedfcbec}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\FiftyOne.DeviceDetection.Hash.C\FiftyOne.DeviceDetection.Hash.C.vcxproj">
+      <Project>{1d1fb480-9e69-4c1d-a120-1601b00b2457}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\hash\ComponentMetaDataBuilderHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ComponentMetaDataCollectionHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ConfigHash.cpp" />
+    <ClCompile Include="..\..\src\hash\EngineHash.cpp" />
+    <ClCompile Include="..\..\src\hash\MetaDataHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ProfileMetaDataBuilderHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ProfileMetaDataCollectionHash.cpp" />
+    <ClCompile Include="..\..\src\hash\PropertyMetaDataBuilderHash.cpp" />
+    <ClCompile Include="..\..\src\hash\PropertyMetaDataCollectionForComponentHash.cpp" />
+    <ClCompile Include="..\..\src\hash\PropertyMetaDataCollectionForPropertyHash.cpp" />
+    <ClCompile Include="..\..\src\hash\PropertyMetaDataCollectionHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ResultsHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ValueMetaDataBuilderHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionBaseHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionForProfileHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionForPropertyHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionHash.cpp" />
+    <ClCompile Include="..\..\src\hash\ResultsHashSerializer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\hash\ComponentMetaDataBuilderHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ComponentMetaDataCollectionHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ConfigHash.hpp" />
+    <ClInclude Include="..\..\src\hash\EngineHash.hpp" />
+    <ClInclude Include="..\..\src\hash\MetaDataHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ProfileMetaDataBuilderHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ProfileMetaDataCollectionHash.hpp" />
+    <ClInclude Include="..\..\src\hash\PropertyMetaDataBuilderHash.hpp" />
+    <ClInclude Include="..\..\src\hash\PropertyMetaDataCollectionForComponentHash.hpp" />
+    <ClInclude Include="..\..\src\hash\PropertyMetaDataCollectionForPropertyHash.hpp" />
+    <ClInclude Include="..\..\src\hash\PropertyMetaDataCollectionHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ResultsHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ValueMetaDataBuilderHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionBaseHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionForProfileHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionForPropertyHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionHash.hpp" />
+    <ClInclude Include="..\..\src\hash\ResultsHashSerializer.hpp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{401C012A-E5D9-4C00-9C5E-3FE078CED61B}</ProjectGuid>
+    <RootNamespace>FiftyOne.DeviceDetection.Pattern.Native</RootNamespace>
+    <ProjectName>FiftyOne.DeviceDetection.Hash.Cpp</ProjectName>
+  </PropertyGroup>
+</Project>
