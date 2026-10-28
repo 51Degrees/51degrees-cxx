@@ -367,7 +367,7 @@ TEST_F(ProfileTests, ProfileIterateValues) {
             COLLECTION_RELEASE(item.collection, &item);
             std::vector<fiftyoneDegreesValue *> values;
             fiftyoneDegreesProfileIterateValuesForProperty(valuesCollection, profile, property, &values, iterateValuesCallback, exception);
-            EXPECT_GT(values.size(), 0);
+            EXPECT_GT(values.size(), 0u);
             for(auto v: values) {
                 EXPECT_EQ(v->propertyIndex, j);
             }
