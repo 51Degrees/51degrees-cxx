@@ -13,6 +13,8 @@ on:
       common-ci-ref:
         type: string
         default: ''
+  schedule:
+    - cron: '35 0 * * *'
 
 jobs:
   SubmoduleUpdate:

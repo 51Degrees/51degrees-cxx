@@ -2,6 +2,8 @@ name: Monthly Copyright Update
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 1 * *'
 
 jobs:
   # Run the common workflow on each pull request
