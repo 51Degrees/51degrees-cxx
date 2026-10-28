@@ -22,6 +22,7 @@ these sources.
 | `test/common`, `test/dd`, `test/ipi` | Unit, integration and performance tests |
 | `examples/dd`, `examples/ipi` | C and C++ examples |
 | `docs/dd`, `docs/ipi` | Doxygen configuration for the reference documentation |
+| `tools/dd` | Command line tools, such as `js-snippet-export`, which exports the JavaScript snippets in a data file |
 | `VisualStudio` | Visual Studio solutions for each product |
 | `device-detection-data`, `ip-intelligence-data` | Data file submodules, used by the tests and examples |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
