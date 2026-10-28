@@ -1,9 +1,0 @@
-[submodule "ip-intelligence-data"]
-	path = ip-intelligence-data
-	url = ../ip-intelligence-data
-[submodule "src/common-cxx"]
-	path = src/common-cxx
-	url = ../common-cxx
-[submodule "src/ip-graph-cxx"]
-	path = src/ip-graph-cxx
-	url = ../ip-graph-cxx
