@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the implementation plan for reading **weighted values** in the IPI dataset on the C/C++ reader side. The approach follows the Pearl export-side design documented in `Pearl/WEIGHTED_VALUE_EXPORT_DESIGN.md`.
+This document describes the implementation plan for reading **weighted values** in the IPI dataset on the C/C++ reader side. The approach follows the design of the export that writes the data file.
 
 The weight is stored in the **Value record** itself — the existing `urlOffset` field is repurposed as a dual-purpose `urlOffsetOrWeight` field. When the upper two bytes match the mask pattern `0xFF00`, the lower two bytes encode the weight as a `uint16_t` (0–65535, representing 0.0–1.0). When the mask is not present, the field is a URL offset or the legacy `-1` sentinel (existing behavior). Weighted properties use the existing **list property** mechanism (`isList = true`), with each (value, weight) pair being a separate Value record.
 
@@ -115,7 +115,7 @@ Value records themselves are also shared across profiles. If two profiles both h
 [int32  urlOffsetOrWeight]   → URL offset (or -1 for none), OR masked weight if upper 2 bytes == 0xFF00
 ```
 
-The last field becomes explicitly **signed** `int32_t`. Both are 4 bytes — binary compatible. When Pearl writes a weighted value, it packs the weight using the `0xFF00` mask: `(int32_t)((0xFF00 << 16) | uint16_weight)`. The C reader detects the mask and extracts the lower 2 bytes.
+The last field becomes explicitly **signed** `int32_t`. Both are 4 bytes — binary compatible. When the export writes a weighted value, it packs the weight using the `0xFF00` mask: `(int32_t)((0xFF00 << 16) | uint16_weight)`. The C reader detects the mask and extracts the lower 2 bytes.
 
 ## Architecture Decisions
 
@@ -708,8 +708,8 @@ No changes. The Value struct is read-only (const fields). Reading `urlOffsetOrWe
 
 ## Related PRs / Issues
 
-- **Pearl design:** `Pearl/WEIGHTED_VALUE_EXPORT_DESIGN.md` — the export-side design this proposal follows
-- **common-metadata:** `ValueTypeEnum.WeightedString = 14` (and WeightedInt=15, WeightedDouble=16, etc.) already exist
+- **Export design:** the design of the export that writes the data file, which this proposal follows
+- **Shared metadata:** `ValueTypeEnum.WeightedString = 14` (and WeightedInt=15, WeightedDouble=16, etc.) already exist
 
 ## Testing
 
