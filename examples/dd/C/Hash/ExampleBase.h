@@ -35,7 +35,7 @@
 #define TIMER_CREATE double start, end
 #define TIMER_START start = GetTickCount()
 #define TIMER_END end = GetTickCount()
-#define TIMER_ELAPSED (end - start)
+#define TIMER_ELAPSED (end == start ? 1 : end - start)
 #else
 #define TIMER_CREATE struct timespec start, end
 #define TIMER_START clock_gettime(CLOCK_MONOTONIC, &start)

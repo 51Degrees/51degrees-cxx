@@ -92,13 +92,15 @@ void fiftyoneDegreesExampleCheckDataFile(
 
 	fiftyoneDegreesDate date = dataset->header.published;
 	struct tm gt;
-	gt.tm_year = date.year - 1900;
+	gt.tm_year = (date.year >= 1900) ? date.year - 1900 : date.year;
 	gt.tm_mday = date.day;
 	gt.tm_mon = (int)date.month - 1;
 	gt.tm_hour = 0;
 	gt.tm_min = 0;
 	gt.tm_sec = 0;
 	gt.tm_isdst = 0;
+	gt.tm_wday = 0;
+	gt.tm_yday = 0;
 	time_t published = mktime(&gt);
 	time_t now = time(NULL);
 
