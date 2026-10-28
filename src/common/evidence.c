@@ -142,9 +142,22 @@ static EvidenceKeyValuePair* findHeaderEvidence(
 	EvidenceKeyValuePairArray* evidence,
 	int prefixes,
 	Header* header) {
+	// Preserve prefix filtering, lazy parsing and first match order.
 	evidenceFindState state = { header, NULL };
-	evidenceIterate(evidence, prefixes, &state, findHeaderEvidenceCallback);
-	return state.pair;
+	for (; evidence != NULL; evidence = evidence->next) {
+		for (uint32_t i = 0; i < evidence->count; i++) {
+			EvidenceKeyValuePair* pair = &evidence->items[i];
+			if ((pair->prefix & prefixes) == pair->prefix) {
+				if (pair->parsedValue == NULL) {
+					parsePair(pair);
+				}
+				if (!findHeaderEvidenceCallback(&state, pair)) {
+					return state.pair;
+				}
+			}
+		}
+	}
+	return NULL;
 }
 
 // Safe-copies the pair parsed value to the buffer checking that there are
