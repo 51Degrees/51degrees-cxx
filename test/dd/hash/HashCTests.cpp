@@ -1186,12 +1186,12 @@ public:
 	void TearDown() { Base::TearDown(); }
 protected:
 	StatusCode initManager(
-		ResourceManager *manager,
+		ResourceManager *deviceIdManager,
 		PropertiesRequired *required) {
 		EXCEPTION_CREATE;
 		ConfigHash config = HashDefaultConfig;
 		return HashInitManagerFromFile(
-			manager,
+			deviceIdManager,
 			&config,
 			required,
 			dataFilePath.c_str(),
@@ -1201,49 +1201,49 @@ protected:
 	// The device id from a data set where every property is available, which
 	// is what requesting DeviceId has to reproduce.
 	string unrestrictedDeviceId() {
-		ResourceManager manager;
+		ResourceManager deviceIdManager;
 		PropertiesRequired required = PropertiesDefault;
-		EXPECT_EQ(SUCCESS, initManager(&manager, &required));
-		string deviceId = getDeviceIdForUserAgent(&manager, mobileUserAgent);
-		ResourceManagerFree(&manager);
+		EXPECT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
+		string deviceId = getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent);
+		ResourceManagerFree(&deviceIdManager);
 		return deviceId;
 	}
 };
 
 TEST_F(HashDeviceIdPropertyTests, DeviceIdAsOnlyRequiredProperty) {
-	ResourceManager manager;
+	ResourceManager deviceIdManager;
 	PropertiesRequired required = PropertiesDefault;
 	required.string = "DeviceId";
-	ASSERT_EQ(SUCCESS, initManager(&manager, &required)) <<
+	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required)) <<
 		"DeviceId should be accepted as a required property.\n";
 	EXPECT_EQ(unrestrictedDeviceId(),
-		getDeviceIdForUserAgent(&manager, mobileUserAgent)) <<
+		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent)) <<
 		"Requesting only DeviceId should produce the same device id as "
 		"requesting every property.\n";
-	ResourceManagerFree(&manager);
+	ResourceManagerFree(&deviceIdManager);
 }
 
 TEST_F(HashDeviceIdPropertyTests, DeviceIdIsCaseInsensitive) {
-	ResourceManager manager;
+	ResourceManager deviceIdManager;
 	PropertiesRequired required = PropertiesDefault;
 	required.string = "deviceid";
-	ASSERT_EQ(SUCCESS, initManager(&manager, &required)) <<
+	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required)) <<
 		"Property names are matched without regard to case.\n";
 	EXPECT_EQ(unrestrictedDeviceId(),
-		getDeviceIdForUserAgent(&manager, mobileUserAgent));
-	ResourceManagerFree(&manager);
+		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent));
+	ResourceManagerFree(&deviceIdManager);
 }
 
 TEST_F(HashDeviceIdPropertyTests, DeviceIdFromArray) {
-	ResourceManager manager;
+	ResourceManager deviceIdManager;
 	const char *names[] = { "DeviceId" };
 	PropertiesRequired required = PropertiesDefault;
 	required.array = names;
 	required.count = 1;
-	ASSERT_EQ(SUCCESS, initManager(&manager, &required));
+	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
 	EXPECT_EQ(unrestrictedDeviceId(),
-		getDeviceIdForUserAgent(&manager, mobileUserAgent));
-	ResourceManagerFree(&manager);
+		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent));
+	ResourceManagerFree(&deviceIdManager);
 }
 
 /*
@@ -1252,14 +1252,14 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdFromArray) {
  */
 TEST_F(HashDeviceIdPropertyTests, DeviceIdWithStoredProperty) {
 	EXCEPTION_CREATE;
-	ResourceManager manager;
+	ResourceManager deviceIdManager;
 	PropertiesRequired required = PropertiesDefault;
 	required.string = "DeviceId,IsMobile";
-	ASSERT_EQ(SUCCESS, initManager(&manager, &required));
+	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
 	EXPECT_EQ(unrestrictedDeviceId(),
-		getDeviceIdForUserAgent(&manager, mobileUserAgent));
+		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent));
 
-	ResultsHash *results = ResultsHashCreate(&manager, 0);
+	ResultsHash *results = ResultsHashCreate(&deviceIdManager, 0);
 	ResultsHashFromUserAgent(
 		results, mobileUserAgent, strlen(mobileUserAgent), exception);
 	EXCEPTION_THROW;
@@ -1268,7 +1268,7 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdWithStoredProperty) {
 	EXPECT_TRUE(ResultsHashGetHasValues(results, index, exception));
 	EXCEPTION_THROW;
 	ResultsHashFree(results);
-	ResourceManagerFree(&manager);
+	ResourceManagerFree(&deviceIdManager);
 }
 
 /*
@@ -1276,13 +1276,13 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdWithStoredProperty) {
  * alongside one is the same as DeviceId alone.
  */
 TEST_F(HashDeviceIdPropertyTests, DeviceIdWithUnknownProperty) {
-	ResourceManager manager;
+	ResourceManager deviceIdManager;
 	PropertiesRequired required = PropertiesDefault;
 	required.string = "DeviceId|NotARealProperty";
-	ASSERT_EQ(SUCCESS, initManager(&manager, &required));
+	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
 	EXPECT_EQ(unrestrictedDeviceId(),
-		getDeviceIdForUserAgent(&manager, mobileUserAgent));
-	ResourceManagerFree(&manager);
+		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent));
+	ResourceManagerFree(&deviceIdManager);
 }
 
 /*
@@ -1290,10 +1290,10 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdWithUnknownProperty) {
  * DeviceId handling must not make an entirely invalid list initialise.
  */
 TEST_F(HashDeviceIdPropertyTests, UnknownPropertyStillFails) {
-	ResourceManager manager;
+	ResourceManager deviceIdManager;
 	PropertiesRequired required = PropertiesDefault;
 	required.string = "NotARealProperty";
-	EXPECT_EQ(REQ_PROP_NOT_PRESENT, initManager(&manager, &required));
+	EXPECT_EQ(REQ_PROP_NOT_PRESENT, initManager(&deviceIdManager, &required));
 }
 
 /*
@@ -1303,17 +1303,17 @@ TEST_F(HashDeviceIdPropertyTests, UnknownPropertyStillFails) {
  */
 TEST_F(HashDeviceIdPropertyTests, DeviceIdSurvivesReload) {
 	EXCEPTION_CREATE;
-	ResourceManager manager;
+	ResourceManager deviceIdManager;
 	PropertiesRequired required = PropertiesDefault;
 	required.string = "DeviceId";
-	ASSERT_EQ(SUCCESS, initManager(&manager, &required));
-	const string before = getDeviceIdForUserAgent(&manager, mobileUserAgent);
+	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
+	const string before = getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent);
 	ASSERT_EQ(SUCCESS, HashReloadManagerFromFile(
-		&manager, dataFilePath.c_str(), exception));
+		&deviceIdManager, dataFilePath.c_str(), exception));
 	EXCEPTION_THROW;
-	EXPECT_EQ(before, getDeviceIdForUserAgent(&manager, mobileUserAgent)) <<
+	EXPECT_EQ(before, getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent)) <<
 		"The device id should be unchanged by a reload.\n";
-	ResourceManagerFree(&manager);
+	ResourceManagerFree(&deviceIdManager);
 }
 
 /*
@@ -1322,18 +1322,18 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdSurvivesReload) {
  */
 TEST_F(HashDeviceIdPropertyTests, DeviceIdAddsNoAvailableProperties) {
 	EXCEPTION_CREATE;
-	ResourceManager manager;
+	ResourceManager deviceIdManager;
 	PropertiesRequired required = PropertiesDefault;
 	required.string = "DeviceId";
-	ASSERT_EQ(SUCCESS, initManager(&manager, &required));
+	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
 
-	DataSetHash *dataSet = (DataSetHash*)DataSetGet(&manager);
+	DataSetHash *dataSet = (DataSetHash*)DataSetGet(&deviceIdManager);
 	EXPECT_EQ(0u, dataSet->b.b.available->count) <<
 		"Requesting the device id should not make any property available.\n";
 	EXPECT_EQ(dataSet->componentsList.count, dataSet->componentsAvailableCount)
 		<< "Every component must be resolved to compose the device id.\n";
 	DataSetHashRelease(dataSet);
-	ResourceManagerFree(&manager);
+	ResourceManagerFree(&deviceIdManager);
 }
 
 /*
@@ -1344,12 +1344,12 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdAddsNoAvailableProperties) {
  */
 TEST_F(HashDeviceIdPropertyTests, DeviceIdResolvesEveryComponentProfile) {
 	EXCEPTION_CREATE;
-	ResourceManager manager;
+	ResourceManager deviceIdManager;
 	PropertiesRequired required = PropertiesDefault;
 	required.string = "DeviceId";
-	ASSERT_EQ(SUCCESS, initManager(&manager, &required));
+	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
 
-	ResultsHash *results = ResultsHashCreate(&manager, 0);
+	ResultsHash *results = ResultsHashCreate(&deviceIdManager, 0);
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 	ResultsHashFromUserAgent(
 		results, mobileUserAgent, strlen(mobileUserAgent), exception);
@@ -1373,5 +1373,5 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdResolvesEveryComponentProfile) {
 	EXPECT_EQ(unrestrictedDeviceId(), string(deviceId));
 
 	ResultsHashFree(results);
-	ResourceManagerFree(&manager);
+	ResourceManagerFree(&deviceIdManager);
 }
