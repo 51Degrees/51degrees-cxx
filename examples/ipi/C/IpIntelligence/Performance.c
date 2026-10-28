@@ -69,7 +69,7 @@ static const char* dataDir = "ip-intelligence-data";
 // Note that the Lite data file is only used for illustration, and has
 // limited accuracy and capabilities.
 // Find out about the Enterprise data file on our pricing page:
-// https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-cxx&utm_content=examples-c-ipintelligence-performance.c&utm_term=datafilename
+// https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-performance.c&utm_term=datafilename
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 
 // This file contains the 20,000 random IP formatted as header values.

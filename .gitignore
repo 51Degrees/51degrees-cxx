@@ -57,3 +57,6 @@ VisualStudio/**/packages/
 test-results/
 artifacts/
 summary*.json
+
+# Doxygen output, written beside each Doxyfile
+docs/*/[0-9]*/

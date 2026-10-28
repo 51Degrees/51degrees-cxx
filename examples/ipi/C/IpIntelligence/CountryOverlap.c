@@ -49,7 +49,7 @@ confidence and connection type:
   whether an address resolves entirely to the primary country.
 - LocationConfidence, ConnectionType: the values of the properties with
   these names. See the
-  [property dictionary](https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=property-dictionary)
+  [property dictionary](https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=property-dictionary)
   for their definitions.
 - IpAddressCount: IPv4 addresses counted by the row.
 - ProportionOfPrimaryCountryAddresses: IpAddressCount as a proportion,
@@ -97,7 +97,7 @@ includes the weighted country code properties. It stops with a clear
 message, and a distinct exit code, when the data file does not include
 them, which is the case for the Lite data file. To obtain an enterprise
 data file see our
-[pricing](https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=enterprise-data-file).
+[pricing](https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=enterprise-data-file).
 
 Only IPv4 is swept. IPv6 addresses are too numerous to check one by one,
 although individual IPv6 addresses can be checked with the probe option.
@@ -1255,7 +1255,7 @@ static int getRequiredIndex(DataSetIpi* dataSet, const char* name) {
 			"'%s'. An enterprise IP Intelligence data file that "
 			"includes the weighted country code properties is "
 			"required. To obtain one see "
-			"https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=missing-property\n",
+			"https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=missing-property\n",
 			name);
 	}
 	return index;
@@ -1729,7 +1729,7 @@ int fiftyoneDegreesIpiCountryOverlap(
 				"The data file does not include the properties required "
 				"by this example (%s). An enterprise IP Intelligence "
 				"data file is required. To obtain one see "
-				"https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=properties-missing\n",
+				"https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=properties-missing\n",
 				countryOverlapProperties);
 			return COUNTRY_OVERLAP_PROPERTIES_MISSING;
 		}

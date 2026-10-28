@@ -136,7 +136,7 @@ void fiftyoneDegreesExampleCheckDataFile(
 			"https://github.com/51Degrees/ip-intelligence-data. "
 			"Find out about the Enterprise data file, which "
 			"includes automatic daily updates, on our pricing "
-			"page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-cxx&utm_content=examples-base-examplebase.c&utm_term=data-file-age-warning\n"), DATA_FILE_AGE_WARNING);
+			"page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=data-file-age-warning\n"), DATA_FILE_AGE_WARNING);
 		printf("\033[0m");
 	}
 
@@ -145,7 +145,7 @@ void fiftyoneDegreesExampleCheckDataFile(
 			"data file. This is used for illustration, and "
 			"has limited accuracy and capabilities. Find "
 			"out about the Enterprise data file on our "
-			"pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=ip-intelligence-cxx&utm_content=examples-base-examplebase.c&utm_term=lite-data-file\n"));
+			"pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=lite-data-file\n"));
 	}
 	if (!CollectionGetIsMemoryOnly()) {
 		COLLECTION_RELEASE(dataset->strings, &item);

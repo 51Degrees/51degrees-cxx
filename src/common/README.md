@@ -1,8 +1,8 @@
 # 51Degrees Common Code Library
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=common-cxx&utm_content=readme.md&utm_term=51degrees-common-code-library "Data rewards the curious") **51Degrees Common C Code**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-common-code-library "Data rewards the curious") **51Degrees Common C Code**
 
-[Reference Documentation](https://51degrees.com/device-detection-cxx/4.5/index.html?utm_source=github&utm_medium=readme&utm_campaign=common-cxx&utm_content=readme.md&utm_term=51degrees-common-code-library "Reference documentation")
+[Reference Documentation](https://51degrees.com/device-detection-cxx/4.5/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-common-code-library "Reference documentation")
 
 # Introduction
 
@@ -42,34 +42,11 @@ as part of GCC 5 and above. On other systems, can be installed with:
 sudo apt-get install libatomic1
 ```
 
-## Using CMake
+## Building
 
-To build the make files required to build, open a `bash` or `Visual Studio Developer Command Prompt` terminal and run
-
-```
-mkdir build
-cd build
-cmake .. 
-```
-
-Note: on an x64 Windows system, it is necessary to add `-A x64` as CMake will build a Win32 Solution by default.
-
-Then build the whole solution with
-
-```
-cmake --build . --config Release
-```
-
-Libraries are output to the `lib/` directory, and executables like examples and tests are output to the `bin/` directory.
-
-## Using Visual Studio
-
-Calling `CMake` in an MSVC environment (as described in the [Using CMake](#Using-CMake) section) will produce a Visual Studio solution with projects for all libraries, examples, and tests. However, it is preferable to use the dedicated Visual Studio solution in the `VisualStudio/` directory.
-
-Prerequisites:
-- Required Visual Studio 2019 or equivalent [C++ build tool](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-  - Minimum Platform Toolset Version `v142`
-  - Minimum Windows SDK Version `10.0.18362.0`
+The common library is built with the products in this repository. Building
+with CMake or Visual Studio is described in the
+[repository README](../../README.md).
 
 ## Build Options
 
@@ -95,6 +72,15 @@ The options is enabled using the `FIFTYONE_DEGREES_EXCEPTIONS_DISABLED` compile 
 
 <p style="color:#FF6000">WARNING: When exception handling is disabled, using the functionality in this library incorrectly can result in a segmentation fault instead of an exception being set.<p>
 
+### LargeDataFileSupport
+
+Data files larger than 4 GB need 64 bit file offsets, which the
+`FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT` directive enables. In CMake the
+`-DLargeDataFileSupport=YES` option sets it for the copy of the library that
+Device Detection uses, and in Visual Studio the `LargeDataFiles`
+configurations set it with the reduced file layout below. IP Intelligence
+always builds its copy with both.
+
 ### ReducedFile
 
 A reduced size data file has the following differences:
@@ -107,30 +93,11 @@ which use the removed fields cannot be implemented with this option, so an excep
 
 # Tests
 
-All unit, integration, and performance tests are built using the [Google test framework](https://github.com/google/googletest).
-
-## CMake
-
-CMake automatically pulls in the latest Google Test from GitHub.
-
-Building the project builds the test executable `CommonTests` to the `bin/` directory. This can be run directly from a terminal.
-
-These can be run by calling
-```
-ctest
-```
-
-CTest module automatically creates a `BUILD_TESTING` option -- see https://cmake.org/cmake/help/latest/module/CTest.html
-
-When testing some dependent code, running `CommonTests` can be skipped by turning OFF the `FIFTYONE_COMMON_CXX_BUILD_TESTING` option.
-
-If CMake has been used in an MSVC environment, then the tests will be set up and discoverable in the Visual Studio solution `51DegreesCommon` created by CMake.
-
-## Visual Studio
-
-Tests in the Visual Studio solution automatically install the GTest dependency via a NuGet package. However, in order for the tests to show up in the Visual Studio test explorer, the [Test Adapter for Google Test](https://marketplace.visualstudio.com/items?itemName=VisualCPPTeam.TestAdapterforGoogleTest) extension must be installed.
-
-The VisualStudio solution includes `FiftyOne.Common.Tests`, which can be run through the standard Visual Studio test runner. 
+The common tests are in [`test/common`](../../test/common). They run as
+`CommonTests`, and again as `CommonTestsIpi` against the copy of the library
+that IP Intelligence uses. Turn off `FIFTYONE_COMMON_CXX_BUILD_TESTING` to skip
+both. Running tests and code coverage are described in the
+[repository README](../../README.md#tests).
 
 # Referencing the library
 
@@ -141,31 +108,3 @@ When building using CMake, static libraries are built in stages. These can be in
 ## Visual Studio
 
 The Visual Studio solution contains static libraries which have all the dependencies set up correctly, so referencing these in a Visual Studio solution should be fairly self explanatory.
-
-## Code Coverage
-
-When the project files are generated for a non-MSVC compiler (gcc/clang) with `CMAKE_BUILD_TYPE=Debug` f.e. by running: 
-```
-cmake . -DCMAKE_BUILD_TYPE=Debug
-```
-
-the generated targets will contain code coverage instrumentation instructions to be added to the libraries with `-cov` suffix and `CommonTests` target will be linked with them. During build time `*.gcno` and empty `*.gcda` files are generated.  
-
-During the test run  `*.gcda` files will be filled with coverage data.  
-
-Install gcovr tool by running:
-```
-pip3 install gcovr
-```
-
-For best results make sure you have at least version 7.2.
-
-The following command will generate a detailed report for each file: 
-```
-mkdir -p coverage; gcovr --html-detail -o coverage/coverage.html; open coverage/coverage.html
-```
-
-To check the summary run:
-```
-gcovr -r . --print-summary
-```
