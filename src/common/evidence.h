@@ -286,19 +286,22 @@ EXTERNAL uint32_t fiftyoneDegreesEvidenceIterate(
 	fiftyoneDegreesEvidenceIterateMethod callback);
 
 /**
- * Iterates over the headers assembling the evidence values, considering the 
- * prefixes, in the buffer if available. The call back method is called for 
+ * Iterates over the headers assembling the evidence values, considering the
+ * prefixes, in the buffer if available. The call back method is called for
  * each header or pseudo header available. The buffer is only used with pseudo
- * headers where multiple header values need to be combined into a single 
- * value.
+ * headers where multiple header values need to be combined into a single
+ * value. A pseudo header is only assembled when every header that forms it
+ * has evidence. When the values together are longer than the buffer the
+ * callback receives the characters the buffer holds, so the value is cut to
+ * the buffer length less one rather than skipped.
  *
  * @param evidence key value pairs including prefixes
  * @param prefixes one or more prefix flags to return values for
  * @param state pointer passed to the callback method
  * @param headers to return evidence for if available
- * @param buffer that MIGHT be used with the callback, null to disable 
+ * @param buffer that MIGHT be used with the callback, null to disable
  * assembling headers
- * @param length of the buffer
+ * @param length of the buffer, including the null terminator
  * @param callback method called when a matching prefix is found
  * @return true if the callback was called successfully, otherwise false
  */
