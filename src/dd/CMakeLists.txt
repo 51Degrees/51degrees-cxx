@@ -1,43 +1,7 @@
-cmake_minimum_required(VERSION 3.24)
+# Device Detection libraries, included from the root CMakeLists.txt.
 
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
-
-set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
-
-# Opt-in AddressSanitizer. When ON, applied to compile + link of every target
-# so library code (common-cxx, dd-cxx, hash) is instrumented, not only the
-# test binary runtime — required for ASAN to report use-after-free instead of
-# bare SEGV. Default OFF so production package builds stay ASAN-free.
-# Gated on CMAKE_HOST_WIN32 rather than MSVC/MINGW because this block runs
-# before project() and the compiler variables are not yet set.
-option(WITH_ASAN "Build with AddressSanitizer (compile + link)" OFF)
-if (WITH_ASAN AND NOT CMAKE_HOST_WIN32)
-	add_compile_options(-fsanitize=address)
-	add_link_options(-fsanitize=address)
-endif()
-
-# Include the common API
-
-include(CMakeDependentOption)
-cmake_dependent_option(FIFTYONE_COMMON_CXX_BUILD_TESTING "" OFF "BUILD_TESTING" OFF)
-
-include(${CMAKE_CURRENT_LIST_DIR}/src/common-cxx/CMakeLists.txt NO_POLICY_SCOPE)
-
-project(51DegreesDeviceDetection VERSION 4.0.1 LANGUAGES CXX C)
-
-set(DD ${CMAKE_CURRENT_LIST_DIR}/src)
-set(HASH ${CMAKE_CURRENT_LIST_DIR}/src/hash)
-
-# Device Detection libraries
-#Compute is test coverage enabled
-string(TOLOWER "${CMAKE_BUILD_TYPE}" lower_CMAKE_BUILD_TYPE)
-if (NOT MSVC AND "${lower_CMAKE_BUILD_TYPE}" STREQUAL "debug")
-	set(TESTCOVERAGE_ENABLED TRUE)
-else()
-	set(TESTCOVERAGE_ENABLED FALSE)
-endif()
-message("-- TESTCOVERAGE_ENABLED=${TESTCOVERAGE_ENABLED}")
+set(DD ${CMAKE_CURRENT_LIST_DIR})
+set(HASH ${CMAKE_CURRENT_LIST_DIR}/hash)
 
 FILE(GLOB DDC_SRC ${DD}/*.c)
 FILE(GLOB DDC_H ${DD}/*.h)
@@ -56,7 +20,7 @@ target_link_libraries(fiftyone-device-detection-cxx
 	fiftyone-common-cxx)
 
 set_target_properties(fiftyone-device-detection-c fiftyone-device-detection-cxx
-	PROPERTIES FOLDER "Device Detection") 
+	PROPERTIES FOLDER "Device Detection")
 
 # Hash libraries
 
@@ -103,7 +67,7 @@ else()
 endif()
 
 set_target_properties(fiftyone-hash-c fiftyone-hash-cxx
-	PROPERTIES FOLDER "Device Detection/Hash") 
+	PROPERTIES FOLDER "Device Detection/Hash")
 
 # Shared library
 
@@ -125,119 +89,3 @@ install(TARGETS fiftyone-device-detection-complete DESTINATION fiftyone-device-d
 	# Set this to optional, otherwise it will interfere with builds which
 	# include this CMake file.
 	OPTIONAL)
-
-# Examples
-
-MESSAGE("-- Looking for examples...")
-foreach (api "Hash")
-	foreach (langext c cpp)
-		string( TOUPPER ${langext} upperlangext)
-		file(GLOB files ${CMAKE_CURRENT_LIST_DIR}/examples/${upperlangext}/${api}/*.${langext})
-		foreach(file ${files})
-			string( REPLACE ".${langext}" "" name ${file})
-			string( REPLACE "${CMAKE_CURRENT_LIST_DIR}/examples/${upperlangext}/${api}/" "" name ${name})
-			string( APPEND name ${api} ${upperlangext})
-			string( TOLOWER ${api} lowerapi)
-
-			if (NOT ${name} MATCHES ".*ExampleBase.*")
-				if("${langext}" STREQUAL "cpp")
-					MESSAGE("-- Found C++ example '${name}'")
-					add_executable(${name} ${file}
-					${CMAKE_CURRENT_LIST_DIR}/examples/C/${api}/ExampleBase.c
-					${CMAKE_CURRENT_LIST_DIR}/examples/C/${api}/ExampleBase.h
-					${CMAKE_CURRENT_LIST_DIR}/examples/${upperlangext}/${api}/ExampleBase.cpp
-					${CMAKE_CURRENT_LIST_DIR}/examples/${upperlangext}/${api}/ExampleBase.hpp)
-					if (MSVC)
-						target_link_libraries(${name} fiftyone-${lowerapi}-cxx)
-					else()
-						if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-							target_include_directories(${name} PRIVATE "/usr/local/include")
-							target_link_directories(${name} PRIVATE "/usr/local/lib")
-						endif()
-						target_link_libraries(${name} fiftyone-${lowerapi}-cxx)
-					endif()
-				elseif("${langext}" STREQUAL "c")
-					MESSAGE("-- Found C example '${name}'")
-					add_executable(${name} ${file}
-					${CMAKE_CURRENT_LIST_DIR}/examples/${upperlangext}/${api}/ExampleBase.c
-					${CMAKE_CURRENT_LIST_DIR}/examples/${upperlangext}/${api}/ExampleBase.h)
-					if (MSVC)
-						target_link_libraries(${name} fiftyone-${lowerapi}-c)
-					else()
-						if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-							target_include_directories(${name} PRIVATE "/usr/local/include")
-							target_link_directories(${name} PRIVATE "/usr/local/lib")
-						endif()
-						target_link_libraries(${name} fiftyone-${lowerapi}-c)
-					endif()
-				endif()
-				set_target_properties(${name}
-					PROPERTIES FOLDER
-					"Examples/Device Detection/${api}/${upperlangext}")
-				if (MSVC)
-					target_compile_options(${name} PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/W4" "/WX")
-					target_link_options(${name} PRIVATE "/WX")
-				else()
-					target_compile_options(${name} PRIVATE ${COMPILE_OPTION_DEBUG} "-Werror")
-				endif()
-			endif()
-		endforeach()
-	endforeach()
-endforeach()
-
-# Tests
-
-if(BUILD_TESTING)
-	set(COMMON_TEST ${CMAKE_CURRENT_LIST_DIR}/src/common-cxx/tests)
-	set(HASH_TEST ${CMAKE_CURRENT_LIST_DIR}/test/hash)
-	set(DD_TEST	${CMAKE_CURRENT_LIST_DIR}/test)
-
-	FILE(GLOB DD_TEST_SRC ${DD_TEST}/*.cpp)
-	FILE(GLOB DD_TEST_H ${DD_TEST}/*.hpp)
-	FILE(GLOB HASH_TEST_SRC ${HASH_TEST}/*.cpp)
-	FILE(GLOB HASH_TEST_H ${HASH_TEST}/*.hpp)
-
-	add_library(fiftyone-device-detection-test-base
-		${DD_TEST_SRC} ${DD_TEST_H}
-		${COMMON_TEST}/Base.cpp
-		${COMMON_TEST}/EngineTests.cpp
-		${COMMON_TEST}/ExampleTests.cpp)
-	target_link_libraries(fiftyone-device-detection-test-base gtest_main)
-	if (NOT MSVC)
-		target_compile_options(fiftyone-device-detection-test-base PRIVATE ${COMPILE_OPTION_DEBUG})
-	endif()
-
-	set_target_properties(fiftyone-device-detection-test-base PROPERTIES FOLDER "Tests") 
-
-	add_executable(HashTests 
-		${HASH_TEST_SRC} ${HASH_TEST_H}
-		${CMAKE_CURRENT_LIST_DIR}/examples/CPP/Hash/ExampleBase.cpp
-		${CMAKE_CURRENT_LIST_DIR}/examples/CPP/Hash/ExampleBase.hpp)
-
-	if (TESTCOVERAGE_ENABLED)
-		target_link_libraries(HashTests fiftyone-device-detection-test-base fiftyone-hash-cxx-cov)
-		target_link_options(HashTests PRIVATE "-fprofile-arcs" "-ftest-coverage")
-	else()
-		target_link_libraries(HashTests fiftyone-device-detection-test-base fiftyone-hash-cxx)
-	endif()
-
-	# DISCOVERY_TIMEOUT must stay outside PROPERTIES; anything after that keyword is
-	# parsed as a test property. The 5 second default is too tight for Windows CI.
-	gtest_discover_tests(HashTests DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST)
-
-	set_target_properties(HashTests PROPERTIES FOLDER "Tests")
-
-	if (MSVC)
-		target_compile_options(HashTests PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/W4" "/WX")
-		target_link_options(HashTests PRIVATE "/WX")
-	else ()
-		target_compile_options(HashTests PRIVATE ${COMPILE_OPTION_DEBUG})
-	endif()
-
-	if (CMAKE_COMPILER_IS_GNUCC)
-		target_compile_options(HashTests PRIVATE "-Wall" "-Werror" "-Wno-unused-variable" "-Wno-unused-result" "-Wno-unused-but-set-variable")
-		if (MINGW)
-			target_compile_options(HashTests PRIVATE "-Wa,-mbig-obj")
-		endif()
-	endif()
-endif()
