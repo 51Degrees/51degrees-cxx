@@ -25,8 +25,8 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
-#include "../exceptions.h"
-#include "../pool.h"
+#include "../../src/common/exceptions.h"
+#include "../../src/common/pool.h"
 
 // Note: fiftyone.h short names can't be used as conflicts with Pool class.
 

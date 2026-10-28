@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
-#include "../examples/C/IpIntelligence/PerfIpi.c"
+#include "../../examples/ipi/C/IpIntelligence/PerfIpi.c"
 
 class ExampleTestPerformanceLegacy : public ExampleIpIntelligenceTest {
 public:

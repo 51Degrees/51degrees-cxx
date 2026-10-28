@@ -22,7 +22,7 @@
 
 //Exceptions.hpp must be included before "exceptions.h" to switch to
 //C++ exceptions semantics - so the macros translate into throw
-#include "common-cxx/Exceptions.hpp"
+#include "../common/Exceptions.hpp"
 #include "Transform.hpp"
 #include "fiftyone.h"
 

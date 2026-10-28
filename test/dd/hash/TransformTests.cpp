@@ -20,10 +20,10 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-#include "../../src/common-cxx/Exceptions.hpp"
-#include "../../src/Transform.hpp"
-#include "../../src/fiftyone.h"
-#include "../../src/common-cxx/tests/Base.hpp"
+#include "../../../src/common/Exceptions.hpp"
+#include "../../../src/dd/Transform.hpp"
+#include "../../../src/dd/fiftyone.h"
+#include "../../common/Base.hpp"
 
 
 class Transform : public Base {

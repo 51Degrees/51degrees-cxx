@@ -42,7 +42,7 @@
  */
 
 #include <stdint.h>
-#include "common-cxx/config.h"
+#include "../common/config.h"
 
 /**
  * Device detection configuration structure containing device detection

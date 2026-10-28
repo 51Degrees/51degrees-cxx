@@ -24,9 +24,9 @@
 #include <iostream>
 #include <thread>
 #include <cstdlib>
-#include "../../../src/EngineIpi.hpp"
+#include "../../../../src/ipi/EngineIpi.hpp"
 #include "ExampleBase.hpp"
-#include "../../../src/common-cxx/fiftyone.h"
+#include "../../../../src/common/fiftyone.h"
 
 using namespace std;
 using namespace FiftyoneDegrees::Common;

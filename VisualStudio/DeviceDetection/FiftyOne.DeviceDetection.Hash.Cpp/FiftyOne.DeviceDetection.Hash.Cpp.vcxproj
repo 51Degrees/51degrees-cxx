@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(SolutionDir)..\src\common-cxx\VisualStudio\Library++.Build.props" />
+  <Import Project="$(SolutionDir)..\Common\Library++.Build.props" />
   <ItemGroup>
     <ProjectReference Include="..\FiftyOne.DeviceDetection.CPP\FiftyOne.DeviceDetection.CPP.vcxproj">
       <Project>{79b9d213-082a-40d9-b5a7-2758aedfcbec}</Project>
@@ -10,44 +10,44 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\hash\ComponentMetaDataBuilderHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ComponentMetaDataCollectionHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ConfigHash.cpp" />
-    <ClCompile Include="..\..\src\hash\EngineHash.cpp" />
-    <ClCompile Include="..\..\src\hash\MetaDataHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ProfileMetaDataBuilderHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ProfileMetaDataCollectionHash.cpp" />
-    <ClCompile Include="..\..\src\hash\PropertyMetaDataBuilderHash.cpp" />
-    <ClCompile Include="..\..\src\hash\PropertyMetaDataCollectionForComponentHash.cpp" />
-    <ClCompile Include="..\..\src\hash\PropertyMetaDataCollectionForPropertyHash.cpp" />
-    <ClCompile Include="..\..\src\hash\PropertyMetaDataCollectionHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ResultsHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ValueMetaDataBuilderHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionBaseHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionForProfileHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionForPropertyHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionHash.cpp" />
-    <ClCompile Include="..\..\src\hash\ResultsHashSerializer.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ComponentMetaDataBuilderHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ComponentMetaDataCollectionHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ConfigHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\EngineHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\MetaDataHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ProfileMetaDataBuilderHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ProfileMetaDataCollectionHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\PropertyMetaDataBuilderHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionForComponentHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionForPropertyHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ResultsHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ValueMetaDataBuilderHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ValueMetaDataCollectionBaseHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ValueMetaDataCollectionForProfileHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ValueMetaDataCollectionForPropertyHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ValueMetaDataCollectionHash.cpp" />
+    <ClCompile Include="..\..\..\src\dd\hash\ResultsHashSerializer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\hash\ComponentMetaDataBuilderHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ComponentMetaDataCollectionHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ConfigHash.hpp" />
-    <ClInclude Include="..\..\src\hash\EngineHash.hpp" />
-    <ClInclude Include="..\..\src\hash\MetaDataHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ProfileMetaDataBuilderHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ProfileMetaDataCollectionHash.hpp" />
-    <ClInclude Include="..\..\src\hash\PropertyMetaDataBuilderHash.hpp" />
-    <ClInclude Include="..\..\src\hash\PropertyMetaDataCollectionForComponentHash.hpp" />
-    <ClInclude Include="..\..\src\hash\PropertyMetaDataCollectionForPropertyHash.hpp" />
-    <ClInclude Include="..\..\src\hash\PropertyMetaDataCollectionHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ResultsHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ValueMetaDataBuilderHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionBaseHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionForProfileHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionForPropertyHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionHash.hpp" />
-    <ClInclude Include="..\..\src\hash\ResultsHashSerializer.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ComponentMetaDataBuilderHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ComponentMetaDataCollectionHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ConfigHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\EngineHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\MetaDataHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ProfileMetaDataBuilderHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ProfileMetaDataCollectionHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\PropertyMetaDataBuilderHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionForComponentHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionForPropertyHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ResultsHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ValueMetaDataBuilderHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ValueMetaDataCollectionBaseHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ValueMetaDataCollectionForProfileHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ValueMetaDataCollectionForPropertyHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ValueMetaDataCollectionHash.hpp" />
+    <ClInclude Include="..\..\..\src\dd\hash\ResultsHashSerializer.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{401C012A-E5D9-4C00-9C5E-3FE078CED61B}</ProjectGuid>

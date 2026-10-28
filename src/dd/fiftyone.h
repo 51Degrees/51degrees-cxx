@@ -41,7 +41,7 @@
  * @{
  */
 
-#include "common-cxx/fiftyone.h"
+#include "../common/fiftyone.h"
 #include "dataset-dd.h"
 #include "config-dd.h"
 #include "results-dd.h"

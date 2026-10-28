@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\examples\C\IpIntelligence\ReloadFromMemory.c">
+    <ClCompile Include="..\..\..\..\..\examples\ipi\C\IpIntelligence\ReloadFromMemory.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -26,7 +26,7 @@
 #include "ipi.h"
 #include "constantsIpi.h"
 #include "ipi_weighted_results.h"
-#include "common-cxx/fiftyone.h"
+#include "../common/fiftyone.h"
 
 // Data types
 MAP_TYPE(WeightedItem)

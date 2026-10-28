@@ -23,8 +23,8 @@
 #ifndef FIFTYONE_DEGREES_VALUE_META_DATA_COLLECTION_FOR_PROPERTY_HASH_HPP
 #define FIFTYONE_DEGREES_VALUE_META_DATA_COLLECTION_FOR_PROPERTY_HASH_HPP
 
-#include "../common-cxx/Collection.hpp"
-#include "../common-cxx/PropertyMetaData.hpp"
+#include "../../common/Collection.hpp"
+#include "../../common/PropertyMetaData.hpp"
 #include "ValueMetaDataCollectionBaseHash.hpp"
 #include "ValueMetaDataBuilderHash.hpp"
 #include "hash.h"

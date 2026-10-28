@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(SolutionDir)..\src\common-cxx\VisualStudio\Library++.Build.props" />
+  <Import Project="$(SolutionDir)..\Common\Library++.Build.props" />
   <ItemGroup>
-    <ClCompile Include="..\..\src\ConfigDeviceDetection.cpp" />
-    <ClCompile Include="..\..\src\EngineDeviceDetection.cpp" />
-    <ClCompile Include="..\..\src\EvidenceDeviceDetection.cpp" />
-    <ClCompile Include="..\..\src\ResultsDeviceDetection.cpp" />
-    <ClCompile Include="..\..\src\Transform.cpp" />
+    <ClCompile Include="..\..\..\src\dd\ConfigDeviceDetection.cpp" />
+    <ClCompile Include="..\..\..\src\dd\EngineDeviceDetection.cpp" />
+    <ClCompile Include="..\..\..\src\dd\EvidenceDeviceDetection.cpp" />
+    <ClCompile Include="..\..\..\src\dd\ResultsDeviceDetection.cpp" />
+    <ClCompile Include="..\..\..\src\dd\Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\ConfigDeviceDetection.hpp" />
-    <ClInclude Include="..\..\src\EngineDeviceDetection.hpp" />
-    <ClInclude Include="..\..\src\EvidenceDeviceDetection.hpp" />
-    <ClInclude Include="..\..\src\ResultsDeviceDetection.hpp" />
-    <ClInclude Include="..\..\src\Transform.hpp" />
+    <ClInclude Include="..\..\..\src\dd\ConfigDeviceDetection.hpp" />
+    <ClInclude Include="..\..\..\src\dd\EngineDeviceDetection.hpp" />
+    <ClInclude Include="..\..\..\src\dd\EvidenceDeviceDetection.hpp" />
+    <ClInclude Include="..\..\..\src\dd\ResultsDeviceDetection.hpp" />
+    <ClInclude Include="..\..\..\src\dd\Transform.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\common-cxx\VisualStudio\FiftyOne.Common.CPP\FiftyOne.Common.CPP.vcxproj">
+    <ProjectReference Include="..\..\Common\FiftyOne.Common.CPP\FiftyOne.Common.CPP.vcxproj">
       <Project>{01dccd38-27cc-4c1a-851f-f1700edf8bb5}</Project>
     </ProjectReference>
     <ProjectReference Include="..\FiftyOne.DeviceDetection.C\FiftyOne.DeviceDetection.C.vcxproj">

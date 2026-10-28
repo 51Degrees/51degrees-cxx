@@ -148,7 +148,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\examples\CPP\IpIntelligence\StronglyTyped.cpp" />
+    <ClCompile Include="..\..\..\..\..\examples\ipi\CPP\IpIntelligence\StronglyTyped.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Base\ExampleBase\ExampleBase.vcxproj">

@@ -23,7 +23,7 @@
 #ifndef FIFTYONE_DEGREES_EVIDENCE_IPI_HPP
 #define FIFTYONE_DEGREES_EVIDENCE_IPI_HPP
 
-#include "common-cxx/EvidenceBase.hpp"
+#include "../common/EvidenceBase.hpp"
 
 namespace FiftyoneDegrees {
 	namespace IpIntelligence {

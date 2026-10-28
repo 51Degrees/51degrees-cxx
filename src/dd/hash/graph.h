@@ -118,10 +118,10 @@
 #include <windows.h>
 #pragma warning(pop)
 #endif
-#include "../common-cxx/common.h"
-#include "../common-cxx/data.h"
-#include "../common-cxx/collection.h"
-#include "../common-cxx/exceptions.h"
+#include "../../common/common.h"
+#include "../../common/data.h"
+#include "../../common/collection.h"
+#include "../../common/exceptions.h"
 
 /**
  * Hash record structure to compare to a substring hash.

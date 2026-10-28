@@ -23,7 +23,7 @@
 %include stdint.i
 
 %include "../ConfigDeviceDetection.i"
-%include "../common-cxx/CollectionConfig.i"
+%include "../../common/CollectionConfig.i"
 
 %rename (ConfigHashSwig) ConfigHash;
 

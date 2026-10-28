@@ -20,10 +20,10 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-#include "../../src/common-cxx/tests/pch.h"
+#include "../../common/pch.h"
 #include <cstring>
 #include <vector>
-#include "../../src/hash/graph.h"
+#include "../../../src/dd/hash/graph.h"
 
 using std::vector;
 

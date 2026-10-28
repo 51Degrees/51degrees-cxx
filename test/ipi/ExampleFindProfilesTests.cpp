@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
-#include "../examples/C/IpIntelligence/FindProfiles.c"
+#include "../../examples/ipi/C/IpIntelligence/FindProfiles.c"
 
 class ExampleTestFindProfiles : public ExampleIpIntelligenceTest {
 public:

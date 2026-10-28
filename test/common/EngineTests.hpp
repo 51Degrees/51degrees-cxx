@@ -24,7 +24,7 @@
 #define FIFTYONE_DEGREES_ENGINE_BASE_TEST_HPP
 
 #include "Base.hpp"
-#include "../EngineBase.hpp"
+#include "../../src/common/EngineBase.hpp"
 #include <unordered_map>
 #include <thread>
 

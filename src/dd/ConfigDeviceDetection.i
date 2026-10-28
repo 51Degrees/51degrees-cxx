@@ -20,7 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-%include "common-cxx/ConfigBase.i"
+%include "../common/ConfigBase.i"
 
 %nodefaultctor ConfigDeviceDetection;
 

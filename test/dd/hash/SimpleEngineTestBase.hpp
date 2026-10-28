@@ -22,8 +22,8 @@
 
 #ifndef EngineHashInitializer_hpp
 #define EngineHashInitializer_hpp
-#include "../../src/hash/EngineHash.hpp"
-#include "../../src/common-cxx/tests/Base.hpp"
+#include "../../../src/dd/hash/EngineHash.hpp"
+#include "../../common/Base.hpp"
 #include <stdio.h>
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::DeviceDetection;

@@ -149,10 +149,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\examples\CPP\IpIntelligence\ExampleBase.hpp" />
+    <ClInclude Include="..\..\..\..\..\examples\ipi\CPP\IpIntelligence\ExampleBase.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\examples\CPP\IpIntelligence\ExampleBase.cpp" />
+    <ClCompile Include="..\..\..\..\..\examples\ipi\CPP\IpIntelligence\ExampleBase.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\FiftyOne.IpIntelligence.CPP\FiftyOne.IpIntelligence.CPP.vcxproj">

@@ -21,7 +21,7 @@
  * ********************************************************************* */
  
 #include "pch.h"
-#include "../resource.h"
+#include "../../src/common/resource.h"
 #include "Base.hpp"
 
 class ResourceManager : public Base

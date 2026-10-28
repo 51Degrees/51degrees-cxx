@@ -20,7 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-#include "../../src/common-cxx/Exceptions.hpp"
+#include "../../common/Exceptions.hpp"
 #include "ResultsHashSerializer.hpp"
 #include <algorithm>
 

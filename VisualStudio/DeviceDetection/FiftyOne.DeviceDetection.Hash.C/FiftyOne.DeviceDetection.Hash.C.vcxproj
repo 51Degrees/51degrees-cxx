@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
- <Import Project="$(SolutionDir)..\src\common-cxx\VisualStudio\Library.Build.props" />
+ <Import Project="$(SolutionDir)..\Common\Library.Build.props" />
   <ItemGroup>
-    <ClCompile Include="..\..\src\hash\graph.c" />
-    <ClCompile Include="..\..\src\hash\hash.c" />
+    <ClCompile Include="..\..\..\src\dd\hash\graph.c" />
+    <ClCompile Include="..\..\..\src\dd\hash\hash.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\hash\fiftyone.h" />
-    <ClInclude Include="..\..\src\hash\graph.h" />
-    <ClInclude Include="..\..\src\hash\hash.h" />
+    <ClInclude Include="..\..\..\src\dd\hash\fiftyone.h" />
+    <ClInclude Include="..\..\..\src\dd\hash\graph.h" />
+    <ClInclude Include="..\..\..\src\dd\hash\hash.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FiftyOne.DeviceDetection.C\FiftyOne.DeviceDetection.C.vcxproj">

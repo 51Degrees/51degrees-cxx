@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
-#include "../examples/C/IpIntelligence/ReloadFromFile.c"
+#include "../../examples/ipi/C/IpIntelligence/ReloadFromFile.c"
 
 class ExampleTestReloadFromFile : public ExampleIpIntelligenceTest {
 public:

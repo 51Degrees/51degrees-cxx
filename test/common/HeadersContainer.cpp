@@ -28,7 +28,7 @@
 //
 
 #include "HeadersContainer.hpp"
-#include "../fiftyone.h"
+#include "../../src/common/fiftyone.h"
 
 void HeadersContainer::CreateHeaders(
     const char** headersList,

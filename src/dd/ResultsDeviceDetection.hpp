@@ -23,7 +23,7 @@
 #ifndef FIFTYONE_DEGREES_RESULTS_DEVICE_DETECTION_HPP
 #define FIFTYONE_DEGREES_RESULTS_DEVICE_DETECTION_HPP
 
-#include "common-cxx/ResultsBase.hpp"
+#include "../common/ResultsBase.hpp"
 #include "results-dd.h"
 
 using namespace FiftyoneDegrees::Common;

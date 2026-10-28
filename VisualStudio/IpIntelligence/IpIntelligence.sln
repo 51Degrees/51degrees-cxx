@@ -49,9 +49,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Strongly Typed", "Examples\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FiftyOne.IpIntelligence.Tests", "FiftyOne.IpIntelligence.Tests\FiftyOne.IpIntelligence.Tests.vcxproj", "{1072D528-83C9-433F-95C2-8EB8401F0DF1}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FiftyOne.Common.C", "..\src\common-cxx\VisualStudio\FiftyOne.Common.C\FiftyOne.Common.C.vcxproj", "{8E1B0B4C-8220-4E7B-A838-B4B3DDB4CF15}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FiftyOne.Common.C", "..\Common\FiftyOne.Common.C\FiftyOne.Common.C.vcxproj", "{8E1B0B4C-8220-4E7B-A838-B4B3DDB4CF15}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FiftyOne.Common.CPP", "..\src\common-cxx\VisualStudio\FiftyOne.Common.CPP\FiftyOne.Common.CPP.vcxproj", "{01DCCD38-27CC-4C1A-851F-F1700EDF8BB5}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FiftyOne.Common.CPP", "..\Common\FiftyOne.Common.CPP\FiftyOne.Common.CPP.vcxproj", "{01DCCD38-27CC-4C1A-851F-F1700EDF8BB5}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ExampleBase", "Examples\Base\ExampleBase\ExampleBase.vcxproj", "{24A02087-1038-47C2-953E-DE2FF5A520FB}"
 EndProject
@@ -61,7 +61,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Base", "Base", "{281765FC-1
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
 	ProjectSection(SolutionItems) = preProject
-		..\Directory.Build.props = ..\Directory.Build.props
+		.\Directory.Build.props = .\Directory.Build.props
 	EndProjectSection
 EndProject
 Global

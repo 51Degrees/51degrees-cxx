@@ -148,7 +148,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\examples\CPP\IpIntelligence\MetaData.cpp" />
+    <ClCompile Include="..\..\..\..\..\examples\ipi\CPP\IpIntelligence\MetaData.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Base\ExampleBase\ExampleBase.vcxproj">

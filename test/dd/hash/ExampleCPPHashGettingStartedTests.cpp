@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/CPP/Hash/GettingStarted.cpp"
+#include "../../../examples/dd/CPP/Hash/GettingStarted.cpp"
 
 class ExampleCPPHashTestGettingStarted : public ExampleHashTest {
 public:

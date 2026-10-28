@@ -24,8 +24,8 @@
 #include <string>
 #include <thread>
 
-#include "../../../src/common-cxx/textfile.h"
-#include "../../../src/EngineIpi.hpp"
+#include "../../../../src/common/textfile.h"
+#include "../../../../src/ipi/EngineIpi.hpp"
 
 #define THREAD_COUNT 4
 

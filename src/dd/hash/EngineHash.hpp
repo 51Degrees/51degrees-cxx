@@ -24,12 +24,12 @@
 #define FIFTYONE_DEGREES_ENGINE_HASH_HPP
 
 #include <sstream>
-#include "../common-cxx/resource.h"
+#include "../../common/resource.h"
 #include "../EvidenceDeviceDetection.hpp"
 #include "../EngineDeviceDetection.hpp"
-#include "../common-cxx/RequiredPropertiesConfig.hpp"
-#include "../common-cxx/Date.hpp"
-#include "../common-cxx/overrides.h"
+#include "../../common/RequiredPropertiesConfig.hpp"
+#include "../../common/Date.hpp"
+#include "../../common/overrides.h"
 #include "ConfigHash.hpp"
 #include "ResultsHash.hpp"
 #include "MetaDataHash.hpp"

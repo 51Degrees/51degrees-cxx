@@ -24,9 +24,9 @@
 %include std_pair.i
 %include std_vector.i
 
-%include "common-cxx/ResultsBase.i"
+%include "../common/ResultsBase.i"
 %include "WeightedValue.i"
-%include "common-cxx/IpAddress.i"
+%include "../common/IpAddress.i"
 
 %template(WeightedStringListSwig) std::vector<WeightedValue<std::string>>;
 %template(WeightedUTF8StringListSwig) std::vector<WeightedValue<std::vector<uint8_t>>>;

@@ -32,9 +32,9 @@
 
 #include "Constants.hpp"
 #include "EngineIpIntelligenceTests.hpp"
-#include "../src/EngineIpi.hpp"
-#include "../src/common-cxx/file.h"
-#include "../src/common-cxx/memory.h"
+#include "../../src/ipi/EngineIpi.hpp"
+#include "../../src/common/file.h"
+#include "../../src/common/memory.h"
 
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;

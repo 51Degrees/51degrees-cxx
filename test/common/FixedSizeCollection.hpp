@@ -23,9 +23,9 @@
 #ifndef FixedSizeCollection_hpp
 #define FixedSizeCollection_hpp
 
-#include "../collection.h"
-#include "../string.h"
-#include "../fileOffset.h"
+#include "../../src/common/collection.h"
+#include "../../src/common/string.h"
+#include "../../src/common/fileOffset.h"
 #include <vector>
 
 typedef struct fixed_size_collection_state_t {

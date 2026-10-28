@@ -17,7 +17,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		Library++.Build.props = Library++.Build.props
 		Library.Build.props = Library.Build.props
-		..\README.md = ..\README.md
+		..\..\src\common\README.md = ..\..\src\common\README.md
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Fiftyone.Common.Tests", "Fiftyone.Common.Tests\Fiftyone.Common.Tests.vcxproj", "{4804BAB6-CC3D-455A-B359-0ECA128FB245}"

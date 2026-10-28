@@ -15,36 +15,36 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\ConfigDeviceDetection.cpp">
+    <ClCompile Include="..\..\..\src\dd\ConfigDeviceDetection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\EngineDeviceDetection.cpp">
+    <ClCompile Include="..\..\..\src\dd\EngineDeviceDetection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\EvidenceDeviceDetection.cpp">
+    <ClCompile Include="..\..\..\src\dd\EvidenceDeviceDetection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ResultsDeviceDetection.cpp">
+    <ClCompile Include="..\..\..\src\dd\ResultsDeviceDetection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\Transform.cpp">
+    <ClCompile Include="..\..\..\src\dd\Transform.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\ConfigDeviceDetection.hpp">
+    <ClInclude Include="..\..\..\src\dd\ConfigDeviceDetection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\EngineDeviceDetection.hpp">
+    <ClInclude Include="..\..\..\src\dd\EngineDeviceDetection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\EvidenceDeviceDetection.hpp">
+    <ClInclude Include="..\..\..\src\dd\EvidenceDeviceDetection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ResultsDeviceDetection.hpp">
+    <ClInclude Include="..\..\..\src\dd\ResultsDeviceDetection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\Transform.hpp">
+    <ClInclude Include="..\..\..\src\dd\Transform.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

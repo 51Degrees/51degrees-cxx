@@ -24,8 +24,8 @@
 #define FIFTYONE_DEGREES_PROFILE_META_DATA_BUILDER_HASH_HPP
 
 #include <vector>
-#include "../common-cxx/ProfileMetaData.hpp"
-#include "../common-cxx/EntityMetaDataBuilder.hpp"
+#include "../../common/ProfileMetaData.hpp"
+#include "../../common/EntityMetaDataBuilder.hpp"
 #include "hash.h"
 
 using namespace FiftyoneDegrees::Common;

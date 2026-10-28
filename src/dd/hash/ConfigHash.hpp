@@ -23,7 +23,7 @@
 #ifndef FIFTYONE_DEGREES_CONFIG_HASH_HPP
 #define FIFTYONE_DEGREES_CONFIG_HASH_HPP
 
-#include "../common-cxx/CollectionConfig.hpp"
+#include "../../common/CollectionConfig.hpp"
 #include "../ConfigDeviceDetection.hpp"
 #include "hash.h"
 

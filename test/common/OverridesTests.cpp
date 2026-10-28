@@ -21,9 +21,9 @@
  * ********************************************************************* */
 
 #include "pch.h"
-#include "../overrides.h"
-#include "../memory.h"
-#include "../string.h"
+#include "../../src/common/overrides.h"
+#include "../../src/common/memory.h"
+#include "../../src/common/string.h"
 #include "StringCollection.hpp"
 
 #ifdef _MSC_VER

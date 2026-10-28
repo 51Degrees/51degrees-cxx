@@ -15,27 +15,27 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\fiftyone.h">
+    <ClInclude Include="..\..\..\src\ipi\fiftyone.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ipi.h">
+    <ClInclude Include="..\..\..\src\ipi\ipi.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ip-graph-cxx\graph.h">
+    <ClInclude Include="..\..\..\src\ipi\graph\graph.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ipi_weighted_results.h">
+    <ClInclude Include="..\..\..\src\ipi\ipi_weighted_results.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\ipi.c">
+    <ClCompile Include="..\..\..\src\ipi\ipi.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ip-graph-cxx\graph.c">
+    <ClCompile Include="..\..\..\src\ipi\graph\graph.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ipi_weighted_results.c">
+    <ClCompile Include="..\..\..\src\ipi\ipi_weighted_results.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

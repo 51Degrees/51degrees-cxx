@@ -27,8 +27,8 @@
 
 #include "graph.h"
 
-#include "../common-cxx/collectionKeyTypes.h"
-#include "../common-cxx/fiftyone.h"
+#include "../../common/collectionKeyTypes.h"
+#include "../../common/fiftyone.h"
 
 MAP_TYPE(IpiCg)
 MAP_TYPE(IpiCgArray)

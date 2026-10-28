@@ -21,9 +21,9 @@
  * ********************************************************************* */
  
 #include "pch.h"
-#include "../PropertyMetaData.hpp"
-#include "../ComponentMetaData.hpp"
-#include "../ValueMetaData.hpp"
+#include "../../src/common/PropertyMetaData.hpp"
+#include "../../src/common/ComponentMetaData.hpp"
+#include "../../src/common/ValueMetaData.hpp"
 
 using namespace FiftyoneDegrees::Common;
 

@@ -21,8 +21,8 @@
  * ********************************************************************* */
  
 #include "pch.h"
-#include "../ip.h"
-#include "../fiftyone.h"
+#include "../../src/common/ip.h"
+#include "../../src/common/fiftyone.h"
 #include <memory>
 
 static bool CheckResult(

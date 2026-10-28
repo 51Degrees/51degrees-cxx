@@ -24,9 +24,9 @@
 #include <string>
 #include <vector>
 #include "Constants.hpp"
-#include "../src/common-cxx/tests/Base.hpp"
-#include "../src/EngineIpi.hpp"
-#include "../src/fiftyone.h"
+#include "../common/Base.hpp"
+#include "../../src/ipi/EngineIpi.hpp"
+#include "../../src/ipi/fiftyone.h"
 
 using namespace std;
 // Aliases rather than open namespaces, because the C synonym typedefs from

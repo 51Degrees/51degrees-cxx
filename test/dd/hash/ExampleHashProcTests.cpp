@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/C/Hash/ProcHash.c"
+#include "../../../examples/dd/C/Hash/ProcHash.c"
 
 
 class ExampleTestHashProc : public ExampleHashTest {

@@ -21,9 +21,9 @@
  * ********************************************************************* */
 
 #include "ProfileMetaDataCollectionIpi.hpp"
-#include "common-cxx/Exceptions.hpp"
+#include "../common/Exceptions.hpp"
 #include "fiftyone.h"
-#include "common-cxx/collectionKeyTypes.h"
+#include "../common/collectionKeyTypes.h"
 
 using namespace std;
 using namespace FiftyoneDegrees::IpIntelligence;

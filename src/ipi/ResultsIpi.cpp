@@ -22,9 +22,9 @@
 
 #include "ResultsIpi.hpp"
 #include "fiftyone.h"
-#include "common-cxx/wkbtot_pp.hpp"
+#include "../common/wkbtot_pp.hpp"
 #include "constantsIpi.h"
-#include "common-cxx/string_pp.hpp"
+#include "../common/string_pp.hpp"
 
 using namespace FiftyoneDegrees;
 using namespace FiftyoneDegrees::Common;

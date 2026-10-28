@@ -17,6 +17,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\performance\CachePerf.c" />
+    <ClCompile Include="..\..\..\test\common\performance\CachePerf.c" />
   </ItemGroup>
 </Project>

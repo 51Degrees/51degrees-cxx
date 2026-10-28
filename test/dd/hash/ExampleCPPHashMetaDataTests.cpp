@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/CPP/Hash/MetaData.cpp"
+#include "../../../examples/dd/CPP/Hash/MetaData.cpp"
 
 
 class ExampleCPPHashMetaDataTests : public ExampleHashTest {

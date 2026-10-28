@@ -24,8 +24,8 @@
 #include <string>
 #include <vector>
 #include "../Constants.hpp"
-#include "../../src/common-cxx/tests/Base.hpp"
-#include "../../src/hash/EngineHash.hpp"
+#include "../../common/Base.hpp"
+#include "../../../src/dd/hash/EngineHash.hpp"
 
 using namespace std;
 using namespace FiftyoneDegrees::Common;

@@ -22,8 +22,8 @@
 
 #include <gtest/gtest.h>
 #include "TestUtils_Pointers.hpp"
-#include "../collectionKeyTypes.h"
-#include "../fiftyone.h"
+#include "../../src/common/collectionKeyTypes.h"
+#include "../../src/common/fiftyone.h"
 #include <vector>
 
 #ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT

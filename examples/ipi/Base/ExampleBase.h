@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #include <crtdbg.h>
 #endif
-#include "../../src/fiftyone.h"
+#include "../../../src/ipi/fiftyone.h"
 
 #ifdef _MSC_VER
 #define TIMER_CREATE double start, end

@@ -21,8 +21,8 @@
  * ********************************************************************* */
  
 #include "pch.h"
-#include "../IpAddress.hpp"
-#include "../fiftyone.h"
+#include "../../src/common/IpAddress.hpp"
+#include "../../src/common/fiftyone.h"
 
 
 static bool CheckResult(const byte *result, const byte *expected, uint16_t const size) {

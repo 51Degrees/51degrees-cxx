@@ -23,7 +23,7 @@
 #ifndef FIFTYONE_DEGREES_PROFILE_META_DATA_COLLECTION_HASH_HPP
 #define FIFTYONE_DEGREES_PROFILE_META_DATA_COLLECTION_HASH_HPP
 
-#include "../common-cxx/Collection.hpp"
+#include "../../common/Collection.hpp"
 #include "ProfileMetaDataBuilderHash.hpp"
 #include "hash.h"
 

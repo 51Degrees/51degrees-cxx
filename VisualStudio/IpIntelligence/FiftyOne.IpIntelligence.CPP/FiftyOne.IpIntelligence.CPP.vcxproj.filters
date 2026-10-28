@@ -15,117 +15,117 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\PropertyMetaDataCollectionForPropertyIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\PropertyMetaDataCollectionForPropertyIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\PropertyMetaDataBuilderIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\PropertyMetaDataBuilderIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\MetaDataIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\MetaDataIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ValueMetaDataCollectionForPropertyIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ValueMetaDataCollectionForPropertyIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ValueMetaDataCollectionIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ValueMetaDataCollectionIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ValueMetaDataCollectionForProfileIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ValueMetaDataCollectionForProfileIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ValueMetaDataCollectionBaseIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ValueMetaDataCollectionBaseIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ValueMetaDataBuilderIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ValueMetaDataBuilderIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ResultsIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ResultsIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\PropertyMetaDataCollectionIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\PropertyMetaDataCollectionIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\PropertyMetaDataCollectionForComponentIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\PropertyMetaDataCollectionForComponentIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ProfileMetaDataCollectionIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ProfileMetaDataCollectionIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ProfileMetaDataBuilderIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ProfileMetaDataBuilderIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\EngineIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\EngineIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ConfigIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ConfigIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ComponentMetaDataCollectionIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ComponentMetaDataCollectionIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ComponentMetaDataBuilderIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\ComponentMetaDataBuilderIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\EvidenceIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\EvidenceIpi.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\WeightedValue.hpp">
+    <ClInclude Include="..\..\..\src\ipi\WeightedValue.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\PropertyMetaDataCollectionForPropertyIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\PropertyMetaDataCollectionForPropertyIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\PropertyMetaDataBuilderIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\PropertyMetaDataBuilderIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\MetaDataIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\MetaDataIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ValueMetaDataCollectionIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ValueMetaDataCollectionIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ValueMetaDataCollectionForPropertyIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ValueMetaDataCollectionForPropertyIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ValueMetaDataCollectionForProfileIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ValueMetaDataCollectionForProfileIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ValueMetaDataCollectionBaseIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ValueMetaDataCollectionBaseIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ValueMetaDataBuilderIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ValueMetaDataBuilderIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ResultsIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ResultsIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\PropertyMetaDataCollectionIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\PropertyMetaDataCollectionIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\PropertyMetaDataCollectionForComponentIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\PropertyMetaDataCollectionForComponentIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ProfileMetaDataCollectionIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ProfileMetaDataCollectionIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ProfileMetaDataBuilderIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ProfileMetaDataBuilderIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\EngineIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\EngineIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ConfigIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ConfigIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ComponentMetaDataCollectionIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ComponentMetaDataCollectionIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ComponentMetaDataBuilderIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\ComponentMetaDataBuilderIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\EvidenceIpi.cpp">
+    <ClCompile Include="..\..\..\src\ipi\EvidenceIpi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

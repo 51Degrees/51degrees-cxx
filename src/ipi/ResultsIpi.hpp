@@ -25,9 +25,9 @@
 
 #include <sstream>
 #include <vector>
-#include "common-cxx/ResultsBase.hpp"
+#include "../common/ResultsBase.hpp"
 #include "WeightedValue.hpp"
-#include "common-cxx/IpAddress.hpp"
+#include "../common/IpAddress.hpp"
 #include "ipi.h"
 #include <functional>
 

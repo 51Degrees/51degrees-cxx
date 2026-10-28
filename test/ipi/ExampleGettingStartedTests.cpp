@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
-#include "../examples/C/IpIntelligence/GettingStarted.c"
+#include "../../examples/ipi/C/IpIntelligence/GettingStarted.c"
 
 class ExampleTestGettingStarted : public ExampleIpIntelligenceTest {
 public:

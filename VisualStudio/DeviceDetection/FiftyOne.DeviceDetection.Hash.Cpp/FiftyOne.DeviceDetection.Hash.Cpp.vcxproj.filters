@@ -15,108 +15,108 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\hash\ComponentMetaDataBuilderHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ComponentMetaDataBuilderHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\ComponentMetaDataCollectionHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ComponentMetaDataCollectionHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\ConfigHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ConfigHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\EngineHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\EngineHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\MetaDataHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\MetaDataHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\ProfileMetaDataBuilderHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ProfileMetaDataBuilderHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\ProfileMetaDataCollectionHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ProfileMetaDataCollectionHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\PropertyMetaDataBuilderHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\PropertyMetaDataBuilderHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\PropertyMetaDataCollectionForComponentHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionForComponentHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\PropertyMetaDataCollectionHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\ResultsHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ResultsHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\ValueMetaDataBuilderHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ValueMetaDataBuilderHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionBaseHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ValueMetaDataCollectionBaseHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionForProfileHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ValueMetaDataCollectionForProfileHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionForPropertyHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ValueMetaDataCollectionForPropertyHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\ValueMetaDataCollectionHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\ValueMetaDataCollectionHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\PropertyMetaDataCollectionForPropertyHash.cpp">
+    <ClCompile Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionForPropertyHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\hash\ComponentMetaDataBuilderHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ComponentMetaDataBuilderHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\ComponentMetaDataCollectionHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ComponentMetaDataCollectionHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\ConfigHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ConfigHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\EngineHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\EngineHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\MetaDataHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\MetaDataHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\ProfileMetaDataBuilderHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ProfileMetaDataBuilderHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\ProfileMetaDataCollectionHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ProfileMetaDataCollectionHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\PropertyMetaDataBuilderHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\PropertyMetaDataBuilderHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\PropertyMetaDataCollectionForComponentHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionForComponentHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\PropertyMetaDataCollectionHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\ResultsHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ResultsHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\ValueMetaDataBuilderHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ValueMetaDataBuilderHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionBaseHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ValueMetaDataCollectionBaseHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionForProfileHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ValueMetaDataCollectionForProfileHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionForPropertyHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ValueMetaDataCollectionForPropertyHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\ValueMetaDataCollectionHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\ValueMetaDataCollectionHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\PropertyMetaDataCollectionForPropertyHash.hpp">
+    <ClInclude Include="..\..\..\src\dd\hash\PropertyMetaDataCollectionForPropertyHash.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

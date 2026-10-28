@@ -23,8 +23,8 @@
 #include "ComponentMetaDataBuilderHash.hpp"
 
 #include "fiftyone.h"
-#include "../common-cxx/Exceptions.hpp"
-#include "../common-cxx/collectionKeyTypes.h"
+#include "../../common/Exceptions.hpp"
+#include "../../common/collectionKeyTypes.h"
 
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 

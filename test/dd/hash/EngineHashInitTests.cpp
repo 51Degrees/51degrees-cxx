@@ -22,7 +22,7 @@
 
 #include "../Constants.hpp"
 #include "../EngineDeviceDetectionTests.hpp"
-#include "../../src/hash/EngineHash.hpp"
+#include "../../../src/dd/hash/EngineHash.hpp"
 #include <iostream>
 #include <fstream>
 

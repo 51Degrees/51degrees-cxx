@@ -26,7 +26,7 @@
 #include <string>
 #include <cstdlib>
 #include "Constants.hpp"
-#include "../src/common-cxx/tests/EngineTests.hpp"
+#include "../common/EngineTests.hpp"
 
 // Helper to check if running on CI and config uses temp file (skip to save disk space)
 #define SKIP_TEMP_FILE_TESTS_ON_CI() \
@@ -56,8 +56,8 @@
 			} \
 		} \
 	} while(0)
-#include "../src/EngineIpi.hpp"
-#include "../src/common-cxx/textfile.h"
+#include "../../src/ipi/EngineIpi.hpp"
+#include "../../src/common/textfile.h"
 
 using namespace FiftyoneDegrees::IpIntelligence;
 

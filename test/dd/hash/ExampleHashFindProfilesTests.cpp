@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/C/Hash/FindProfiles.c"
+#include "../../../examples/dd/C/Hash/FindProfiles.c"
 
 class ExampleHashTestFindProfiles : public ExampleHashTest {
 public:

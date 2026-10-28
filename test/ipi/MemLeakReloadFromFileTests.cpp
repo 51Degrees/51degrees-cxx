@@ -36,10 +36,10 @@
 #endif
 #endif
 
-#include "../examples/Base/ExampleBase.h"
-#include "../src/common-cxx/textfile.h"
-#include "../src/ipi.h"
-#include "../src/fiftyone.h"
+#include "../../examples/ipi/Base/ExampleBase.h"
+#include "../../src/common/textfile.h"
+#include "../../src/ipi/ipi.h"
+#include "../../src/ipi/fiftyone.h"
 #include "ExampleIpIntelligenceTests.hpp"
 
 #define THREAD_COUNT 4

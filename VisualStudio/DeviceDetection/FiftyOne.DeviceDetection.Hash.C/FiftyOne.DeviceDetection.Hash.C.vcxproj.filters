@@ -15,21 +15,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\hash\hash.c">
+    <ClCompile Include="..\..\..\src\dd\hash\hash.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\hash\graph.c">
+    <ClCompile Include="..\..\..\src\dd\hash\graph.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\hash\hash.h">
+    <ClInclude Include="..\..\..\src\dd\hash\hash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\fiftyone.h">
+    <ClInclude Include="..\..\..\src\dd\hash\fiftyone.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\hash\graph.h">
+    <ClInclude Include="..\..\..\src\dd\hash\graph.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

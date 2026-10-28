@@ -22,7 +22,7 @@
 
 #ifndef FIFTYONE_DEGREES_WEIGHTED_VALUE_HPP
 #define FIFTYONE_DEGREES_WEIGHTED_VALUE_HPP
-#include "common-cxx/weightedItem.h"
+#include "../common/weightedItem.h"
 
 namespace FiftyoneDegrees {
 	namespace IpIntelligence {

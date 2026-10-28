@@ -26,11 +26,11 @@
 // Include ExmapleBase.h before others as it includes Windows 'crtdbg.h'
 // which requires to be included before 'malloc.h'.
 #include "../../C/Hash/ExampleBase.h"
-#include "../../../src/hash/EngineHash.hpp"
+#include "../../../../src/dd/hash/EngineHash.hpp"
 #include <string>
 #include <iostream>
 #include <thread>
-#include "../../../src/common-cxx/textfile.h"
+#include "../../../../src/common/textfile.h"
 
 #define THREAD_COUNT 4
 

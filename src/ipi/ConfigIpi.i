@@ -22,8 +22,8 @@
 
 %include stdint.i
 
-%include "common-cxx/ConfigBase.i"
-%include "common-cxx/CollectionConfig.i"
+%include "../common/ConfigBase.i"
+%include "../common/CollectionConfig.i"
 
 %nodefaultctor ConfigIpi;
 

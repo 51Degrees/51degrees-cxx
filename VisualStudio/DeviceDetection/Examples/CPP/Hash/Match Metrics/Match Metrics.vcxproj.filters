@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\examples\CPP\Hash\MatchMetrics.cpp">
+    <ClCompile Include="..\..\..\..\..\..\examples\dd\CPP\Hash\MatchMetrics.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

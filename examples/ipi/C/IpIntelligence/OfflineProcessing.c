@@ -124,9 +124,9 @@ Expected content of output file:
 #include <stdlib.h>
 
 #include "../../Base/ExampleBase.h"
-#include "../../../src/ipi.h"
-#include "../../../src/common-cxx/textfile.h"
-#include "../../../src/fiftyone.h"
+#include "../../../../src/ipi/ipi.h"
+#include "../../../../src/common/textfile.h"
+#include "../../../../src/ipi/fiftyone.h"
 
 static const char* dataDir = "ip-intelligence-data";
 

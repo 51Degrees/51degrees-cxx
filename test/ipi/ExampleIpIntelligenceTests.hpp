@@ -25,9 +25,9 @@
 
 #include <cstdlib>
 #include <string>
-#include "../src/common-cxx/file.h"
-#include "../src/common-cxx/tests/ExampleTests.hpp"
-#include "../src/ipi.h"
+#include "../../src/common/file.h"
+#include "../common/ExampleTests.hpp"
+#include "../../src/ipi/ipi.h"
 #include "Constants.hpp"
 
 // Helper to skip temp file tests on CI

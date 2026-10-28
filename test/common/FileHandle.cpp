@@ -22,7 +22,7 @@
  
 #include "pch.h"
 #include "FileHandle.hpp"
-#include "../Exceptions.hpp"
+#include "../../src/common/Exceptions.hpp"
 
 using namespace FiftyoneDegrees::Common;
 

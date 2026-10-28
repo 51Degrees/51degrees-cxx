@@ -22,7 +22,7 @@
  
 #include "pch.h"
 #include "Base.hpp"
-#include "../memory.h"
+#include "../../src/common/memory.h"
 
 /**
  * Memory Leak test class used to verify that the Base.cpp memory leak check

@@ -23,9 +23,9 @@
 #include "pch.h"
 #include "Base.hpp"
 #include "TestStrings.hpp"
-#include "../Exceptions.hpp"
-#include "../cache.h"
-#include "../memory.h"
+#include "../../src/common/Exceptions.hpp"
+#include "../../src/common/cache.h"
+#include "../../src/common/memory.h"
 
 #define TEST_CACHE(c,a,o) \
 class CacheTest##c : public CacheTest { \

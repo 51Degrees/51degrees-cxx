@@ -20,12 +20,12 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-#include "../../src/common-cxx/tests/pch.h"
+#include "../../common/pch.h"
 #include <string>
 #include <vector>
 #include "../Constants.hpp"
-#include "../../src/common-cxx/tests/Base.hpp"
-#include "../../src/hash/fiftyone.h"
+#include "../../common/Base.hpp"
+#include "../../../src/dd/hash/fiftyone.h"
 
 
 // User-Agent string of an iPhone mobile device.

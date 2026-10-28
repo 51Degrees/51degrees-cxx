@@ -23,7 +23,7 @@
 #include <string>
 #include <iostream>
 #include <cstdlib>
-#include "../../../src/EngineIpi.hpp"
+#include "../../../../src/ipi/EngineIpi.hpp"
 #include "ExampleBase.hpp"
 
 using namespace std;

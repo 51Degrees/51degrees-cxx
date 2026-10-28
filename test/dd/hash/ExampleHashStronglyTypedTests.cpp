@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/C/Hash/StronglyTyped.c"
+#include "../../../examples/dd/C/Hash/StronglyTyped.c"
 
 
 class ExampleHashStronglyTypedTests : public ExampleHashTest {

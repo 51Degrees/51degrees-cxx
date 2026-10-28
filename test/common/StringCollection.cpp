@@ -22,9 +22,9 @@
 #include "pch.h"
 #include "StringCollection.hpp"
 
-#include "../collectionKeyTypes.h"
-#include "../fiftyone.h"
-#include "../Exceptions.hpp"
+#include "../../src/common/collectionKeyTypes.h"
+#include "../../src/common/fiftyone.h"
+#include "../../src/common/Exceptions.hpp"
 
 // Function used to return string names when the collections code 
 // requests them

@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\examples\CPP\Hash\ReloadFromMemory.cpp">
+    <ClCompile Include="..\..\..\..\..\..\examples\dd\CPP\Hash\ReloadFromMemory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

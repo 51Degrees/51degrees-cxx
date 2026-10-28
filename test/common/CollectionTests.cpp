@@ -25,11 +25,11 @@
 #include "Base.hpp"
 #include "FileHandle.hpp"
 #include "TestStrings.hpp"
-#include "../CollectionConfig.hpp"
-#include "../Exceptions.hpp"
-#include "../collection.h"
-#include "../collectionKeyTypes.h"
-#include "../list.h"
+#include "../../src/common/CollectionConfig.hpp"
+#include "../../src/common/Exceptions.hpp"
+#include "../../src/common/collection.h"
+#include "../../src/common/collectionKeyTypes.h"
+#include "../../src/common/list.h"
 
 using namespace FiftyoneDegrees::Common;
 

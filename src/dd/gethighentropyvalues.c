@@ -22,7 +22,7 @@
 
 #include "gethighentropyvalues.h"
 #include "fiftyone.h"
-#include "common-cxx/collectionKeyTypes.h"
+#include "../common/collectionKeyTypes.h"
 
 // The property name of the GHEV javascript. This property value can be 
 // overridden with no value if there is no need for it to be returned.

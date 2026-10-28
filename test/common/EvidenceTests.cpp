@@ -23,8 +23,8 @@
 #include "pch.h"
 #include "EvidenceTests.hpp"
 #include "memory.h"
-#include "../EvidenceBase.hpp"
-#include "../fiftyone.h"
+#include "../../src/common/EvidenceBase.hpp"
+#include "../../src/common/fiftyone.h"
 
 using namespace FiftyoneDegrees::Common;
 

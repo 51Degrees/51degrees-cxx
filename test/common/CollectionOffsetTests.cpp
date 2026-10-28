@@ -23,7 +23,7 @@
 #include <gtest/gtest.h>
 #include <gtest/gtest-param-test.h>
 #include "TestUtils_Pointers.hpp"
-#include "../collectionKeyTypes.h"
+#include "../../src/common/collectionKeyTypes.h"
 
 using BytesPtr = std::unique_ptr<byte[]>;
 static constexpr size_t elementsCount = 131;

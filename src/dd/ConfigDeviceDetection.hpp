@@ -24,7 +24,7 @@
 #define FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_HPP
 
 #include <cstddef>
-#include "common-cxx/ConfigBase.hpp"
+#include "../common/ConfigBase.hpp"
 #include "config-dd.h"
 
 using namespace FiftyoneDegrees::Common;

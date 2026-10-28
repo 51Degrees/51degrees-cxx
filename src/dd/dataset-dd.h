@@ -24,8 +24,8 @@
 #define FIFTYONE_DEGREES_DATASET_DEVICE_DETECTION_H_INCLUDED
 
 #include <stdlib.h>
-#include "common-cxx/dataset.h"
-#include "common-cxx/exceptions.h"
+#include "../common/dataset.h"
+#include "../common/exceptions.h"
 #include "config-dd.h"
 
 /**

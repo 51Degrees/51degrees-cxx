@@ -21,8 +21,8 @@
  * ********************************************************************* */
 
 #include "pch.h"
-#include "../fiftyone.h"
-#include "../wkbtot.h"
+#include "../../src/common/fiftyone.h"
+#include "../../src/common/wkbtot.h"
 
 static bool CheckResult(const char *result, const char *expected, size_t const size) {
 	bool match = true;

@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "PropertyMetaDataCollectionForComponentHash.hpp"
-#include "../common-cxx/Exceptions.hpp"
+#include "../../common/Exceptions.hpp"
 #include "fiftyone.h"
 
 using std::shared_ptr;

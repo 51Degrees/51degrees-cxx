@@ -29,9 +29,9 @@
 #include <unistd.h>
 #endif
 
-#include "../../src/common-cxx/textfile.h"
-#include "../../src/hash/hash.h"
-#include "../../src/hash/fiftyone.h"
+#include "../../../src/common/textfile.h"
+#include "../../../src/dd/hash/hash.h"
+#include "../../../src/dd/hash/fiftyone.h"
 #include "ExampleHashTests.hpp"
 
 #define THREAD_COUNT 4

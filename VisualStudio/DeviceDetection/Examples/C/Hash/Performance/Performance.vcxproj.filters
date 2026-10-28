@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\examples\C\Hash\Performance.c">
+    <ClCompile Include="..\..\..\..\..\..\examples\dd\C\Hash\Performance.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -12,168 +12,168 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\tests\Base.cpp">
+    <ClCompile Include="..\..\..\test\common\Base.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\CacheTests.cpp">
+    <ClCompile Include="..\..\..\test\common\CacheTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\CollectionConfigTests.cpp">
+    <ClCompile Include="..\..\..\test\common\CollectionConfigTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\CollectionTests.cpp">
+    <ClCompile Include="..\..\..\test\common\CollectionTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\EngineTests.cpp">
+    <ClCompile Include="..\..\..\test\common\EngineTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\EvidenceTests.cpp">
+    <ClCompile Include="..\..\..\test\common\EvidenceTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\EvidenceWithHeadersTests_MultipleHeaders.cpp">
+    <ClCompile Include="..\..\..\test\common\EvidenceWithHeadersTests_MultipleHeaders.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\EvidenceWithHeadersTests_NoHeaders.cpp">
+    <ClCompile Include="..\..\..\test\common\EvidenceWithHeadersTests_NoHeaders.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\EvidenceWithHeadersTests_SingleHeader.cpp">
+    <ClCompile Include="..\..\..\test\common\EvidenceWithHeadersTests_SingleHeader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\ExampleTests.cpp">
+    <ClCompile Include="..\..\..\test\common\ExampleTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\FileHandle.cpp">
+    <ClCompile Include="..\..\..\test\common\FileHandle.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\FileTests.cpp">
+    <ClCompile Include="..\..\..\test\common\FileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\HeadersTests.cpp">
+    <ClCompile Include="..\..\..\test\common\HeadersTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\IpParserTests.cpp">
+    <ClCompile Include="..\..\..\test\common\IpParserTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\main.cpp">
+    <ClCompile Include="..\..\..\test\common\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\pch.cpp">
+    <ClCompile Include="..\..\..\test\common\pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\PropertiesTests.cpp">
+    <ClCompile Include="..\..\..\test\common\PropertiesTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\PropertyMetaDataTests.cpp">
+    <ClCompile Include="..\..\..\test\common\PropertyMetaDataTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\RequiredPropertiesConfigTests.cpp">
+    <ClCompile Include="..\..\..\test\common\RequiredPropertiesConfigTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\ResourceManagerTests.cpp">
+    <ClCompile Include="..\..\..\test\common\ResourceManagerTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\StatusTests.cpp">
+    <ClCompile Include="..\..\..\test\common\StatusTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\StringCollection.cpp">
+    <ClCompile Include="..\..\..\test\common\StringCollection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\TestStrings.cpp">
+    <ClCompile Include="..\..\..\test\common\TestStrings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\ValueTests.cpp">
+    <ClCompile Include="..\..\..\test\common\ValueTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\ThreadingTests.cpp">
+    <ClCompile Include="..\..\..\test\common\ThreadingTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\FloatTests.cpp">
+    <ClCompile Include="..\..\..\test\common\FloatTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\OverridesTests.cpp">
+    <ClCompile Include="..\..\..\test\common\OverridesTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\TextFileTests.cpp">
+    <ClCompile Include="..\..\..\test\common\TextFileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\MemoryLeakTests.cpp">
+    <ClCompile Include="..\..\..\test\common\MemoryLeakTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\YamlFileTests.cpp">
+    <ClCompile Include="..\..\..\test\common\YamlFileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\PoolTests.cpp">
+    <ClCompile Include="..\..\..\test\common\PoolTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\IpAddressTests.cpp">
+    <ClCompile Include="..\..\..\test\common\IpAddressTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\HeadersContainer.cpp">
+    <ClCompile Include="..\..\..\test\common\HeadersContainer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\IndicesTests.cpp">
+    <ClCompile Include="..\..\..\test\common\IndicesTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\ProfileTests.cpp">
+    <ClCompile Include="..\..\..\test\common\ProfileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\StringsTests.cpp">
+    <ClCompile Include="..\..\..\test\common\StringsTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\WellKnownBinaryToTextTests.cpp">
+    <ClCompile Include="..\..\..\test\common\WellKnownBinaryToTextTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\IpHeaderParserTests.cpp">
+    <ClCompile Include="..\..\..\test\common\IpHeaderParserTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\JsonTests.cpp">
+    <ClCompile Include="..\..\..\test\common\JsonTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\PropertyTests.cpp">
+    <ClCompile Include="..\..\..\test\common\PropertyTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\StoredBinaryValueTests.cpp">
+    <ClCompile Include="..\..\..\test\common\StoredBinaryValueTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\CollectionOffsetTests.cpp">
+    <ClCompile Include="..\..\..\test\common\CollectionOffsetTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\tests\Base.hpp">
+    <ClInclude Include="..\..\..\test\common\Base.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\EngineTests.hpp">
+    <ClInclude Include="..\..\..\test\common\EngineTests.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\EvidenceTests.hpp">
+    <ClInclude Include="..\..\..\test\common\EvidenceTests.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\ExampleTests.hpp">
+    <ClInclude Include="..\..\..\test\common\ExampleTests.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\FileHandle.hpp">
+    <ClInclude Include="..\..\..\test\common\FileHandle.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\pch.h">
+    <ClInclude Include="..\..\..\test\common\pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\StringCollection.hpp">
+    <ClInclude Include="..\..\..\test\common\StringCollection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\TestStrings.hpp">
+    <ClInclude Include="..\..\..\test\common\TestStrings.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\FixedSizeCollection.hpp">
+    <ClInclude Include="..\..\..\test\common\FixedSizeCollection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\HeadersContainer.hpp">
+    <ClInclude Include="..\..\..\test\common\HeadersContainer.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\VariableSizeCollection.hpp">
+    <ClInclude Include="..\..\..\test\common\VariableSizeCollection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tests\TestUtils_Pointers.hpp">
+    <ClInclude Include="..\..\..\test\common\TestUtils_Pointers.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/CPP/Hash/ReloadFromMemory.cpp"
+#include "../../../examples/dd/CPP/Hash/ReloadFromMemory.cpp"
 
 
 class ExampleCPPHashReloadFromMemoryTests : public ExampleHashTest {

@@ -24,7 +24,7 @@
 #include <cstdio>
 #include <string>
 #include <sstream>
-#include "../textfile.h"
+#include "../../src/common/textfile.h"
 
 using namespace std;
 

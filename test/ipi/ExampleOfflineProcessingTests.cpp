@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
-#include "../examples/C/IpIntelligence/OfflineProcessing.c"
+#include "../../examples/ipi/C/IpIntelligence/OfflineProcessing.c"
 
 class ExampleTestOfflineProcessing : public ExampleIpIntelligenceTest {
 private:

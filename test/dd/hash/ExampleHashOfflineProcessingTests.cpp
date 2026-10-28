@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/C/Hash/OfflineProcessing.c"
+#include "../../../examples/dd/C/Hash/OfflineProcessing.c"
 
 class ExampleHashTestOfflineProcessing : public ExampleHashTest {
 private:

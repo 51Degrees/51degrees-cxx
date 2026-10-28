@@ -148,10 +148,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\examples\Base\ExampleBase.h" />
+    <ClInclude Include="..\..\..\..\..\examples\ipi\Base\ExampleBase.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\examples\Base\ExampleBase.c" />
+    <ClCompile Include="..\..\..\..\..\examples\ipi\Base\ExampleBase.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\FiftyOne.IpIntelligence.CPP\FiftyOne.IpIntelligence.CPP.vcxproj">

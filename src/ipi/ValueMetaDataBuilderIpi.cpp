@@ -22,10 +22,10 @@
 
 #include <sstream>
 #include "ValueMetaDataBuilderIpi.hpp"
-#include "common-cxx/Exceptions.hpp"
+#include "../common/Exceptions.hpp"
 #include "constantsIpi.h"
 #include "fiftyone.h"
-#include "common-cxx/string_pp.hpp"
+#include "../common/string_pp.hpp"
 
 using namespace std;
 using namespace FiftyoneDegrees::Common;

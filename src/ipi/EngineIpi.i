@@ -20,12 +20,12 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-%include "common-cxx/EngineBase.i"
+%include "../common/EngineBase.i"
 %include "ResultsIpi.i"
 %include "ConfigIpi.i"
-%include "common-cxx/EvidenceBase.i"
+%include "../common/EvidenceBase.i"
 %include "EvidenceIpi.i"
-%include "common-cxx/ip.i"
+%include "../common/ip.i"
 
 %newobject process;
 

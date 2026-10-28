@@ -15,114 +15,114 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\CollectionConfig.cpp">
+    <ClCompile Include="..\..\..\src\common\CollectionConfig.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ComponentMetaData.cpp">
+    <ClCompile Include="..\..\..\src\common\ComponentMetaData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ConfigBase.cpp">
+    <ClCompile Include="..\..\..\src\common\ConfigBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\EngineBase.cpp">
+    <ClCompile Include="..\..\..\src\common\EngineBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\EvidenceBase.cpp">
+    <ClCompile Include="..\..\..\src\common\EvidenceBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Exceptions.cpp">
+    <ClCompile Include="..\..\..\src\common\Exceptions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\MetaData.cpp">
+    <ClCompile Include="..\..\..\src\common\MetaData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ProfileMetaData.cpp">
+    <ClCompile Include="..\..\..\src\common\ProfileMetaData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\PropertyMetaData.cpp">
+    <ClCompile Include="..\..\..\src\common\PropertyMetaData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\RequiredPropertiesConfig.cpp">
+    <ClCompile Include="..\..\..\src\common\RequiredPropertiesConfig.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ResultsBase.cpp">
+    <ClCompile Include="..\..\..\src\common\ResultsBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ValueMetaData.cpp">
+    <ClCompile Include="..\..\..\src\common\ValueMetaData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Date.cpp">
+    <ClCompile Include="..\..\..\src\common\Date.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\IpAddress.cpp">
+    <ClCompile Include="..\..\..\src\common\IpAddress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\string_pp.cpp">
+    <ClCompile Include="..\..\..\src\common\string_pp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\wkbtot_pp.cpp">
+    <ClCompile Include="..\..\..\src\common\wkbtot_pp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\CollectionConfig.hpp">
+    <ClInclude Include="..\..\..\src\common\CollectionConfig.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\ComponentMetaData.hpp">
+    <ClInclude Include="..\..\..\src\common\ComponentMetaData.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\ConfigBase.hpp">
+    <ClInclude Include="..\..\..\src\common\ConfigBase.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Date.hpp">
+    <ClInclude Include="..\..\..\src\common\Date.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\EngineBase.hpp">
+    <ClInclude Include="..\..\..\src\common\EngineBase.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\EntityMetaData.hpp">
+    <ClInclude Include="..\..\..\src\common\EntityMetaData.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\EntityMetaDataBuilder.hpp">
+    <ClInclude Include="..\..\..\src\common\EntityMetaDataBuilder.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\EvidenceBase.hpp">
+    <ClInclude Include="..\..\..\src\common\EvidenceBase.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Exceptions.hpp">
+    <ClInclude Include="..\..\..\src\common\Exceptions.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\MetaData.hpp">
+    <ClInclude Include="..\..\..\src\common\MetaData.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\ProfileMetaData.hpp">
+    <ClInclude Include="..\..\..\src\common\ProfileMetaData.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\PropertyMetaData.hpp">
+    <ClInclude Include="..\..\..\src\common\PropertyMetaData.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\RequiredPropertiesConfig.hpp">
+    <ClInclude Include="..\..\..\src\common\RequiredPropertiesConfig.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\ResultsBase.hpp">
+    <ClInclude Include="..\..\..\src\common\ResultsBase.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\ValueMetaData.hpp">
+    <ClInclude Include="..\..\..\src\common\ValueMetaData.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Collection.hpp">
+    <ClInclude Include="..\..\..\src\common\Collection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Value.hpp">
+    <ClInclude Include="..\..\..\src\common\Value.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\IpAddress.hpp">
+    <ClInclude Include="..\..\..\src\common\IpAddress.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\string_pp.hpp">
+    <ClInclude Include="..\..\..\src\common\string_pp.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\wkbtot_pp.hpp">
+    <ClInclude Include="..\..\..\src\common\wkbtot_pp.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

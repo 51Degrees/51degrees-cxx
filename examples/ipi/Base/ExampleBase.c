@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleBase.h"
-#include "../../src/fiftyone.h"
+#include "../../../src/ipi/fiftyone.h"
 #include <string.h>
 
 #define CONFIG_EQUALS(h) memcmp(&config, &h, sizeof(ConfigIpi)) == 0

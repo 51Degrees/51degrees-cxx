@@ -22,7 +22,7 @@
 
 %include stdint.i
 
-%include "common-cxx/ResultsBase.i"
+%include "../common/ResultsBase.i"
 
 %nodefaultctor ResultsDeviceDetection;
 

@@ -23,8 +23,8 @@
 #ifndef FIFTYONE_DEGREES_STRINGS_TESTS_INCLUDED
 #define FIFTYONE_DEGREES_STRINGS_TESTS_INCLUDED
 
-#include "../collection.h"
-#include "../string.h"
+#include "../../src/common/collection.h"
+#include "../../src/common/string.h"
 
 typedef struct string_collection_state_t {
 	fiftyoneDegreesCollection *collection;

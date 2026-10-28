@@ -15,255 +15,255 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\array.h">
+    <ClInclude Include="..\..\..\src\common\array.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\cache.h">
+    <ClInclude Include="..\..\..\src\common\cache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\collection.h">
+    <ClInclude Include="..\..\..\src\common\collection.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\component.h">
+    <ClInclude Include="..\..\..\src\common\component.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\config.h">
+    <ClInclude Include="..\..\..\src\common\config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\data.h">
+    <ClInclude Include="..\..\..\src\common\data.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\dataset.h">
+    <ClInclude Include="..\..\..\src\common\dataset.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\date.h">
+    <ClInclude Include="..\..\..\src\common\date.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\exceptions.h">
+    <ClInclude Include="..\..\..\src\common\exceptions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\fiftyone.h">
+    <ClInclude Include="..\..\..\src\common\fiftyone.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\file.h">
+    <ClInclude Include="..\..\..\src\common\file.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\headers.h">
+    <ClInclude Include="..\..\..\src\common\headers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\ip.h">
+    <ClInclude Include="..\..\..\src\common\ip.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\list.h">
+    <ClInclude Include="..\..\..\src\common\list.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\memory.h">
+    <ClInclude Include="..\..\..\src\common\memory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\overrides.h">
+    <ClInclude Include="..\..\..\src\common\overrides.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\pool.h">
+    <ClInclude Include="..\..\..\src\common\pool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\profile.h">
+    <ClInclude Include="..\..\..\src\common\profile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\properties.h">
+    <ClInclude Include="..\..\..\src\common\properties.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\property.h">
+    <ClInclude Include="..\..\..\src\common\property.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\resource.h">
+    <ClInclude Include="..\..\..\src\common\resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\results.h">
+    <ClInclude Include="..\..\..\src\common\results.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\status.h">
+    <ClInclude Include="..\..\..\src\common\status.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\string.h">
+    <ClInclude Include="..\..\..\src\common\string.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\textfile.h">
+    <ClInclude Include="..\..\..\src\common\textfile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\threading.h">
+    <ClInclude Include="..\..\..\src\common\threading.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\tree.h">
+    <ClInclude Include="..\..\..\src\common\tree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\value.h">
+    <ClInclude Include="..\..\..\src\common\value.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\evidence.h">
+    <ClInclude Include="..\..\..\src\common\evidence.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\float.h">
+    <ClInclude Include="..\..\..\src\common\float.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\coordinate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\snprintf.h">
+    <ClInclude Include="..\..\..\src\common\snprintf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\process.h">
+    <ClInclude Include="..\..\..\src\common\process.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\common.h">
+    <ClInclude Include="..\..\..\src\common\common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\pair.h">
+    <ClInclude Include="..\..\..\src\common\pair.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\yamlfile.h">
+    <ClInclude Include="..\..\..\src\common\yamlfile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\indices.h">
+    <ClInclude Include="..\..\..\src\common\indices.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\json.h">
+    <ClInclude Include="..\..\..\src\common\json.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\wkbtot.h">
+    <ClInclude Include="..\..\..\src\common\wkbtot.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\constants.h">
+    <ClInclude Include="..\..\..\src\common\constants.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\stringBuilder.h">
+    <ClInclude Include="..\..\..\src\common\stringBuilder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\storedBinaryValue.h">
+    <ClInclude Include="..\..\..\src\common\storedBinaryValue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\propertyValueType.h">
+    <ClInclude Include="..\..\..\src\common\propertyValueType.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\fileOffset.h">
+    <ClInclude Include="..\..\..\src\common\fileOffset.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\collectionKey.h">
+    <ClInclude Include="..\..\..\src\common\collectionKey.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\collectionKeyTypes.h">
+    <ClInclude Include="..\..\..\src\common\collectionKeyTypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\weightedItem.h">
+    <ClInclude Include="..\..\..\src\common\weightedItem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\cache.c">
+    <ClCompile Include="..\..\..\src\common\cache.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\collection.c">
+    <ClCompile Include="..\..\..\src\common\collection.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\component.c">
+    <ClCompile Include="..\..\..\src\common\component.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\data.c">
+    <ClCompile Include="..\..\..\src\common\data.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\dataset.c">
+    <ClCompile Include="..\..\..\src\common\dataset.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\exceptionsc.c">
+    <ClCompile Include="..\..\..\src\common\exceptionsc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\file.c">
+    <ClCompile Include="..\..\..\src\common\file.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\headers.c">
+    <ClCompile Include="..\..\..\src\common\headers.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ip.c">
+    <ClCompile Include="..\..\..\src\common\ip.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\list.c">
+    <ClCompile Include="..\..\..\src\common\list.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\memory.c">
+    <ClCompile Include="..\..\..\src\common\memory.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\overrides.c">
+    <ClCompile Include="..\..\..\src\common\overrides.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pool.c">
+    <ClCompile Include="..\..\..\src\common\pool.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\profile.c">
+    <ClCompile Include="..\..\..\src\common\profile.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\properties.c">
+    <ClCompile Include="..\..\..\src\common\properties.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\property.c">
+    <ClCompile Include="..\..\..\src\common\property.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\resource.c">
+    <ClCompile Include="..\..\..\src\common\resource.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\results.c">
+    <ClCompile Include="..\..\..\src\common\results.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\status.c">
+    <ClCompile Include="..\..\..\src\common\status.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\string.c">
+    <ClCompile Include="..\..\..\src\common\string.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\textfile.c">
+    <ClCompile Include="..\..\..\src\common\textfile.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\threading.c">
+    <ClCompile Include="..\..\..\src\common\threading.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tree.c">
+    <ClCompile Include="..\..\..\src\common\tree.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\value.c">
+    <ClCompile Include="..\..\..\src\common\value.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\evidence.c">
+    <ClCompile Include="..\..\..\src\common\evidence.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\float.c">
+    <ClCompile Include="..\..\..\src\common\float.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\process.c">
+    <ClCompile Include="..\..\..\src\common\process.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\yamlfile.c">
+    <ClCompile Include="..\..\..\src\common\yamlfile.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\indices.c">
+    <ClCompile Include="..\..\..\src\common\indices.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\json.c">
+    <ClCompile Include="..\..\..\src\common\json.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\wkbtot.c">
+    <ClCompile Include="..\..\..\src\common\wkbtot.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\stringBuilder.c">
+    <ClCompile Include="..\..\..\src\common\stringBuilder.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\storedBinaryValue.c">
+    <ClCompile Include="..\..\..\src\common\storedBinaryValue.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\collectionKeyTypes.c">
+    <ClCompile Include="..\..\..\src\common\collectionKeyTypes.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\weightedItem.c">
+    <ClCompile Include="..\..\..\src\common\weightedItem.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\propertyValueType.c">
+    <ClCompile Include="..\..\..\src\common\propertyValueType.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

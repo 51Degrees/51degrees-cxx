@@ -31,9 +31,9 @@
 #endif
 #include <stdio.h>
 #include <iostream>
-#include "../Exceptions.hpp"
-#include "../memory.h"
-#include "../file.h"
+#include "../../src/common/Exceptions.hpp"
+#include "../../src/common/memory.h"
+#include "../../src/common/file.h"
 
 #if defined(_DEBUG) && defined(_MSC_FULL_VER)
 #define _CRTDBG_MAP_ALLOC

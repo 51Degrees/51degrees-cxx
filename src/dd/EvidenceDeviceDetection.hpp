@@ -23,7 +23,7 @@
 #ifndef FIFTYONE_DEGREES_EVIDENCE_DEVICE_DETECTION_HPP
 #define FIFTYONE_DEGREES_EVIDENCE_DEVICE_DETECTION_HPP
 
-#include "common-cxx/EvidenceBase.hpp"
+#include "../common/EvidenceBase.hpp"
 
 using namespace FiftyoneDegrees::Common;
 

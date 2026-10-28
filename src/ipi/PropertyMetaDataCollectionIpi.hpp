@@ -23,7 +23,7 @@
 #ifndef FIFTYONE_DEGREES_PROPERTY_META_DATA_COLLECTION_IPI_HPP
 #define FIFTYONE_DEGREES_PROPERTY_META_DATA_COLLECTION_IPI_HPP
 
-#include "common-cxx/Collection.hpp"
+#include "../common/Collection.hpp"
 #include "PropertyMetaDataBuilderIpi.hpp"
 #include "ipi.h"
 

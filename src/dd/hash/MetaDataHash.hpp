@@ -23,8 +23,8 @@
 #ifndef FIFTYONE_DEGREES_METADATA_HASH_HPP
 #define FIFTYONE_DEGREES_METADATA_HASH_HPP
 
-#include "../common-cxx/Exceptions.hpp"
-#include "../common-cxx/MetaData.hpp"
+#include "../../common/Exceptions.hpp"
+#include "../../common/MetaData.hpp"
 #include "PropertyMetaDataCollectionHash.hpp"
 #include "ValueMetaDataCollectionHash.hpp"
 #include "ValueMetaDataCollectionForPropertyHash.hpp"

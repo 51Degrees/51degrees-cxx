@@ -48,8 +48,8 @@
 #endif
 
 extern "C" {
-#include "../src/ipi.h"
-#include "../src/fiftyone.h"
+#include "../../src/ipi/ipi.h"
+#include "../../src/ipi/fiftyone.h"
 }
 
 /**

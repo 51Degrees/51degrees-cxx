@@ -30,7 +30,7 @@
 #define _stricmp strcasecmp
 #endif
 #endif
-#include "../src/common-cxx/fiftyone.h"
+#include "../../src/common/fiftyone.h"
 
 using std::ofstream;
 using std::endl;

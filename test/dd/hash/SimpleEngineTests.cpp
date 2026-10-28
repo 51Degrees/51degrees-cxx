@@ -21,7 +21,7 @@
  * ********************************************************************* */
 #include "../Constants.hpp"
 #include "SimpleEngineTestBase.hpp"
-#include "../../src/hash/EngineHash.hpp"
+#include "../../../src/dd/hash/EngineHash.hpp"
 #include <iostream>
 #include <memory>
 #include <string>

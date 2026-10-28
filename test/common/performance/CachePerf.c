@@ -24,8 +24,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
-#include "../cache.h"
-#include "../fiftyone.h"
+#include "../../../src/common/cache.h"
+#include "../../../src/common/fiftyone.h"
 
 #define PASSES 1000000
 

@@ -24,7 +24,7 @@
 
 #include <string>
 #include <vector>
-#include "../RequiredPropertiesConfig.hpp"
+#include "../../src/common/RequiredPropertiesConfig.hpp"
 
 using namespace FiftyoneDegrees::Common;
 

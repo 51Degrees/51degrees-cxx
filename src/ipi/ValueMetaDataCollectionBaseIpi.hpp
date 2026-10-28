@@ -23,7 +23,7 @@
 #ifndef FIFTYONE_DEGREES_VALUE_META_DATA_COLLECTION_BASE_IPI_HPP
 #define FIFTYONE_DEGREES_VALUE_META_DATA_COLLECTION_BASE_IPI_HPP
 
-#include "common-cxx/Collection.hpp"
+#include "../common/Collection.hpp"
 #include "ValueMetaDataBuilderIpi.hpp"
 #include "ipi.h"
 

@@ -38,8 +38,8 @@ using namespace FiftyoneDegrees::DeviceDetection;
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 %}
 
-%include "../common-cxx/Types.i"
-%include "../common-cxx/Exceptions.i"
+%include "../../common/Types.i"
+%include "../../common/Exceptions.i"
 
 %include "EngineHash.i"
 %include "ResultsHashSerializer.i"

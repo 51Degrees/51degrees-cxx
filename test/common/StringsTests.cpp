@@ -20,8 +20,8 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-#include "../fiftyone.h"
-#include "../string.h"
+#include "../../src/common/fiftyone.h"
+#include "../../src/common/string.h"
 #include "Base.hpp"
 #include "limits.h"
 

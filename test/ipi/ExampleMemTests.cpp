@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
-#include "../examples/C/IpIntelligence/MemIpi.c"
+#include "../../examples/ipi/C/IpIntelligence/MemIpi.c"
 
 class ExampleTestMem : public ExampleIpIntelligenceTest {
 public:

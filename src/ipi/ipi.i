@@ -29,15 +29,15 @@ using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
 %}
 
-%include "common-cxx/Types.i"
+%include "../common/Types.i"
 
 #ifdef SWIGCSHARP
-%include "common-cxx/CsTypes.i"
+%include "../common/CsTypes.i"
 #endif
 #ifdef SWIGJAVA
-%include "common-cxx/JavaTypes.i"
+%include "../common/JavaTypes.i"
 #endif
 
-%include "common-cxx/Exceptions.i"
+%include "../common/Exceptions.i"
 
 %include "EngineIpi.i"

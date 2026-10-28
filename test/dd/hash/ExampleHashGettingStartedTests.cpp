@@ -21,8 +21,8 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/C/Hash/ExampleBase.c"
-#include "../../examples/C/Hash/GettingStarted.c"
+#include "../../../examples/dd/C/Hash/ExampleBase.c"
+#include "../../../examples/dd/C/Hash/GettingStarted.c"
 
 
 class ExampleHashTestGettingStarted : public ExampleHashTest {

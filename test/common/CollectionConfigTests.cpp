@@ -21,7 +21,7 @@
  * ********************************************************************* */
  
 #include "Base.hpp"
-#include "../CollectionConfig.hpp"
+#include "../../src/common/CollectionConfig.hpp"
 
 static fiftyoneDegreesCollectionConfig testValues = {
 	true, /* Loaded */

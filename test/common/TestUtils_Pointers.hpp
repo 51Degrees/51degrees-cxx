@@ -23,7 +23,7 @@
 #ifndef TESTUTILS_POINTERS_HPP
 #define TESTUTILS_POINTERS_HPP
 
-#include "../fiftyone.h"
+#include "../../src/common/fiftyone.h"
 #include <memory>
 
 static void freeCollection(fiftyoneDegreesCollection * const ptr) {

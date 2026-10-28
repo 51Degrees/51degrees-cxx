@@ -28,7 +28,7 @@
 
 #include "hash.h"
 #include "fiftyone.h"
-#include "../common-cxx/collectionKeyTypes.h"
+#include "../../common/collectionKeyTypes.h"
 
 MAP_TYPE(Collection)
 

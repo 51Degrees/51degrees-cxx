@@ -39,12 +39,12 @@
 #ifdef _MSC_VER
 #include <windows.h>
 #endif
-#include "../common-cxx/data.h"
-#include "../common-cxx/exceptions.h"
-#include "../common-cxx/collection.h"
-#include "../common-cxx/list.h"
-#include "../common-cxx/status.h"
-#include "../common-cxx/array.h"
+#include "../../common/data.h"
+#include "../../common/exceptions.h"
+#include "../../common/collection.h"
+#include "../../common/list.h"
+#include "../../common/status.h"
+#include "../../common/array.h"
 
  /**
  * @ingroup FiftyOneDegreesIpIntelligence

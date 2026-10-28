@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/C/Hash/MatchMetrics.c"
+#include "../../../examples/dd/C/Hash/MatchMetrics.c"
 
 
 class ExampleHashMatchMetricsTests : public ExampleHashTest {

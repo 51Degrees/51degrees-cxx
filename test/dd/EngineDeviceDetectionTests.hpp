@@ -23,10 +23,10 @@
 #ifndef FIFTYONE_DEGREES_ENGINE_DEVICE_DETECTION_TEST_HPP
 #define FIFTYONE_DEGREES_ENGINE_DEVICE_DETECTION_TEST_HPP
 
-#include "../src/common-cxx/tests/EngineTests.hpp"
-#include "../src/EngineDeviceDetection.hpp"
+#include "../common/EngineTests.hpp"
+#include "../../src/dd/EngineDeviceDetection.hpp"
 #include "Constants.hpp"
-#include "../src/common-cxx/textfile.h"
+#include "../../src/common/textfile.h"
 
 using namespace FiftyoneDegrees::DeviceDetection;
 

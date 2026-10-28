@@ -12,90 +12,90 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\test\EngineIpIntelligenceTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\EngineIpIntelligenceTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\EngineIpiTestsFile.cpp">
+    <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsFile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\EngineIpiTestsMemory.cpp">
+    <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsMemory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExampleProcTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\ExampleProcTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExampleIpIntelligenceTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\test\ExampleStronglyTypedTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExampleReloadFromMemoryTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromMemoryTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExampleReloadFromFileTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromFileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExamplePerformanceTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\ExamplePerformanceTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExampleOfflineProcessingTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\ExampleOfflineProcessingTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExampleMemTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\ExampleMemTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExampleGettingStartedTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\ExampleGettingStartedTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExampleFindProfilesTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\ExampleFindProfilesTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\common-cxx\tests\EngineTests.cpp">
+    <ClCompile Include="..\..\..\test\common\EngineTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\common-cxx\tests\Base.cpp">
+    <ClCompile Include="..\..\..\test\common\Base.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\common-cxx\tests\ExampleTests.cpp">
+    <ClCompile Include="..\..\..\test\common\ExampleTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\common-cxx\textfile.c">
+    <ClCompile Include="..\..\..\src\common\textfile.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\MemLeakReloadFromFileTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\MemLeakReloadFromFileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExamplePerformanceLegacyTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\ExamplePerformanceLegacyTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\common-cxx\tests\Base.hpp">
+    <ClInclude Include="..\..\..\test\common\Base.hpp">
       <Filter>Headers Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\EngineIpi.hpp">
+    <ClInclude Include="..\..\..\src\ipi\EngineIpi.hpp">
       <Filter>Headers Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\test\EngineIpIntelligenceTests.hpp">
+    <ClInclude Include="..\..\..\test\ipi\EngineIpIntelligenceTests.hpp">
       <Filter>Headers Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\common-cxx\tests\EngineTests.hpp">
+    <ClInclude Include="..\..\..\test\common\EngineTests.hpp">
       <Filter>Headers Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\test\ExampleIpIntelligenceTests.hpp">
+    <ClInclude Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.hpp">
       <Filter>Headers Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\common-cxx\tests\ExampleTests.hpp">
+    <ClInclude Include="..\..\..\test\common\ExampleTests.hpp">
       <Filter>Headers Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\common-cxx\tests\pch.h">
+    <ClInclude Include="..\..\..\test\common\pch.h">
       <Filter>Headers Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\common-cxx\textfile.h">
+    <ClInclude Include="..\..\..\src\common\textfile.h">
       <Filter>Headers Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\test\Constants.hpp">
+    <ClInclude Include="..\..\..\test\ipi\Constants.hpp">
       <Filter>Resource</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\GraphIpi.hpp">

@@ -285,7 +285,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\examples\C\IpIntelligence\ProcIpi.c" />
+    <ClCompile Include="..\..\..\..\..\examples\ipi\C\IpIntelligence\ProcIpi.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

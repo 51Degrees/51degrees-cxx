@@ -23,8 +23,8 @@
 #include "pch.h"
 #include "Base.hpp"
 #include "StringCollection.hpp"
-#include "../properties.h"
-#include "../collectionKeyTypes.h"
+#include "../../src/common/properties.h"
+#include "../../src/common/collectionKeyTypes.h"
 
 // Property names
 static const char* testValues[] = {

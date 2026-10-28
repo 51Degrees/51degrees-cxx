@@ -29,9 +29,9 @@
 #include <share.h>
 #endif
 
-#include "../exceptions.h"
-#include "../file.h"
-#include "../snprintf.h"
+#include "../../src/common/exceptions.h"
+#include "../../src/common/file.h"
+#include "../../src/common/snprintf.h"
 
 
 #ifndef _MSC_VER

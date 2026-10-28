@@ -23,8 +23,8 @@
 #ifndef FIFTYONE_DEGREES_VALUE_META_DATA_COLLECTION_FOR_PROFILE_IPI_HPP
 #define FIFTYONE_DEGREES_VALUE_META_DATA_COLLECTION_FOR_PROFILE_IPI_HPP
 
-#include "common-cxx/Collection.hpp"
-#include "common-cxx/ProfileMetaData.hpp"
+#include "../common/Collection.hpp"
+#include "../common/ProfileMetaData.hpp"
 #include "ValueMetaDataCollectionBaseIpi.hpp"
 #include "ValueMetaDataBuilderIpi.hpp"
 #include "ipi.h"

@@ -20,7 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-%include "common-cxx/Types.i"
+%include "../common/Types.i"
 
 class Transform {
 public:

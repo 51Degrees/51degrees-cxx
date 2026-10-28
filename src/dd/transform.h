@@ -24,8 +24,8 @@
 #define FIFTYONE_DEGREES_TRANSFORM_H_INCLUDED
 
 #include <stdbool.h>
-#include "common-cxx/pair.h"
-#include "common-cxx/exceptions.h"
+#include "../common/pair.h"
+#include "../common/exceptions.h"
 
 /**
  * User-Agent Client Hints (UACH) Representation Conversion Routines

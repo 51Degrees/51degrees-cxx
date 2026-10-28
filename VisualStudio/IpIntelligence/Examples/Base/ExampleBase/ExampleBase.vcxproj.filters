@@ -15,12 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\examples\Base\ExampleBase.c">
+    <ClCompile Include="..\..\..\..\..\examples\ipi\Base\ExampleBase.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\examples\Base\ExampleBase.h">
+    <ClInclude Include="..\..\..\..\..\examples\ipi\Base\ExampleBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

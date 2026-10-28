@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleBase.h"
-#include "../../../src/hash/fiftyone.h"
+#include "../../../../src/dd/hash/fiftyone.h"
 #include <string.h>
 
 #define CONFIG_EQUALS(h) memcmp(&config, &h, sizeof(ConfigHash)) == 0

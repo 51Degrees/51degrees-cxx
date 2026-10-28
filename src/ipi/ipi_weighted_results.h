@@ -34,8 +34,8 @@
  */
 
 #include "ipi.h"
-#include "common-cxx/bool.h"
-#include "common-cxx/data.h"
+#include "../common/bool.h"
+#include "../common/data.h"
 
 /**
  * @brief Header structure for all weighted value types.

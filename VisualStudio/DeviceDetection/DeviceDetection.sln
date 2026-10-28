@@ -41,9 +41,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{89AD6B
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Device Detection", "Device Detection", "{D6B9B036-6D74-4FEB-B845-E51E27EF2C4A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FiftyOne.Common.C", "..\src\common-cxx\VisualStudio\FiftyOne.Common.C\FiftyOne.Common.C.vcxproj", "{8E1B0B4C-8220-4E7B-A838-B4B3DDB4CF15}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FiftyOne.Common.C", "..\Common\FiftyOne.Common.C\FiftyOne.Common.C.vcxproj", "{8E1B0B4C-8220-4E7B-A838-B4B3DDB4CF15}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FiftyOne.Common.CPP", "..\src\common-cxx\VisualStudio\FiftyOne.Common.CPP\FiftyOne.Common.CPP.vcxproj", "{01DCCD38-27CC-4C1A-851F-F1700EDF8BB5}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FiftyOne.Common.CPP", "..\Common\FiftyOne.Common.CPP\FiftyOne.Common.CPP.vcxproj", "{01DCCD38-27CC-4C1A-851F-F1700EDF8BB5}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FiftyOne.DeviceDetection.CPP", "FiftyOne.DeviceDetection.CPP\FiftyOne.DeviceDetection.CPP.vcxproj", "{79B9D213-082A-40D9-B5A7-2758AEDFCBEC}"
 EndProject
@@ -73,12 +73,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Performance", "Examples\C\H
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution", "Solution", "{967DFA5E-CDCF-43A4-A366-AAF1EE20C172}"
 	ProjectSection(SolutionItems) = preProject
-		..\src\common-cxx\VisualStudio\Application++.Build.props = ..\src\common-cxx\VisualStudio\Application++.Build.props
-		..\src\common-cxx\VisualStudio\Application.Build.props = ..\src\common-cxx\VisualStudio\Application.Build.props
-		..\CMakeLists.txt = ..\CMakeLists.txt
-		..\src\common-cxx\VisualStudio\Library++.Build.props = ..\src\common-cxx\VisualStudio\Library++.Build.props
-		..\src\common-cxx\VisualStudio\Library.Build.props = ..\src\common-cxx\VisualStudio\Library.Build.props
-		..\README.md = ..\README.md
+		..\Common\Application++.Build.props = ..\Common\Application++.Build.props
+		..\Common\Application.Build.props = ..\Common\Application.Build.props
+		..\..\src\dd\CMakeLists.txt = ..\..\src\dd\CMakeLists.txt
+		..\Common\Library++.Build.props = ..\Common\Library++.Build.props
+		..\Common\Library.Build.props = ..\Common\Library.Build.props
+		..\..\docs\dd\README.md = ..\..\docs\dd\README.md
 	EndProjectSection
 EndProject
 Global

@@ -24,8 +24,8 @@
 #define HeadersContainer_hpp
 
 #include "StringCollection.hpp"
-#include "../headers.h"
-#include "../exceptions.h"
+#include "../../src/common/headers.h"
+#include "../../src/common/exceptions.h"
 
 class HeadersContainer {
 public:

@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/C/Hash/MemHash.c"
+#include "../../../examples/dd/C/Hash/MemHash.c"
 
 class ExampleHashTestMem : public ExampleHashTest {
 public:

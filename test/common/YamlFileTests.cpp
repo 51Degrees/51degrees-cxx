@@ -24,8 +24,8 @@
 #include <cstdio>
 #include <string>
 #include <sstream>
-#include "../yamlfile.h"
-#include "../fiftyone.h"
+#include "../../src/common/yamlfile.h"
+#include "../../src/common/fiftyone.h"
 #include <vector>
 
 using namespace std;

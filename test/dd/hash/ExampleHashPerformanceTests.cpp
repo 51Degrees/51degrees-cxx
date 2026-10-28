@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/C/Hash/Performance.c"
+#include "../../../examples/dd/C/Hash/Performance.c"
 
 class ExampleHashTestPerformance : public ExampleHashTest {
 public:

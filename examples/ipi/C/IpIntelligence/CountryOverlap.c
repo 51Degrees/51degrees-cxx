@@ -144,9 +144,9 @@ CountryOverlap <data file> --probe <ip> [ip...]
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "../../../src/ipi.h"
-#include "../../../src/fiftyone.h"
-#include "../../../src/ipi_weighted_results.h"
+#include "../../../../src/ipi/ipi.h"
+#include "../../../../src/ipi/fiftyone.h"
+#include "../../../../src/ipi/ipi_weighted_results.h"
 
 /** Properties the analysis needs. */
 #define PROPERTY_COUNTRY_CODE "CountryCode"

@@ -30,8 +30,8 @@
 #include <stdlib.h>
 #include <sstream>
 #include <algorithm>
-#include "common-cxx/EngineBase.hpp"
-#include "common-cxx/RequiredPropertiesConfig.hpp"
+#include "../common/EngineBase.hpp"
+#include "../common/RequiredPropertiesConfig.hpp"
 #include "ConfigDeviceDetection.hpp"
 #include "ResultsDeviceDetection.hpp"
 #include "EvidenceDeviceDetection.hpp"

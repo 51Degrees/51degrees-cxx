@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/C/Hash/MatchForDeviceId.c"
+#include "../../../examples/dd/C/Hash/MatchForDeviceId.c"
 
 class ExampleHashTestMatchForDeviceId : public ExampleHashTest {
 public:

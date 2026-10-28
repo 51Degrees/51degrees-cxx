@@ -22,8 +22,8 @@
  
 #include "pch.h"
 #include "EvidenceTests.hpp"
-#include "../evidence.h"
-#include "../headers.h"
+#include "../../src/common/evidence.h"
+#include "../../src/common/headers.h"
 
 // Header names
 const char** testEvidenceHeaders_None = new const char*[0];

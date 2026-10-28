@@ -23,8 +23,8 @@
 #ifndef VariableSizeCollection_hpp
 #define VariableSizeCollection_hpp
 
-#include "../collection.h"
-#include "../string.h"
+#include "../../src/common/collection.h"
+#include "../../src/common/string.h"
 #include <vector>
 
 typedef struct variable_size_collection_state_t {

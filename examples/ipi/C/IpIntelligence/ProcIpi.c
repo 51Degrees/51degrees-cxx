@@ -23,8 +23,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../../../src/ipi.h"
-#include "../../../src/fiftyone.h"
+#include "../../../../src/ipi/ipi.h"
+#include "../../../../src/ipi/fiftyone.h"
 
 static const char* dataDir = "ip-intelligence-data";
 

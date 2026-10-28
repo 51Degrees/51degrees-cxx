@@ -21,9 +21,9 @@
  * ********************************************************************* */
  
 #include "pch.h"
-#include "../string.h"
-#include "../status.h"
-#include "../snprintf.h"
+#include "../../src/common/string.h"
+#include "../../src/common/status.h"
+#include "../../src/common/snprintf.h"
 
 /* Test file name to use in tests. */
 static const char *fileName = "somefilename.dat";

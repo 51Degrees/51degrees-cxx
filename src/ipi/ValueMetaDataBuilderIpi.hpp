@@ -24,8 +24,8 @@
 #define FIFTYONE_DEGREES_VALUE_META_DATA_BUILDER_IPI_HPP
 
 #include <vector>
-#include "common-cxx/ValueMetaData.hpp"
-#include "common-cxx/EntityMetaDataBuilder.hpp"
+#include "../common/ValueMetaData.hpp"
+#include "../common/EntityMetaDataBuilder.hpp"
 #include "ipi.h"
 
 

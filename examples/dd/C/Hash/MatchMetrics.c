@@ -120,8 +120,8 @@ fiftyoneDegreesResourceManagerFree(&manager);
 // Include ExmapleBase.h before others as it includes Windows 'crtdbg.h'
 // which requires to be included before 'malloc.h'.
 #include "ExampleBase.h"
-#include "../../../src/hash/hash.h"
-#include "../../../src/hash/fiftyone.h"
+#include "../../../../src/dd/hash/hash.h"
+#include "../../../../src/dd/hash/fiftyone.h"
 
 static const char *dataDir = "device-detection-data";
 

@@ -22,9 +22,9 @@
  
 #include "pch.h"
 #include "EvidenceTests.hpp"
-#include "../evidence.h"
-#include "../headers.h"
-#include "../exceptions.h"
+#include "../../src/common/evidence.h"
+#include "../../src/common/headers.h"
+#include "../../src/common/exceptions.h"
 
 // Header names
 const char* testEvidenceHeaders_Multiple[] = {

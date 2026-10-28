@@ -74,9 +74,9 @@ Average matching per second: ***
 #include <time.h>
 
 #include "../../Base/ExampleBase.h"
-#include "../../../src/ipi.h"
-#include "../../../src/fiftyone.h"
-#include "../../../src/common-cxx/textfile.h"
+#include "../../../../src/ipi/ipi.h"
+#include "../../../../src/ipi/fiftyone.h"
+#include "../../../../src/common/textfile.h"
 
  // Size of the character buffers
 #define BUFFER 1000

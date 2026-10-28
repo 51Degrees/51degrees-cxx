@@ -24,8 +24,8 @@
 #define FIFTYONE_DEGREES_CONFIG_IPI_HPP
 
 #include <cstddef>
-#include "common-cxx/CollectionConfig.hpp"
-#include "common-cxx/ConfigBase.hpp"
+#include "../common/CollectionConfig.hpp"
+#include "../common/ConfigBase.hpp"
 #include "ipi.h"
 
 

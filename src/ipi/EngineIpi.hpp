@@ -30,11 +30,11 @@
 #include <stdlib.h>
 #include <sstream>
 #include <algorithm>
-#include "common-cxx/ip.h"
-#include "common-cxx/EngineBase.hpp"
-#include "common-cxx/resource.h"
-#include "common-cxx/RequiredPropertiesConfig.hpp"
-#include "common-cxx/Date.hpp"
+#include "../common/ip.h"
+#include "../common/EngineBase.hpp"
+#include "../common/resource.h"
+#include "../common/RequiredPropertiesConfig.hpp"
+#include "../common/Date.hpp"
 #include "EvidenceIpi.hpp"
 #include "ConfigIpi.hpp"
 #include "ResultsIpi.hpp"

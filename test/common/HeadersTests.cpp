@@ -26,8 +26,8 @@
 #include "HeadersContainer.hpp"
 
 extern "C" {
-#include "../headers.h"
-#include "../fiftyone.h"
+#include "../../src/common/headers.h"
+#include "../../src/common/fiftyone.h"
 }
 
 /**

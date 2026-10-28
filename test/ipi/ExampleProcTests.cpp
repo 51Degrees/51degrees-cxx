@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
-#include "../examples/C/IpIntelligence/ProcIpi.c"
+#include "../../examples/ipi/C/IpIntelligence/ProcIpi.c"
 
 class ExampleTestProc : public ExampleIpIntelligenceTest {
 public:

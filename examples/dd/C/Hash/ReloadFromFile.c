@@ -89,9 +89,9 @@ https://51degrees.com/Support/Documentation/APIs/C-V32/Benchmarks?utm_source=cod
 // which requires to be included before 'malloc.h'.
 #include "ExampleBase.h"
 
-#include "../../../src/common-cxx/textfile.h"
-#include "../../../src/hash/hash.h"
-#include "../../../src/hash/fiftyone.h"
+#include "../../../../src/common/textfile.h"
+#include "../../../../src/dd/hash/hash.h"
+#include "../../../../src/dd/hash/fiftyone.h"
 
 #define THREAD_COUNT 4
 

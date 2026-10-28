@@ -21,7 +21,7 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
-#include "../../examples/C/Hash/ReloadFromFile.c"
+#include "../../../examples/dd/C/Hash/ReloadFromFile.c"
 
 class ExampleHashTestReloadFromFile : public ExampleHashTest {
 public:

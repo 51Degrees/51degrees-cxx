@@ -20,7 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-%include "common-cxx/EngineBase.i"
+%include "../common/EngineBase.i"
 %include "ConfigDeviceDetection.i"
 %include "EvidenceDeviceDetection.i"
 

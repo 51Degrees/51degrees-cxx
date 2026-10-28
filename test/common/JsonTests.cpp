@@ -23,7 +23,7 @@
 #include "Base.hpp"
 #include "StringCollection.hpp"
 #include "FixedSizeCollection.hpp"
-#include "../fiftyone.h"
+#include "../../src/common/fiftyone.h"
 
 class JsonTests : public Base {
 public:

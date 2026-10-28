@@ -21,8 +21,8 @@
  * ********************************************************************* */
 #include "../Constants.hpp"
 #include "SimpleEngineTestBase.hpp"
-#include "../../src/hash/EngineHash.hpp"
-#include "../../src/hash/ResultsHashSerializer.hpp"
+#include "../../../src/dd/hash/EngineHash.hpp"
+#include "../../../src/dd/hash/ResultsHashSerializer.hpp"
 
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::DeviceDetection;

@@ -120,9 +120,9 @@ Failed to reload '0' times.
 #endif
 
 #include "../../Base/ExampleBase.h"
-#include "../../../src/common-cxx/textfile.h"
-#include "../../../src/ipi.h"
-#include "../../../src/fiftyone.h"
+#include "../../../../src/common/textfile.h"
+#include "../../../../src/ipi/ipi.h"
+#include "../../../../src/ipi/fiftyone.h"
 
 #define THREAD_COUNT 4
 

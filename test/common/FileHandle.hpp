@@ -23,7 +23,7 @@
 #ifndef FIFTYONE_DEGREES_FILE_TESTS_BASE_INCLUDED
 #define FIFTYONE_DEGREES_FILE_TESTS_BASE_INCLUDED
 
-#include "../file.h"
+#include "../../src/common/file.h"
 
 /**
  * Class used by tests to perform common file operations.

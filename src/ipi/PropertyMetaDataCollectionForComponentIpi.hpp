@@ -23,9 +23,9 @@
 #ifndef FIFTYONE_DEGREES_PROPERTY_META_DATA_COLLECTION_FOR_COMPONENT_IPI_HPP
 #define FIFTYONE_DEGREES_PROPERTY_META_DATA_COLLECTION_FOR_COMPONENT_IPI_HPP
 
-#include "common-cxx/Collection.hpp"
-#include "common-cxx/PropertyMetaData.hpp"
-#include "common-cxx/ComponentMetaData.hpp"
+#include "../common/Collection.hpp"
+#include "../common/PropertyMetaData.hpp"
+#include "../common/ComponentMetaData.hpp"
 #include "ComponentMetaDataBuilderIpi.hpp"
 #include "PropertyMetaDataCollectionIpi.hpp"
 #include "ipi.h"

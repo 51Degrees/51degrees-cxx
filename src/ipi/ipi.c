@@ -22,10 +22,10 @@
 
 #include "ipi.h"
 #include "fiftyone.h"
-#include "common-cxx/config.h"
+#include "../common/config.h"
 #include "constantsIpi.h"
-#include "common-cxx/collectionKeyTypes.h"
-#include "ip-graph-cxx/graph.h"
+#include "../common/collectionKeyTypes.h"
+#include "graph/graph.h"
 
 MAP_TYPE(Collection)
 

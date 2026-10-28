@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\examples\CPP\IpIntelligence\ReloadFromMemory.cpp">
+    <ClCompile Include="..\..\..\..\..\examples\ipi\CPP\IpIntelligence\ReloadFromMemory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -148,7 +148,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\examples\CPP\IpIntelligence\ReloadFromMemory.cpp" />
+    <ClCompile Include="..\..\..\..\..\examples\ipi\CPP\IpIntelligence\ReloadFromMemory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Base\ExampleBase\ExampleBase.vcxproj">

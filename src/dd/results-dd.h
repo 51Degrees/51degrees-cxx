@@ -37,9 +37,9 @@
  * @{
  */
 
-#include "common-cxx/array.h"
-#include "common-cxx/results.h"
-#include "common-cxx/overrides.h"
+#include "../common/array.h"
+#include "../common/results.h"
+#include "../common/overrides.h"
 #include "dataset-dd.h"
 
 /**

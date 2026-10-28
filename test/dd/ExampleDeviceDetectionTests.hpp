@@ -24,8 +24,8 @@
 #define FIFTYONE_DEGREES_EXAMPLE_DEVICE_DETECTION_TESTS_HPP
 
 #include "Constants.hpp"
-#include "../src/common-cxx/file.h"
-#include "../src/common-cxx/tests/ExampleTests.hpp"
+#include "../../src/common/file.h"
+#include "../common/ExampleTests.hpp"
 
 class ExampleDeviceDetectionTest: public ExampleTests {
 public: 

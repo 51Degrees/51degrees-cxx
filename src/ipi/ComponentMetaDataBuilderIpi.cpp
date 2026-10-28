@@ -23,8 +23,8 @@
 #include "ComponentMetaDataBuilderIpi.hpp"
 
 #include "fiftyone.h"
-#include "common-cxx/collectionKeyTypes.h"
-#include "common-cxx/Exceptions.hpp"
+#include "../common/collectionKeyTypes.h"
+#include "../common/Exceptions.hpp"
 
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;

@@ -32,9 +32,9 @@
 #endif
 
 #include "../../Base/ExampleBase.h"
-#include "../../../src/ipi.h"
-#include "../../../src/fiftyone.h"
-#include "../../../src/common-cxx/textfile.h"
+#include "../../../../src/ipi/ipi.h"
+#include "../../../../src/ipi/fiftyone.h"
+#include "../../../../src/common/textfile.h"
 
 // Number of marks to make when showing process.
 #define PROGRESS_MARKS 40

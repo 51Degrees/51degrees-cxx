@@ -32,7 +32,7 @@
 // changes.
 #define COUNTRY_OVERLAP_CHUNK_BITS 16
 #define COUNTRY_OVERLAP_CACHE_BITS 16
-#include "../examples/C/IpIntelligence/CountryOverlap.c"
+#include "../../examples/ipi/C/IpIntelligence/CountryOverlap.c"
 
 /** CSV written by the test and removed afterwards. */
 static const char testOutputPath[] = "country-overlap-test.csv";

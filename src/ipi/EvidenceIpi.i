@@ -20,7 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-%include "common-cxx/EvidenceBase.i"
+%include "../common/EvidenceBase.i"
 
 %nodefaultctor EvidenceIpi;
 
