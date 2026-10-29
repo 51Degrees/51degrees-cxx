@@ -43,7 +43,7 @@ advanced operation this example can be used to experiment with tuning device det
 performance and predictive power using Performance Profile, Graph and Difference and Drift 
 settings.
 
-This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-cxx/blob/master/examples/C/Hash/OfflineProcessing.c)
+This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-cxx/blob/main/examples/dd/C/Hash/OfflineProcessing.c)
 
 @include{doc} example-require-datafile.txt
 

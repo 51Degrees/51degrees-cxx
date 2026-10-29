@@ -46,7 +46,7 @@
  * and [hash dataset options](https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-performance.c&utm_term=header#DeviceDetection_Hash_DataSetProduction_Performance)
  * for more information about adjusting performance.
  *
- * This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-cxx/blob/master/examples/C/Hash/Performance.c).
+ * This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-cxx/blob/main/examples/dd/C/Hash/Performance.c).
  *
  * @include{doc} example-require-datafile.txt
  */

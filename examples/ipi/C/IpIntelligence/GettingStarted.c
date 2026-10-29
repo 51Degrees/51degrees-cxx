@@ -27,7 +27,7 @@ Getting started example of using 51Degrees IP intelligence.
 The example shows how to use 51Degrees on-premise IP intelligence to
 determine the country of a given IP address.
 
-This example is available in full on [GitHub](https://github.com/51Degrees/ip-intelligence-cxx/tree/main/examples/C/IpIntelligence/GettingStarted.c).
+This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-cxx/blob/main/examples/ipi/C/IpIntelligence/GettingStarted.c).
 
 @include{doc} example-require-datafile-ipi.txt
 

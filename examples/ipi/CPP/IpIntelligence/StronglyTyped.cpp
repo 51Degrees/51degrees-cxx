@@ -38,7 +38,7 @@ Strongly typed example of using 51Degrees IP intelligence.
 The example shows how to extract the strongly typed value from the
 returned results of the 51Degrees on-premise IP intelligence.
 
-This example is available in full on [GitHub](https://github.com/51Degrees/ip-intelligence-cxx/tree/main/examples/CPP/IpIntelligence/StronglyTyped.cpp).
+This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-cxx/blob/main/examples/ipi/CPP/IpIntelligence/StronglyTyped.cpp).
 
 @include{doc} example-require-datafile-ipi.txt
 

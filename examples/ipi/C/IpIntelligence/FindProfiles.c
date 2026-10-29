@@ -31,7 +31,7 @@ This feature is supported on normal profiles where the property is not dynamic.
 The dynamic properties where this feature is not supported are 'IpRangeStart',
 'IpRangeEnd'.
 
-This example is available in full on [GitHub](https://github.com/51Degrees/ip-intelligence-cxx/tree/main/examples/C/IpIntelligence/FindProfiles.c).
+This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-cxx/blob/main/examples/ipi/C/IpIntelligence/FindProfiles.c).
 
 @include{doc} example-require-datafile-ipi.txt
 

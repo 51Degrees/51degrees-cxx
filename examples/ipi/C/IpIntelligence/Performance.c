@@ -44,7 +44,7 @@
  * reduces lookup time compared with requesting properties from multiple components. If you
  * don't specify any properties, then all properties are returned.
  *
- * This example is available in full on [GitHub](https://github.com/51Degrees/ip-intelligence-cxx/tree/main/examples/C/IpIntelligence/Performance.c).
+ * This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-cxx/blob/main/examples/ipi/C/IpIntelligence/Performance.c).
  *
  * @include{doc} example-require-datafile-ipi.txt
  */
