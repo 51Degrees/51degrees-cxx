@@ -8,8 +8,8 @@ these sources.
 
 | Product | Read first | Documentation |
 | --- | --- | --- |
-| Device Detection | [docs/dd/README.md](docs/dd/README.md) | [C](https://51degrees.com/device-detection-cxx/modules.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=device-detection-c) and [C++](https://51degrees.com/device-detection-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=device-detection-cpp) |
-| IP Intelligence | [docs/ipi/README.md](docs/ipi/README.md) | [C](https://51degrees.com/ip-intelligence-cxx/4.1/modules.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=ip-intelligence-c) and [C++](https://51degrees.com/ip-intelligence-cxx/4.1/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=ip-intelligence-cpp) |
+| Device Detection | [docs/dd/README.md](docs/dd/README.md) | [C](https://51degrees.com/documentation/apis/device-detection-cxx/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=device-detection-c) and [C++](https://51degrees.com/documentation/apis/device-detection-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=device-detection-cpp) |
+| IP Intelligence | [docs/ipi/README.md](docs/ipi/README.md) | [C](https://51degrees.com/documentation/apis/ip-intelligence-cxx/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=ip-intelligence-c) and [C++](https://51degrees.com/documentation/apis/ip-intelligence-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=ip-intelligence-cpp) |
 | Common library | [src/common/README.md](src/common/README.md) | |
 
 ## What is where
@@ -145,6 +145,7 @@ This repository brings together `common-cxx`, `device-detection-cxx`,
 every commit keeping its original SHA, so `git log --follow` traces a file
 back through its move into this layout. The tags and releases of the original
 repositories stay with those repositories.
+[docs/path-map.md](docs/path-map.md) lists where each of their paths is now.
 
 ## Licence
 

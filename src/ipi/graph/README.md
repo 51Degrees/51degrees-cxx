@@ -1,2 +1,2 @@
-# ip-graph-cxx
+# IP graph
 C and C++ code for IP graph.

@@ -2,7 +2,7 @@
 
 ![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-device-detection-api "Data rewards the curious") **Device Detection**
 
-[C Documentation](https://51degrees.com/device-detection-cxx/modules.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-device-detection-api) and the [C++ Documentation](https://51degrees.com/device-detection-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-device-detection-api).
+[C Documentation](https://51degrees.com/documentation/apis/device-detection-cxx/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-device-detection-api) and the [C++ Documentation](https://51degrees.com/documentation/apis/device-detection-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-device-detection-api).
 
 The 51Degrees device detection API is built on the 51Degrees [common API](../../src/common/README.md).
 
