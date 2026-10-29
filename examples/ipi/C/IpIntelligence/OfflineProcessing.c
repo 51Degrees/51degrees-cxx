@@ -28,7 +28,7 @@ This example demonstrates one possible use of the 51Degrees on-premise IP intell
 API and data for offline data processing. It also demonstrates that you can reuse the
 retrieved results for multiple uses and only then release it.
 
-This example is available in full on [GitHub](https://github.com/51Degrees/ip-intelligence-cxx/tree/main/examples/C/IpIntelligence/OfflineProcessing.c).
+This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-cxx/blob/main/examples/ipi/C/IpIntelligence/OfflineProcessing.c).
 
 @include{doc} example-require-datafile-ipi.txt
 

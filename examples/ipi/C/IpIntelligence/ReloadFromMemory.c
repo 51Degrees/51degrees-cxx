@@ -28,7 +28,7 @@ This example illustrates how to use a single reference to the resource manager
 to use 51Degrees on-premise IP intelligence and invoke the reload functionality
 instead of maintaining a reference to the dataset directly.
 
-This example is available in full on [GitHub](https://github.com/51Degrees/ip-intelligence-cxx/tree/main/examples/C/IpIntelligence/ReloadFromMemory.c).
+This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-cxx/blob/main/examples/ipi/C/IpIntelligence/ReloadFromMemory.c).
 
 @include{doc} example-require-datafile-ipi.txt
 

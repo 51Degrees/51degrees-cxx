@@ -31,7 +31,7 @@ You will learn:
 2. How to pass input data (evidence) to the detection APIs
 3. How to retrieve the results
 
-This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-cxx/blob/master/examples/C/Hash/GettingStarted.c).
+This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-cxx/blob/main/examples/dd/C/Hash/GettingStarted.c).
 
 @include{doc} example-require-datafile.text
 */
