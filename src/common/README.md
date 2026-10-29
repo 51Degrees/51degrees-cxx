@@ -2,7 +2,7 @@
 
 ![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-common-code-library "Data rewards the curious") **51Degrees Common C Code**
 
-[Reference Documentation](https://51degrees.com/device-detection-cxx/4.5/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-common-code-library "Reference documentation")
+[Reference Documentation](https://51degrees.com/documentation/apis/device-detection-cxx/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-common-code-library "Reference documentation")
 
 # Introduction
 

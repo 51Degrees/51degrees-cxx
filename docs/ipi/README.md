@@ -2,7 +2,7 @@
 
 ![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api "Data rewards the curious") **IP Intelligence in C**
 
-[C Documentation](https://51degrees.com/ip-intelligence-cxx/4.1/modules.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api) and the [C++ Documentation](https://51degrees.com/ip-intelligence-cxx/4.1/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api).
+[C Documentation](https://51degrees.com/documentation/apis/ip-intelligence-cxx/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api) and the [C++ Documentation](https://51degrees.com/documentation/apis/ip-intelligence-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api).
 
 The 51Degrees IP intelligence API is built on the 51Degrees [common API](../../src/common/README.md).
 
