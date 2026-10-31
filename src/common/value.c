@@ -36,6 +36,24 @@ typedef struct value_search_t {
 	StringBuilder *tempBuilder;
 } valueSearch;
 
+/**
+ * The string given for a value with no description or URL. The size of a
+ * string counts its terminating null.
+ */
+static const String noString = { 1, '\0' };
+
+/**
+ * A value with no description or URL points at offset 0, which holds the first
+ * string in the file rather than either of those. Callers rely on getting a
+ * string, so they get an empty one, and can release the item as they do for
+ * any other string because it holds nothing.
+ */
+static const String* getNoString(const Collection *strings, CollectionItem *item) {
+	item->handle = NULL;
+	item->collection = strings;
+	return &noString;
+}
+
 static int compareValueByName(
 	void *state,
 	Item *item,
@@ -109,6 +127,9 @@ const String* fiftyoneDegreesValueGetDescription(
 	EXCEPTION_SET(NOT_IMPLEMENTED)
 	return NULL;
 #else
+	if (value->descriptionOffset <= 0) {
+		return getNoString(strings, item);
+	}
 	return &StoredBinaryValueGet(
 		strings,
 		value->descriptionOffset,
@@ -123,8 +144,12 @@ const String* fiftyoneDegreesValueGetUrl(
 	const Value *value,
 	CollectionItem *item,
 	Exception *exception) {
+	// A negative field is either no URL or a masked weight.
 	if (value->urlOffsetOrWeight < 0) {
 		return NULL;
+	}
+	if (value->urlOffsetOrWeight == 0) {
+		return getNoString(strings, item);
 	}
 	return &StoredBinaryValueGet(
 		strings,

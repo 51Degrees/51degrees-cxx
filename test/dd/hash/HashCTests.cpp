@@ -25,6 +25,7 @@
 #include <vector>
 #include "../Constants.hpp"
 #include "../../common/Base.hpp"
+#include "../../../src/dd/hash/ValueMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/fiftyone.h"
 
 
@@ -714,6 +715,96 @@ TEST_F(HashCTests, HashResultsGetValuesNoProfileValues) {
  * property is required so that the properties evidence can override, and the
  * JavaScript properties which measure them, are all available.
  */
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+/*
+ * Reads the description and URL of every value in the data file, through the
+ * C functions and through the meta data the language wrappers use, and the URL
+ * of every property. The
+ * configuration decides whether the strings come from memory, a cache or the
+ * file, and so how the item holding each one is released. A value with no
+ * description or URL points at offset 0, which holds the first string in the
+ * file.
+ */
+static void checkValueDescriptions(const char *fileName, ConfigHash config) {
+	using FiftyoneDegrees::DeviceDetection::Hash::ValueMetaDataBuilderHash;
+	EXCEPTION_CREATE;
+	ResourceManager manager;
+	PropertiesRequired properties = PropertiesDefault;
+	properties.string = commonProperties;
+	StatusCode status = HashInitManagerFromFile(
+		&manager,
+		&config,
+		&properties,
+		fileName,
+		exception);
+	ASSERT_EQ(SUCCESS, status);
+	ASSERT_TRUE(EXCEPTION_OKAY);
+	DataSetHash *dataSet = DataSetHashGet(&manager);
+	for (uint32_t i = 0; i < dataSet->header.values.count; i++) {
+		Item valueItem, stringItem;
+		DataReset(&valueItem.data);
+		DataReset(&stringItem.data);
+		const Value *value = ValueGet(
+			dataSet->values, i, &valueItem, exception);
+		ASSERT_NE(nullptr, value);
+		const String *description = fiftyoneDegreesValueGetDescription(
+			dataSet->strings, value, &stringItem, exception);
+		ASSERT_TRUE(EXCEPTION_OKAY);
+		ASSERT_NE(nullptr, description);
+		auto metaData = ValueMetaDataBuilderHash::build(dataSet, value);
+		ASSERT_NE(nullptr, metaData);
+		EXPECT_STREQ(&description->value, metaData->getDescription().c_str());
+		if (value->descriptionOffset <= 0) {
+			ASSERT_STREQ("", &description->value) <<
+				"The value at index " << i << " has no description.";
+		}
+		Item urlItem;
+		DataReset(&urlItem.data);
+		const String *url = fiftyoneDegreesValueGetUrl(
+			dataSet->strings, value, &urlItem, exception);
+		ASSERT_TRUE(EXCEPTION_OKAY);
+		ASSERT_NE(nullptr, url);
+		EXPECT_STREQ(&url->value, metaData->getUrl().c_str());
+		if (value->urlOffsetOrWeight == 0) {
+			ASSERT_STREQ("", &url->value) <<
+				"The value at index " << i << " has no URL.";
+		}
+		delete metaData;
+		COLLECTION_RELEASE(dataSet->strings, &urlItem);
+		COLLECTION_RELEASE(dataSet->strings, &stringItem);
+		COLLECTION_RELEASE(dataSet->values, &valueItem);
+	}
+	for (uint32_t i = 0; i < dataSet->header.properties.count; i++) {
+		Item propertyItem, urlItem;
+		DataReset(&propertyItem.data);
+		DataReset(&urlItem.data);
+		const Property *property = PropertyGet(
+			dataSet->properties, i, &propertyItem, exception);
+		ASSERT_NE(nullptr, property);
+		const String *url = fiftyoneDegreesPropertyGetUrl(
+			dataSet->strings, property, &urlItem, exception);
+		ASSERT_TRUE(EXCEPTION_OKAY);
+		ASSERT_NE(nullptr, url);
+		if (property->urlOffset == 0) {
+			ASSERT_STREQ("", &url->value) <<
+				"The property at index " << i << " has no URL.";
+		}
+		COLLECTION_RELEASE(dataSet->strings, &urlItem);
+		COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+	}
+	DataSetHashRelease(dataSet);
+	ResourceManagerFree(&manager);
+}
+
+TEST_F(HashCTests, ValueDescriptions) {
+	checkValueDescriptions(dataFilePath.c_str(), HashInMemoryConfig);
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+	checkValueDescriptions(dataFilePath.c_str(), HashLowMemoryConfig);
+	checkValueDescriptions(dataFilePath.c_str(), HashBalancedConfig);
+#endif
+}
+#endif
+
 class HashCOverridesTests : public Base {
 public:
 	HashCOverridesTests() {

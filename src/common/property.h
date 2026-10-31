@@ -196,7 +196,8 @@ EXTERNAL const fiftyoneDegreesString* fiftyoneDegreesPropertyGetCategory(
  * @param item used to store the resulting string in.
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
- * @return a pointer to a string in the collection item data structure.
+ * @return a pointer to a string in the collection item data structure, or to
+ * an empty string if the property has no URL.
  */
 EXTERNAL const fiftyoneDegreesString* fiftyoneDegreesPropertyGetUrl(
 	const fiftyoneDegreesCollection *stringsCollection,

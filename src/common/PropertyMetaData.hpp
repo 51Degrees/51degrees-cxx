@@ -135,7 +135,7 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Get the URL related to the property.
-			 * @return URL string
+			 * @return URL string, empty if the property has none
 			 */
 			string getUrl() const;
 
