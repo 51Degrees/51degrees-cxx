@@ -510,7 +510,9 @@ EXTERNAL void fiftyoneDegreesDataSetIpiRelease(fiftyoneDegreesDataSetIpi* datase
  * @param fileName the full path to a file with read permission that contains
  * the IP Intelligence data set
  * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
+ * exception occurs. See exceptions.h. Holds the status if the data set could
+ * not be initialised, for example from a missing or rejected file, and the
+ * number returned then means nothing.
  * @return the total number of bytes needed to initialise a IP Intelligence resource
  * and associated manager with the configuration provided or zero
  */
