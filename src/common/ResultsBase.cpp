@@ -250,7 +250,7 @@ FiftyoneDegrees::Common::Value<double> ResultsBase::getValueAsDouble(const strin
 
 template <class T> bool ResultsBase::getOneValueText(
 	int requiredPropertyIndex,
-	Value<T> &result,
+	FiftyoneDegrees::Common::Value<T> &result,
 	string &text) {
 	if (hasValuesInternal(requiredPropertyIndex) == false) {
 		fiftyoneDegreesResultsNoValueReason reason =
