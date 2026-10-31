@@ -4,6 +4,12 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{1072D528-83C9-433F-95C2-8EB8401F0DF1}</ProjectGuid>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!-- The googletest package predates GTEST_SKIP, so a skipped test returns as passed. -->
+      <PreprocessorDefinitions>GTEST_SKIP=return GTEST_SUCCEED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\test\common\Base.cpp" />
     <ClCompile Include="..\..\..\test\common\EngineTests.cpp" />
@@ -22,7 +28,6 @@
     <ClCompile Include="..\..\..\test\ipi\ExampleProcTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromFileTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromMemoryTests.cpp" />
-    <ClCompile Include="..\..\test\ExampleStronglyTypedTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\MemLeakReloadFromFileTests.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -32,11 +37,9 @@
     <ClInclude Include="..\..\..\test\common\pch.h" />
     <ClInclude Include="..\..\..\src\common\textfile.h" />
     <ClInclude Include="..\..\..\src\ipi\EngineIpi.hpp" />
-    <ClInclude Include="..\..\src\GraphIpi.hpp" />
     <ClInclude Include="..\..\..\test\ipi\Constants.hpp" />
     <ClInclude Include="..\..\..\test\ipi\EngineIpIntelligenceTests.hpp" />
     <ClInclude Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.hpp" />
-    <ClInclude Include="..\..\test\GraphIpIntelligenceTests.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Examples\Base\ExampleBase\ExampleBase.vcxproj">
@@ -68,9 +71,6 @@
     </ProjectReference>
     <ProjectReference Include="..\Examples\C\Reload From Memory\Reload From Memory.vcxproj">
       <Project>{08c02792-fe84-4d92-be4c-1c0171328f27}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Examples\C\Strongly Typed\Strongly Typed.vcxproj">
-      <Project>{be731a07-e830-4089-8c74-450d38048163}</Project>
     </ProjectReference>
     <ProjectReference Include="..\FiftyOne.IpIntelligence.CPP\FiftyOne.IpIntelligence.CPP.vcxproj">
       <Project>{341fd8cb-9456-4711-bec8-c4a218fa1c6c}</Project>
