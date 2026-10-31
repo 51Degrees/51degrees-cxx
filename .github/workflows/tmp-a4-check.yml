@@ -1,0 +1,75 @@
+name: tmp a4 check
+
+on:
+  push:
+    branches:
+      - tmp/a4-check
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Every way the sources can be compiled, and the tests on the small data file.
+  quick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          path: branch
+      - name: Every compile option
+        run: |
+          cd branch
+          status=0
+          for compiler in gcc clang; do
+            for options in "" \
+              "-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT -D_FILE_OFFSET_BITS=64 -DFIFTYONE_DEGREES_REDUCED_FILE" \
+              "-DFIFTYONE_DEGREES_MEMORY_ONLY" \
+              "-DFIFTYONE_DEGREES_NO_THREADING" \
+              "-DFIFTYONE_DEGREES_EXCEPTIONS_DISABLED" \
+              "-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT -D_FILE_OFFSET_BITS=64 -DFIFTYONE_DEGREES_REDUCED_FILE -DFIFTYONE_DEGREES_NO_THREADING -DFIFTYONE_DEGREES_EXCEPTIONS_DISABLED"; do
+              for file in src/ipi/ipi.c src/ipi/graph/graph.c src/common/collection.c; do
+                echo "$compiler $options $file"
+                if ! $compiler -std=gnu11 -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-missing-braces -Wno-sign-compare -Wno-unused-function -c $options "$file" -o /tmp/out.o 2>&1 | grep -E "held|error|src/ipi/ipi.c:(9[0-9][0-9]|1[0-9][0-9][0-9]|20[0-9][0-9])" ; then
+                  true
+                fi
+                $compiler -std=gnu11 -w -c $options "$file" -o /tmp/out.o || status=1
+              done
+            done
+          done
+          exit $status
+      - name: 32 bit compile
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq gcc-multilib > /dev/null
+          cd branch
+          gcc -m32 -std=gnu11 -w -c -D_FILE_OFFSET_BITS=64 src/ipi/ipi.c -o /tmp/out.o
+      - name: The sources as one file as the Go build does
+        run: |
+          cd branch/src
+          (cat common/*.c ipi/graph/*.c ipi/*.c) | grep -v '^#include "' > /tmp/names.c || true
+          grep -oE '\bheld[A-Z][A-Za-z]*' ipi/ipi.c | sort -u > /tmp/held-names.txt
+          wc -l /tmp/held-names.txt
+          for name in $(cat /tmp/held-names.txt); do
+            if grep -l "\b$name\b" common/*.c common/*.h ipi/graph/*.c ipi/graph/*.h ipi/ipi_weighted_results.c ipi/*.h 2>/dev/null | grep -q .; then
+              echo "clash $name"; exit 1
+            fi
+          done
+          echo no clashes
+      - name: Fetch the small data file
+        run: |
+          mkdir -p branch/ip-intelligence-data
+          curl -fsSL -o branch/ip-intelligence-data/51Degrees-IPIV4AsnIpiV41.ipi https://raw.githubusercontent.com/51Degrees/ip-intelligence-data/HEAD/51Degrees-IPIV4AsnIpiV41.ipi
+      - name: Tests with AddressSanitizer on the small data file
+        run: |
+          cmake -S branch -B build -DCMAKE_BUILD_TYPE=Release -DWITH_ASAN=ON -DFIFTYONE_BUILD_DEVICE_DETECTION=OFF -DFIFTYONE_COMMON_CXX_BUILD_TESTING=OFF -DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=OFF
+          cmake --build build --target IpiTests --parallel 4
+          cd branch
+          ASAN_OPTIONS=detect_leaks=1:allocator_may_return_null=1 ../build/bin/IpiTests --gtest_filter='IpiBalanced*'
+      - name: Tests in a debug build on the small data file
+        run: |
+          cmake -S branch -B build-debug -DCMAKE_BUILD_TYPE=Debug -DWITH_ASAN=ON -DFIFTYONE_BUILD_DEVICE_DETECTION=OFF -DFIFTYONE_COMMON_CXX_BUILD_TESTING=OFF -DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=OFF
+          cmake --build build-debug --target IpiTests --parallel 4
+          cd branch
+          ASAN_OPTIONS=detect_leaks=1:allocator_may_return_null=1 ../build-debug/bin/IpiTests --gtest_filter='IpiBalanced*'
