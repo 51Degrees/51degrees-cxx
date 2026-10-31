@@ -23,8 +23,12 @@
 #include "../Constants.hpp"
 #include "../EngineDeviceDetectionTests.hpp"
 #include "../../../src/dd/hash/EngineHash.hpp"
+#include <algorithm>
+#include <cstring>
 #include <iostream>
 #include <fstream>
+#include <string>
+#include <vector>
 
 using std::ifstream;
 using std::ofstream;
@@ -48,6 +52,18 @@ public:
     virtual void TearDown() {
         removeTestFiles();
         Base::TearDown();
+    }
+
+    /**
+     * Finds a real data file, the smallest first.
+     * @return the path to the data file, or an empty string if there is none
+     */
+    std::string findDataFile() {
+        std::string path;
+        for (int i = _HashFileNamesLength - 1; i >= 0 && path.empty(); i--) {
+            path = GetFilePath(_dataFolderName, _HashFileNames[i]);
+        }
+        return path;
     }
 
     /**
@@ -342,4 +358,92 @@ TEST_F(EngineHashInitTests, SmallData_Memory) {
         fiftyoneDegreesFree((void*)expected);
     }
     fiftyoneDegreesFree(mem);
+}
+
+/**
+ * Checks the exception names the file, rather than saying 'null', when the
+ * call provided cannot open it.
+ */
+template <typename F>
+static void expectFileNamed(const char *path, F call) {
+    try {
+        call();
+        FAIL() << "No exception was thrown for " << path;
+    }
+    catch (StatusCodeException & e) {
+        EXPECT_NE(nullptr, strstr(e.what(), path)) << e.what();
+        EXPECT_EQ(nullptr, strstr(e.what(), "'null'")) << e.what();
+    }
+}
+
+/**
+ * Check a data file that cannot be opened is named in the message, through a
+ * path written with each separator.
+ */
+TEST_F(EngineHashInitTests, MissingFile_Named) {
+    const char *paths[] = {
+        "missing-folder/missing.hash",
+        "missing-folder\\missing.hash",
+        "//localhost/missing-share/missing.hash",
+        "\\\\localhost\\missing-share\\missing.hash"
+    };
+    for (const char *path : paths) {
+        ConfigHash config;
+        config.setLowMemory();
+        RequiredPropertiesConfig properties;
+        expectFileNamed(path, [&]() {
+            EngineHash engine(path, &config, &properties);
+        });
+    }
+}
+
+/**
+ * Check a reload that cannot open its file names that file, whether the file
+ * was given or is the one the engine was created from.
+ */
+TEST_F(EngineHashInitTests, FailedReload_Named) {
+    const std::string dataFile = findDataFile();
+    ASSERT_FALSE(dataFile.empty()) << "No Hash data file was found.";
+    const char *copy = "reload-named.hash";
+    ASSERT_EQ(
+        FIFTYONE_DEGREES_STATUS_SUCCESS,
+        fiftyoneDegreesFileCopy(dataFile.c_str(), copy));
+    {
+        ConfigHash config;
+        config.setMaxPerformance();
+        RequiredPropertiesConfig properties("IsMobile");
+        EngineHash engine(copy, &config, &properties);
+        const char *missing = "missing-folder/missing.hash";
+        expectFileNamed(missing, [&]() { engine.refreshData(missing); });
+        ASSERT_EQ(
+            FIFTYONE_DEGREES_STATUS_SUCCESS,
+            fiftyoneDegreesFileDelete(copy));
+        expectFileNamed(copy, [&]() { engine.refreshData(); });
+    }
+}
+
+/**
+ * Check a data file opens through a path written with each separator the
+ * system has, using the configurations which read from the file.
+ */
+TEST_F(EngineHashInitTests, OpensWithEachSeparator) {
+    std::string path = findDataFile();
+    ASSERT_FALSE(path.empty()) << "No Hash data file was found.";
+    std::replace(path.begin(), path.end(), '\\', '/');
+    std::vector<std::string> paths = { path };
+#ifdef _WIN32
+    std::replace(path.begin(), path.end(), '/', '\\');
+    paths.push_back(path);
+#endif
+    for (const std::string &current : paths) {
+        ConfigHash balanced;
+        balanced.setBalanced();
+        ConfigHash lowMemory;
+        lowMemory.setLowMemory();
+        RequiredPropertiesConfig properties("IsMobile");
+        EXPECT_NO_THROW(EngineHash(current.c_str(), &balanced, &properties)) <<
+            current;
+        EXPECT_NO_THROW(EngineHash(current.c_str(), &lowMemory, &properties)) <<
+            current;
+    }
 }

@@ -22,7 +22,9 @@
  
 #include "pch.h"
 #include "Base.hpp"
+#include <algorithm>
 #include <stdio.h>
+#include <string>
 #include <sys/stat.h>
 
 #ifdef _MSC_VER
@@ -981,3 +983,95 @@ TEST_F(File, GetPath_PathTooLong) {
 			sizeof(foundPath))) <<
 		"Insufficient memory to store the path was not reported.";
 }
+
+/**
+ * Check the base name is what follows the last separator of either kind,
+ * including in a network share path, and that there is no base name without a
+ * separator or after a trailing one.
+ */
+TEST_F(File, GetBaseName) {
+	const char *withName[] = {
+		"dir/name.dat",
+		"dir\\name.dat",
+		"a/b\\name.dat",
+		"a\\b/name.dat",
+		"//server/share/name.dat",
+		"\\\\server\\share\\name.dat",
+		"/name.dat",
+		"\\name.dat"
+	};
+	for (const char *path : withName) {
+		EXPECT_STREQ("name.dat", fiftyoneDegreesFileGetBaseName(path)) << path;
+	}
+	const char *withoutName[] = {
+		"", "name.dat", "dir/", "dir\\", "//", "\\\\"
+	};
+	for (const char *path : withoutName) {
+		EXPECT_EQ(nullptr, fiftyoneDegreesFileGetBaseName(path)) << path;
+	}
+}
+
+/**
+ * Checks a file opens through the path, both directly and through a file pool
+ * as an engine opens a data file it reads from.
+ */
+static void expectOpens(const char *path) {
+	FILE *file = NULL;
+	EXPECT_EQ(
+		FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileOpen(path, &file)) << path;
+	if (file != NULL) {
+		fclose(file);
+	}
+	FIFTYONE_DEGREES_EXCEPTION_CREATE
+	fiftyoneDegreesFilePool filePool;
+	EXPECT_EQ(
+		FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFilePoolInit(&filePool, path, 2, exception)) << path;
+	EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY) << path;
+	fiftyoneDegreesFilePoolRelease(&filePool);
+}
+
+/**
+ * Check a file opens through a path written with each separator the system
+ * has. A backslash is an ordinary character in a file name outside Windows.
+ */
+TEST_F(File, OpenWithEachSeparator) {
+	char path[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	Snprintf(path, sizeof(path), "%s/%s", tempPath1, fileName);
+	createDir(tempPath1);
+	createFile(path);
+	expectOpens(path);
+#ifdef _WIN32
+	std::replace(path, path + strlen(path), '/', '\\');
+	expectOpens(path);
+#endif
+	removeFile(path);
+	removeDir(tempPath1);
+}
+
+#ifdef _WIN32
+/**
+ * Check a file opens through a network path written with each separator. The
+ * path goes through this computer's administrative share for the drive, so
+ * there is nothing to check where that share is not available.
+ */
+TEST_F(File, OpenNetworkPathWithEachSeparator) {
+	char current[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	ASSERT_NE((char*)NULL, GET_CURRENT_DIR(current, sizeof(current)));
+	const std::string back = std::string("\\\\localhost\\") + current[0] +
+		"$" + (current + 2) + "\\" + fileName;
+	std::string forward = back;
+	std::replace(forward.begin(), forward.end(), '\\', '/');
+	FILE *file = NULL;
+	if (current[1] != ':' ||
+		fiftyoneDegreesFileOpen(forward.c_str(), &file) !=
+		FIFTYONE_DEGREES_STATUS_SUCCESS) {
+		std::cout << "The administrative share is not available." << std::endl;
+		return;
+	}
+	fclose(file);
+	expectOpens(forward.c_str());
+	expectOpens(back.c_str());
+}
+#endif
