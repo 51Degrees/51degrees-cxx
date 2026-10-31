@@ -16,7 +16,8 @@ This reads the symbols a build left in the build folder and fails on any of:
 - a name both products define;
 - a fiftyoneDegrees name IP Intelligence references but does not define, which
   only the Device Detection copy then provides;
-- a common header that does not include the list first.
+- a common header that does not include the list first;
+- with -Cxx, a FiftyoneDegrees C++ name both products define.
 
 It uses nm on Linux and macOS, which sees every external name, and dumpbin on
 Windows, where only the 51Degrees names are read because each object also
@@ -24,9 +25,13 @@ carries the C runtime's inline functions as external names.
 
 .PARAMETER BuildPath
 The CMake build folder of a build with FIFTYONE_IPI_SYMBOLS on.
+
+.PARAMETER Cxx
+Also check the C++ libraries, for a build with FIFTYONE_CXX_BOTH_PRODUCTS on.
 #>
 param(
-    [Parameter(Mandatory)][string] $BuildPath
+    [Parameter(Mandatory)][string] $BuildPath,
+    [switch] $Cxx
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,7 +65,7 @@ function Get-Symbols([string[]] $Libraries) {
     foreach ($library in $Libraries) {
         if ($IsWindows) {
             foreach ($line in & (Find-Dumpbin) /SYMBOLS $library) {
-                if ($line -match 'External\s+\|\s+(\S*fiftyoneDegrees\S*)') {
+                if ($line -match 'External\s+\|\s+((?:ipi_)?fiftyoneDegrees\w+|\?(?!\?_C@)\S*@FiftyoneDegrees@\S*)') {
                     if ($line -match '\bUNDEF\b') { [void]$undefined.Add($Matches[1]) }
                     else { [void]$defined.Add($Matches[1]) }
                 }
@@ -117,6 +122,21 @@ $borrowed = $ipi.Undefined | Where-Object {
 } | Sort-Object
 foreach ($name in $borrowed) {
     $problems.Add("IP Intelligence calls the Device Detection copy of $name. Add it to src/common/$ListHeader.")
+}
+
+if ($Cxx) {
+    $ddCxx = Get-Symbols (Get-Libraries @(
+        'fiftyone-common-cxx', 'fiftyone-device-detection-cxx', 'fiftyone-hash-cxx'))
+    $ipiCxx = Get-Symbols (Get-Libraries @(
+        'fiftyone-common-cxx-ipi', 'fiftyone-ip-intelligence-cxx'))
+    $sharedCxx = $ipiCxx.Defined | Where-Object {
+        $_ -like '*FiftyoneDegrees*' -and $ddCxx.Defined.Contains($_)
+    } | Sort-Object
+    foreach ($name in $sharedCxx) {
+        $problems.Add("Both products define the C++ name $name. Open FIFTYONE_DEGREES_COMMON_CXX_BEGIN in its header.")
+    }
+    Write-Output ("Device Detection's C++ libraries define {0} names, IP Intelligence's define {1}." -f `
+        $ddCxx.Defined.Count, $ipiCxx.Defined.Count)
 }
 
 Write-Output ("Device Detection defines {0} names, IP Intelligence defines {1}, {2} of them from its copy of common." -f `

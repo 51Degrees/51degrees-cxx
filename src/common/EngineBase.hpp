@@ -42,6 +42,7 @@
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Encapsulates the engine class to be extended by engine
 		 * implementations. Common logic is contained in this base class to be
@@ -334,6 +335,7 @@ namespace FiftyoneDegrees {
 			 */
 			void addKey(string key);
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

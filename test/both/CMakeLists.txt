@@ -31,3 +31,34 @@ add_test(NAME BothProducts COMMAND BothProducts)
 set_tests_properties(BothProducts PROPERTIES
 	LABELS ipi
 	SKIP_RETURN_CODE 77)
+
+if (FIFTYONE_CXX_BOTH_PRODUCTS)
+	add_library(BothProductsCxxDd OBJECT ${CMAKE_CURRENT_LIST_DIR}/dd.cpp)
+	target_link_libraries(BothProductsCxxDd PRIVATE fiftyone-hash-cxx)
+
+	add_library(BothProductsCxxIpi OBJECT ${CMAKE_CURRENT_LIST_DIR}/ipi.cpp)
+	target_link_libraries(BothProductsCxxIpi PRIVATE fiftyone-ip-intelligence-cxx)
+
+	add_executable(BothProductsCxx
+		${CMAKE_CURRENT_LIST_DIR}/main.cpp
+		${CMAKE_CURRENT_LIST_DIR}/both.h
+		$<TARGET_OBJECTS:BothProductsCxxDd>
+		$<TARGET_OBJECTS:BothProductsCxxIpi>)
+	target_link_libraries(BothProductsCxx
+		fiftyone-hash-cxx
+		fiftyone-ip-intelligence-cxx)
+
+	if (MSVC)
+		target_compile_options(BothProductsCxxDd PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/EHsc")
+		target_compile_options(BothProductsCxxIpi PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/EHsc")
+		target_compile_options(BothProductsCxx PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/EHsc")
+	endif()
+
+	set_target_properties(BothProductsCxxDd BothProductsCxxIpi BothProductsCxx
+		PROPERTIES FOLDER "Tests")
+
+	add_test(NAME BothProductsCxx COMMAND BothProductsCxx)
+	set_tests_properties(BothProductsCxx PROPERTIES
+		LABELS ipi
+		SKIP_RETURN_CODE 77)
+endif()

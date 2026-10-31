@@ -28,6 +28,7 @@
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * C++ class wrapper for the #fiftyoneDegreesCollectionConfig structure.
 		 * See collection.h.
@@ -134,6 +135,7 @@ namespace FiftyoneDegrees {
 			/** Pointer to the underlying C configuration structure. */
 			fiftyoneDegreesCollectionConfig *config;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

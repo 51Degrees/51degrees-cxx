@@ -35,6 +35,7 @@ using std::shared_ptr;
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Contains meta data for the properties, values, profiles and
 		 * components that exist within the engine instance. All Collections
@@ -238,6 +239,7 @@ namespace FiftyoneDegrees {
 				uint32_t offset,
 				fiftyoneDegreesPropertyValueType storedValueType);
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

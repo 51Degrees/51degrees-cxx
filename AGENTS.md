@@ -34,7 +34,17 @@ builds with the option off, so CI keeps testing those names.
 
 When you add a common function or global, add it to the list. A new common
 header includes the list first, in the same way as the others.
-`ci/check-common-symbols.ps1` fails the build otherwise.
+`ci/check-common-symbols.ps1` fails the build otherwise, and `test/both` links
+both products into one program.
+
+The common C++ classes have the same problem, so each common C++ header opens
+`FIFTYONE_DEGREES_COMMON_CXX_BEGIN` inside its namespace. That expands to nothing
+unless `FIFTYONE_DEGREES_IPI_CXX_SYMBOLS` is defined, which makes it an inline
+namespace, changing linked names and not source names. The CMake option
+`FIFTYONE_CXX_BOTH_PRODUCTS` turns it on, and it stays off by default until the
+wrappers SWIG generates have been checked. The
+`Ubuntu_x64_Release_CxxBothProducts` entry in `ci/options.json` builds and tests
+with it on.
 
 ## Includes are relative
 

@@ -30,6 +30,7 @@ using std::vector;
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Meta data relating to a profile populated by an engine
 		 * implementation.
@@ -90,6 +91,7 @@ namespace FiftyoneDegrees {
 			/** The unique id of the component which the profile relates to */
 			byte componentId;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

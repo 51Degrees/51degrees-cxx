@@ -51,4 +51,17 @@
 #define FIFTYONE_DEGREES_COMMON_COOKIE_PREFIX "51D_"
 #endif
 
+// The common C++ headers open this inside their own namespace. It expands to
+// nothing unless FIFTYONE_DEGREES_IPI_CXX_SYMBOLS is defined. It then changes
+// the linked names of the classes in the IP Intelligence copy and leaves source
+// names alone, because members of an inline namespace are found through the
+// namespace around it.
+#ifdef FIFTYONE_DEGREES_IPI_CXX_SYMBOLS
+#define FIFTYONE_DEGREES_COMMON_CXX_BEGIN inline namespace IpiCopy {
+#define FIFTYONE_DEGREES_COMMON_CXX_END }
+#else
+#define FIFTYONE_DEGREES_COMMON_CXX_BEGIN
+#define FIFTYONE_DEGREES_COMMON_CXX_END
+#endif
+
 #endif

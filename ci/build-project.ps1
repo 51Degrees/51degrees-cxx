@@ -5,7 +5,8 @@ param(
     [string]$Configuration = "Release",
     [string]$BuildMethod = "cmake",
     [string[]]$Products,
-    [bool]$IpiSymbols = $true
+    [bool]$IpiSymbols = $true,
+    [bool]$CxxBothProducts
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
@@ -30,12 +31,14 @@ if ($BuildMethod -eq "cmake") {
             "-DFIFTYONE_COMMON_CXX_BUILD_TESTING=$(OnOff ($Products -contains 'common'))"
             "-DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=$(OnOff ($Arch -eq 'x64'))"
             "-DFIFTYONE_IPI_SYMBOLS=$(OnOff $IpiSymbols)"
+            "-DFIFTYONE_CXX_BOTH_PRODUCTS=$(OnOff $CxxBothProducts)"
         )
 
     # CMake builds both copies of common in these cases.
     if ($IpiSymbols -and ($Products -contains 'ipi' -or
         ($Products -contains 'common' -and $Arch -eq 'x64'))) {
-        & $PSScriptRoot/check-common-symbols.ps1 -BuildPath "$RepoName/build"
+        & $PSScriptRoot/check-common-symbols.ps1 -BuildPath "$RepoName/build" `
+            -Cxx:$CxxBothProducts
     }
 
 } elseif ($BuildMethod -eq "msbuild") {

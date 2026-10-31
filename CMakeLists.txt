@@ -51,6 +51,10 @@ endif()
 option(FIFTYONE_IPI_SYMBOLS
 	"Give IP Intelligence's copy of common its own linked names"
 	${FIFTYONE_IPI_SYMBOLS_DEFAULT})
+# The same for the common C++ classes. Off by default because the wrappers SWIG
+# generates have not been checked with the changed linked names.
+option(FIFTYONE_CXX_BOTH_PRODUCTS
+	"Give IP Intelligence's copy of the common C++ classes its own linked names" OFF)
 
 if (MSVC)
 	# Check minimum required versions for MSVC

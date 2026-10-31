@@ -47,4 +47,10 @@ BothResult bothIpiCommonCall(void);
 BothResult bothDdLookup(void);
 BothResult bothIpiLookup(void);
 
+#ifdef __cplusplus
+/** Does the same lookup through the product's C++ engine. */
+BothResult bothDdEngineLookup(void);
+BothResult bothIpiEngineLookup(void);
+#endif
+
 #endif
