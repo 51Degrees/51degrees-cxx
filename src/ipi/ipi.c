@@ -1175,6 +1175,19 @@ static void heldFree(Collection* collection) {
 	Free(collection);
 }
 
+static void heldRangeAdd(
+	heldRange* ranges,
+	uint32_t* count,
+	const uint32_t first,
+	const uint32_t end) {
+	if (end > first) {
+		ranges[*count].first = first;
+		ranges[*count].end = end;
+		ranges[*count].memory = NULL;
+		(*count)++;
+	}
+}
+
 static int heldRangeCompareFirst(const void* a, const void* b) {
 	const uint32_t x = ((const heldRange*)a)->first;
 	const uint32_t y = ((const heldRange*)b)->first;
@@ -1398,9 +1411,30 @@ static StatusCode heldGraphsCreate(
 }
 
 /**
- * Records the strings the required properties read, and offers their values
- * for holding. A default value might not be in the range of its property, so
- * it is offered on its own if it is not.
+ * Records the strings of a stretch of values and offers it for holding.
+ */
+static StatusCode heldPlanValues(
+	const DataSetIpi* dataSet,
+	FILE* file,
+	heldPlan* plan,
+	const uint32_t first,
+	const uint32_t count) {
+	const uint32_t valueBytes = dataSet->values->elementSize;
+	heldRangeAdd(plan->values, &plan->valuesCount, first, first + count);
+	return heldScan(
+		file,
+		plan->buffer,
+		(uint64_t)dataSet->header.values.startPosition +
+			(uint64_t)first * valueBytes,
+		count,
+		valueBytes,
+		heldPlanScanValue,
+		plan);
+}
+
+/**
+ * Plans for the values of each required property. A default value is only
+ * offered on its own if it is not in the range of its property.
  */
 static StatusCode heldPlanProperties(
 	DataSetIpi* dataSet,
@@ -1408,8 +1442,6 @@ static StatusCode heldPlanProperties(
 	heldPlan* plan,
 	Exception* exception) {
 	const PropertiesAvailable* const available = dataSet->b.b.available;
-	const uint64_t start = (uint64_t)dataSet->header.values.startPosition;
-	const uint32_t valueBytes = dataSet->values->elementSize;
 	const uint32_t valueCount = dataSet->values->count;
 	plan->values = (heldRange*)Malloc(
 		sizeof(heldRange) * available->count * 2);
@@ -1438,40 +1470,22 @@ static StatusCode heldPlanProperties(
 		if (EXCEPTION_FAILED) {
 			return COLLECTION_FAILURE;
 		}
+		StatusCode status = SUCCESS;
 		if (first <= last && last < valueCount) {
-			const StatusCode status = heldScan(
+			status = heldPlanValues(
+				dataSet,
 				file,
-				plan->buffer,
-				start + (uint64_t)first * valueBytes,
-				last - first + 1,
-				valueBytes,
-				heldPlanScanValue,
-				plan);
-			if (status != SUCCESS) {
-				return status;
-			}
-			plan->values[plan->valuesCount].first = first;
-			plan->values[plan->valuesCount].end = last + 1;
-			plan->values[plan->valuesCount].memory = NULL;
-			plan->valuesCount++;
+				plan,
+				first,
+				last - first + 1);
 		}
-		if (defaultIndex < valueCount &&
+		if (status == SUCCESS &&
+			defaultIndex < valueCount &&
 			(defaultIndex < first || defaultIndex > last)) {
-			const StatusCode status = heldScan(
-				file,
-				plan->buffer,
-				start + (uint64_t)defaultIndex * valueBytes,
-				1,
-				valueBytes,
-				heldPlanScanValue,
-				plan);
-			if (status != SUCCESS) {
-				return status;
-			}
-			plan->values[plan->valuesCount].first = defaultIndex;
-			plan->values[plan->valuesCount].end = defaultIndex + 1;
-			plan->values[plan->valuesCount].memory = NULL;
-			plan->valuesCount++;
+			status = heldPlanValues(dataSet, file, plan, defaultIndex, 1);
+		}
+		if (status != SUCCESS) {
+			return status;
 		}
 	}
 	return SUCCESS;
@@ -1498,18 +1512,6 @@ static uint32_t heldStringEnd(
 		COLLECTION_RELEASE(dataSet->strings, &item);
 	}
 	return end;
-}
-
-static void heldPlanAddStrings(
-	heldPlan* plan,
-	const uint32_t first,
-	const uint32_t end) {
-	if (end > first) {
-		plan->strings[plan->stringsCount].first = first;
-		plan->strings[plan->stringsCount].end = end;
-		plan->strings[plan->stringsCount].memory = NULL;
-		plan->stringsCount++;
-	}
 }
 
 /**
@@ -1553,7 +1555,7 @@ static StatusCode heldPlanStrings(
 			}
 			if (bucket->first > end &&
 				bucket->first - end >= HELD_STRINGS_GAP_BYTES) {
-				heldPlanAddStrings(plan, start, end);
+				heldRangeAdd(plan->strings, &plan->stringsCount, start, end);
 				start = bucket->first;
 			}
 		}
@@ -1568,7 +1570,7 @@ static StatusCode heldPlanStrings(
 		if (end > size || size - end < HELD_STRINGS_GAP_BYTES) {
 			end = size;
 		}
-		heldPlanAddStrings(plan, start, end);
+		heldRangeAdd(plan->strings, &plan->stringsCount, start, end);
 	}
 	uint64_t held = 0;
 	for (uint32_t i = 0; i < plan->stringsCount; i++) {
@@ -1767,10 +1769,7 @@ static StatusCode heldPlanProfiles(
 			return status;
 		}
 		if (units <= size - run.last) {
-			plan->profiles[count].first = run.first;
-			plan->profiles[count].end = run.last + units;
-			plan->profiles[count].memory = NULL;
-			count++;
+			heldRangeAdd(plan->profiles, &count, run.first, run.last + units);
 			totalBytes += (uint64_t)(run.last + units - run.first) << shift;
 			totalProfiles += profiles;
 		}
