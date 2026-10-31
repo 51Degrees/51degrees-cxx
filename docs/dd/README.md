@@ -55,19 +55,22 @@ The CMake project also builds a single shared library containing everything. Thi
 
 The Visual Studio solution contains static libraries which have all the dependencies set up correctly, so referencing these in a Visual Studio solution should be fairly self explanatory.
 
-# Pseudo header length limit
+# Header length limit
 
 A pseudo header joins the values of several HTTP headers into one value, for
 example `Sec-CH-UA`, `Sec-CH-UA-Mobile`, `Sec-CH-UA-Platform` and `User-Agent`.
 The value is built in working memory that is allocated when a set of results is
-created, and detection does not grow that memory. So a pseudo header longer than
-the limit is ignored. Detection moves on to the next header, no error is
-reported, and the result can rest on less detailed evidence.
+created, and detection does not grow that memory. A single header such as
+`User-Agent` has the same limit. A value longer than the limit is ignored.
+Detection moves on to the next header, no error is reported, and the result can
+rest on less detailed evidence. If no other header is usable, the results hold
+no match, as they do for evidence with no usable header. A direct call with a
+`User-Agent` over the limit gives the same results as evidence holding that
+value.
 
 The limit is `maxMatchedUserAgentLength` in the device detection configuration,
 which defaults to 500. It counts bytes, including one separator between each
-value. A single header such as `User-Agent` does not use this memory, so it is
-processed whatever its length.
+value of a pseudo header.
 
 To raise the limit, set a larger value before the data set is created:
 

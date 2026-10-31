@@ -80,7 +80,8 @@ typedef struct fiftyone_degrees_results_device_detection_t {
 						ignored */
 	int bufferPseudoLength; /**< Number of bytes in bufferPseudo, being the
 							maxMatchedUserAgentLength configuration value plus
-							one for the null terminator */
+							one for the null terminator. A single header over
+							that value is ignored too */
 	char* bufferTransform; /**< Working memory used to transform evidence */
 	int bufferTransformLength; /**< Number of bytes in bufferTransform */
 } fiftyoneDegreesResultsDeviceDetection;

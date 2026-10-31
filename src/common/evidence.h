@@ -298,8 +298,10 @@ EXTERNAL uint32_t fiftyoneDegreesEvidenceIterate(
  * callback is not called for it, no error is reported and iteration moves on
  * to the next header. This method never allocates memory to hold a longer
  * value, which is why the caller chooses the length of the buffer up front. A
- * single header does not use the buffer, so the callback receives its whole
- * value whatever its length.
+ * single header does not use the buffer but has the same limit, so one that
+ * could not fit with a null terminator is ignored in the same way. When the
+ * buffer is null nothing is assembled and no limit applies, which suits a
+ * caller only checking which headers are present.
  *
  * @param evidence key value pairs including prefixes
  * @param prefixes one or more prefix flags to return values for
@@ -308,7 +310,7 @@ EXTERNAL uint32_t fiftyoneDegreesEvidenceIterate(
  * @param buffer that MIGHT be used with the callback, null to disable 
  * assembling headers
  * @param length of the buffer including the null terminator, where zero means
- * every pseudo header is ignored
+ * every header is ignored unless the buffer is null
  * @param callback method called when a matching prefix is found
  * @return true if the callback was called successfully, otherwise false
  */

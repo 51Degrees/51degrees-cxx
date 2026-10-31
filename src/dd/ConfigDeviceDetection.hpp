@@ -90,18 +90,18 @@ namespace FiftyoneDegrees {
 			void setUpdateMatchedUserAgent(bool update);
 
 			/**
-			 * Set the limit in bytes on the length of a pseudo header,
-			 * including the separators between its values, and on the
-			 * matched User-Agent. The working memory for a pseudo header
-			 * is allocated from this value when a set of results is
-			 * created, and detection does not grow it. A pseudo header
-			 * longer than the limit is therefore ignored and detection
-			 * moves on to the next header. The limit applies whether or
-			 * not #setUpdateMatchedUserAgent is true. A single header such
-			 * as User-Agent does not use this memory, so it is processed
-			 * whatever its length. The default is 500. To raise the limit
-			 * set a larger value before the engine is created, which also
-			 * raises the memory each set of results holds.
+			 * Set the limit in bytes on the length of a single header such
+			 * as User-Agent, of a pseudo header including the separators
+			 * between its values, and of the matched User-Agent. The working
+			 * memory for a pseudo header is allocated from this value when
+			 * a set of results is created, and detection does not grow it.
+			 * A value longer than the limit is ignored and detection moves
+			 * on to the next header. A direct User-Agent call over the limit
+			 * gives the same results as evidence holding that value. The
+			 * limit applies whether or not #setUpdateMatchedUserAgent is
+			 * true. The default is 500. To raise the limit set a larger
+			 * value before the engine is created, which also raises the
+			 * memory each set of results holds.
 			 * @param length to set
 			 */
 			void setMaxMatchedUserAgentLength(int length);
@@ -131,8 +131,8 @@ namespace FiftyoneDegrees {
 			bool getUpdateMatchedUserAgent();
 
 			/**
-			 * Get the limit in bytes on the length of a pseudo header and on
-			 * the matched User-Agent, as described in
+			 * Get the limit in bytes on the length of a single header, a
+			 * pseudo header and the matched User-Agent, as described in
 			 * #setMaxMatchedUserAgentLength.
 			 * @return the limit, whether or not the matched User-Agent is
 			 * stored
