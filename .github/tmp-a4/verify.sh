@@ -24,17 +24,17 @@ run() {
 everyPreset() {
   local name="$1" list="$2"
   for build in main release branch; do
-    run "$name" "$build" balanced "$list" ""
+    # Longer for the preset this is about, as these are the figures compared.
+    run "$name" "$build" balanced "$list" "seconds=5"
     run "$name" "$build" high "$list" ""
     run "$name" "$build" low "$list" ""
     run "$name" "$build" memory "$list" ""
   done
-  # The two choices still to be made, on this branch only.
-  if [ "$name" != "all" ]; then
-    run "$name" memo balanced "$list" ""
-    run "$name" nopart balanced "$list" ""
-  fi
+  # Without copying a profile out of the cache, to show what that does.
+  run "$name" nokeep balanced "$list" "seconds=5"
 }
+
+"$bins/branch/balanced" sizes "$file" 2>&1 | cut -c1-200
 
 everyPreset registered "$registered"
 everyPreset connection "$connection"
@@ -46,10 +46,10 @@ everyPreset all -
 # Naming every property in a list of names gives the same as naming nothing.
 every="$("$bins/branch/balanced" names "$file" 2>/dev/null)"
 if [ -n "$every" ]; then
-  run all branch balanced "$every" ""
+  run all branch balanced "$every" "seconds=5"
   # All but one property.
-  run allButOne branch balanced "${every%,*}" ""
-  run allButOne main balanced "${every%,*}" ""
+  run allButOne branch balanced "${every%,*}" "seconds=5"
+  run allButOne main balanced "${every%,*}" "seconds=5"
 fi
 
 # The temporary file preset copies the data file, so only on the two sets.

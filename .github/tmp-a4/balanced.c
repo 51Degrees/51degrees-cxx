@@ -506,6 +506,52 @@ int main(int argc, char **argv) {
 	if (argc >= 4 && strcmp(argv[1], "gaps") == 0) {
 		return gaps(argv[2], argv[3]);
 	}
+	if (argc >= 3 && strcmp(argv[1], "sizes") == 0) {
+		ConfigIpi high = IpiHighPerformanceConfig;
+		ResourceManager manager;
+		EXCEPTION_CREATE;
+		if (IpiInitManagerFromFile(&manager, &high, NULL, argv[2], exception)
+			!= SUCCESS || EXCEPTION_FAILED) {
+			return 1;
+		}
+		DataSetIpi *dataSet = DataSetIpiGet(&manager);
+		static const uint32_t limits[] = { 128, 256, 512, 1024, 2048, 4096, UINT32_MAX };
+		unsigned long long counts[16][7];
+		memset(counts, 0, sizeof(counts));
+		uint32_t largest = 0;
+		const uint32_t count = fiftyoneDegreesCollectionGetCount(dataSet->profileOffsets);
+		for (uint32_t i = 0; i < count; i++) {
+			Item item;
+			DataReset(&item.data);
+			const Profile *profile = fiftyoneDegreesProfileGetByIndex(
+				dataSet->profileOffsets, dataSet->profiles, i, &item, exception);
+			if (profile == NULL) continue;
+			const uint32_t bytes = (uint32_t)sizeof(Profile) +
+				(uint32_t)profile->valueCount * (uint32_t)sizeof(uint32_t);
+			if (bytes > largest) largest = bytes;
+			for (int l = 0; l < 7; l++) {
+				if (bytes <= limits[l]) {
+					counts[profile->componentIndex & 15][l]++;
+					break;
+				}
+			}
+			COLLECTION_RELEASE(dataSet->profiles, &item);
+		}
+		for (int c = 0; c < 16; c++) {
+			unsigned long long total = 0;
+			for (int l = 0; l < 7; l++) total += counts[c][l];
+			if (total == 0) continue;
+			printf("SIZES component=%d total=%llu", c, total);
+			for (int l = 0; l < 7; l++) {
+				printf(" upTo%u=%llu", limits[l], counts[c][l]);
+			}
+			printf("\n");
+		}
+		printf("SIZES largest=%u\n", largest);
+		DataSetIpiRelease(dataSet);
+		ResourceManagerFree(&manager);
+		return 0;
+	}
 	if (argc >= 3 && strcmp(argv[1], "names") == 0) {
 		ConfigIpi lowMemory = IpiLowMemoryConfig;
 		ResourceManager manager;

@@ -26,27 +26,21 @@ jobs:
         run: |
           git -C branch worktree add ../main origin/main
           git -C branch worktree add ../release origin/release/4.5.98
-      - name: Copies with the choices still to be made
+      - name: A copy without keeping profiles
         run: |
           set -e
-          git -C branch worktree add ../memo HEAD
-          git -C branch worktree add ../nopart HEAD
-          python3 branch/.github/tmp-a4/memo_patch.py memo || python branch/.github/tmp-a4/memo_patch.py memo
-          sed -i 's/#define HELD_PROFILE_RUN_MIN_PERCENT 50/#define HELD_PROFILE_RUN_MIN_PERCENT 1000/' nopart/src/ipi/ipi.c
-          grep -n 'HELD_PROFILE_RUN_MIN_PERCENT 1000' nopart/src/ipi/ipi.c
+          git -C branch worktree add ../nokeep HEAD
+          sed -i 's/#define IPI_KEPT_PROFILE_BYTES 1024/#define IPI_KEPT_PROFILE_BYTES 0/' nokeep/src/ipi/ipi.c
+          grep -n 'IPI_KEPT_PROFILE_BYTES 0' nokeep/src/ipi/ipi.c
       - name: Build each tree
         run: |
           set -e
-          for name in main release branch nopart; do
+          for name in main release branch nokeep; do
             cmake -S branch/.github/tmp-a4 -B "build-$name" -DTREE="$PWD/$name" -DCMAKE_BUILD_TYPE=Release
             cmake --build "build-$name" --target balanced --config Release --parallel 4
             mkdir -p "bins/$name"
             cp build-$name/out/balanced* "bins/$name/"
           done
-          CFLAGS=-DA4_MEMO cmake -S branch/.github/tmp-a4 -B build-memo -DTREE="$PWD/memo" -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-memo --target balanced --config Release --parallel 4
-          mkdir -p bins/memo
-          cp build-memo/out/balanced* bins/memo/
           ls bins/*
       - name: Fetch the addresses
         run: |
