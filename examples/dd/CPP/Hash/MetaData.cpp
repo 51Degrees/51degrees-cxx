@@ -138,9 +138,15 @@ extern "C" void fiftyoneDegreesExampleCPPMetaDataRun(ExampleParameters *params) 
 	fiftyoneDegreesConfigHash configHash = fiftyoneDegreesHashDefaultConfig;
 	DeviceDetection::Hash::ConfigHash* cppConfig = new DeviceDetection::Hash::ConfigHash(&configHash);
 
-	MetaDataExample *metaData = new MetaDataExample(params->dataFilePath, cppConfig);
-	metaData->run();
-	delete metaData;
+	try {
+		MetaDataExample *metaData = new MetaDataExample(params->dataFilePath, cppConfig);
+		metaData->run();
+		delete metaData;
+	}
+	catch (const StatusCodeException &e) {
+		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);
+		exit(1);
+	}
 }
 
 #ifndef TEST

@@ -239,8 +239,14 @@ int main(int argc, char *argv[]) {
 #endif
 #endif
 
-	auto const gettingStarted = std::make_unique<GettingStarted>(dataFilePath);
-	gettingStarted->run();
+	try {
+		auto const gettingStarted = std::make_unique<GettingStarted>(dataFilePath);
+		gettingStarted->run();
+	}
+	catch (const StatusCodeException &e) {
+		ExampleBase::reportStatus(e.getCode(), dataFilePath);
+		return 1;
+	}
 
 #ifdef _DEBUG
 	#ifdef _MSC_VER

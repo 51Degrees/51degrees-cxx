@@ -236,8 +236,14 @@ int main(int argc, char* argv[]) {
 #endif
 #endif
 
-	auto const stronglyTyped = std::make_unique<StronglyTyped>(dataFilePath);
-	stronglyTyped->run();
+	try {
+		auto const stronglyTyped = std::make_unique<StronglyTyped>(dataFilePath);
+		stronglyTyped->run();
+	}
+	catch (const StatusCodeException &e) {
+		ExampleBase::reportStatus(e.getCode(), dataFilePath);
+		return 1;
+	}
 
 #ifdef _DEBUG
 #ifdef _MSC_VER

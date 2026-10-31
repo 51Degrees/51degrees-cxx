@@ -101,6 +101,9 @@ static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
 static const char *userAgentFileName = "20000 User Agents.csv";
 
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
+
 /**
  * CHOOSE THE DEFAULT MEMORY CONFIGURATION BY UNCOMMENTING ONE OF THE FOLLOWING
  * MACROS.
@@ -354,7 +357,6 @@ void fiftyoneDegreesHashReloadFromFileRun(
 		&reqProps,
 		dataFilePath,
 		exception);
-	EXCEPTION_THROW;
 
 	// Free the memory used for the required properties if allocated.
 	if (requiredProperties != reqProps.string) {
@@ -363,8 +365,10 @@ void fiftyoneDegreesHashReloadFromFileRun(
 
 	if (status != SUCCESS) {
 		reportStatus(status, dataFilePath);
+		exitCode = 1;
 	}
 	else {
+		EXCEPTION_THROW;
 
 		// Run the performance tests.
 		run(&manager, userAgentFilePath);
@@ -438,7 +442,7 @@ int main(int argc, char* argv[]) {
 	// Wait for a character to be pressed.
 	fgetc(stdin);
 
-	return 0;
+	return exitCode;
 }
 
 #endif

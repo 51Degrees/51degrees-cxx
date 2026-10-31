@@ -82,6 +82,9 @@ static const char* dataFileName = "51Degrees-LiteV4.1.hash";
 // UA-CH headers.
 static const char* evidenceFileName = "20000 Evidence Records.yml";
 
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
+
 // The value of the evidence for User-Agent is not stored in the shared string
 // structure as these are almost always unique.
 static const char* userAgent = "user-agent";
@@ -620,13 +623,15 @@ void executeBenchmark(
 		&properties,
 		state->dataFileLocation,
 		exception);
-	EXCEPTION_THROW;
 	if (status != SUCCESS) {
 		const char* message = StatusGetMessage(status, state->dataFileLocation);
 		fprintf(state->output, "%s\n", message);
 		Free((void*)message);
+		Free(state->threads);
+		exitCode = 1;
 		return;
 	}
+	EXCEPTION_THROW;
 	
 	TIMER_END;
 	state->startUpMillis = TIMER_ELAPSED;
@@ -1021,7 +1026,7 @@ int main(int argc, char* argv[]) {
 		fclose(params.resultsOutput);
 	}
 
-	return 0;
+	return exitCode;
 }
 
 #endif
