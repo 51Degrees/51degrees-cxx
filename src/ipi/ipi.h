@@ -262,6 +262,17 @@ typedef struct fiftyone_degrees_config_ipi_t {
 	fiftyoneDegreesCollectionConfig propertyTypes; /**< Property types collection
 												   config */
 	fiftyoneDegreesCollectionConfig graph; /**< Config for each graph */
+	/**
+	 * True to apply the graph and profiles settings only to the components
+	 * with a required property, so a caller naming the properties of some
+	 * components does not hold the graphs and profiles of the others in
+	 * memory. Lookups never read those. Anything else that asks for them, such
+	 * as the meta data, gets the same data read from the file, which takes a
+	 * file handle and allocates memory for each read. False in every preset.
+	 * Has no effect when b.allInMemory is true or the data is provided in
+	 * memory, where nothing is read selectively.
+	 */
+	bool requiredComponentsOnly;
 } fiftyoneDegreesConfigIpi;
 
 /**

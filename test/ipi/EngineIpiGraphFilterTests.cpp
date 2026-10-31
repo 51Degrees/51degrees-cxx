@@ -454,3 +454,438 @@ TEST_F(EngineIpiGraphFilterTests, ByteArrayOverloadMatchesStringOverload) {
 		engine->process(graphFilterIpAddress, indexes, 1));
 	expectSameValues(fromString.get(), fromBytes.get());
 }
+
+/**
+ * A manager over the data file with the required properties given, or every
+ * property when there are none, which is freed however the test ends.
+ */
+class RequiredOnlyManager {
+public:
+	RequiredOnlyManager(
+		const string& dataFilePath,
+		fiftyoneDegreesConfigIpi config,
+		const char* required) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesPropertiesRequired properties =
+			fiftyoneDegreesPropertiesDefault;
+		properties.string = required;
+		const fiftyoneDegreesStatusCode status =
+			fiftyoneDegreesIpiInitManagerFromFile(
+				&manager,
+				&config,
+				&properties,
+				dataFilePath.c_str(),
+				exception);
+		if (status != FIFTYONE_DEGREES_STATUS_SUCCESS) {
+			throw Common::StatusCodeException(status);
+		}
+		EXCEPTION_THROW;
+	}
+	~RequiredOnlyManager() {
+		fiftyoneDegreesResourceManagerFree(&manager);
+	}
+	fiftyoneDegreesResourceManager manager;
+};
+
+/**
+ * Tests for the required components only setting. The properties of the
+ * component holding RegisteredCountry are required, so the graphs and profiles
+ * of the others stay in the file. Every answer is compared with a data set that
+ * has the same required properties without the setting, using the low memory
+ * configuration so that a test does not hold the whole data file in memory.
+ */
+class IpiRequiredComponentsOnlyTests : public Base {
+public:
+	void SetUp() {
+		Base::SetUp();
+		for (int i = 0;
+			i < _IpiFileNamesLength && dataFilePath == "";
+			i++) {
+			dataFilePath = GetFilePath(_dataFolderName, _IpiFileNames[i]);
+		}
+		RequiredOnlyManager all(
+			dataFilePath,
+			fiftyoneDegreesIpiLowMemoryConfig,
+			nullptr);
+		fiftyoneDegreesDataSetIpi* dataSet =
+			fiftyoneDegreesDataSetIpiGet(&all.manager);
+		fiftyoneDegreesPropertiesAvailable* available =
+			dataSet->b.b.available;
+		const int index =
+			fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
+				available,
+				"RegisteredCountry");
+		ASSERT_GE(index, 0);
+		component = available->items[index].componentIndex;
+		for (uint32_t i = 0; i < available->count; i++) {
+			const string name = FIFTYONE_DEGREES_STRING(
+				fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
+					available,
+					(int)i));
+			allNames.push_back(name);
+			if (available->items[i].componentIndex == component) {
+				requiredNames.push_back(name);
+				required += (required.empty() ? "" : ",") + name;
+			}
+		}
+		fiftyoneDegreesDataSetIpiRelease(dataSet);
+		if (requiredNames.size() == allNames.size()) {
+			GTEST_SKIP() << "The data file has properties on one component only.";
+		}
+	}
+protected:
+	string dataFilePath = "";
+	string required = "";
+	vector<string> requiredNames;
+	vector<string> allNames;
+	uint8_t component = 0;
+
+	static fiftyoneDegreesConfigIpi withSetting(
+		const fiftyoneDegreesConfigIpi& preset) {
+		fiftyoneDegreesConfigIpi config = preset;
+		config.requiredComponentsOnly = true;
+		return config;
+	}
+
+	// Addresses across the IPv4 space, and a few from IPv6.
+	static vector<string> addresses() {
+		vector<string> result = {
+			graphFilterIpAddress,
+			"1.1.1.1",
+			"8.8.8.8",
+			"2001:4860:4860::8888",
+			"2606:4700:4700::1111",
+			"2a00:1450:4001:81f::200e" };
+		for (uint32_t i = 1; i <= 100; i++) {
+			const uint32_t x = i * 2654435761u;
+			result.push_back(
+				to_string(1 + (x >> 24) % 223) + "." +
+				to_string((x >> 16) & 255) + "." +
+				to_string((x >> 8) & 255) + "." +
+				to_string(x & 255));
+		}
+		return result;
+	}
+
+	static void detect(
+		fiftyoneDegreesResultsIpi* results,
+		const string& address) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesResultsIpiFromIpAddressString(
+			results,
+			address.c_str(),
+			address.size(),
+			exception);
+		EXCEPTION_THROW;
+	}
+
+	static string valueOf(
+		fiftyoneDegreesResultsIpi* results,
+		const string& property,
+		vector<char>& buffer) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesResultsIpiGetValuesString(
+			results,
+			property.c_str(),
+			buffer.data(),
+			buffer.size(),
+			"|",
+			exception);
+		EXCEPTION_THROW;
+		return string(buffer.data());
+	}
+
+	static void expectSameAnswers(
+		fiftyoneDegreesResourceManager* expected,
+		fiftyoneDegreesResourceManager* actual,
+		const vector<string>& properties) {
+		vector<char> buffer(1024 * 1024);
+		fiftyoneDegreesResultsIpi* expectedResults =
+			fiftyoneDegreesResultsIpiCreate(expected);
+		fiftyoneDegreesResultsIpi* actualResults =
+			fiftyoneDegreesResultsIpiCreate(actual);
+		for (const string& address : addresses()) {
+			detect(expectedResults, address);
+			detect(actualResults, address);
+			for (const string& property : properties) {
+				EXPECT_EQ(
+					valueOf(expectedResults, property, buffer),
+					valueOf(actualResults, property, buffer)) <<
+					property << " of " << address;
+			}
+		}
+		fiftyoneDegreesResultsIpiFree(expectedResults);
+		fiftyoneDegreesResultsIpiFree(actualResults);
+	}
+
+	static string profilesTypeOf(fiftyoneDegreesResourceManager* manager) {
+		fiftyoneDegreesDataSetIpi* dataSet =
+			fiftyoneDegreesDataSetIpiGet(manager);
+		const string type = dataSet->profiles->typeName;
+		fiftyoneDegreesDataSetIpiRelease(dataSet);
+		return type;
+	}
+};
+
+TEST_F(IpiRequiredComponentsOnlyTests, EveryPresetLeavesTheSettingOff) {
+	EXPECT_FALSE(fiftyoneDegreesIpiInMemoryConfig.requiredComponentsOnly);
+	EXPECT_FALSE(fiftyoneDegreesIpiHighPerformanceConfig.requiredComponentsOnly);
+	EXPECT_FALSE(fiftyoneDegreesIpiLowMemoryConfig.requiredComponentsOnly);
+	EXPECT_FALSE(fiftyoneDegreesIpiBalancedConfig.requiredComponentsOnly);
+	EXPECT_FALSE(fiftyoneDegreesIpiBalancedTempConfig.requiredComponentsOnly);
+	EXPECT_FALSE(fiftyoneDegreesIpiDefaultConfig.requiredComponentsOnly);
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, ChoosingAPresetKeepsTheSetting) {
+	Ipi::ConfigIpi config;
+	EXPECT_FALSE(config.getRequiredComponentsOnly());
+	config.setRequiredComponentsOnly(true);
+	config.setHighPerformance();
+	EXPECT_TRUE(config.getRequiredComponentsOnly());
+	EXPECT_TRUE(config.getConfig().requiredComponentsOnly);
+	config.setRequiredComponentsOnly(false);
+	EXPECT_FALSE(config.getRequiredComponentsOnly());
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, AnswersMatchWithoutTheSetting) {
+	RequiredOnlyManager expected(
+		dataFilePath,
+		fiftyoneDegreesIpiLowMemoryConfig,
+		required.c_str());
+	RequiredOnlyManager actual(
+		dataFilePath,
+		withSetting(fiftyoneDegreesIpiHighPerformanceConfig),
+		required.c_str());
+	EXPECT_EQ("CollectionRequiredProfiles", profilesTypeOf(&actual.manager));
+	expectSameAnswers(&expected.manager, &actual.manager, requiredNames);
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, HoldsLessThanTheDataFile) {
+	EXCEPTION_CREATE;
+	fiftyoneDegreesConfigIpi config =
+		withSetting(fiftyoneDegreesIpiHighPerformanceConfig);
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	properties.string = required.c_str();
+	const size_t size = fiftyoneDegreesIpiSizeManagerFromFile(
+		&config,
+		&properties,
+		dataFilePath.c_str(),
+		exception);
+	EXCEPTION_THROW;
+	EXPECT_GT(size, (size_t)0);
+	EXPECT_LT(
+		(int64_t)size,
+		(int64_t)fiftyoneDegreesFileGetSize(dataFilePath.c_str()));
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, EveryProfileCanStillBeRead) {
+	RequiredOnlyManager expected(
+		dataFilePath,
+		fiftyoneDegreesIpiLowMemoryConfig,
+		required.c_str());
+	RequiredOnlyManager actual(
+		dataFilePath,
+		withSetting(fiftyoneDegreesIpiHighPerformanceConfig),
+		required.c_str());
+	fiftyoneDegreesDataSetIpi* e =
+		fiftyoneDegreesDataSetIpiGet(&expected.manager);
+	fiftyoneDegreesDataSetIpi* a =
+		fiftyoneDegreesDataSetIpiGet(&actual.manager);
+	const uint32_t count = fiftyoneDegreesCollectionGetCount(a->profileOffsets);
+	const uint32_t step = count > 1000 ? count / 1000 : 1;
+	uint32_t others = 0;
+	for (uint32_t i = 0; i < count; i += step) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesCollectionItem expectedItem, actualItem;
+		fiftyoneDegreesDataReset(&expectedItem.data);
+		fiftyoneDegreesDataReset(&actualItem.data);
+		const fiftyoneDegreesProfile* expectedProfile =
+			fiftyoneDegreesProfileGetByIndex(
+				e->profileOffsets, e->profiles, i, &expectedItem, exception);
+		EXCEPTION_THROW;
+		const fiftyoneDegreesProfile* actualProfile =
+			fiftyoneDegreesProfileGetByIndex(
+				a->profileOffsets, a->profiles, i, &actualItem, exception);
+		EXCEPTION_THROW;
+		ASSERT_NE(nullptr, expectedProfile);
+		ASSERT_NE(nullptr, actualProfile);
+		ASSERT_EQ(
+			(uint32_t)expectedProfile->valueCount,
+			(uint32_t)actualProfile->valueCount);
+		EXPECT_EQ(
+			0,
+			memcmp(
+				expectedProfile,
+				actualProfile,
+				sizeof(fiftyoneDegreesProfile) +
+				expectedProfile->valueCount * sizeof(uint32_t))) <<
+			"Profile index " << i;
+		if (actualProfile->componentIndex != component) {
+			others++;
+		}
+		FIFTYONE_DEGREES_COLLECTION_RELEASE(e->profiles, &expectedItem);
+		FIFTYONE_DEGREES_COLLECTION_RELEASE(a->profiles, &actualItem);
+	}
+	EXPECT_GT(others, 0u) << "No profile outside the required component read.";
+	fiftyoneDegreesDataSetIpiRelease(e);
+	fiftyoneDegreesDataSetIpiRelease(a);
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, EveryGraphCanStillBeEvaluated) {
+	RequiredOnlyManager expected(
+		dataFilePath,
+		fiftyoneDegreesIpiLowMemoryConfig,
+		required.c_str());
+	RequiredOnlyManager actual(
+		dataFilePath,
+		withSetting(fiftyoneDegreesIpiHighPerformanceConfig),
+		required.c_str());
+	fiftyoneDegreesDataSetIpi* e =
+		fiftyoneDegreesDataSetIpiGet(&expected.manager);
+	fiftyoneDegreesDataSetIpi* a =
+		fiftyoneDegreesDataSetIpiGet(&actual.manager);
+	for (const string& address : addresses()) {
+		fiftyoneDegreesIpAddress ip;
+		ASSERT_TRUE(fiftyoneDegreesIpAddressParse(
+			address.c_str(),
+			address.c_str() + address.size(),
+			&ip));
+		for (uint32_t g = 0; g < a->graphsArray->count; g++) {
+			EXCEPTION_CREATE;
+			const uint8_t id = a->graphsArray->items[g].info.componentId;
+			const fiftyoneDegreesIpiCgResult expectedResult =
+				fiftyoneDegreesIpiGraphEvaluate(
+					e->graphsArray, id, ip, exception);
+			EXCEPTION_THROW;
+			const fiftyoneDegreesIpiCgResult actualResult =
+				fiftyoneDegreesIpiGraphEvaluate(
+					a->graphsArray, id, ip, exception);
+			EXCEPTION_THROW;
+			EXPECT_EQ(expectedResult.rawOffset, actualResult.rawOffset) <<
+				"Component " << (int)id << " for " << address;
+		}
+	}
+	fiftyoneDegreesDataSetIpiRelease(e);
+	fiftyoneDegreesDataSetIpiRelease(a);
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, OnlyRequiredGraphsAreInMemory) {
+	RequiredOnlyManager actual(
+		dataFilePath,
+		withSetting(fiftyoneDegreesIpiHighPerformanceConfig),
+		required.c_str());
+	fiftyoneDegreesDataSetIpi* a =
+		fiftyoneDegreesDataSetIpiGet(&actual.manager);
+	const uint8_t requiredId = ((fiftyoneDegreesComponent*)
+		a->componentsList.items[component].data.ptr)->componentId;
+	for (uint32_t g = 0; g < a->graphsArray->count; g++) {
+		const fiftyoneDegreesIpiCg& graph = a->graphsArray->items[g];
+		const string expectedType = graph.info.componentId == requiredId ?
+			"CollectionMemory" : "CollectionFile";
+		EXPECT_EQ(expectedType, graph.nodes->typeName);
+		EXPECT_EQ(expectedType, graph.spans->typeName);
+		EXPECT_EQ(expectedType, graph.spanBytes->typeName);
+		EXPECT_EQ(expectedType, graph.clusters->typeName);
+	}
+	fiftyoneDegreesDataSetIpiRelease(a);
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, ReloadKeepsTheSetting) {
+	RequiredOnlyManager expected(
+		dataFilePath,
+		fiftyoneDegreesIpiLowMemoryConfig,
+		required.c_str());
+	RequiredOnlyManager actual(
+		dataFilePath,
+		withSetting(fiftyoneDegreesIpiHighPerformanceConfig),
+		required.c_str());
+	EXCEPTION_CREATE;
+	const fiftyoneDegreesStatusCode status =
+		fiftyoneDegreesIpiReloadManagerFromOriginalFile(
+			&actual.manager,
+			exception);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, status);
+	EXCEPTION_THROW;
+	EXPECT_EQ("CollectionRequiredProfiles", profilesTypeOf(&actual.manager));
+	expectSameAnswers(&expected.manager, &actual.manager, requiredNames);
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, EveryPropertyLoadsAsWithoutTheSetting) {
+	RequiredOnlyManager expected(
+		dataFilePath,
+		fiftyoneDegreesIpiLowMemoryConfig,
+		nullptr);
+	RequiredOnlyManager actual(
+		dataFilePath,
+		withSetting(fiftyoneDegreesIpiHighPerformanceConfig),
+		nullptr);
+	EXPECT_EQ("CollectionMemory", profilesTypeOf(&actual.manager));
+	expectSameAnswers(&expected.manager, &actual.manager, allNames);
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, OtherSettingsStillApply) {
+	RequiredOnlyManager expected(
+		dataFilePath,
+		fiftyoneDegreesIpiLowMemoryConfig,
+		required.c_str());
+	RequiredOnlyManager actual(
+		dataFilePath,
+		withSetting(fiftyoneDegreesIpiBalancedConfig),
+		required.c_str());
+	EXPECT_EQ("CollectionCache", profilesTypeOf(&actual.manager));
+	expectSameAnswers(&expected.manager, &actual.manager, requiredNames);
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, NoEffectWhenAllInMemory) {
+	RequiredOnlyManager actual(
+		dataFilePath,
+		withSetting(fiftyoneDegreesIpiInMemoryConfig),
+		required.c_str());
+	EXPECT_EQ("CollectionMemory", profilesTypeOf(&actual.manager));
+}
+
+TEST_F(IpiRequiredComponentsOnlyTests, EngineMetaDataMatchesWithoutTheSetting) {
+	Common::RequiredPropertiesConfig properties(required);
+	Ipi::ConfigIpi expectedConfig;
+	expectedConfig.setLowMemory();
+	Ipi::ConfigIpi actualConfig;
+	actualConfig.setHighPerformance();
+	actualConfig.setRequiredComponentsOnly(true);
+	Ipi::EngineIpi expected(dataFilePath, &expectedConfig, &properties);
+	Ipi::EngineIpi actual(dataFilePath, &actualConfig, &properties);
+	using Components = Common::Collection<::byte, Common::ComponentMetaData>;
+	using Profiles = Common::Collection<uint32_t, Common::ProfileMetaData>;
+
+	unique_ptr<Components> components(actual.getMetaData()->getComponents());
+	for (uint32_t i = 0; i < components->getSize(); i++) {
+		unique_ptr<Common::ComponentMetaData> item(components->getByIndex(i));
+		unique_ptr<Common::ProfileMetaData> expectedDefault(
+			expected.getMetaData()->getDefaultProfileForComponent(item.get()));
+		unique_ptr<Common::ProfileMetaData> actualDefault(
+			actual.getMetaData()->getDefaultProfileForComponent(item.get()));
+		ASSERT_EQ(expectedDefault == nullptr, actualDefault == nullptr);
+		if (actualDefault != nullptr) {
+			EXPECT_EQ(expectedDefault->getKey(), actualDefault->getKey());
+			EXPECT_EQ(
+				expectedDefault->getComponentId(),
+				actualDefault->getComponentId());
+		}
+	}
+
+	unique_ptr<Profiles> expectedProfiles(
+		expected.getMetaData()->getProfiles());
+	unique_ptr<Profiles> actualProfiles(actual.getMetaData()->getProfiles());
+	ASSERT_EQ(expectedProfiles->getSize(), actualProfiles->getSize());
+	const uint32_t step =
+		actualProfiles->getSize() > 1000 ? actualProfiles->getSize() / 1000 : 1;
+	for (uint32_t i = 0; i < actualProfiles->getSize(); i += step) {
+		unique_ptr<Common::ProfileMetaData> e(expectedProfiles->getByIndex(i));
+		unique_ptr<Common::ProfileMetaData> a(actualProfiles->getByIndex(i));
+		ASSERT_EQ(e == nullptr, a == nullptr);
+		if (a != nullptr) {
+			EXPECT_EQ(e->getKey(), a->getKey());
+			EXPECT_EQ(e->getComponentId(), a->getComponentId());
+		}
+	}
+}
