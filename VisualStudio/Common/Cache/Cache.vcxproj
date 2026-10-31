@@ -9,7 +9,7 @@
     <ConfigurationType>Application</ConfigurationType>
   </PropertyGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\cache.h" />
+    <ClInclude Include="..\..\..\src\common\cache.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FiftyOne.Common.CPP\FiftyOne.Common.CPP.vcxproj">

@@ -105,9 +105,6 @@
     <ClInclude Include="..\..\..\src\common\float.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\coordinate.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\src\common\snprintf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
