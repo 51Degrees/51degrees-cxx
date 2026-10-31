@@ -56,7 +56,7 @@ dataSet->t = CollectionCreateFromMemory( \
 reader, \
 dataSet->header.t); \
 if (dataSet->t == NULL) { \
-	return INVALID_COLLECTION_CONFIG; \
+	return CORRUPT_DATA; \
 }
 
 #define COLLECTION_CREATE_FILE(t,f) \
@@ -67,7 +67,7 @@ dataSet->t = CollectionCreateFromFile( \
 	dataSet->header.t, \
 	f); \
 if (dataSet->t == NULL) { \
-	return INVALID_COLLECTION_CONFIG; \
+	return getCollectionFileStatus(dataSet, dataSet->header.t, 0); \
 }
 
 /** 
@@ -164,7 +164,7 @@ static const uint16_t FULL_RAW_WEIGHTING = 0xFFFFU;
 /**
  * The largest profiles offset shift the header can declare. A shift of 8
  * gives 256 byte units addressing 1TB, well beyond any expected file, so
- * larger values indicate a corrupt header.
+ * larger values are refused.
  */
 #define FIFTYONE_DEGREES_IPI_MAX_PROFILES_OFFSET_SHIFT 8
 
@@ -732,11 +732,14 @@ static StatusCode checkVersion(DataSetIpi* dataSet) {
 	}
 
 	// The shift used to convert stored profile offsets to byte positions is
-	// declared in the header and validated rather than assumed.
+	// declared in the header and validated rather than assumed. A shift
+	// outside the range is one this API cannot use, so it is reported as an
+	// unsupported version. The message for corrupt data would send the reader
+	// to check the file is uncompressed, which it is.
 	if (dataSet->header.profilesOffsetShift < 0 ||
 		dataSet->header.profilesOffsetShift >
 		FIFTYONE_DEGREES_IPI_MAX_PROFILES_OFFSET_SHIFT) {
-		return CORRUPT_DATA;
+		return INCORRECT_VERSION;
 	}
 #ifndef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
 	// Converting shifted offsets to byte positions requires the 64 bit
@@ -841,7 +844,7 @@ static StatusCode initWithMemory(
 		dataSet->header.profiles,
 		getProfilesOffsetShift(dataSet));
 	if (dataSet->profiles == NULL) {
-		return INVALID_COLLECTION_CONFIG;
+		return CORRUPT_DATA;
 	}
 #else
 	COLLECTION_CREATE_MEMORY(profiles)
@@ -909,6 +912,23 @@ static void initDataSet(DataSetIpi* dataSet, ConfigIpi** config) {
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
+/**
+ * Gets the status for a collection that could not be created from the file,
+ * as the create methods do not say why they failed. A collection the header
+ * places beyond the end of the file is a fault in the file, which no
+ * configuration can cause or cure. Anything else comes from the configuration
+ * or a lack of memory.
+ */
+static StatusCode getCollectionFileStatus(
+	const DataSetIpi* dataSet,
+	const CollectionHeader header,
+	const byte offsetShift) {
+	const uint64_t end = (uint64_t)header.startPosition +
+		((uint64_t)header.length << offsetShift);
+	return end > (uint64_t)dataSet->b.b.filePool.length ?
+		CORRUPT_DATA : INVALID_COLLECTION_CONFIG;
+}
+
 static StatusCode readHeaderFromFile(
 	FILE* file,
 	const DataSetIpiHeader* header) {
@@ -972,7 +992,10 @@ static StatusCode readDataSetFromFile(
 		fiftyoneDegreesProfileReadFromFile,
 		getProfilesOffsetShift(dataSet));
 	if (dataSet->profiles == NULL) {
-		return INVALID_COLLECTION_CONFIG;
+		return getCollectionFileStatus(
+			dataSet,
+			dataSet->header.profiles,
+			getProfilesOffsetShift(dataSet));
 	}
 #else
 	COLLECTION_CREATE_FILE(profiles, fiftyoneDegreesProfileReadFromFile);

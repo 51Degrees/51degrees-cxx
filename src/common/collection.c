@@ -596,6 +596,8 @@ static Collection* createFromFileCached(
 		cache->source);
 
 	if (cache->cache == NULL) {
+		// Only a cache owns its source, so with no cache it is freed here.
+		cache->source->freeCollection(cache->source);
 		freeCacheCollection(collection);
 		return NULL;
 	}
