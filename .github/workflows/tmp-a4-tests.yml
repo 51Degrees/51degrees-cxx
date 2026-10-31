@@ -57,8 +57,9 @@ jobs:
           cmake --build build --target IpiTests --config ${{ matrix.configuration }} --parallel 4
       - name: Run the tests
         run: |
-          test=$(ls build/bin/IpiTests* build/bin/${{ matrix.configuration }}/IpiTests.exe 2>/dev/null | head -1)
-          echo "$PWD/$test"
+          test=build/bin/IpiTests
+          if [ -f "build/bin/${{ matrix.configuration }}/IpiTests.exe" ]; then test="build/bin/${{ matrix.configuration }}/IpiTests.exe"; fi
+          ls -la "$test"
           ASAN_OPTIONS=detect_leaks=1:allocator_may_return_null=1 "$PWD/$test" --gtest_filter='IpiBalanced*'
 
   rust:
