@@ -17,6 +17,7 @@
 #include <string.h>
 #include "ipi.h"
 #include "fiftyone.h"
+#include "../common/collectionKeyTypes.h"
 
 MAP_TYPE(Collection)
 
