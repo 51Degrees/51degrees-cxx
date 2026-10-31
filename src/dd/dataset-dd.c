@@ -48,6 +48,14 @@ fiftyoneDegreesDataSetDeviceDetectionInitPropertiesAndHeaders(
 		state,
 		getPropertyMethod,
 		getEvidencePropertiesMethod);
+
+	// This status with a list means the list is empty. That is valid when the
+	// device id is required, as the device id needs no stored property.
+	if (status == REQ_PROP_NOT_PRESENT &&
+		dataSet->b.available != NULL &&
+		((const ConfigDeviceDetection*)dataSet->b.config)->deviceIdRequired) {
+		status = SUCCESS;
+	}
 	if (status != SUCCESS) {
 		return status;
 	}
@@ -107,5 +115,4 @@ void fiftyoneDegreesDataSetDeviceDetectionReset(
 	DataSetReset(&dataSet->b);
 	dataSet->uniqueUserAgentHeaderIndex = 0;
 	dataSet->ghevHeaders = NULL;
-	dataSet->state.synthesizeDeviceId = false;
 }

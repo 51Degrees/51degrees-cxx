@@ -1155,11 +1155,10 @@ TEST_F(HashCTests, GraphFilter_SkippedComponentGetsNoDefaultProfile) {
 }
 
 /*
- * Issue #393. DeviceId is advertised as an available property and can be read
- * from a result, but it is not stored in the data file, so requesting it in
- * the required properties used to fail initialisation with
- * REQ_PROP_NOT_PRESENT. It must now initialise, and produce the same device id
- * as a data set with no restriction on the required properties.
+ * DeviceId is advertised as an available property and can be read from a
+ * result, but it is not stored in the data file. Naming it in the required
+ * properties must initialise, and produce the same device id as a data set
+ * with no restriction on the required properties.
  */
 
 static string getDeviceIdForUserAgent(
@@ -1297,9 +1296,9 @@ TEST_F(HashDeviceIdPropertyTests, UnknownPropertyStillFails) {
 }
 
 /*
- * A reload takes the required property names from the data set being replaced,
- * which holds the stored properties DeviceId was translated into, so the
- * device id must survive it.
+ * A reload takes the required property names from the available properties of
+ * the data set being replaced, which never include DeviceId, so the device id
+ * survives through the config the reload passes on.
  */
 TEST_F(HashDeviceIdPropertyTests, DeviceIdSurvivesReload) {
 	EXCEPTION_CREATE;
@@ -1314,6 +1313,24 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdSurvivesReload) {
 	EXPECT_EQ(before, getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent)) <<
 		"The device id should be unchanged by a reload.\n";
 	ResourceManagerFree(&deviceIdManager);
+}
+
+TEST_F(HashDeviceIdPropertyTests, DeviceIdSurvivesReloadFromMemory) {
+	EXCEPTION_CREATE;
+	ResourceManager deviceIdManager;
+	PropertiesRequired required = PropertiesDefault;
+	required.string = "DeviceId";
+	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
+	const string before = getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent);
+	MemoryReader reader;
+	ASSERT_EQ(SUCCESS, FileReadToByteArray(dataFilePath.c_str(), &reader));
+	ASSERT_EQ(SUCCESS, HashReloadManagerFromMemory(
+		&deviceIdManager, reader.startByte, reader.length, exception));
+	EXCEPTION_THROW;
+	EXPECT_EQ(before, getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent)) <<
+		"The device id should be unchanged by a reload.\n";
+	ResourceManagerFree(&deviceIdManager);
+	Free(reader.startByte);
 }
 
 /*
@@ -1339,8 +1356,7 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdAddsNoAvailableProperties) {
 /*
  * The device id is the profile of every component joined together, so each
  * component must resolve to a real profile. A component which is skipped shows
- * up as a zero segment, which is what the workaround in issue #393 existed to
- * avoid.
+ * up as a zero segment.
  */
 TEST_F(HashDeviceIdPropertyTests, DeviceIdResolvesEveryComponentProfile) {
 	EXCEPTION_CREATE;
@@ -1368,10 +1384,65 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdResolvesEveryComponentProfile) {
 	char deviceId[80] = "";
 	HashGetDeviceIdFromResults(results, deviceId, sizeof(deviceId), exception);
 	EXCEPTION_THROW;
-	EXPECT_EQ(string::npos, string(deviceId).find("-0-")) <<
+	EXPECT_EQ(string::npos, ("-" + string(deviceId) + "-").find("-0-")) <<
 		"No component of the device id should be zero: " << deviceId << "\n";
 	EXPECT_EQ(unrestrictedDeviceId(), string(deviceId));
 
 	ResultsHashFree(results);
+	ResourceManagerFree(&deviceIdManager);
+}
+
+/*
+ * Naming DeviceId is recorded on the data set's own copy of the config, so a
+ * config the caller reuses must behave as if it had never been used.
+ */
+TEST_F(HashDeviceIdPropertyTests, ConfigReusedForAnotherDataSet) {
+	EXCEPTION_CREATE;
+	ConfigHash config = HashDefaultConfig;
+	PropertiesRequired required = PropertiesDefault;
+
+	ResourceManager deviceIdManager;
+	required.string = "DeviceId";
+	ASSERT_EQ(SUCCESS, HashInitManagerFromFile(
+		&deviceIdManager, &config, &required, dataFilePath.c_str(), exception));
+	EXCEPTION_THROW;
+	EXPECT_FALSE(config.b.deviceIdRequired) <<
+		"The caller's config should be left as it was.\n";
+
+	ResourceManager storedManager;
+	required.string = "IsMobile";
+	ASSERT_EQ(SUCCESS, HashInitManagerFromFile(
+		&storedManager, &config, &required, dataFilePath.c_str(), exception));
+	EXCEPTION_THROW;
+	DataSetHash *dataSet = (DataSetHash*)DataSetGet(&storedManager);
+	EXPECT_EQ(1u, dataSet->componentsAvailableCount) <<
+		"Only the component of the stored property should be resolved.\n";
+	DataSetHashRelease(dataSet);
+	ResourceManagerFree(&storedManager);
+
+	ResourceManager unknownManager;
+	required.string = "NotARealProperty";
+	EXPECT_EQ(REQ_PROP_NOT_PRESENT, HashInitManagerFromFile(
+		&unknownManager, &config, &required, dataFilePath.c_str(), exception));
+
+	ResourceManagerFree(&deviceIdManager);
+}
+
+/*
+ * A config with a property value index builds the index from the available
+ * properties, of which there are none when only the device id is required.
+ */
+TEST_F(HashDeviceIdPropertyTests, DeviceIdWithPropertyValueIndex) {
+	EXCEPTION_CREATE;
+	ResourceManager deviceIdManager;
+	ConfigHash config = HashInMemoryConfig;
+	ASSERT_TRUE(config.b.b.propertyValueIndex);
+	PropertiesRequired required = PropertiesDefault;
+	required.string = "DeviceId";
+	ASSERT_EQ(SUCCESS, HashInitManagerFromFile(
+		&deviceIdManager, &config, &required, dataFilePath.c_str(), exception));
+	EXCEPTION_THROW;
+	EXPECT_EQ(unrestrictedDeviceId(),
+		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent));
 	ResourceManagerFree(&deviceIdManager);
 }

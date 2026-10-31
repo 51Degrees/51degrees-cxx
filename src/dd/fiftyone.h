@@ -51,7 +51,6 @@
 MAP_TYPE(ConfigDeviceDetection)
 MAP_TYPE(ResultsDeviceDetection)
 MAP_TYPE(DataSetDeviceDetection)
-MAP_TYPE(DataSetStateDeviceDetection)
 MAP_TYPE(ResultUserAgent)
 MAP_TYPE(ConfigDeviceDetection)
 MAP_TYPE(TransformIterateResult)

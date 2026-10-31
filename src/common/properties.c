@@ -30,8 +30,7 @@ PropertiesRequired PropertiesDefault = {
 	NULL, // No array of properties
 	0, // No required properties
 	NULL, // No string with properties
-	NULL, // No list
-	NULL // No engine state
+	NULL // No list
 };
 
 typedef struct properties_source_t {
@@ -248,35 +247,28 @@ static uint32_t countPropertiesFromExisting(
 bool fiftyoneDegreesPropertiesRequiredContains(
 	PropertiesRequired *properties,
 	const char *propertyName) {
-	if (properties == NULL || propertyName == NULL) {
+	const char *name;
+	size_t length;
+	int i;
+	if (properties == NULL || properties->existing != NULL) {
 		return false;
 	}
-	const size_t length = strlen(propertyName);
 	if (properties->array != NULL && properties->count > 0) {
-		for (int i = 0; i < properties->count; i++) {
-			if (properties->array[i] != NULL &&
-				strlen(properties->array[i]) == length &&
-				_strnicmp(properties->array[i], propertyName, length) == 0) {
+		for (i = 0; i < properties->count; i++) {
+			if (_stricmp(properties->array[i], propertyName) == 0) {
 				return true;
 			}
 		}
+		return false;
 	}
-	else if (properties->string != NULL) {
-		const char *start = properties->string;
-		const char *end = start;
-		while (true) {
-			if (*end == '\0' || strchr(separators, *end) != NULL) {
-				if ((size_t)(end - start) == length &&
-					_strnicmp(start, propertyName, length) == 0) {
-					return true;
-				}
-				if (*end == '\0') {
-					break;
-				}
-				start = end + 1;
-			}
-			end++;
+	name = properties->string;
+	while (name != NULL && *name != '\0') {
+		length = strcspn(name, separators);
+		if (length == strlen(propertyName) &&
+			_strnicmp(name, propertyName, length) == 0) {
+			return true;
 		}
+		name += length + strspn(name + length, separators);
 	}
 	return false;
 }

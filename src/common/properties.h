@@ -188,14 +188,6 @@ EXTERNAL typedef struct fiftyone_degrees_properties_required_t {
 	fiftyoneDegreesPropertiesAvailable *existing; /**< A pointer to an existing
 	                                                  set of property names
 													  from another instance */
-	const void *state; /**< Engine specific state to carry into the data set,
-	                       or NULL. Opaque here: it is copied by the engine
-	                       during initialisation, and returned to the engine
-	                       across a reload via
-	                       #fiftyoneDegreesDataSetBase.state. Where it is set
-	                       the engine can produce output without any stored
-	                       property, so an empty set of available properties is
-	                       not an error. */
 } fiftyoneDegreesPropertiesRequired;
 
 /**
@@ -237,11 +229,10 @@ typedef uint32_t(*fiftyoneDegreesEvidencePropertiesGetMethod)(
 EXTERNAL_VAR fiftyoneDegreesPropertiesRequired fiftyoneDegreesPropertiesDefault;
 
 /**
- * Returns true if the required properties name the property provided. Used by
- * engines to recognise a name which is not a property in the data file, and so
- * cannot be resolved by #fiftyoneDegreesPropertiesCreate. The comparison
- * ignores case, and the array and string forms are considered in the same
- * order of precedence as #fiftyoneDegreesPropertiesCreate.
+ * Returns true if the required properties name the property provided, so an
+ * engine can recognise a name which is not a property in the data file. The
+ * fields are evaluated as they are by #fiftyoneDegreesPropertiesCreate, so
+ * existing properties name nothing here, and case is ignored.
  * @param properties required by the caller, or NULL
  * @param propertyName to look for
  * @return true if the name is present in the required properties

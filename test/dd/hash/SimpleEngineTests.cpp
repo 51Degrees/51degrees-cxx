@@ -614,3 +614,35 @@ TEST_F(SpecialEvidencePrefixTests, headerUserAgentWithExistingHeaderHints) {
     evidence["cookie.51D_gethighentropyvalues"] = windowsHighEntropyValues;
     EXPECT_EQ(measuredVersion, getPlatformVersion(evidence));
 }
+
+/*
+ * The APIs for other languages reach the C layer through this engine, so
+ * naming only DeviceId has to work here too, and survive a refresh.
+ */
+class DeviceIdEngineTests : public SimpleEngineTestBase {
+protected:
+    string getDeviceId() {
+        EvidenceDeviceDetection evidence;
+        evidence["header.user-agent"] =
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 "
+            "Mobile/15E148 Safari/604.1";
+        unique_ptr<ResultsHash> results(getEngine()->process(&evidence));
+        return results->getDeviceId();
+    }
+};
+
+TEST_F(DeviceIdEngineTests, onlyDeviceIdSurvivesRefresh) {
+    ConfigHash config;
+    RequiredPropertiesConfig required("DeviceId");
+    createEngine(&config, &required);
+    ASSERT_TRUE(getEngine() != nullptr);
+    EXPECT_TRUE(getEngine()->getRequiredProperties().empty());
+
+    const string before = getDeviceId();
+    EXPECT_EQ(string::npos, ("-" + before + "-").find("-0-")) << before;
+
+    getEngine()->refreshData();
+    EXPECT_EQ(before, getDeviceId());
+    deallocEngine();
+}

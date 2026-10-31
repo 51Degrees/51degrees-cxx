@@ -66,6 +66,12 @@ typedef struct fiftyone_degrees_config_device_detecton_t {
 									doesn't generate it. For example; GHEV and 
 									SUA query evidence. By default, this is 
 									true. */
+	bool deviceIdRequired; /**< True if the required properties name the device
+							id, so the profile of every component is resolved
+							whether or not it has an available property. Set on
+							the data set's own copy of this configuration,
+							which a reload passes to the replacement data set.
+							By default, this is false. */
 } fiftyoneDegreesConfigDeviceDetection;
 
 /** Default value for the #FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_UPDATE macro. */
@@ -96,7 +102,8 @@ FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_UPDATE_DEFAULT
 	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_UPDATE, \
 	500, /* Default to 500 characters for the matched User-Agent */ \
 	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_UNMATCHED, \
-	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_SPECIAL_EVIDENCE
+	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_SPECIAL_EVIDENCE, \
+	false /* deviceIdRequired */
 
  /**
   * Default value for the #fiftyoneDegreesConfigDeviceDetection structure 
@@ -107,7 +114,8 @@ FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_UPDATE_DEFAULT
 	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_UPDATE, \
 	500, /* Default to 500 characters for the matched User-Agent */ \
 	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_UNMATCHED, \
-	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_SPECIAL_EVIDENCE
+	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_SPECIAL_EVIDENCE, \
+	false /* deviceIdRequired */
 
 /**
  * @}

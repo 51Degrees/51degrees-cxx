@@ -118,9 +118,10 @@
 
 /**
  * Name which can be used in the required properties to indicate that the
- * device id is needed. It is not a property stored in the data file, so is
- * translated during initialisation into the stored properties needed to
- * resolve the profile of every component.
+ * device id is needed. It is not a property stored in the data file and is not
+ * added to the available properties. Naming it sets
+ * #fiftyoneDegreesConfigDeviceDetection.deviceIdRequired on the data set's own
+ * copy of the configuration, which resolves the profile of every component.
  */
 #ifndef FIFTYONE_DEGREES_DEVICE_ID_PROPERTY_NAME
 #define FIFTYONE_DEGREES_DEVICE_ID_PROPERTY_NAME "DeviceId"
