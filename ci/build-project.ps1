@@ -25,11 +25,11 @@ if ($BuildMethod -eq "cmake") {
     ./cxx/build-project.ps1 -RepoName $RepoName -ProjectDir . -Name $Name `
         -Configuration $Configuration -Arch $Arch -BuildMethod $BuildMethod `
         -ExtraArgs @(
+            "-D32bit=$(OnOff ($IsLinux -and $Arch -eq 'x86'))"
             "-DFIFTYONE_BUILD_DEVICE_DETECTION=$(OnOff ($Products -contains 'dd'))"
             "-DFIFTYONE_BUILD_IP_INTELLIGENCE=$(OnOff ($Products -contains 'ipi'))"
             "-DFIFTYONE_COMMON_CXX_BUILD_TESTING=$(OnOff ($Products -contains 'common'))"
             "-DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=$(OnOff ($Arch -eq 'x64'))"
-            "-D32bit=$(OnOff ($IsLinux -and $Arch -eq 'x86'))"
         )
 
 } elseif ($BuildMethod -eq "msbuild") {
