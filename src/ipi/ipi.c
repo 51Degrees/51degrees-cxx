@@ -2220,11 +2220,12 @@ static bool profileHasValidPropertyValue(
 }
 
 static bool resultHasValidPropertyValueOffset(
-	const DataSetIpi * const dataSet,
+	fiftyoneDegreesResultsIpi* const results,
 	const fiftyoneDegreesResultIpi* const result,
 	Property * const property,
 	fiftyoneDegreesException* const exception) {
 	bool hasValidOffset = false;
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
 	Item item;
 	DataReset(&item.data);
 
@@ -2316,15 +2317,14 @@ static bool resultsGetHasValidPropertyValueOffset(
 			// Only the result for the component that owns the property can
 			// hold values for it. Profiles only carry values for properties
 			// of their own component, so the results for other components
-			// are skipped. The per result check preserves the index aware
-			// lookup wired up for the propertyValueIndex config option.
+			// are skipped.
 			for (uint32_t i = 0;
 				i < results->count && !hasValidOffset && EXCEPTION_OKAY;
 				i++) {
 				if (results->items[i].componentIndex ==
 					(int32_t)property->componentIndex) {
 					hasValidOffset = resultHasValidPropertyValueOffset(
-						dataSet,
+						results,
 						&results->items[i],
 						property,
 						exception);
