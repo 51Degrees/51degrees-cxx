@@ -182,10 +182,16 @@ extern "C" void fiftyoneDegreesExampleCPPStronglyTypedRun(
 	DeviceDetection::Hash::ConfigHash* cppConfig = 
 		new DeviceDetection::Hash::ConfigHash(&configHash);
 
-	StronglyTyped *stronglyTyped = new StronglyTyped(
-		params->dataFilePath, cppConfig);
-	stronglyTyped->run();
-	delete stronglyTyped;
+	try {
+		StronglyTyped *stronglyTyped = new StronglyTyped(
+			params->dataFilePath, cppConfig);
+		stronglyTyped->run();
+		delete stronglyTyped;
+	}
+	catch (const StatusCodeException &e) {
+		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);
+		exit(1);
+	}
 }
 
 #ifndef TEST

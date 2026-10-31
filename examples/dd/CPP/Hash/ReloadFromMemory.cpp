@@ -176,13 +176,20 @@ extern "C" void fiftyoneDegreesExampleCPPReloadFromMemoryRun(ExampleParameters *
 		exit(1);
 	}
 
-	ReloadFromMemory *reloadFromMemory = new ReloadFromMemory(
-		reader.startByte,
-		reader.length,
-		params->evidenceFilePath,
-		cppConfig);
-	reloadFromMemory->run();
-	delete reloadFromMemory;
+	try {
+		ReloadFromMemory *reloadFromMemory = new ReloadFromMemory(
+			reader.startByte,
+			reader.length,
+			params->evidenceFilePath,
+			cppConfig);
+		reloadFromMemory->run();
+		delete reloadFromMemory;
+	}
+	catch (const StatusCodeException &e) {
+		// The engine only has the memory, so the file name is added here.
+		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);
+		exit(1);
+	}
 	// Free the memory for the test.
 	fiftyoneDegreesFree(reader.startByte);
 }
@@ -213,7 +220,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (argc > 2) {
-		strcpy(dataFilePath, argv[2]);
+		strcpy(userAgentFilePath, argv[2]);
 	}
 	else {
 		status = fiftyoneDegreesFileGetPath(

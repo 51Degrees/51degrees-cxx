@@ -30,6 +30,9 @@ static const char* dataDir = "ip-intelligence-data";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
+
 static void buildString(
 	fiftyoneDegreesResultsIpi* const results,
 	StringBuilder* const builder,
@@ -115,11 +118,12 @@ int fiftyoneDegreesProcIpiRun(
 		&properties,
 		dataFilePath,
 		exception);
-	EXCEPTION_THROW;
 	if (status != SUCCESS) {
 		reportStatus(status, dataFilePath);
+		exitCode = 1;
 	}
 	else {
+		EXCEPTION_THROW;
 		count = run(&manager);
 		ResourceManagerFree(&manager);
 	}
@@ -175,7 +179,7 @@ int main(int argc, char* argv[]) {
 			"RegisteredCountry,AccuracyRadiusMin",
 		& config);
 
-		return 0;
+		return exitCode;
 }
 
 #endif

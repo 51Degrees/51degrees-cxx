@@ -219,7 +219,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (argc > 2) {
-		strcpy(dataFilePath, argv[2]);
+		strcpy(ipAddressFilePath, argv[2]);
 	}
 	else {
 		status = fiftyoneDegreesFileGetPath(
@@ -251,12 +251,20 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	auto const reloadFromMemory = std::make_unique<ReloadFromMemory>(
-		reader.startByte,
-		reader.length,
-		ipAddressFilePath,
-		config);
-	reloadFromMemory->run();
+	try {
+		auto const reloadFromMemory = std::make_unique<ReloadFromMemory>(
+			reader.startByte,
+			reader.length,
+			ipAddressFilePath,
+			config);
+		reloadFromMemory->run();
+	}
+	catch (const StatusCodeException &e) {
+		// The engine only has the memory, so the file name is added here.
+		ExampleBase::reportStatus(e.getCode(), dataFilePath);
+		fiftyoneDegreesFree(reader.startByte);
+		return 1;
+	}
 	// Free the memory for the test.
 	fiftyoneDegreesFree(reader.startByte);
 

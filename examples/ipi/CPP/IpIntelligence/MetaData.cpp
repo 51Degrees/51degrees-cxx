@@ -215,8 +215,14 @@ int main(int argc, char* argv[]) {
 #endif
 #endif
 
-	auto const metaData = std::make_unique<MetaDataExample>(dataFilePath);
-	metaData->run();
+	try {
+		auto const metaData = std::make_unique<MetaDataExample>(dataFilePath);
+		metaData->run();
+	}
+	catch (const StatusCodeException &e) {
+		ExampleBase::reportStatus(e.getCode(), dataFilePath);
+		return 1;
+	}
 
 #ifdef _DEBUG
 #ifdef _MSC_VER

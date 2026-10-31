@@ -29,6 +29,9 @@ static const char *dataDir = "device-detection-data";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
+
 static void buildString(
 	fiftyoneDegreesResultsHash *results,
 	char *output,
@@ -123,12 +126,13 @@ int fiftyoneDegreesProcHashRun(
 		&properties,
 		dataFilePath,
 		exception);
-	EXCEPTION_THROW;
 	if (status != SUCCESS) {
 		reportStatus(status, dataFilePath);
+		exitCode = 1;
 		fgetc(stdin);
 	}
 	else {
+		EXCEPTION_THROW;
 		count = run(&manager);
 		ResourceManagerFree(&manager);
 	}
@@ -173,7 +177,7 @@ int main(int argc, char* argv[]) {
 		argc > 2 ? argv[2] : "IsMobile,DeviceType,PriceBand",
 		&config);
 	
-	return 0;
+	return exitCode;
 }
 
 #endif
