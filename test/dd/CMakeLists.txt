@@ -3,13 +3,11 @@
 set(COMMON_TEST ${CMAKE_CURRENT_LIST_DIR}/../common)
 set(HASH_TEST ${CMAKE_CURRENT_LIST_DIR}/hash)
 set(DD_TEST ${CMAKE_CURRENT_LIST_DIR})
-set(TOOLS_TEST ${CMAKE_CURRENT_LIST_DIR}/tools)
 
 FILE(GLOB DD_TEST_SRC ${DD_TEST}/*.cpp)
 FILE(GLOB DD_TEST_H ${DD_TEST}/*.hpp)
 FILE(GLOB HASH_TEST_SRC ${HASH_TEST}/*.cpp)
 FILE(GLOB HASH_TEST_H ${HASH_TEST}/*.hpp)
-FILE(GLOB TOOLS_TEST_SRC ${TOOLS_TEST}/*.cpp)
 
 add_library(fiftyone-device-detection-test-base
 	${DD_TEST_SRC} ${DD_TEST_H}
@@ -25,7 +23,6 @@ set_target_properties(fiftyone-device-detection-test-base PROPERTIES FOLDER "Tes
 
 add_executable(HashTests
 	${HASH_TEST_SRC} ${HASH_TEST_H}
-	${TOOLS_TEST_SRC}
 	${CMAKE_CURRENT_LIST_DIR}/../../examples/dd/CPP/Hash/ExampleBase.cpp
 	${CMAKE_CURRENT_LIST_DIR}/../../examples/dd/CPP/Hash/ExampleBase.hpp)
 
@@ -56,3 +53,12 @@ if (CMAKE_COMPILER_IS_GNUCC)
 		target_compile_options(HashTests PRIVATE "-Wa,-mbig-obj")
 	endif()
 endif()
+
+# Runs the real tool against the Lite data file and checks what it writes.
+add_test(NAME JsSnippetExportTests COMMAND ${CMAKE_COMMAND}
+	-DTOOL=$<TARGET_FILE:js-snippet-export>
+	-DDATA=${CMAKE_CURRENT_LIST_DIR}/../../device-detection-data/51Degrees-LiteV4.1.hash
+	-DWORK=${CMAKE_CURRENT_BINARY_DIR}/js-snippet-export-tests
+	-P ${CMAKE_CURRENT_LIST_DIR}/tools/JsSnippetExportTests.cmake)
+set_tests_properties(JsSnippetExportTests PROPERTIES LABELS dd)
+add_dependencies(HashTests js-snippet-export)

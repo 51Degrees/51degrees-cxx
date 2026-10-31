@@ -81,8 +81,8 @@ if ($Products -contains 'common') {
 }
 
 if ($Products -contains 'dd') {
-    Test-Product dd '' '.*Example.*|.*Integration.*'
-    Invoke-WithLiteOnly { Test-Product dd '-Lite' '.*Example.*|.*Integration.*' }
+    Test-Product dd '' '.*Example.*'
+    Invoke-WithLiteOnly { Test-Product dd '-Lite' '.*Example.*' }
 }
 
 if ($Products -contains 'ipi') {
