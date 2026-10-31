@@ -6,7 +6,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <!-- The googletest package predates GTEST_SKIP, so a skipped test returns as passed. -->
+      <!-- The googletest package predates GTEST_SKIP. This returns from the function it is in, so a skip in SetUp does not stop the test. -->
       <PreprocessorDefinitions>GTEST_SKIP=return GTEST_SUCCEED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
