@@ -671,6 +671,61 @@ TEST_F(IpiBalancedTests, StringsOfAreasStayOnFileUnlessNamed) {
 	EXPECT_EQ(sampled, named);
 }
 
+TEST_F(IpiBalancedTests, ProfilesAreOnlyKeptWhenReadThroughACache) {
+	const auto keeps = [&](const fiftyoneDegreesConfigIpi& config) {
+		BalancedManager manager(dataFilePath, config, nullptr);
+		fiftyoneDegreesResultsIpi* results =
+			fiftyoneDegreesResultsIpiCreate(&manager.manager);
+		const bool kept = results->keptProfiles != nullptr;
+		fiftyoneDegreesResultsIpiFree(results);
+		return kept;
+	};
+	EXPECT_TRUE(keeps(fiftyoneDegreesIpiBalancedConfig));
+	EXPECT_FALSE(keeps(fiftyoneDegreesIpiLowMemoryConfig));
+	EXPECT_FALSE(keeps(fiftyoneDegreesIpiHighPerformanceConfig));
+}
+
+TEST_F(IpiBalancedTests, ManyLiveResultsDoNotUseUpTheProfileCache) {
+	// A cache this small has ten entries in each of its ten shards, and the
+	// results below would use them all up if they each held on to their profiles.
+	const uint32_t resultsCount = 200;
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+	config.profiles.capacity = 100;
+	config.profiles.concurrency = 10;
+	const vector<string> addresses = balancedAddresses();
+	BalancedManager expected(
+		dataFilePath,
+		fiftyoneDegreesIpiLowMemoryConfig,
+		nullptr);
+	BalancedManager actual(dataFilePath, config, nullptr);
+	vector<char> buffer(balancedBufferBytes);
+	fiftyoneDegreesResultsIpi* expectedResults =
+		fiftyoneDegreesResultsIpiCreate(&expected.manager);
+	vector<fiftyoneDegreesResultsIpi*> live;
+	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
+		expectedResults->b.dataSet)->b.b.available->count;
+	for (uint32_t i = 0; i < resultsCount; i++) {
+		live.push_back(fiftyoneDegreesResultsIpiCreate(&actual.manager));
+		balancedDetect(live[i], addresses[i % addresses.size()]);
+		for (int p = 0; p < count; p++) {
+			balancedAnswer(live[i], p, buffer);
+		}
+	}
+	for (uint32_t i = 0; i < resultsCount; i++) {
+		balancedDetect(expectedResults, addresses[i % addresses.size()]);
+		for (int p = 0; p < count; p++) {
+			EXPECT_EQ(
+				balancedAnswer(expectedResults, p, buffer),
+				balancedAnswer(live[i], p, buffer)) <<
+				"Required index " << p << " of results " << i;
+		}
+	}
+	for (fiftyoneDegreesResultsIpi* results : live) {
+		fiftyoneDegreesResultsIpiFree(results);
+	}
+	fiftyoneDegreesResultsIpiFree(expectedResults);
+}
+
 TEST_F(IpiBalancedTests, GraphsOfOtherComponentsStayOnFile) {
 	skipWithOneComponent();
 	if (IsSkipped()) {
@@ -998,6 +1053,8 @@ TEST_F(IpiBalancedTests, EngineMetaDataMatches) {
 	using Components = Common::Collection<::byte, Common::ComponentMetaData>;
 	using Profiles = Common::Collection<uint32_t, Common::ProfileMetaData>;
 	using Properties = Common::Collection<string, Common::PropertyMetaData>;
+	using Values =
+		Common::Collection<Common::ValueMetaDataKey, Common::ValueMetaData>;
 
 	unique_ptr<Components> components(actual.getMetaData()->getComponents());
 	for (uint32_t i = 0; i < components->getSize(); i++) {
@@ -1041,6 +1098,23 @@ TEST_F(IpiBalancedTests, EngineMetaDataMatches) {
 		EXPECT_EQ(e->getName(), a->getName());
 		EXPECT_EQ(e->getDefaultValue(), a->getDefaultValue());
 		EXPECT_EQ(e->getComponentId(), a->getComponentId());
+
+		// A few values of every property, named or not.
+		unique_ptr<Values> expectedValues(
+			expected.getMetaData()->getValuesForProperty(e.get()));
+		unique_ptr<Values> actualValues(
+			actual.getMetaData()->getValuesForProperty(a.get()));
+		ASSERT_EQ(expectedValues->getSize(), actualValues->getSize());
+		const uint32_t valueStep =
+			actualValues->getSize() > 20 ? actualValues->getSize() / 20 : 1;
+		for (uint32_t v = 0; v < actualValues->getSize(); v += valueStep) {
+			unique_ptr<Common::ValueMetaData> x(expectedValues->getByIndex(v));
+			unique_ptr<Common::ValueMetaData> y(actualValues->getByIndex(v));
+			ASSERT_EQ(x == nullptr, y == nullptr);
+			if (y != nullptr) {
+				EXPECT_EQ(x->getName(), y->getName());
+			}
+		}
 	}
 }
 

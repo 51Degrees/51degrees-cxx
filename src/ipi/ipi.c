@@ -58,6 +58,13 @@ MAP_TYPE(Collection)
 /** The walk found no values for the property. */
 #define IPI_HAS_VALUES_FALSE 2
 
+/**
+ * Bytes in the slot that keeps a copy of the profile of a result. A larger
+ * profile is read again for each property, rather than allocating during a
+ * lookup.
+ */
+#define IPI_KEPT_PROFILE_BYTES 1024
+
 #define COMPONENT(d, i) i < d->componentsList.count ? \
 (Component*)d->componentsList.items[i].data.ptr : NULL
 
@@ -299,6 +306,7 @@ static void resultIpiReset(ResultIpi* result) {
 	memset(result->targetIpAddress.value, 0, FIFTYONE_DEGREES_IPV6_LENGTH);
 	result->targetIpAddress.type = IP_TYPE_INVALID;
 	result->componentIndex = -1;
+	result->keptProfile = NULL;
 }
 
 static int compareIpAddresses(
@@ -2563,6 +2571,19 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 				resultsIpiResetHasValuesCache(results);
 			}
 		}
+
+		// Reading a profile through a cache takes a lock twice, so one read
+		// for each result is kept for all the properties of that result. It is
+		// a copy because a cache entry held between calls could leave a shard
+		// of the cache with no entry to give. If this allocation fails each
+		// property reads the cache.
+		results->keptProfiles = NULL;
+		if (dataSet->config.profiles.loaded == false &&
+			dataSet->config.profiles.capacity > 0 &&
+			results->capacity > 0) {
+			results->keptProfiles = (byte*)Malloc(
+				(size_t)results->capacity * IPI_KEPT_PROFILE_BYTES);
+		}
 	}
 	else {
 		DataSetRelease((DataSetBase *)dataSet);
@@ -2588,6 +2609,10 @@ void fiftyoneDegreesResultsIpiFree(fiftyoneDegreesResultsIpi* results) {
 		Free(results->hasValuesCache);
 		results->hasValuesCache = NULL;
 		results->hasValuesCacheCount = 0;
+	}
+	if (results->keptProfiles != NULL) {
+		Free(results->keptProfiles);
+		results->keptProfiles = NULL;
 	}
 	DataSetRelease((DataSetBase*)results->b.dataSet);
 	Free(results);
@@ -3102,6 +3127,66 @@ static uint32_t getProfileOffset(
 }
 
 /**
+ * Gets the profile of a result that is not a profile group, or NULL if it has
+ * none. A profile read through a cache is kept until the results are next
+ * populated, unless it is too large for its slot. The caller passes what it is
+ * given to releaseResultProfile when it has finished with the profile.
+ */
+static const Profile* getResultProfile(
+	ResultsIpi* results,
+	ResultIpi* result,
+	Item* item,
+	Exception* exception) {
+	const DataSetIpi* const dataSet = (const DataSetIpi*)results->b.dataSet;
+	DataReset(&item->data);
+	item->handle = NULL;
+	item->collection = NULL;
+	if (result->keptProfile != NULL) {
+		return (const Profile*)result->keptProfile;
+	}
+	const uint32_t offset = getProfileOffset(
+		dataSet->profileOffsets,
+		result->graphResult.offset,
+		exception);
+	if (EXCEPTION_FAILED || offset == NULL_PROFILE_OFFSET) {
+		return NULL;
+	}
+	const CollectionKey key = { offset, CollectionKeyType_Profile };
+	const Profile* const profile = (const Profile*)dataSet->profiles->get(
+		dataSet->profiles,
+		&key,
+		item,
+		exception);
+	if (profile == NULL || EXCEPTION_FAILED || results->keptProfiles == NULL) {
+		return profile;
+	}
+	if (item->handle == NULL) {
+		// Held in memory for as long as the data set is.
+		result->keptProfile = (const byte*)profile;
+	}
+	else {
+		const size_t bytes =
+			sizeof(Profile) + (size_t)profile->valueCount * sizeof(uint32_t);
+		if (bytes > IPI_KEPT_PROFILE_BYTES) {
+			return profile;
+		}
+		byte* const slot = results->keptProfiles +
+			(size_t)(result - results->items) * IPI_KEPT_PROFILE_BYTES;
+		memcpy(slot, profile, bytes);
+		result->keptProfile = slot;
+	}
+	COLLECTION_RELEASE(dataSet->profiles, item);
+	item->collection = NULL;
+	return (const Profile*)result->keptProfile;
+}
+
+static void releaseResultProfile(const DataSetIpi* dataSet, Item* item) {
+	if (item->collection != NULL) {
+		COLLECTION_RELEASE(dataSet->profiles, item);
+	}
+}
+
+/**
  * Achieves the same as addValuesFromResult, but gets the value from the
  * default value in the property. This is used when there is no value in
  * the profile, but the property is mandatory.
@@ -3150,18 +3235,21 @@ static uint32_t addValuesFromResult(
 	if (results->count > 0) {
 		if (result->graphResult.rawOffset != NULL_PROFILE_OFFSET) {
 			if (!result->graphResult.isGroupOffset) {
-				const uint32_t profileOffsetValue = getProfileOffset(
-					dataSet->profileOffsets,
-					result->graphResult.offset,
+				Item profileItem;
+				const Profile* const profile = getResultProfile(
+					results,
+					result,
+					&profileItem,
 					exception);
-
-				if (EXCEPTION_OKAY) {
-					count += addValuesFromSingleProfile(
+				if (profile != NULL && EXCEPTION_OKAY) {
+					count += addValuesFromProfile(
+						(DataSetIpi*)dataSet,
 						results,
+						(Profile*)profile,
 						property,
-						profileOffsetValue,
 						FULL_RAW_WEIGHTING,
 						exception);
+					releaseResultProfile(dataSet, &profileItem);
 				}
 			} else {
 				count += addValuesFromProfileGroup(
@@ -3308,7 +3396,7 @@ static bool profileHasValidPropertyValue(
 
 static bool resultHasValidPropertyValueOffset(
 	fiftyoneDegreesResultsIpi* const results,
-	const fiftyoneDegreesResultIpi* const result,
+	fiftyoneDegreesResultIpi* const result,
 	Property * const property,
 	fiftyoneDegreesException* const exception) {
 	bool hasValidOffset = false;
@@ -3320,16 +3408,21 @@ static bool resultHasValidPropertyValueOffset(
 	// profile groups offset from the previous step
 	if (result->graphResult.rawOffset != NULL_PROFILE_OFFSET) {
 		if (!result->graphResult.isGroupOffset) {
-			const uint32_t profileOffsetValue = getProfileOffset(
-				dataSet->profileOffsets,
-				result->graphResult.offset,
+			Item profileItem;
+			const Profile* const profile = getResultProfile(
+				results,
+				result,
+				&profileItem,
 				exception);
-			if (EXCEPTION_OKAY) {
-				hasValidOffset = profileHasValidPropertyValue(
-					dataSet,
-					profileOffsetValue,
+			if (profile != NULL && EXCEPTION_OKAY) {
+				ProfileIterateValuesForProperty(
+					dataSet->values,
+					profile,
 					property,
+					&hasValidOffset,
+					visitProfilePropertyValue,
 					exception);
+				releaseResultProfile(dataSet, &profileItem);
 			}
 		} else {
 			const Collection * const profileGroups = dataSet->profileGroups;
