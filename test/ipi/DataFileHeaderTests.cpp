@@ -23,7 +23,8 @@
 /**
  * @file DataFileHeaderTests.cpp
  * @brief Tests that the engine reads a data file with a non zero profile
- * offset shift, and refuses a copy whose header it does not support.
+ * offset shift, refuses a copy whose header it does not support, and that the
+ * size method reports the status of a file it cannot use.
  *
  * The tests use the ASN data file because it is committed to the data
  * submodule, so every build reads the same file. CI replaces the other data
@@ -208,6 +209,74 @@ protected:
 	}
 
 	/**
+	 * Gets the size from the size method, and the status it leaves in the
+	 * exception, which stays as it was created for a file that is accepted.
+	 */
+	static size_t sizeFromFile(
+		fiftyoneDegreesConfigIpi config,
+		const char* fileName,
+		const char* required,
+		fiftyoneDegreesStatusCode* status) {
+		fiftyoneDegreesPropertiesRequired properties =
+			fiftyoneDegreesPropertiesDefault;
+		properties.string = required;
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		const size_t size = fiftyoneDegreesIpiSizeManagerFromFile(
+			&config,
+			&properties,
+			fileName,
+			exception);
+		*status = exception->status;
+		return size;
+	}
+
+	/**
+	 * Passes the status from the size method, for every way the engine reads a
+	 * data file, to the check provided with the name of that way. In a memory
+	 * only build the only way is into memory.
+	 */
+	template <typename Check>
+	static void checkSizeStatus(
+		Check check,
+		const char* fileName,
+		const char* required = nullptr) {
+		const fiftyoneDegreesConfigIpi* const configs[] = {
+			&fiftyoneDegreesIpiInMemoryConfig,
+			&fiftyoneDegreesIpiLowMemoryConfig,
+			&fiftyoneDegreesIpiHighPerformanceConfig,
+			&fiftyoneDegreesIpiBalancedConfig,
+			&fiftyoneDegreesIpiBalancedTempConfig };
+		const char* const names[] = {
+			"InMemory", "LowMemory", "HighPerformance", "Balanced",
+			"BalancedTemp" };
+		const size_t count =
+			fiftyoneDegreesCollectionGetIsMemoryOnly() ? 1 : 5;
+		for (size_t i = 0; i < count; i++) {
+			fiftyoneDegreesStatusCode status;
+			sizeFromFile(*configs[i], fileName, required, &status);
+			check(status, names[i]);
+		}
+	}
+
+	/**
+	 * Expects one status from the size method for every way the engine reads
+	 * a data file.
+	 */
+	static void expectSizeStatus(
+		const fiftyoneDegreesStatusCode expected,
+		const char* fileName,
+		const char* required = nullptr) {
+		checkSizeStatus(
+			[expected](
+				fiftyoneDegreesStatusCode status,
+				const char* name) {
+				EXPECT_EQ(expected, status) << name;
+			},
+			fileName,
+			required);
+	}
+
+	/**
 	 * Gets the values of every property for an address, one line per property.
 	 */
 	static std::string getValues(
@@ -363,4 +432,97 @@ TEST_F(DataFileHeaderTests, Version45WithInvalidShift_ReturnsIncorrectVersion) {
 	setHeaderField(versionMinorPosition, 5);
 	setHeaderField(shiftPosition, 9);
 	expectStatus(FIFTYONE_DEGREES_STATUS_INCORRECT_VERSION);
+}
+
+/**
+ * Test that the size method accepts an unchanged copy, and that a file it
+ * refuses leaves nothing behind that changes the size of the next one.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromFile_UnchangedCopy_IsAccepted) {
+	ASSERT_NO_FATAL_FAILURE(writeTempFile());
+	expectSizeStatus(FIFTYONE_DEGREES_STATUS_NOT_SET, tempFilePath.c_str());
+
+	fiftyoneDegreesStatusCode status;
+	const size_t before = sizeFromFile(
+		fiftyoneDegreesIpiInMemoryConfig,
+		tempFilePath.c_str(),
+		nullptr,
+		&status);
+	EXPECT_GT(before, (size_t)0);
+	expectSizeStatus(
+		FIFTYONE_DEGREES_STATUS_FILE_NOT_FOUND,
+		"51Degrees-NoSuchFile.ipi");
+	EXPECT_EQ(before, sizeFromFile(
+		fiftyoneDegreesIpiInMemoryConfig,
+		tempFilePath.c_str(),
+		nullptr,
+		&status));
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, status);
+}
+
+/**
+ * Test that the size method reports a file that is not there.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromFile_MissingFile_ReportsStatus) {
+	expectSizeStatus(
+		FIFTYONE_DEGREES_STATUS_FILE_NOT_FOUND,
+		"51Degrees-NoSuchFile.ipi");
+}
+
+/**
+ * Test that the size method reports a shift the header cannot declare.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromFile_ShiftAboveLimit_ReportsStatus) {
+	setHeaderField(shiftPosition, 9);
+	ASSERT_NO_FATAL_FAILURE(writeTempFile());
+	expectSizeStatus(invalidShiftStatus, tempFilePath.c_str());
+}
+
+/**
+ * Test that the size method reports a version it does not read.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromFile_Version45_ReportsStatus) {
+	setHeaderField(versionMinorPosition, 5);
+	setHeaderField(shiftPosition, 0);
+	ASSERT_NO_FATAL_FAILURE(writeTempFile());
+	expectSizeStatus(
+		FIFTYONE_DEGREES_STATUS_INCORRECT_VERSION,
+		tempFilePath.c_str());
+}
+
+/**
+ * Test that the size method reports a file too short to hold a header.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromFile_NoFullHeader_ReportsStatus) {
+	data.resize(16);
+	ASSERT_NO_FATAL_FAILURE(writeTempFile());
+	expectSizeStatus(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA, tempFilePath.c_str());
+}
+
+/**
+ * Test that the size method reports a file with a good header and little else.
+ * Which collection fails first depends on the way it is read, so the test only
+ * needs some status to be reported, and the data to be freed on that exit.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromFile_CutShort_ReportsStatus) {
+	data.resize(4096);
+	ASSERT_NO_FATAL_FAILURE(writeTempFile());
+	checkSizeStatus(
+		[](fiftyoneDegreesStatusCode status, const char* name) {
+			EXPECT_NE(FIFTYONE_DEGREES_STATUS_NOT_SET, status) << name;
+			EXPECT_NE(FIFTYONE_DEGREES_STATUS_SUCCESS, status) << name;
+		},
+		tempFilePath.c_str());
+}
+
+/**
+ * Test that the size method reports a required property the file does not
+ * have, which fails only once the whole file has been read.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromFile_NoSuchProperty_ReportsStatus) {
+	ASSERT_NO_FATAL_FAILURE(writeTempFile());
+	expectSizeStatus(
+		FIFTYONE_DEGREES_STATUS_REQ_PROP_NOT_PRESENT,
+		tempFilePath.c_str(),
+		"NoSuchProperty");
 }
