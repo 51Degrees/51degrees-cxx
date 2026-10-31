@@ -483,6 +483,9 @@ static Collection* createFromFile(
 		header,
 		"CollectionFile"
 		COLLECTION_SHIFT_ARG(offsetShift));
+	if (collection == NULL) {
+		return NULL;
+	}
 	CollectionFile *fileCollection = (CollectionFile*)collection->state;
 	fileCollection->collection = collection;
 	fileCollection->reader = reader;
@@ -572,6 +575,9 @@ static Collection* createFromFileCached(
 		header,
 		"CollectionCache"
 		COLLECTION_SHIFT_ARG(offsetShift));
+	if (collection == NULL) {
+		return NULL;
+	}
 	CollectionCache *cache = (CollectionCache*)collection->state;
 	cache->cache = NULL;
 
@@ -705,6 +711,9 @@ static fiftyoneDegreesCollection* collectionCreateFromMemory(
 		&header,
 		"CollectionMemory"
 		COLLECTION_SHIFT_ARG(offsetShift));
+	if (collection == NULL) {
+		return NULL;
+	}
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
 
 	// Configure the fields for the collection.

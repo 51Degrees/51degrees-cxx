@@ -243,6 +243,31 @@ EXTERNAL fiftyoneDegreesIpiCgArray* fiftyoneDegreesIpiGraphCreateFromFile(
 	fiftyoneDegreesException* exception);
 
 /**
+ * Creates and initializes an array of graphs as
+ * fiftyoneDegreesIpiGraphCreateFromFile does, but only the graphs of the
+ * components flagged use the config. Every other graph reads from the file
+ * through the pool, so its data is not held in memory.
+ * @param collection of fiftyoneDegreesIpiCgInfo records
+ * @param file for to the source data
+ * @param reader pool connected to the file
+ * @param config for the collections of the graphs of the flagged components
+ * @param requiredComponentIds 256 flags indexed by component id, or NULL to use
+ * the config for every graph
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return a pointer to the newly allocated array, or null if the operation
+ * was not successful.
+ */
+EXTERNAL fiftyoneDegreesIpiCgArray*
+fiftyoneDegreesIpiGraphCreateFromFileForComponents(
+	fiftyoneDegreesCollection* collection,
+	FILE* file,
+	fiftyoneDegreesFilePool* reader,
+	const fiftyoneDegreesCollectionConfig config,
+	const bool* requiredComponentIds,
+	fiftyoneDegreesException* exception);
+
+/**
  * Obtains the profile index for the IP address and component id provided.
  * @param graphs array for each component id and IP version
  * @param componentId of the index required
