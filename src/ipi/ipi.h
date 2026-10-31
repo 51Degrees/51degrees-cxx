@@ -337,6 +337,9 @@ typedef struct fiftyone_degrees_result_ipi_t {
 												 graph evaluation */
 	fiftyoneDegreesIpAddress targetIpAddress; /**< The target IP address
 											  to find a matching range for */
+	int32_t componentIndex; /**< Index in the components list of the
+							component the result relates to, or -1 if the
+							result has not been populated */
 } fiftyoneDegreesResultIpi;
 
 /**
@@ -345,7 +348,12 @@ typedef struct fiftyone_degrees_result_ipi_t {
 #define FIFTYONE_DEGREES_RESULTS_IPI_MEMBERS \
 	fiftyoneDegreesResultsBase b; \
 	fiftyoneDegreesCollectionItem propertyItem; \
-	fiftyoneDegreesIpiList values;
+	fiftyoneDegreesIpiList values; \
+	byte* hasValuesCache; /**< Cached outcomes of the profile walks used to \
+						  check if a property has values. Indexed by required \
+						  property index. Reset when the results are \
+						  repopulated. */ \
+	uint32_t hasValuesCacheCount; /**< Number of entries in hasValuesCache */
 
 FIFTYONE_DEGREES_ARRAY_TYPE(
 	fiftyoneDegreesResultIpi,
