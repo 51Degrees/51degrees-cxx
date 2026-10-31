@@ -87,28 +87,22 @@ static uint32_t evidenceIterate(
 	int prefixes,
 	void* state,
 	EvidenceIterateMethod callback) {
-	uint32_t index = 0, iterations = 0;
-	EvidenceKeyValuePair* pair;
-	bool cont = true;
-	while (cont && evidence != NULL) {
+	uint32_t iterations = 0;
+	for (; evidence != NULL; evidence = evidence->next) {
+		for (uint32_t i = 0; i < evidence->count; i++) {
+			EvidenceKeyValuePair* pair = &evidence->items[i];
 
-		// Check the current evidence item and call back if the right prefix
-		// after parsing the pair if not done so already.
-        if (index < evidence->count) {
-            pair = &evidence->items[index++];
-            if ((pair->prefix & prefixes) == pair->prefix) {
-                if (pair->parsedValue == NULL) {
-                    parsePair(pair);
-                }
-                cont = callback(state, pair);
-                iterations++;
-            }
-        }
-
-		// Check if the next evidence array needs to be moved to.
-		if (index >= evidence->count) {
-			evidence = evidence->next;
-			index = 0;
+			// Call back if the right prefix after parsing the pair if not done
+			// so already.
+			if ((pair->prefix & prefixes) == pair->prefix) {
+				if (pair->parsedValue == NULL) {
+					parsePair(pair);
+				}
+				iterations++;
+				if (!callback(state, pair)) {
+					return iterations;
+				}
+			}
 		}
 	}
 	return iterations;
