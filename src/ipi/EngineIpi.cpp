@@ -208,7 +208,7 @@ void EngineIpi::refreshData() const {
 		manager.get(),
 		exception);
 	if (status != SUCCESS) {
-		throw StatusCodeException(status);
+		throw StatusCodeException(status, getDataFilePath().c_str());
 	}
 	EXCEPTION_THROW;
 	// The new data set may declare different client IP headers, so the
@@ -223,7 +223,7 @@ void EngineIpi::refreshData(const char *fileName) const {
 		fileName,
 		exception);
 	if (status != SUCCESS) {
-		throw StatusCodeException(status);
+		throw StatusCodeException(status, fileName);
 	}
 	EXCEPTION_THROW;
 	// The new data set may declare different client IP headers, so the

@@ -506,6 +506,14 @@ EXTERNAL void fiftyoneDegreesFilePoolReset(fiftyoneDegreesFilePool *filePool);
 EXTERNAL const char* fiftyoneDegreesFileGetFileName(const char *filePath);
 
 /**
+ * Gets the name of the file after the last separator in the path. A forward
+ * slash and a backslash both count as a separator.
+ * @param path full path to the file.
+ * @return the file name, or NULL if the path has no separator or ends with one.
+ */
+EXTERNAL const char* fiftyoneDegreesFileGetBaseName(const char *path);
+
+/**
  * @}
  */
 #endif

@@ -181,7 +181,7 @@ void EngineHash::refreshData() const {
 		manager.get(),
 		exception);
 	if (status != SUCCESS) {
-		throw StatusCodeException(status);
+		throw StatusCodeException(status, getDataFilePath().c_str());
 	}
 	EXCEPTION_THROW;
 }
@@ -193,7 +193,7 @@ void EngineHash::refreshData(const char *fileName) const {
 		fileName,
 		exception);
 	if (status != SUCCESS) {
-		throw StatusCodeException(status);
+		throw StatusCodeException(status, fileName);
 	}
 	EXCEPTION_THROW;
 }

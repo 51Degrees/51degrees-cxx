@@ -816,14 +816,8 @@ fiftyoneDegreesStatusCode fiftyoneDegreesFileAddTempFileName(
 }
 
 const char* fiftyoneDegreesFileGetBaseName(const char *path) {
-	char* lastSlash = NULL;
-	if ((lastSlash = strrchr(path, '/')) == NULL) {
-		lastSlash = strrchr(path, '\\');
-		if (lastSlash != NULL && strlen(lastSlash) != 1) {
-			return lastSlash + 1;
-		}
-	}
-	return NULL;
+	const char *name = getNameFromPath(path);
+	return name == path || *name == '\0' ? NULL : name;
 }
 
 static fiftyoneDegreesStatusCode createTempFileWithoutPaths(
