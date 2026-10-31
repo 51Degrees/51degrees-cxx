@@ -50,7 +50,7 @@ ValueMetaData* ValueMetaDataBuilderHash::build(
 			value->descriptionOffset <= 0 ?
 			"" :
 			getString(dataSet->strings, value->descriptionOffset),
-			value->urlOffsetOrWeight < 0 ?
+			value->urlOffsetOrWeight <= 0 ?
 			"" :
 			getString(dataSet->strings, value->urlOffsetOrWeight));
 		COLLECTION_RELEASE(dataSet->properties, &item);

@@ -159,7 +159,9 @@ EXTERNAL const fiftyoneDegreesString* fiftyoneDegreesValueGetDescription(
  * @param item used to store the resulting string in.
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
- * @return a pointer to a string in the collection item data structure.
+ * @return a pointer to a string in the collection item data structure, to an
+ * empty string if the value has no URL, or NULL if the field is negative as it
+ * is when it holds a weight.
  */
 EXTERNAL const fiftyoneDegreesString* fiftyoneDegreesValueGetUrl(
 	const fiftyoneDegreesCollection *strings,

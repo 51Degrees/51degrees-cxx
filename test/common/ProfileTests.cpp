@@ -316,6 +316,46 @@ TEST_F(ProfileTests, ValueWithNoDescription) {
 }
 #endif
 
+/**
+ * Check a value with no URL gives an empty string rather than the string at
+ * offset 0, and that a field holding a masked weight is not read as a URL and
+ * still gives its weight.
+ */
+TEST_F(ProfileTests, ValueWithNoUrl) {
+    EXCEPTION_CREATE
+    const fiftyoneDegreesValue noUrl = {
+        0, // propertyIndex
+        0, // nameOffset
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+        0, // descriptionOffset
+#endif
+        0, // urlOffset
+    };
+    DataReset(&item.data);
+    const String *url = fiftyoneDegreesValueGetUrl(
+        stringsCollection, &noUrl, &item, exception);
+    ASSERT_TRUE(EXCEPTION_OKAY);
+    ASSERT_NE(url, nullptr);
+    EXPECT_STREQ("", &url->value);
+    COLLECTION_RELEASE(item.collection, &item);
+
+    const fiftyoneDegreesValue weighted = {
+        0, // propertyIndex
+        0, // nameOffset
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+        0, // descriptionOffset
+#endif
+        (int32_t)0xFF001234, // masked weight
+    };
+    DataReset(&item.data);
+    url = fiftyoneDegreesValueGetUrl(
+        stringsCollection, &weighted, &item, exception);
+    ASSERT_TRUE(EXCEPTION_OKAY);
+    EXPECT_EQ(url, nullptr);
+    EXPECT_TRUE(fiftyoneDegreesValueIsWeighted(&weighted));
+    EXPECT_EQ(0x1234, (int)fiftyoneDegreesValueGetWeight(&weighted));
+}
+
 TEST_F(ProfileTests, Values) {
     for (int i=0;i<(N_PER_PROPERTY-1) * N_PROPERTIES;i++) {
         EXCEPTION_CREATE

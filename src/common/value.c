@@ -36,13 +36,23 @@ typedef struct value_search_t {
 	StringBuilder *tempBuilder;
 } valueSearch;
 
-#ifndef FIFTYONE_DEGREES_REDUCED_FILE
 /**
- * The string given for a value with no description. The size of a string
- * counts its terminating null.
+ * The string given for a value with no description or URL. The size of a
+ * string counts its terminating null.
  */
-static const String noDescription = { 1, '\0' };
-#endif
+static const String noString = { 1, '\0' };
+
+/**
+ * A value with no description or URL points at offset 0, which holds the first
+ * string in the file rather than either of those. Callers rely on getting a
+ * string, so they get an empty one, and can release the item as they do for
+ * any other string because it holds nothing.
+ */
+static const String* getNoString(const Collection *strings, CollectionItem *item) {
+	item->handle = NULL;
+	item->collection = strings;
+	return &noString;
+}
 
 static int compareValueByName(
 	void *state,
@@ -117,14 +127,8 @@ const String* fiftyoneDegreesValueGetDescription(
 	EXCEPTION_SET(NOT_IMPLEMENTED)
 	return NULL;
 #else
-	// A value with no description points at offset 0, which holds the first
-	// string in the file rather than a description. Callers rely on getting a
-	// string, so they get an empty one, and can release the item as they do
-	// for any other string because it holds nothing.
 	if (value->descriptionOffset <= 0) {
-		item->handle = NULL;
-		item->collection = strings;
-		return &noDescription;
+		return getNoString(strings, item);
 	}
 	return &StoredBinaryValueGet(
 		strings,
@@ -140,8 +144,12 @@ const String* fiftyoneDegreesValueGetUrl(
 	const Value *value,
 	CollectionItem *item,
 	Exception *exception) {
+	// A negative field is either no URL or a masked weight.
 	if (value->urlOffsetOrWeight < 0) {
 		return NULL;
+	}
+	if (value->urlOffsetOrWeight == 0) {
+		return getNoString(strings, item);
 	}
 	return &StoredBinaryValueGet(
 		strings,
