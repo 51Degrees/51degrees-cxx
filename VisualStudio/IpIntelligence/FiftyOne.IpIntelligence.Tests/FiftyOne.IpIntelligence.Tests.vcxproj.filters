@@ -27,9 +27,6 @@
     <ClCompile Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\test\ExampleStronglyTypedTests.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromMemoryTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -97,12 +94,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\test\ipi\Constants.hpp">
       <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\GraphIpi.hpp">
-      <Filter>Headers Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\test\GraphIpIntelligenceTests.hpp">
-      <Filter>Headers Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

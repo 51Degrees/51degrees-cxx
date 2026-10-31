@@ -1396,8 +1396,7 @@ FIFTYONE_DEGREES_DATASET_RELOAD(Ipi)
 
 
 /* 
- * Note: WeightedItemList functions are now provided by common-cxx/weightedItem.h
- * The local list functions have been removed in favor of:
+ * The WeightedItemList functions are in src/common/weightedItem.h:
  * - WeightedItemListInit() 
  * - WeightedItemListRelease()
  * - WeightedItemListFree()
@@ -1794,7 +1793,8 @@ static bool addWeightedValue(
 static bool addWeightedValueWithState(void* state, Item* item) {
 	// The results values are a list of collection items and their weighting.
 	// The weighting cannot be passed along with Item as this is the profile
-	// standard in common-cxx. Thus the weighting is passed along with the state.
+	// standard in the common library. Thus the weighting is passed along with
+	// the state.
 	const stateWithWeighting* weightingState = (stateWithWeighting*)((stateWithException*)state)->state;
 	ResultsIpi* results =
 		(ResultsIpi*)weightingState->subState;
