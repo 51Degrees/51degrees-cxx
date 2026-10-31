@@ -28,6 +28,26 @@ Cloning, building with CMake or Visual Studio, and running the tests are the
 same for every product in this repository, and are described in the
 [repository README](../../README.md).
 
+## Memory and the required properties
+
+The Balanced configuration (`fiftyoneDegreesIpiBalancedConfig`, or `setBalanced()` in C++) holds the strings, the graphs, the profile offsets and the property types in memory, and reads values and profiles through caches. The C API uses it when no configuration is given.
+
+Naming the required properties is all it takes to get more from it. There is no other setting. When fewer properties are named than the data file has, the parts of the file they do not read stay on file:
+
+- The graphs of components with no required property.
+- Stretches of strings of at least 64 KiB that no required property reads. For example, the polygons of `Areas` stay on file unless `Areas` is named.
+
+The memory that frees is then spent, in this order, as far as it lasts:
+
+1. The values of the required properties, smallest first.
+2. The profile groups.
+3. The profiles of the components with a required property, smallest first.
+4. A larger profile cache, then part of the next component's profiles if at least half of them fit.
+
+The memory used does not rise above what naming nothing uses, and the answers do not change. A caller who names nothing, or every property, gets the configuration as it is.
+
+Anything not held reads from the file, so it still works, more slowly and allocating memory. That covers a direct graph call for a component with no required property, and meta data for what was not named. A property that was not named gives no value, as it does with every other configuration.
+
 ## Referencing the API
 
 ### Adding references with CMake

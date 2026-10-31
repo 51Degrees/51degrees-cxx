@@ -234,6 +234,8 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }  // Graph
 };
 
+// The profile offsets and the property types are read for each property of every
+// lookup, so the Balanced configurations hold both in memory.
 #define FIFTYONE_DEGREES_IPI_CONFIG_BALANCED \
 { FIFTYONE_DEGREES_CONFIG_DEFAULT_NO_INDEX }, \
 { FIFTYONE_DEGREES_STRING_LOADED, FIFTYONE_DEGREES_STRING_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Strings */ \

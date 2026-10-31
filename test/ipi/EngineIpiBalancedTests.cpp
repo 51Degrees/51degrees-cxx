@@ -48,6 +48,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#include <sys/wait.h>
 #include <unistd.h>
 #endif
 
@@ -336,6 +337,10 @@ public:
 			if (i + 1 < available->count) {
 				allButOne += (allButOne.empty() ? "" : ",") + name;
 			}
+		}
+		// A file with one component still names fewer properties than it has.
+		if (componentCount < 2) {
+			oneComponent = allButOne;
 		}
 	}
 	void TearDown() override {
@@ -923,6 +928,27 @@ TEST_F(IpiBalancedThreadTests, ThreadsGetTheSameAnswers) {
 		(FIFTYONE_DEGREES_THREAD_ROUTINE)IpiBalancedThreadTests::runThread);
 	EXPECT_EQ(0, threadFailures.load());
 }
+
+#ifndef _WIN32
+TEST_F(IpiBalancedTests, ForkedProcessGetsTheSameAnswers) {
+	BalancedManager manager(
+		dataFilePath,
+		fiftyoneDegreesIpiBalancedConfig,
+		oneComponent.c_str());
+	const vector<string> addresses = balancedAddresses();
+	const vector<string> expected = balancedAnswers(&manager.manager, addresses);
+	const pid_t child = fork();
+	ASSERT_NE(-1, child);
+	if (child == 0) {
+		const bool same = balancedAnswers(&manager.manager, addresses) == expected;
+		_exit(same ? 0 : 1);
+	}
+	int status = -1;
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	ASSERT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+}
+#endif
 
 /**
  * Tests that need a data file with particular contents, written to a file only

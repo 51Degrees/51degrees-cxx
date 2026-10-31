@@ -439,6 +439,17 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig;
  * reached. The concurrency of each collection must be set to the maximum
  * number of concurrent operations to optimize file reads. This is the default
  * configuration.
+ *
+ * The strings, the graphs, the profile offsets and the property types are held
+ * in memory. When the required properties name fewer properties than the data
+ * file has, the graphs of components with no required property stay on file, as
+ * do long stretches of strings that no required property reads. The memory that
+ * frees holds the values of the required properties, smallest first, the profile
+ * groups, the profiles of the components with a required property, smallest
+ * first, then a larger profile cache and part of the next component's profiles
+ * if at least half of them fit. The memory used does not rise above what naming
+ * nothing uses and the answers do not change. Anything not held reads from the
+ * file, which is slower and allocates memory.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig;
 
