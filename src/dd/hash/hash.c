@@ -67,12 +67,33 @@ d->componentsList.items[i].data.ptr : NULL))
 #define RK_PRIME 997
 
 /**
+ * Forces inlining of what a scan calls at every position, because the rolling
+ * hash only stays in registers when those functions are inlined.
+ */
+#if defined(_MSC_VER)
+#define SCAN_INLINE static __forceinline
+#elif defined(__GNUC__)
+#define SCAN_INLINE static inline __attribute__((always_inline))
+#else
+#define SCAN_INLINE static inline
+#endif
+
+/**
+ * Each hash code sets one bit of a table scan's miss filter. Creating the filter
+ * reads every record, so it is only done for tables up to this size with at
+ * least this many positions left.
+ */
+#define FILTER_BIT(h) (UINT64_C(1) << ((h) & 63))
+#define FILTER_MAX_RECORDS 128
+#define FILTER_MIN_POSITIONS 32
+
+/**
  * Match a table hash using a reciprocal prepared once for the node scan.
  * The caller validates the positive divisor and table bounds. The estimated
  * quotient is exact or one below floor(hash / divisor), so one subtraction
  * gives the exact remainder. A zero hash remains a reserved table marker.
  */
-static GraphNodeHash* getMatchingHashFromTablePrepared(
+SCAN_INLINE GraphNodeHash* getMatchingHashFromTablePrepared(
 	GraphNode* node,
 	uint32_t hash,
 	uint64_t reciprocal) {
@@ -688,6 +709,104 @@ static int advanceHash(detectionState *state) {
 }
 
 /**
+ * The rolling hash of an exact scan. A local copy lets the compiler hold these
+ * values in registers rather than read and write the detection state at every
+ * position. Tolerance scans use advanceHash and the state instead.
+ */
+typedef struct rolling_hash_t {
+	const char *target; /* Evidence being scanned */
+	uint32_t hash; /* Hash of the characters starting at index */
+	uint32_t power; /* RK_PRIME to the power of length */
+	int index; /* Position of the first character in the hash */
+	int end; /* Last position which can be hashed */
+	int length; /* Number of characters in the hash */
+} rollingHash;
+
+/**
+ * Starts from the hash and position which setInitialHash set. As in advanceHash
+ * the hash rolls while the position is below lastIndex and the next character
+ * is within the evidence, so end is the lower of those two limits.
+ */
+SCAN_INLINE void rollingHashInit(
+	rollingHash *rolling,
+	const detectionState *state) {
+	const int length = NODE(state)->length;
+	const int64_t lastPosition =
+		(int64_t)state->result->b.targetUserAgentLength - length;
+	rolling->target = state->result->b.targetUserAgent;
+	rolling->hash = state->hash;
+	rolling->power = state->power;
+	rolling->index = state->currentIndex;
+	rolling->end = state->lastIndex < lastPosition ?
+		state->lastIndex : (int)lastPosition;
+	rolling->length = length;
+}
+
+/**
+ * Rolls the hash on by one character using the formula in advanceHash.
+ * @return true if the hash and position were advanced, otherwise false
+ */
+SCAN_INLINE bool rollingHashAdvance(rollingHash *rolling) {
+	if (rolling->index >= rolling->end) {
+		return false;
+	}
+	rolling->hash = rolling->hash * RK_PRIME +
+		(uint32_t)rolling->target[rolling->index + rolling->length] -
+		rolling->power * (uint32_t)rolling->target[rolling->index];
+	rolling->index++;
+	return true;
+}
+
+/**
+ * Scans an ordered list of 2 or 3 records by comparing their codes, held in
+ * registers, rather than calling the search at every position. Longer lists use
+ * the search, as detections rarely meet them because the data file holds them
+ * as hash tables. With 2 records the second record is also the last.
+ * GraphDataFileTests checks that a list never repeats a code.
+ * @return the matching record, or NULL if the scan found none
+ */
+SCAN_INLINE GraphNodeHash* scanSmallList(GraphNode *node, rollingHash *rolling) {
+	GraphNodeHash *nodeHash;
+	GraphNodeHash * const hashes = (GraphNodeHash*)(node + 1);
+	GraphNodeHash * const last = hashes + node->hashesCount - 1;
+	const uint32_t h0 = hashes[0].hashCode, h1 = hashes[1].hashCode,
+		h2 = last->hashCode;
+	do {
+		nodeHash = rolling->hash == h2 ? last : NULL;
+		nodeHash = rolling->hash == h1 ? hashes + 1 : nodeHash;
+		nodeHash = rolling->hash == h0 ? hashes : nodeHash;
+	} while (nodeHash == NULL && rollingHashAdvance(rolling));
+	return nodeHash;
+}
+
+/**
+ * Scans a usable hash table. Every record sets a bit in a filter, so a clear bit
+ * proves that a hash is absent without reading the table. A filter with every
+ * bit set lets every hash through, for scans which do not create one.
+ * @return the matching record, or NULL if the scan found none
+ */
+SCAN_INLINE GraphNodeHash* scanTable(GraphNode *node, rollingHash *rolling) {
+	GraphNodeHash *nodeHash = NULL;
+	const uint64_t reciprocal = (UINT64_C(1) << 32) / (uint32_t)node->modulo;
+	uint64_t filter = UINT64_MAX;
+	if (node->hashesCount <= FILTER_MAX_RECORDS &&
+		(int64_t)rolling->end - rolling->index >= FILTER_MIN_POSITIONS) {
+		const GraphNodeHash * const hashes = (GraphNodeHash*)(node + 1);
+		filter = 0;
+		for (int i = 0; i < node->hashesCount; i++) {
+			filter |= FILTER_BIT(hashes[i].hashCode);
+		}
+	}
+	do {
+		if ((filter & FILTER_BIT(rolling->hash)) != 0) {
+			nodeHash = getMatchingHashFromTablePrepared(
+				node, rolling->hash, reciprocal);
+		}
+	} while (nodeHash == NULL && rollingHashAdvance(rolling));
+	return nodeHash;
+}
+
+/**
  * Extend the search range by the size defined by the drift parameter.
  * @param match to extend the range in.
  */
@@ -777,92 +896,33 @@ static void evaluateListNode(detectionState *state) {
 	else {
 		// Set the match structure with the initial hash value.
 		if (setInitialHash(state)) {
-			// Keep rolling state local. Only the final hash and position are
-			// observable outside this exact scan. Tolerance scans retain the
-			// original state-based path.
-			const char * const ua = state->result->b.targetUserAgent;
-			int index = state->currentIndex;
-			uint32_t hash = state->hash;
-			const uint32_t power = state->power;
-			const int length = NODE(state)->length;
-			int end = state->lastIndex;
-			if (end >= 0 && (size_t)end >
-				state->result->b.targetUserAgentLength - (size_t)length) {
-				end = (int)(state->result->b.targetUserAgentLength - (size_t)length);
-			}
-
+			GraphNode * const node = NODE(state);
+			rollingHash rolling;
+			rollingHashInit(&rolling, state);
 			// The table vs binary-search decision depends only on the node's
 			// modulo, which is constant for the duration of this scan. Resolve
 			// it once here rather than re-testing it for every rolled hash.
-			GraphNode * const node = NODE(state);
-			if (node->modulo == 0 && node->hashesCount == 2) {
-				GraphNodeHash* hashes = (GraphNodeHash*)(node + 1);
-				const uint32_t h0 = hashes[0].hashCode, h1 = hashes[1].hashCode;
-				do {
-					nodeHash = hash == h1 ? hashes + 1 : NULL;
-					nodeHash = hash == h0 ? hashes : nodeHash;
-				} while (nodeHash == NULL && (index < end ?
-					(hash = hash * RK_PRIME + (uint32_t)ua[index + length] -
-						power * (uint32_t)ua[index], index++, 1) : 0));
-			}
-			else if (node->modulo == 0 && node->hashesCount == 3) {
-				GraphNodeHash* hashes = (GraphNodeHash*)(node + 1);
-				const uint32_t h0 = hashes[0].hashCode, h1 = hashes[1].hashCode,
-					h2 = hashes[2].hashCode;
-				do {
-					nodeHash = hash == h2 ? hashes + 2 : NULL;
-					nodeHash = hash == h0 ? hashes : nodeHash;
-					// Preserve the binary-search midpoint priority for duplicates.
-					nodeHash = hash == h1 ? hashes + 1 : nodeHash;
-				} while (nodeHash == NULL && (index < end ?
-					(hash = hash * RK_PRIME + (uint32_t)ua[index + length] -
-						power * (uint32_t)ua[index], index++, 1) : 0));
-			}
-			else if (node->modulo == 0) {
-				// Loop between the first and last indexes checking the hash
-				// values.
-				do {
-					nodeHash = GraphGetMatchingHashFromListNodeSearch(
-						node,
-						hash);
-				} while (nodeHash == NULL && (index < end ?
-					(hash = hash * RK_PRIME + (uint32_t)ua[index + length] -
-						power * (uint32_t)ua[index], index++, 1) : 0));
-			}
-			else if (GRAPH_NODE_IS_HASH_TABLE(node)) {
-				const uint64_t reciprocal = (UINT64_C(1) << 32) / (uint32_t)node->modulo;
-				// Amortize a local miss filter only over longer scans of small tables.
-				// Every stored nonzero hash contributes a bit. A clear bit proves
-				// absence, while possible matches retain the original lookup order.
-				if (node->hashesCount <= 128 && (int64_t)end - index >= 32) {
-					uint64_t filter = 0;
-					GraphNodeHash* records = (GraphNodeHash*)(node + 1);
-					for (int k = 0; k < node->hashesCount; k++) {
-						const uint32_t code = records[k].hashCode;
-						if (code != 0) {
-							filter |= UINT64_C(1) << (code & 63);
-						}
-					}
-
-					do {
-						nodeHash = (filter & (UINT64_C(1) << (hash & 63))) != 0 ?
-							getMatchingHashFromTablePrepared(node, hash, reciprocal) : NULL;
-					} while (nodeHash == NULL && (index < end ?
-						(hash = hash * RK_PRIME + (uint32_t)ua[index + length] -
-							power * (uint32_t)ua[index], index++, 1) : 0));
+			if (node->modulo == 0) {
+				if (node->hashesCount == 2 || node->hashesCount == 3) {
+					nodeHash = scanSmallList(node, &rolling);
 				}
 				else {
+					// Loop between the first and last indexes checking the
+					// hash values.
 					do {
-						nodeHash = getMatchingHashFromTablePrepared(node, hash, reciprocal);
-					} while (nodeHash == NULL && (index < end ?
-						(hash = hash * RK_PRIME + (uint32_t)ua[index + length] -
-							power * (uint32_t)ua[index], index++, 1) : 0));
+						nodeHash = GraphGetMatchingHashFromListNodeSearch(
+							node,
+							rolling.hash);
+					} while (nodeHash == NULL && rollingHashAdvance(&rolling));
 				}
+			}
+			else if (GRAPH_NODE_IS_HASH_TABLE(node)) {
+				nodeHash = scanTable(node, &rolling);
 			}
 			// Any other modulo cannot index the records of the node safely, so
 			// no hash is looked for and the unmatched branch is taken.
-			state->hash = hash;
-			state->currentIndex = index;
+			state->hash = rolling.hash;
+			state->currentIndex = rolling.index;
 		}
 	}
 	
@@ -981,28 +1041,15 @@ static void evaluateBinaryNode(detectionState *state) {
 	}
 	else {
 		if (setInitialHash(state)) {
-			// Keep rolling state local. Only the final hash and position are
-			// observable outside this exact scan. Tolerance scans retain the
-			// original state-based path.
-			const char * const ua = state->result->b.targetUserAgent;
-			int index = state->currentIndex;
-			uint32_t hash = state->hash;
-			const uint32_t power = state->power;
-			const int length = NODE(state)->length;
-			int end = state->lastIndex;
-			if (end >= 0 && (size_t)end >
-				state->result->b.targetUserAgentLength - (size_t)length) {
-				end = (int)(state->result->b.targetUserAgentLength - (size_t)length);
-			}
-
+			rollingHash rolling;
+			rollingHashInit(&rolling, state);
 			// Keep rolling the hash until the hash is found or the last index is
 			// reached and there is no possibility of finding the hash value.
-			while (hash != hashes->hashCode && (index < end ?
-					(hash = hash * RK_PRIME + (uint32_t)ua[index + length] -
-						power * (uint32_t)ua[index], index++, 1) : 0)) {
+			while (rolling.hash != hashes->hashCode &&
+				rollingHashAdvance(&rolling)) {
 			}
-			state->hash = hash;
-			state->currentIndex = index;
+			state->hash = rolling.hash;
+			state->currentIndex = rolling.index;
 		}
 		found = state->hash == hashes->hashCode;
 	}

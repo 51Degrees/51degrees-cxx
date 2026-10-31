@@ -30,8 +30,8 @@ using namespace std;
 
 /**
  * Checks that the graph nodes of a data file hold the values which the lookups
- * in graph.c rely on. A node which breaks these is handled safely by the
- * lookups, which report that nothing matched, but the part of the graph it
+ * in graph.c and hash.c rely on. A node which breaks these is handled safely by
+ * the lookups, which report that nothing matched, but the part of the graph it
  * describes becomes unreachable, so a file containing one should be reported
  * rather than silently detected against.
  */
@@ -56,6 +56,7 @@ protected:
 	 * check.
 	 */
 	struct Violations {
+		int64_t listNotAscending = -1;
 		int64_t moduloNotPositive = -1;
 		int64_t moduloBeyondRecords = -1;
 		int64_t bucketBeforeBuckets = -1;
@@ -69,9 +70,19 @@ protected:
 		Violations &violations) {
 		fiftyoneDegreesGraphNodeHash * const hashes =
 			(fiftyoneDegreesGraphNodeHash*)(node + 1);
-		if (node->hashesCount <= 1 || node->modulo == 0) {
-			// A single record, or an ordered list, neither of which is indexed
-			// by the modulo.
+		if (node->modulo == 0) {
+			// An ordered list, which the searches rely on holding each code
+			// once in ascending order.
+			for (int32_t index = 1; index < node->hashesCount; index++) {
+				if (hashes[index].hashCode <= hashes[index - 1].hashCode &&
+					violations.listNotAscending < 0) {
+					violations.listNotAscending = nodeOffset;
+				}
+			}
+			return;
+		}
+		if (node->hashesCount <= 1) {
+			// A single record, which is not indexed by the modulo.
 			return;
 		}
 		if (node->modulo < 0) {
@@ -174,6 +185,9 @@ TEST_F(GraphDataFileTests, NodeValues)
 	EXPECT_EQ(nodesCount, nodesRead) <<
 		"The nodes were not walked correctly, so the checks below did not "
 		"cover the whole collection.";
+	EXPECT_EQ(-1, violations.listNotAscending) <<
+		"The ordered list at this offset does not hold each code once in "
+		"ascending order.";
 	EXPECT_EQ(-1, violations.moduloNotPositive) <<
 		"The node at this offset has a negative modulo, which would index "
 		"far beyond its records.";
