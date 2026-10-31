@@ -93,7 +93,8 @@ reduced file layout, so its libraries link `fiftyone-common-c-ipi` and
 `fiftyone-common-cxx-ipi`.
 
 When this repository is the top level build, that copy also has its own linked
-C names, so one C program can link both products. A project that includes this
+C names, so one C program can link both products, and
+[`test/both`](test/both) is the smallest example. A project that includes this
 CMake file keeps the original names unless it sets
 `-DFIFTYONE_IPI_SYMBOLS=ON`.
 
