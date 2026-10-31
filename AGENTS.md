@@ -42,8 +42,8 @@ The workflows in `.github/workflows` call the shared workflows in
 [common-ci](https://github.com/51Degrees/common-ci), which run the scripts in
 `ci/`. Each entry in `ci/options.json` lists the `Products` it builds and
 tests. On a pull request, `ci/products.ps1` skips a product the change does
-not touch. A change outside `src/dd`, `src/ipi` and their tests, examples and
-docs counts as touching every product.
+not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
+docs and tools counts as touching every product.
 
 ## Versions
 

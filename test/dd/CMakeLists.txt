@@ -53,3 +53,12 @@ if (CMAKE_COMPILER_IS_GNUCC)
 		target_compile_options(HashTests PRIVATE "-Wa,-mbig-obj")
 	endif()
 endif()
+
+# Runs the real tool against the Lite data file and checks what it writes.
+add_test(NAME JsSnippetExportTests COMMAND ${CMAKE_COMMAND}
+	-DTOOL=$<TARGET_FILE:js-snippet-export>
+	-DDATA=${CMAKE_CURRENT_LIST_DIR}/../../device-detection-data/51Degrees-LiteV4.1.hash
+	-DWORK=${CMAKE_CURRENT_BINARY_DIR}/js-snippet-export-tests
+	-P ${CMAKE_CURRENT_LIST_DIR}/tools/JsSnippetExportTests.cmake)
+set_tests_properties(JsSnippetExportTests PROPERTIES LABELS dd)
+add_dependencies(HashTests js-snippet-export)
