@@ -340,6 +340,9 @@ typedef struct fiftyone_degrees_result_ipi_t {
 	int32_t componentIndex; /**< Index in the components list of the
 							component the result relates to, or -1 if the
 							result has not been populated */
+#ifdef A4_MEMO
+	fiftyoneDegreesCollectionItem memoItem;
+#endif
 } fiftyoneDegreesResultIpi;
 
 /**

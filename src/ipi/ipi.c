@@ -1493,6 +1493,13 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 		// Initialise the results.
 		fiftyoneDegreesResultsInit(&results->b, (void*)(&dataSet->b));
 
+#ifdef A4_MEMO
+		for (uint32_t i = 0; i < results->capacity; i++) {
+			DataReset(&results->items[i].memoItem.data);
+			results->items[i].memoItem.handle = NULL;
+			results->items[i].memoItem.collection = NULL;
+		}
+#endif
 		// Reset the property and values list ready for first use sized for
 		// a single value to be returned.
 		WeightedItemListInit(&results->values, 1, FIFTYONE_DEGREES_WEIGHTED_ITEM_LIST_DEFAULT_LOAD_FACTOR);
@@ -1521,6 +1528,20 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 	return results;
 }
 
+#ifdef A4_MEMO
+static void resultsIpiMemoRelease(ResultsIpi* results) {
+	for (uint32_t i = 0; i < results->capacity; i++) {
+		Item* const item = &results->items[i].memoItem;
+		if (item->data.ptr != NULL) {
+			COLLECTION_RELEASE(item->collection, item);
+			DataReset(&item->data);
+			item->handle = NULL;
+			item->collection = NULL;
+		}
+	}
+}
+#endif
+
 static void resultsIpiRelease(ResultsIpi* results) {
 	if (results->propertyItem.data.ptr != NULL &&
 		results->propertyItem.collection != NULL) {
@@ -1532,6 +1553,9 @@ static void resultsIpiRelease(ResultsIpi* results) {
 }
 
 void fiftyoneDegreesResultsIpiFree(fiftyoneDegreesResultsIpi* results) {
+#ifdef A4_MEMO
+	resultsIpiMemoRelease(results);
+#endif
 	resultsIpiRelease(results);
 	WeightedItemListFree(&results->values);
 	if (results->hasValuesCache != NULL) {
@@ -1620,6 +1644,9 @@ void fiftyoneDegreesResultsIpiFromIpAddressForProperties(
 	}
 
 	// Reset the results data before iterating the evidence.
+#ifdef A4_MEMO
+	resultsIpiMemoRelease(results);
+#endif
 	results->count = 0;
 	resultsIpiResetHasValuesCache(results);
 
@@ -2100,6 +2127,36 @@ static uint32_t addValuesFromResult(
 	if (results->count > 0) {
 		if (result->graphResult.rawOffset != NULL_PROFILE_OFFSET) {
 			if (!result->graphResult.isGroupOffset) {
+#ifdef A4_MEMO
+				Profile* profile = (Profile*)result->memoItem.data.ptr;
+				if (profile == NULL) {
+					const uint32_t memoOffset = getProfileOffset(
+						dataSet->profileOffsets,
+						result->graphResult.offset,
+						exception);
+					if (EXCEPTION_OKAY && memoOffset != NULL_PROFILE_OFFSET) {
+						const CollectionKey memoKey = {
+							memoOffset,
+							CollectionKeyType_Profile,
+						};
+						profile = (Profile*)dataSet->profiles->get(
+							dataSet->profiles,
+							&memoKey,
+							&result->memoItem,
+							exception);
+					}
+				}
+				if (profile != NULL && EXCEPTION_OKAY) {
+					count += addValuesFromProfile(
+						(DataSetIpi*)dataSet,
+						results,
+						profile,
+						property,
+						FULL_RAW_WEIGHTING,
+						exception);
+				}
+				return count;
+#endif
 				const uint32_t profileOffsetValue = getProfileOffset(
 					dataSet->profileOffsets,
 					result->graphResult.offset,

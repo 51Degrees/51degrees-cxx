@@ -1,0 +1,46 @@
+name: tmp a4 decide
+
+on:
+  push:
+    branches:
+      - tmp/a4-decide
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  decide:
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.image }}
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: branch
+      - name: Build with and without the profile memo
+        run: |
+          set -e
+          cmake -S branch/.github/tmp-a4 -B build-plain -DTREE="$PWD/branch" -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-plain --target balanced --config Release --parallel 4
+          CFLAGS=-DA4_MEMO cmake -S branch/.github/tmp-a4 -B build-memo -DTREE="$PWD/branch" -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-memo --target balanced --config Release --parallel 4
+          ls build-plain/out build-memo/out
+      - name: Fetch the addresses
+        run: |
+          curl -fsSL -o evidence.csv https://raw.githubusercontent.com/51Degrees/ip-intelligence-data/HEAD/evidence.csv
+          wc -l evidence.csv
+      - name: Restore the Enterprise file from the pipeline's cache
+        uses: actions/cache/restore@v5
+        with:
+          key: 20261031-539F11FF7D6024941E5118CCB848A3243AA5163E
+          path: assets
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+      - name: Read the file once so every case starts the same way
+        run: cat assets/51Degrees-EnterpriseIpiV41.ipi > /dev/null
+      - name: Measure
+        run: bash branch/.github/tmp-a4/decide.sh assets/51Degrees-EnterpriseIpiV41.ipi evidence.csv build-plain/out/balanced build-memo/out/balanced
