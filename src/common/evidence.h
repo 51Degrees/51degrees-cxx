@@ -286,24 +286,29 @@ EXTERNAL uint32_t fiftyoneDegreesEvidenceIterate(
 	fiftyoneDegreesEvidenceIterateMethod callback);
 
 /**
- * Iterates over the headers assembling the evidence values, considering the
- * prefixes, in the buffer if available. The call back method is called for
+ * Iterates over the headers assembling the evidence values, considering the 
+ * prefixes, in the buffer if available. The call back method is called for 
  * each header or pseudo header available. The buffer is only used with pseudo
- * headers where multiple header values need to be combined into a single
- * value. A pseudo header is only assembled when every header that forms it
- * has evidence. When the values together are longer than the buffer the
- * callback receives the characters the buffer holds, so the value is cut to
- * the buffer length less one rather than skipped. Only the start of the value
- * is kept, so a segment that falls after the cut is lost entirely.
+ * headers where multiple header values need to be combined into a single 
+ * value.
+ *
+ * A pseudo header is only assembled when every header that forms it has
+ * evidence and the values, the separators between them and a null terminator
+ * fit in the buffer. A pseudo header that does not fit is ignored, meaning the
+ * callback is not called for it, no error is reported and iteration moves on
+ * to the next header. This method never allocates memory to hold a longer
+ * value, which is why the caller chooses the length of the buffer up front. A
+ * single header does not use the buffer, so the callback receives its whole
+ * value whatever its length.
  *
  * @param evidence key value pairs including prefixes
  * @param prefixes one or more prefix flags to return values for
  * @param state pointer passed to the callback method
  * @param headers to return evidence for if available
- * @param buffer that MIGHT be used with the callback, null to disable
+ * @param buffer that MIGHT be used with the callback, null to disable 
  * assembling headers
- * @param length of the buffer, including the null terminator, zero also
- * disables assembling headers
+ * @param length of the buffer including the null terminator, where zero means
+ * every pseudo header is ignored
  * @param callback method called when a matching prefix is found
  * @return true if the callback was called successfully, otherwise false
  */

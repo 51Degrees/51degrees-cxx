@@ -159,10 +159,11 @@ static void addPairValueToBuffer(
 }
 
 // For the header finds the corresponding evidence in the array of evidence. If
-// found then appends the parsed value to the builder. The builder never writes
-// past the buffer and always leaves room for the null terminator, so it keeps
-// what fits and drops the rest, including all of any later segment. Returns
-// false if there is no evidence for the header.
+// found then copies the parsed value into the buffer considering the remaining
+// length available. Returns true if successful, or false if there is no
+// evidence for the header or the value does not fit the buffer, which has a
+// fixed length so that detection does not need to allocate memory.
+
 static bool addHeaderValueToBuilder(
 	fiftyoneDegreesEvidenceKeyValuePairArray* evidence,
 	int prefixes,
@@ -174,8 +175,8 @@ static bool addHeaderValueToBuilder(
 	// then there is no evidence for the header and a call back will not be
 	// possible.
 	EvidenceKeyValuePair* pair = findHeaderEvidence(
-		evidence,
-		prefixes,
+		evidence, 
+		prefixes, 
 		header);
 	if (pair == NULL) {
 		return false;
@@ -189,15 +190,16 @@ static bool addHeaderValueToBuilder(
 	// Copy the value of the evidence pair in to the buffer advancing the
 	// current character in the buffer.
 	addPairValueToBuffer(builder, pair);
-	return true;
+    
+    // Return false if we have overfilled the buffer.
+    return builder->full == false;
 }
 
-// Assembles a pseudo header in the buffer. If any of the headers that form it
-// has no evidence returns true to indicate that processing should continue.
-// Otherwise calls the callback with the assembled value, cut to the characters
-// the buffer holds when the values together are longer than the buffer, and
-// returns the result of the callback which might decide not to continue
-// processing.
+// Assembles a pseudo header in the buffer. A pseudo header that is missing
+// evidence for one of its headers, or is too long for the buffer, is ignored
+// by returning true to indicate that processing should continue with the next
+// header. If a pseudo header can be created then returns the result of the
+// callback which might decide not to continue processing.
 static bool processPseudoHeader(
 	EvidenceKeyValuePairArray* evidence,
 	int prefixes,
@@ -207,36 +209,43 @@ static bool processPseudoHeader(
 	fiftyoneDegreesEvidenceIterateMethod callback) {
 	EvidenceKeyValuePair pair;
 
-	// For each of the headers that form the pseudo header add its evidence,
-	// with the separator before every segment after the first.
+	// For each of the headers that form the pseudo header.
 	for (uint32_t i = 0; i < header->segmentHeaders->count; i++) {
-		if (!addHeaderValueToBuilder(
-			evidence,
-			prefixes,
-			header->segmentHeaders->items[i],
-			builder,
-			i > 0)) {
+        
+		// if this is a subsequent segment - we prepend the separator
+        bool prependSeparator = i > 0;
+
+		// Add the header evidence that forms the segment if available updating
+		// the current buffer position if available.
+		bool success = addHeaderValueToBuilder(
+			evidence, 
+			prefixes, 
+			header->segmentHeaders->items[i], 
+			builder, 
+			prependSeparator);
+
+		// If the pseudo header wasn't found, or insufficient space was 
+		// available to copy it, then return.
+		if (!success) {
 			return true;  // which means continue iteration
 		}
 	}
 
-	// Append (or overwrite if it is the last character) a null terminating
+	// Append (or overwrite if it is the last character) a null terminating 
 	// character.
 	StringBuilderComplete(builder);
 
-	// The characters in the buffer before the null terminator, which are fewer
-	// than were added when the buffer could not hold them all.
-	const size_t valueLength = (size_t)(builder->current - builder->ptr) - 1;
-
-	// A header has been formed so call the callback with an evidence pair
+	// A full header has been formed so call the callback with an evidence pair 
 	// containing the parsed value.
 	pair.item.key = NULL;
 	pair.item.keyLength = 0;
 	pair.header = header;
 	pair.item.value = builder->ptr;
-	pair.item.valueLength = valueLength;
+	// As we've added the null terminator, the "added" is 1 longer than
+	// the actual string length.
+	pair.item.valueLength = builder->added - 1;
 	pair.parsedValue = builder->ptr;
-	pair.parsedLength = valueLength;
+	pair.parsedLength = builder->added - 1;
 	pair.prefix = 0;
 	return callback(state, &pair);
 }
@@ -417,8 +426,7 @@ bool fiftyoneDegreesEvidenceIterateForHeaders(
 		// segment then that will be the header that was already processed in 
 		// processHeader therefore there is no point processing the same value
 		// a second time as a pseudo header.
-		if (buffer != NULL &&
-			length > 0 &&
+		if (buffer != NULL && 
 			header->segmentHeaders != NULL &&
 			header->segmentHeaders->count > 1) {
 			StringBuilderInit(&builder);
