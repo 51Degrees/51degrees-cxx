@@ -20,10 +20,12 @@ function OnOff([bool]$value) { $value ? 'ON' : 'OFF' }
 if ($BuildMethod -eq "cmake") {
 
     # One configure builds every product in the entry. The large data file
-    # copy of the common tests runs on x64 only.
+    # copy of the common tests runs on x64 only. The shared script selects
+    # 32 bit on Windows, and Linux needs the CMake option.
     ./cxx/build-project.ps1 -RepoName $RepoName -ProjectDir . -Name $Name `
         -Configuration $Configuration -Arch $Arch -BuildMethod $BuildMethod `
         -ExtraArgs @(
+            "-D32bit=$(OnOff ($IsLinux -and $Arch -eq 'x86'))"
             "-DFIFTYONE_BUILD_DEVICE_DETECTION=$(OnOff ($Products -contains 'dd'))"
             "-DFIFTYONE_BUILD_IP_INTELLIGENCE=$(OnOff ($Products -contains 'ipi'))"
             "-DFIFTYONE_COMMON_CXX_BUILD_TESTING=$(OnOff ($Products -contains 'common'))"
