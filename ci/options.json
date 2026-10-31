@@ -101,6 +101,7 @@
     "Name": "Ubuntu_arm64_Release",
     "Configuration": "Release",
     "Arch": "arm64",
+    "IpiSymbols": false,
     "Products": ["ipi"]
   },
   {
