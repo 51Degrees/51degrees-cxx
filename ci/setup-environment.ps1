@@ -14,10 +14,9 @@ if ($BuildMethod -eq "msbuild") {
 
 if ($IsLinux) {
 
-    # Shared, because the same call in five repositories carried the same
-    # fault: these packages do not exist on arm64, so asking for them on
-    # an ARM runner fails the step. See common-ci environments/README.md.
-    ./environments/setup-multilib.ps1 -Packages gcc-multilib
+    # The x86 jobs build 32 bit C and C++, which needs both multilib packages.
+    # The shared script skips them on arm64, where they do not exist.
+    ./environments/setup-multilib.ps1
 
 }
 
