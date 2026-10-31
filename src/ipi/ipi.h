@@ -340,6 +340,8 @@ typedef struct fiftyone_degrees_result_ipi_t {
 	int32_t componentIndex; /**< Index in the components list of the
 							component the result relates to, or -1 if the
 							result has not been populated */
+	const byte* keptProfile; /**< The profile of the result if it has been kept
+							 for the length of the lookup, otherwise NULL */
 } fiftyoneDegreesResultIpi;
 
 /**
@@ -353,7 +355,11 @@ typedef struct fiftyone_degrees_result_ipi_t {
 						  check if a property has values. Indexed by required \
 						  property index. Reset when the results are \
 						  repopulated. */ \
-	uint32_t hasValuesCacheCount; /**< Number of entries in hasValuesCache */
+	uint32_t hasValuesCacheCount; /**< Number of entries in hasValuesCache */ \
+	byte* keptProfiles; /**< Copies of profiles read through a cache, kept for \
+						the length of a lookup so that each property does not \
+						read the cache again. One slot for each result, or \
+						NULL if the profiles are not read through a cache. */
 
 FIFTYONE_DEGREES_ARRAY_TYPE(
 	fiftyoneDegreesResultIpi,

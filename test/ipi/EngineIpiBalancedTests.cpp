@@ -31,6 +31,7 @@
  * smaller file.
  */
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdio>
@@ -67,6 +68,21 @@ static const char* balancedCacheType = "CollectionCache";
 static const char* balancedHeldType = "CollectionHeld";
 
 static const size_t balancedBufferBytes = 1024 * 1024;
+
+// Sets of properties from the examples, the documentation and common uses.
+static const char* balancedCommonSets[] = {
+	"IpRangeStart,IpRangeEnd,RegisteredCountry,RegisteredName,RegisteredOwner",
+	"Asn,AsnName,IsHosted,ConnectionType,Mcc,IsCellular,IsBroadband,IsVPN,"
+	"IsProxy,IsTor,IsPublicRouter,HumanProbability,BrowserDiversity,"
+	"HardwareDiversity,PlatformDiversity",
+	"Country,CountryCode,State,Town,Latitude,Longitude,AccuracyRadiusMin,"
+	"CurrencyCode,LanguageCode,TimeZoneIana,ConnectionType",
+	"Asn,AsnName,RegisteredName,RegisteredOwner,RegisteredCountry,IpRangeStart,"
+	"IpRangeEnd,Country,CountryCode,State,Town,Latitude,Longitude,"
+	"TimeZoneOffset,AccuracyRadiusMin,IsHosted,IsVPN,"
+	"CountryCodesGeographical,CountryCodesPopulation,Mcc",
+	"IpRangeStart,IpRangeEnd,AccuracyRadiusMin,RegisteredCountry,RegisteredName,"
+	"Longitude,Latitude,Areas" };
 
 /**
  * A manager over a data file with the required properties given, or every
@@ -514,6 +530,202 @@ TEST_F(IpiBalancedTests, NamingNeverUsesMoreMemory) {
 		nothing);
 }
 
+TEST_F(IpiBalancedTests, CommonSetsGiveTheSameAnswersInNoMoreMemory) {
+	const size_t nothing = sizeOf(fiftyoneDegreesIpiBalancedConfig, nullptr);
+	int tested = 0;
+	for (const char* set : balancedCommonSets) {
+		bool present = true;
+		const string names = string(set) + ",";
+		for (size_t start = 0, end = names.find(',');
+			end != string::npos;
+			start = end + 1, end = names.find(',', start)) {
+			const string name = names.substr(start, end - start);
+			bool found = false;
+			for (const string& other : allNames) {
+				found = found || other == name;
+			}
+			present = present && found;
+		}
+		if (present) {
+			tested++;
+			EXPECT_LE(sizeOf(fiftyoneDegreesIpiBalancedConfig, set), nothing) <<
+				set;
+			EXPECT_NO_FATAL_FAILURE(expectSameAnswers(
+				fiftyoneDegreesIpiBalancedConfig,
+				set));
+		}
+	}
+	if (tested == 0) {
+		GTEST_SKIP() << "The data file does not have these properties.";
+	}
+}
+
+TEST_F(IpiBalancedTests, ProfileCacheGrowsWhenProfilesStayOnFile) {
+	skipWithOneComponent();
+	if (IsSkipped()) {
+		return;
+	}
+	// One property of the largest component, where the budget is plenty for a
+	// larger cache but not for the profiles.
+	const char* required = "Country";
+	if (fiftyoneDegreesIpiBalancedConfig.profiles.capacity == 0 ||
+		find(allNames.begin(), allNames.end(), required) == allNames.end()) {
+		GTEST_SKIP() << "The data file does not have the property.";
+	}
+	BalancedManager manager(
+		dataFilePath,
+		fiftyoneDegreesIpiBalancedConfig,
+		required);
+	BalancedDataSet dataSet(&manager.manager);
+	ASSERT_STREQ(balancedCacheType, dataSet->profiles->typeName);
+	EXPECT_GT(
+		balancedCacheCapacity(dataSet->profiles),
+		fiftyoneDegreesIpiBalancedConfig.profiles.capacity);
+}
+
+TEST_F(IpiBalancedTests, ProfileCacheOfTheCallerIsNotReduced) {
+	skipWithOneComponent();
+	if (IsSkipped()) {
+		return;
+	}
+	const char* required = "Country";
+	if (find(allNames.begin(), allNames.end(), required) == allNames.end()) {
+		GTEST_SKIP() << "The data file does not have the property.";
+	}
+	fiftyoneDegreesConfigIpi larger = fiftyoneDegreesIpiBalancedConfig;
+	larger.profiles.capacity = 400000;
+	BalancedManager largerManager(dataFilePath, larger, required);
+	EXPECT_EQ(
+		larger.profiles.capacity,
+		balancedCacheCapacity(
+			BalancedDataSet(&largerManager.manager)->profiles));
+	fiftyoneDegreesConfigIpi none = fiftyoneDegreesIpiBalancedConfig;
+	none.profiles.capacity = 0;
+	BalancedManager noneManager(dataFilePath, none, required);
+	EXPECT_STREQ(
+		balancedFileType,
+		BalancedDataSet(&noneManager.manager)->profiles->typeName);
+}
+
+TEST_F(IpiBalancedTests, StringsOfAreasStayOnFileUnlessNamed) {
+	if (find(allNames.begin(), allNames.end(), "Areas") == allNames.end() ||
+		find(allNames.begin(), allNames.end(), "Country") == allNames.end()) {
+		GTEST_SKIP() << "The data file does not have the properties.";
+	}
+	// Counts the strings of Areas from a sample of its values which came from
+	// memory, for a data set with the required properties given.
+	const auto inMemory = [&](const char* required, uint32_t& sampled) {
+		BalancedManager manager(
+			dataFilePath,
+			fiftyoneDegreesIpiBalancedConfig,
+			required);
+		BalancedManager all(
+			dataFilePath,
+			fiftyoneDegreesIpiLowMemoryConfig,
+			"Areas");
+		BalancedDataSet dataSet(&manager.manager);
+		BalancedDataSet allDataSet(&all.manager);
+		EXCEPTION_CREATE;
+		const uint32_t propertyIndex =
+			allDataSet->b.b.available->items[0].propertyIndex;
+		fiftyoneDegreesCollectionItem item;
+		fiftyoneDegreesDataReset(&item.data);
+		const fiftyoneDegreesProperty* property = fiftyoneDegreesPropertyGet(
+			allDataSet->properties, propertyIndex, &item, exception);
+		EXCEPTION_THROW;
+		const uint32_t first = property->firstValueIndex;
+		const uint32_t last = property->lastValueIndex;
+		FIFTYONE_DEGREES_COLLECTION_RELEASE(allDataSet->properties, &item);
+		const fiftyoneDegreesPropertyValueType type =
+			fiftyoneDegreesPropertyGetStoredTypeByIndex(
+				allDataSet->propertyTypes, propertyIndex, exception);
+		EXCEPTION_THROW;
+		const uint32_t step = (last - first) > 1000 ? (last - first) / 1000 : 1;
+		uint32_t memory = 0;
+		sampled = 0;
+		for (uint32_t i = first; i <= last; i += step) {
+			fiftyoneDegreesDataReset(&item.data);
+			const fiftyoneDegreesValue* value = fiftyoneDegreesValueGet(
+				allDataSet->values, i, &item, exception);
+			EXCEPTION_THROW;
+			const uint32_t offset = (uint32_t)value->nameOffset;
+			FIFTYONE_DEGREES_COLLECTION_RELEASE(allDataSet->values, &item);
+			fiftyoneDegreesDataReset(&item.data);
+			const void* text = fiftyoneDegreesStoredBinaryValueGet(
+				dataSet->strings, offset, type, &item, exception);
+			EXCEPTION_THROW;
+			if (text != nullptr) {
+				sampled++;
+				if (item.handle == nullptr) {
+					memory++;
+				}
+				FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->strings, &item);
+			}
+		}
+		return memory;
+	};
+	uint32_t sampled = 0;
+	const uint32_t notNamed = inMemory("Country", sampled);
+	EXPECT_LT(notNamed, sampled / 2);
+	const uint32_t named = inMemory("Country,Areas", sampled);
+	EXPECT_EQ(sampled, named);
+}
+
+TEST_F(IpiBalancedTests, ProfilesAreOnlyKeptWhenReadThroughACache) {
+	const auto keeps = [&](const fiftyoneDegreesConfigIpi& config) {
+		BalancedManager manager(dataFilePath, config, nullptr);
+		fiftyoneDegreesResultsIpi* results =
+			fiftyoneDegreesResultsIpiCreate(&manager.manager);
+		const bool kept = results->keptProfiles != nullptr;
+		fiftyoneDegreesResultsIpiFree(results);
+		return kept;
+	};
+	EXPECT_TRUE(keeps(fiftyoneDegreesIpiBalancedConfig));
+	EXPECT_FALSE(keeps(fiftyoneDegreesIpiLowMemoryConfig));
+	EXPECT_FALSE(keeps(fiftyoneDegreesIpiHighPerformanceConfig));
+}
+
+TEST_F(IpiBalancedTests, ManyLiveResultsDoNotUseUpTheProfileCache) {
+	// A cache this small has ten entries in each of its ten shards, and the
+	// results below would use them all up if they each held on to their profiles.
+	const uint32_t resultsCount = 200;
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+	config.profiles.capacity = 100;
+	config.profiles.concurrency = 10;
+	const vector<string> addresses = balancedAddresses();
+	BalancedManager expected(
+		dataFilePath,
+		fiftyoneDegreesIpiLowMemoryConfig,
+		nullptr);
+	BalancedManager actual(dataFilePath, config, nullptr);
+	vector<char> buffer(balancedBufferBytes);
+	fiftyoneDegreesResultsIpi* expectedResults =
+		fiftyoneDegreesResultsIpiCreate(&expected.manager);
+	vector<fiftyoneDegreesResultsIpi*> live;
+	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
+		expectedResults->b.dataSet)->b.b.available->count;
+	for (uint32_t i = 0; i < resultsCount; i++) {
+		live.push_back(fiftyoneDegreesResultsIpiCreate(&actual.manager));
+		balancedDetect(live[i], addresses[i % addresses.size()]);
+		for (int p = 0; p < count; p++) {
+			balancedAnswer(live[i], p, buffer);
+		}
+	}
+	for (uint32_t i = 0; i < resultsCount; i++) {
+		balancedDetect(expectedResults, addresses[i % addresses.size()]);
+		for (int p = 0; p < count; p++) {
+			EXPECT_EQ(
+				balancedAnswer(expectedResults, p, buffer),
+				balancedAnswer(live[i], p, buffer)) <<
+				"Required index " << p << " of results " << i;
+		}
+	}
+	for (fiftyoneDegreesResultsIpi* results : live) {
+		fiftyoneDegreesResultsIpiFree(results);
+	}
+	fiftyoneDegreesResultsIpiFree(expectedResults);
+}
+
 TEST_F(IpiBalancedTests, GraphsOfOtherComponentsStayOnFile) {
 	skipWithOneComponent();
 	if (IsSkipped()) {
@@ -841,6 +1053,8 @@ TEST_F(IpiBalancedTests, EngineMetaDataMatches) {
 	using Components = Common::Collection<::byte, Common::ComponentMetaData>;
 	using Profiles = Common::Collection<uint32_t, Common::ProfileMetaData>;
 	using Properties = Common::Collection<string, Common::PropertyMetaData>;
+	using Values =
+		Common::Collection<Common::ValueMetaDataKey, Common::ValueMetaData>;
 
 	unique_ptr<Components> components(actual.getMetaData()->getComponents());
 	for (uint32_t i = 0; i < components->getSize(); i++) {
@@ -884,6 +1098,23 @@ TEST_F(IpiBalancedTests, EngineMetaDataMatches) {
 		EXPECT_EQ(e->getName(), a->getName());
 		EXPECT_EQ(e->getDefaultValue(), a->getDefaultValue());
 		EXPECT_EQ(e->getComponentId(), a->getComponentId());
+
+		// A few values of every property, named or not.
+		unique_ptr<Values> expectedValues(
+			expected.getMetaData()->getValuesForProperty(e.get()));
+		unique_ptr<Values> actualValues(
+			actual.getMetaData()->getValuesForProperty(a.get()));
+		ASSERT_EQ(expectedValues->getSize(), actualValues->getSize());
+		const uint32_t valueStep =
+			actualValues->getSize() > 20 ? actualValues->getSize() / 20 : 1;
+		for (uint32_t v = 0; v < actualValues->getSize(); v += valueStep) {
+			unique_ptr<Common::ValueMetaData> x(expectedValues->getByIndex(v));
+			unique_ptr<Common::ValueMetaData> y(actualValues->getByIndex(v));
+			ASSERT_EQ(x == nullptr, y == nullptr);
+			if (y != nullptr) {
+				EXPECT_EQ(x->getName(), y->getName());
+			}
+		}
 	}
 }
 
