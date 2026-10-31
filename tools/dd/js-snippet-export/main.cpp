@@ -22,243 +22,151 @@
 
 /**
  * @file main.cpp
- * @brief Tool to export JavaScript property snippets from a Hash data file.
- *
- * Usage: js-snippet-export [-d <data_file>] [-o <output_dir>]
- *   -d  Path to Hash data file (default: <repo>/device-detection-data/51Degrees-LiteV4.1.hash)
- *   -o  Output directory for snippets (default: <repo>/js-snippets/)
+ * @brief Writes the JavaScript snippets in a Hash data file to files, with a
+ * manifest.json that lists them.
  */
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <ctime>
-#include <iomanip>
 #include <filesystem>
-#include <cstdlib>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
 
 #include "../../../src/dd/hash/EngineHash.hpp"
-#include "../../../src/common/Exceptions.hpp"
 
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 namespace fs = std::filesystem;
 
-std::string sanitizeFilename(const std::string& name) {
-    std::string result;
-    for (char c : name) {
-        if (std::isalnum(static_cast<unsigned char>(c))) {
-            result += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        } else if (c == ' ' || c == '_' || c == '-') {
-            result += '_';
-        }
-    }
-    while (!result.empty() && result.front() == '_') result.erase(result.begin());
-    while (!result.empty() && result.back() == '_') result.pop_back();
-    return result.empty() ? "unknown" : result;
+static int usage(int exitCode) {
+	std::cerr << "Usage: js-snippet-export -d <data_file> [-o <output_dir>]\n"
+		"  -d  Path to the Hash data file\n"
+		"  -o  Output directory (default: js-snippets)\n";
+	return exitCode;
 }
 
-std::string getTimestamp() {
-    std::time_t now = std::time(nullptr);
-    std::tm* tm = std::gmtime(&now);
-    std::ostringstream ss;
-    ss << std::put_time(tm, "%Y-%m-%dT%H:%M:%SZ");
-    return ss.str();
+static std::string toFileName(const std::string& propertyName) {
+	std::string result;
+	for (const char c : propertyName) {
+		const unsigned char u = static_cast<unsigned char>(c);
+		if (std::isalnum(u)) {
+			result += static_cast<char>(std::tolower(u));
+		}
+		else if (c == ' ' || c == '_' || c == '-') {
+			result += '_';
+		}
+	}
+	return result;
 }
 
-void writeFile(const fs::path& dir, const std::string& filename, const std::string& content) {
-    fs::path filepath = dir / filename;
-    std::ofstream file(filepath);
-    if (!file) throw std::runtime_error("Failed to open: " + filepath.string());
-    file << content;
+static std::string toJsonString(const std::string& text) {
+	std::ostringstream json;
+	json << '"';
+	for (const char c : text) {
+		if (c == '"' || c == '\\') {
+			json << '\\' << c;
+		}
+		else if (static_cast<unsigned char>(c) < 0x20) {
+			json << "\\u" << std::hex << std::setw(4) << std::setfill('0')
+				<< static_cast<int>(c);
+		}
+		else {
+			json << c;
+		}
+	}
+	json << '"';
+	return json.str();
 }
 
-void printUsage(const char* progName) {
-    std::cerr << "Usage: " << progName << " -d <data_file> [-o <output_dir>]" << std::endl;
-    std::cerr << "  -d  Path to Hash data file (required)" << std::endl;
-    std::cerr << "  -o  Output directory for snippets (default: ./js-snippets)" << std::endl;
-    std::cerr << "  -h  Show this help message" << std::endl;
+// Binary, so the file holds the bytes from the data file on every platform.
+// The close is checked because a full disk may only show when the file flushes.
+static void writeFile(const fs::path& path, const std::string& content) {
+	std::ofstream file(path, std::ios::binary);
+	file << content;
+	file.close();
+	if (file.fail()) {
+		throw std::runtime_error("Failed to write " + path.u8string());
+	}
 }
-
-struct ManifestEntry {
-    std::string file;
-    std::string property;
-    uint32_t index;
-};
 
 int main(int argc, char* argv[]) {
-    fs::path dataFilePath;
-    fs::path outputDir = "js-snippets";
-    bool dataFileProvided = false;
-    bool outputDirProvided = false;
+	fs::path dataFile;
+	fs::path outputDir = "js-snippets";
+	for (int i = 1; i < argc; i++) {
+		const std::string arg = argv[i];
+		if (arg == "-d" && i + 1 < argc) {
+			dataFile = argv[++i];
+		}
+		else if (arg == "-o" && i + 1 < argc) {
+			outputDir = argv[++i];
+		}
+		else {
+			return usage(arg == "-h" || arg == "--help" ? 0 : 1);
+		}
+	}
+	if (dataFile.empty()) {
+		return usage(1);
+	}
 
-    // Reads the value that must follow an option flag. Rejects a missing value
-    // (flag at the end of argv) or one that is itself an option, so mistakes
-    // like "-d -o out" don't silently consume "-o" as the data file path.
-    auto takeValue = [&](int& i, const std::string& flag, std::string& out) -> bool {
-        if (i + 1 >= argc) {
-            std::cerr << "Error: missing value for " << flag << std::endl;
-            return false;
-        }
-        std::string next = argv[i + 1];
-        if (!next.empty() && next[0] == '-') {
-            std::cerr << "Error: " << flag << " expects a value but got option '"
-                      << next << "'" << std::endl;
-            return false;
-        }
-        out = next;
-        ++i;
-        return true;
-    };
+	try {
+		ConfigHash config;
+		RequiredPropertiesConfig properties;
+		EngineHash engine(dataFile.string(), &config, &properties);
+		// Can return false for a path ending in a separator even when the
+		// folder was created, so only a thrown error counts as a failure.
+		fs::create_directories(outputDir);
 
-    // Parse arguments
-    for (int i = 1; i < argc; i++) {
-        std::string arg = argv[i];
-        if (arg == "-d") {
-            std::string value;
-            if (!takeValue(i, arg, value)) { printUsage(argv[0]); return 1; }
-            if (dataFileProvided) {
-                std::cerr << "Error: -d specified more than once" << std::endl;
-                printUsage(argv[0]);
-                return 1;
-            }
-            dataFilePath = fs::path(value);
-            dataFileProvided = true;
-        } else if (arg == "-o") {
-            std::string value;
-            if (!takeValue(i, arg, value)) { printUsage(argv[0]); return 1; }
-            if (outputDirProvided) {
-                std::cerr << "Error: -o specified more than once" << std::endl;
-                printUsage(argv[0]);
-                return 1;
-            }
-            outputDir = fs::path(value);
-            outputDirProvided = true;
-        } else if (arg == "-h" || arg == "--help") {
-            printUsage(argv[0]);
-            return 0;
-        } else {
-            std::cerr << "Unknown option: " << arg << std::endl;
-            printUsage(argv[0]);
-            return 1;
-        }
-    }
+		std::unique_ptr<Collection<std::string, PropertyMetaData>> all(
+			engine.getMetaData()->getProperties());
+		std::ostringstream snippets;
+		uint32_t propertyCount = 0;
+		uint32_t snippetCount = 0;
+		for (uint32_t i = 0; i < all->getSize(); i++) {
+			std::unique_ptr<PropertyMetaData> property(all->getByIndex(i));
+			if (property->getType() != "javascript") {
+				continue;
+			}
+			propertyCount++;
+			std::unique_ptr<Collection<ValueMetaDataKey, ValueMetaData>> values(
+				engine.getMetaData()->getValuesForProperty(property.get()));
+			for (uint32_t j = 0; j < values->getSize(); j++) {
+				std::unique_ptr<ValueMetaData> value(values->getByIndex(j));
+				const std::string snippet = value->getName();
+				if (snippet.empty()) {
+					continue;
+				}
+				const std::string file = toFileName(property->getName()) +
+					"_" + std::to_string(j) + ".js";
+				writeFile(outputDir / file, snippet);
+				snippets << (snippetCount++ > 0 ? ",\n" : "")
+					<< "    { \"file\": " << toJsonString(file)
+					<< ", \"property\": " << toJsonString(property->getName())
+					<< ", \"index\": " << j << " }";
+			}
+		}
 
-    // The data file is required - there is no path discovery.
-    if (!dataFileProvided) {
-        std::cerr << "Error: -d <data_file> is required" << std::endl;
-        printUsage(argv[0]);
-        return 1;
-    }
-    
-    std::cout << "JavaScript Snippet Export Tool" << std::endl;
-    std::cout << "Data file: " << dataFilePath << std::endl;
-    std::cout << "Output directory: " << outputDir << std::endl;
-    
-    // Validate data file exists
-    if (!fs::exists(dataFilePath)) {
-        std::cerr << "Error: Data file not found: " << dataFilePath << std::endl;
-        return 1;
-    }
-    
-    // Create output directory if needed
-    if (!fs::exists(outputDir)) {
-        std::error_code ec;
-        if (!fs::create_directories(outputDir, ec)) {
-            std::cerr << "Error: Failed to create output directory: " << outputDir << std::endl;
-            return 1;
-        }
-    }
-    
-    try {
-        ConfigHash config;
-        RequiredPropertiesConfig properties;
-        
-        std::cout << "Loading data file..." << std::endl;
-        EngineHash engine(dataFilePath.string(), &config, &properties);
-        
-        Collection<std::string, PropertyMetaData>* allProperties = 
-            engine.getMetaData()->getProperties();
-        
-        std::cout << "Total properties: " << allProperties->getSize() << std::endl;
-        
-        std::vector<ManifestEntry> manifest;
-        uint32_t jsPropertyCount = 0;
-        uint32_t totalSnippetCount = 0;
-        
-        for (uint32_t i = 0; i < allProperties->getSize(); i++) {
-            PropertyMetaData* property = allProperties->getByIndex(i);
-            
-            if (property->getType() == "javascript") {
-                jsPropertyCount++;
-                std::string propName = property->getName();
-                std::string safeName = sanitizeFilename(propName);
-                
-                std::cout << "Processing: " << propName << std::endl;
-                
-                Collection<ValueMetaDataKey, ValueMetaData>* values = 
-                    engine.getMetaData()->getValuesForProperty(property);
-                
-                if (values != nullptr) {
-                    for (uint32_t j = 0; j < values->getSize(); j++) {
-                        ValueMetaData* value = values->getByIndex(j);
-                        std::string snippet = value->getName();
-                        
-                        if (!snippet.empty()) {
-                            std::string filename = safeName + "_" + std::to_string(j) + ".js";
-                            writeFile(outputDir, filename, snippet);
-                            manifest.push_back({filename, propName, j});
-                            totalSnippetCount++;
-                            std::cout << "  Exported: " << filename << std::endl;
-                        }
-                        delete value;
-                    }
-                    delete values;
-                }
-            }
-            delete property;
-        }
-        delete allProperties;
+		const std::time_t now = std::time(nullptr);
+		std::ostringstream manifest;
+		manifest << "{\n  \"generated\": \""
+			<< std::put_time(std::gmtime(&now), "%Y-%m-%dT%H:%M:%SZ") << "\",\n"
+			<< "  \"dataFile\": " << toJsonString(dataFile.u8string()) << ",\n"
+			<< "  \"jsPropertyCount\": " << propertyCount << ",\n"
+			<< "  \"snippetCount\": " << snippetCount << ",\n"
+			<< "  \"snippets\": [\n" << snippets.str() << "\n  ]\n}\n";
+		writeFile(outputDir / "manifest.json", manifest.str());
 
-
-
-        // Write manifest
-        std::cout << "Writing manifest..." << std::endl;
-        
-        std::ostringstream manifestJson;
-        manifestJson << "{\n";
-        manifestJson << "  \"generated\": \"" << getTimestamp() << "\",\n";
-        manifestJson << "  \"dataFile\": \"" << dataFilePath << "\",\n";
-        manifestJson << "  \"jsPropertyCount\": " << jsPropertyCount << ",\n";
-        manifestJson << "  \"snippetCount\": " << totalSnippetCount << ",\n";
-        manifestJson << "  \"snippets\": [\n";
-        
-        for (size_t i = 0; i < manifest.size(); i++) {
-            manifestJson << "    { \"file\": \"" << manifest[i].file << "\""
-                         << ", \"property\": \"" << manifest[i].property << "\""
-                         << ", \"index\": " << manifest[i].index << " }";
-            if (i < manifest.size() - 1) manifestJson << ",";
-            manifestJson << "\n";
-        }
-        
-        manifestJson << "  ]\n";
-        manifestJson << "}\n";
-        
-        writeFile(outputDir, "manifest.json", manifestJson.str());
-        
-        std::cout << "================================" << std::endl;
-        std::cout << "Export complete!" << std::endl;
-        std::cout << "JavaScript properties: " << jsPropertyCount << std::endl;
-        std::cout << "Total snippets: " << totalSnippetCount << std::endl;
-        
-        return 0;
-        
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return 1;
-    }
+		std::cout << "Export complete! " << snippetCount << " snippets from "
+			<< propertyCount << " JavaScript properties." << std::endl;
+		return 0;
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Error: " << e.what() << std::endl;
+		return 1;
+	}
 }
