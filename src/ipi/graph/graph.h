@@ -83,7 +83,7 @@
  *	}
  * 
  * The IP address is parsed from a string into a IpAddress instance using the
- * common-cxx IP functions.
+ * common library IP functions.
  * 
  * The array created must be freed with the fiftyoneDegreesIpiGraphFree method
  * when finished with.

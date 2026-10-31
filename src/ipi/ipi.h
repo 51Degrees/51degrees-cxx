@@ -267,7 +267,7 @@ typedef struct fiftyone_degrees_config_ipi_t {
 /**
  * Data set structure which contains the base dataset structure. This
  * acts as a wrapper and is used in the dataset structure for IP 
- * intelligence to be compatible with some of the common-cxx
+ * intelligence to be compatible with some of the common library
  * APIs.
  */
 typedef struct fiftyone_degrees_dataset_ipi_base_t {
