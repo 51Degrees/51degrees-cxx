@@ -74,8 +74,14 @@ typedef struct fiftyone_degrees_results_device_detection_t {
 	fiftyoneDegreesResultsBase b; /**< Base results */
 	fiftyoneDegreesOverrideValueArray *overrides; /**< Any value overrides in
 												  the results */
-	char* bufferPseudo; /**< Working memory used for pseudo headers */
-	int bufferPseudoLength; /**< Number of bytes in bufferPseudo */
+	char* bufferPseudo; /**< Working memory used for pseudo headers, allocated
+						when the results are created and not grown during
+						detection. A pseudo header that does not fit is
+						ignored */
+	int bufferPseudoLength; /**< Number of bytes in bufferPseudo, being the
+							maxMatchedUserAgentLength configuration value plus
+							one for the null terminator. A single header over
+							that value is ignored too */
 	char* bufferTransform; /**< Working memory used to transform evidence */
 	int bufferTransformLength; /**< Number of bytes in bufferTransform */
 } fiftyoneDegreesResultsDeviceDetection;

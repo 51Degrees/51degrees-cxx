@@ -160,7 +160,9 @@ static void addPairValueToBuffer(
 
 // For the header finds the corresponding evidence in the array of evidence. If
 // found then copies the parsed value into the buffer considering the remaining
-// length available. Returns true if successful
+// length available. Returns true if successful, or false if there is no
+// evidence for the header or the value does not fit the buffer, which has a
+// fixed length so that assembling a pseudo header never allocates memory.
 
 static bool addHeaderValueToBuilder(
 	fiftyoneDegreesEvidenceKeyValuePairArray* evidence,
@@ -193,10 +195,11 @@ static bool addHeaderValueToBuilder(
     return builder->full == false;
 }
 
-// Assembles a pseudo header in the buffer. If this can not be achieved returns 
-// true to indicate that processing should continue. If a pseudo header can be
-// created then returns the result of the callback which might decide not to 
-// continue processing.
+// Assembles a pseudo header in the buffer. A pseudo header that is missing
+// evidence for one of its headers, or is too long for the buffer, is ignored
+// by returning true to indicate that processing should continue with the next
+// header. If a pseudo header can be created then returns the result of the
+// callback which might decide not to continue processing.
 static bool processPseudoHeader(
 	EvidenceKeyValuePairArray* evidence,
 	int prefixes,
@@ -247,13 +250,17 @@ static bool processPseudoHeader(
 	return callback(state, &pair);
 }
 
-// Finds the header in the evidence, and if available calls the callback. 
-// Returns true if further processing should continue, otherwise false to stop
-// further processing.
+// Finds the header in the evidence, and if available calls the callback. A
+// value that could not fit the buffer is ignored, so that a single header and
+// a pseudo header have the same limit. A null buffer means nothing is being
+// assembled and no limit applies. Returns true if further processing should
+// continue, otherwise false to stop further processing.
 static bool processHeader(
 	EvidenceKeyValuePairArray* evidence,
 	int prefixes,
 	Header* header,
+	const char* const buffer,
+	size_t const length,
 	void* state,
 	fiftyoneDegreesEvidenceIterateMethod callback) {
 
@@ -265,6 +272,11 @@ static bool processHeader(
 		prefixes,
 		header);
 	if (pair == NULL) {
+		return true;
+	}
+
+	// Ignore a value too long to fit the buffer with a null terminator.
+	if (buffer != NULL && pair->parsedLength >= length) {
 		return true;
 	}
 
@@ -413,6 +425,8 @@ bool fiftyoneDegreesEvidenceIterateForHeaders(
 			evidence,
 			prefixes,
 			header,
+			buffer,
+			length,
 			state,
 			callback) == false) {
 			return true;
