@@ -268,6 +268,8 @@ void EngineIpi::refreshData(
 	refreshData((void*)data, length);
 }
 
+// As in EngineHash, a set of results is created for each call rather than taken
+// from a pool made at startup, because of the complexity that would add.
 IpIntelligence::ResultsIpi* EngineIpi::process(
 	IpIntelligence::EvidenceIpi *evidence) {
 	return process(evidence, nullptr, -1);

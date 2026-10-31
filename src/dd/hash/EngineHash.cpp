@@ -247,6 +247,12 @@ DeviceDetection::Hash::ResultsHash* EngineHash::process(
 	return process(userAgent, nullptr, -1);
 }
 
+// A set of results is created for each call rather than taken from a pool made
+// at startup. A pool would avoid these allocations, but it would change when
+// results are freed in every language, a reload would have to replace pooled
+// results, and results reused without a reset could pass one request's override
+// values to the next. That complexity is why a pool is not used, although it
+// might be looked at in future.
 DeviceDetection::Hash::ResultsHash* EngineHash::process(
 	DeviceDetection::EvidenceDeviceDetection *evidence,
 	const int *requiredPropertyIndexes,
