@@ -232,6 +232,9 @@ void EngineIpIntelligenceTests::validateIndex(
 			EXPECT_NO_THROW(*resultsIpi->getValueAsDouble(index)) << "Double value "
 				"for property '" << resultsIpi->getPropertyName(index) << "' at "
 				"index '" << index << "' can't throw exception";
+			EXPECT_NO_THROW(resultsIpi->getValueAsStrictBool(index));
+			EXPECT_NO_THROW(resultsIpi->getValueAsStrictInteger(index));
+			EXPECT_NO_THROW(resultsIpi->getValueAsStrictDouble(index));
 		}
 	}
 }
