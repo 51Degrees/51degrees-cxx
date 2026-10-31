@@ -1055,3 +1055,101 @@ TEST(WKBToT, WKBToT_String_Multipolygon_Broken1)
 		3,
 		FIFTYONE_DEGREES_WKBToT_REDUCTION_SHORT);
 }
+
+// The header below needs C++17, which the Visual Studio test project does not
+// use. The CMake build of these tests does.
+#if __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
+#include "../../src/common/string_pp.hpp"
+
+/**
+ * Builds a stored value holding a reduced line string of the points asked for.
+ */
+static std::vector<unsigned char> makeStoredLineString(uint16_t const points) {
+	std::vector<unsigned char> stored = {
+		0, 0, // length, set below
+		1, // little endian
+		2, // line string
+		(unsigned char)(points & 0xFF), (unsigned char)(points >> 8),
+	};
+	for (uint16_t i = 0; i < points; i++) {
+		const uint16_t x = (uint16_t)(i * 97);
+		const uint16_t y = (uint16_t)(i * 53 + 1);
+		stored.push_back((unsigned char)(x & 0xFF));
+		stored.push_back((unsigned char)(x >> 8));
+		stored.push_back((unsigned char)(y & 0xFF));
+		stored.push_back((unsigned char)(y >> 8));
+	}
+	const size_t length = stored.size() - 2;
+	stored[0] = (unsigned char)(length & 0xFF);
+	stored[1] = (unsigned char)(length >> 8);
+	return stored;
+}
+
+/**
+ * Checks the stream gets the same text as a direct conversion into a buffer
+ * known to be large enough.
+ */
+static void streamMatchesDirectConversion(
+	uint16_t const points,
+	uint8_t const decimalPlaces) {
+	const std::vector<unsigned char> stored = makeStoredLineString(points);
+	std::vector<char> buffer((size_t)points * 64 + 64, 0);
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	const auto direct = fiftyoneDegreesConvertWkbToWkt(
+		stored.data() + 2,
+		FIFTYONE_DEGREES_WKBToT_REDUCTION_SHORT,
+		buffer.data(),
+		buffer.size(),
+		decimalPlaces,
+		exception);
+	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	ASSERT_FALSE(direct.bufferTooSmall);
+
+	std::stringstream stream;
+	FiftyoneDegrees::Common::writeStoredBinaryValueToStringStream(
+		(const fiftyoneDegreesStoredBinaryValue*)stored.data(),
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R,
+		stream,
+		decimalPlaces,
+		exception);
+	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	EXPECT_EQ(std::string(buffer.data()), stream.str());
+}
+
+TEST(WKBToT, WKBToT_Stream_FitsSmallBuffer)
+{
+	streamMatchesDirectConversion(2, 3);
+}
+
+TEST(WKBToT, WKBToT_Stream_LongerThanSmallBuffer)
+{
+	// Too few bytes stored to be estimated as too long for the small buffer.
+	streamMatchesDirectConversion(5, 15);
+}
+
+TEST(WKBToT, WKBToT_Stream_FitsEstimate)
+{
+	streamMatchesDirectConversion(2000, 1);
+}
+
+TEST(WKBToT, WKBToT_Stream_LongerThanEstimate)
+{
+	streamMatchesDirectConversion(2000, 15);
+}
+
+TEST(WKBToT, WKBToT_Stream_InvalidLargeValue)
+{
+	std::vector<unsigned char> stored = makeStoredLineString(2000);
+	stored[3] = 99; // not a known geometry
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	std::stringstream stream;
+	FiftyoneDegrees::Common::writeStoredBinaryValueToStringStream(
+		(const fiftyoneDegreesStoredBinaryValue*)stored.data(),
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R,
+		stream,
+		3,
+		exception);
+	EXPECT_FALSE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	EXPECT_TRUE(stream.str().empty());
+}
+#endif

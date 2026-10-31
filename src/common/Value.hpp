@@ -23,6 +23,7 @@
 #ifndef FIFTYONE_DEGREES_VALUE_HPP
 #define FIFTYONE_DEGREES_VALUE_HPP
 
+#include <utility>
 #include "Exceptions.hpp"
 #include "results.h"
 
@@ -157,7 +158,7 @@ namespace FiftyoneDegrees {
 			 * @param targetValue the value to set
 			 */
 			void setValue(T targetValue) {
-				this->value = targetValue;
+				this->value = std::move(targetValue);
 				hasValueInternal = true;
 			}
 
