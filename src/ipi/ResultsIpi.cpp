@@ -20,6 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+#include <memory>
 #include "ResultsIpi.hpp"
 #include "fiftyone.h"
 #include "../common/wkbtot_pp.hpp"
@@ -473,7 +474,7 @@ IpIntelligence::ResultsIpi::getValuesAsWeightedUTF8StringList(
 
     vector<WeightedValue<std::vector<uint8_t>>> values;
     Common::Value<vector<WeightedValue<std::vector<uint8_t>>>> result;
-    stringstream stream;
+    std::unique_ptr<stringstream> stream;
     std::vector<uint8_t> byteVector;
     iterateWeightedValues(
         requiredPropertyIndex,
@@ -502,26 +503,30 @@ IpIntelligence::ResultsIpi::getValuesAsWeightedUTF8StringList(
                     byteVector.assign(firstByte, pastLastByte);
                 }
             } else {
+                // Created only here, as string values do not need one.
+                if (!stream) {
+                    stream.reset(new stringstream());
+                }
                 // Clear stream before the construction
-                stream.str("");
+                stream->str("");
                 writeStoredBinaryValueToStringStream(
                     binaryValue,
                     storedValueType,
-                    stream,
+                    *stream,
                     DefaultWktDecimalPlaces,
                     exception);
                 EXCEPTION_THROW;
-                const std::string valueAsString = stream.str();
+                const std::string valueAsString = stream->str();
                 byteVector.reserve(valueAsString.size());
                 const uint8_t * const firstByte = reinterpret_cast<const uint8_t *>(valueAsString.c_str());
                 byteVector.assign(firstByte, firstByte + valueAsString.size());
             }
             weightedByteVector.setValue(byteVector);
             weightedByteVector.setRawWeight(rawWeighting);
-            values.push_back(weightedByteVector);
+            values.push_back(std::move(weightedByteVector));
         },
         [&result, &values] {
-            result.setValue(values);
+            result.setValue(std::move(values));
         });
     return result;
 }
