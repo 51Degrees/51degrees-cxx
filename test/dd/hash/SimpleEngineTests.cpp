@@ -646,3 +646,72 @@ TEST_F(DeviceIdEngineTests, onlyDeviceIdSurvivesRefresh) {
     EXPECT_EQ(before, getDeviceId());
     deallocEngine();
 }
+
+// Counts the allocations made through the library's allocators that have not
+// been freed, and can refuse the first one.
+class ProcessAllocations {
+public:
+    explicit ProcessAllocations(bool refuseFirst) {
+        original = fiftyoneDegreesMalloc;
+        originalFree = fiftyoneDegreesFree;
+        live = 0;
+        refuse = refuseFirst;
+        fiftyoneDegreesMalloc = counting;
+        fiftyoneDegreesFree = freeing;
+    }
+    ~ProcessAllocations() {
+        fiftyoneDegreesMalloc = original;
+        fiftyoneDegreesFree = originalFree;
+    }
+    static int live;
+private:
+    static void* FIFTYONE_DEGREES_CALL_CONV counting(size_t size) {
+        if (refuse) {
+            refuse = false;
+            return nullptr;
+        }
+        void *memory = original(size);
+        if (memory != nullptr) {
+            live++;
+        }
+        return memory;
+    }
+    static void FIFTYONE_DEGREES_CALL_CONV freeing(void *memory) {
+        if (memory != nullptr) {
+            live--;
+        }
+        originalFree(memory);
+    }
+    static decltype(fiftyoneDegreesMalloc) original;
+    static decltype(fiftyoneDegreesFree) originalFree;
+    static bool refuse;
+};
+int ProcessAllocations::live = 0;
+decltype(fiftyoneDegreesMalloc) ProcessAllocations::original = nullptr;
+decltype(fiftyoneDegreesFree) ProcessAllocations::originalFree = nullptr;
+bool ProcessAllocations::refuse = false;
+
+// Detection throws for null evidence, and the results it was given must not be
+// left behind.
+TEST_F(SimpleEngineTests, processThatThrowsFreesItsResults) {
+    ProcessAllocations allocations(false);
+    EXPECT_THROW(
+        getEngine()->process((EvidenceDeviceDetection*)nullptr),
+        FatalException);
+    EXPECT_EQ(0, ProcessAllocations::live);
+}
+
+TEST_F(SimpleEngineTests, processBaseThatThrowsFreesItsResults) {
+    ProcessAllocations allocations(false);
+    EXPECT_THROW(
+        getEngine()->processBase(nullptr),
+        FatalException);
+    EXPECT_EQ(0, ProcessAllocations::live);
+}
+
+// With no memory for the results the caller gets an exception, not a crash.
+TEST_F(SimpleEngineTests, processWithNoMemoryForResultsThrows) {
+    ProcessAllocations allocations(true);
+    EXPECT_THROW(getEngine()->process("Mozilla"), FatalException);
+    EXPECT_EQ(0, ProcessAllocations::live);
+}

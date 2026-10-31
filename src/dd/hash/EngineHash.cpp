@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include <iostream>
+#include <memory>
 #include "EngineHash.hpp"
 #include "fiftyone.h"
 
@@ -237,6 +238,39 @@ void EngineHash::refreshData(
 // evidence can override, so the number given here decides nothing else.
 static const uint32_t overridesEnabled = 1;
 
+// Owns a set of results until a ResultsHash takes them, so that they are freed
+// on every way out of a process method.
+typedef std::unique_ptr<
+	fiftyoneDegreesResultsHash,
+	decltype(&fiftyoneDegreesResultsHashFree)> OwnedResults;
+
+// Creates a set of results for one call, and throws if there is no memory for
+// them.
+static OwnedResults createResults(
+	fiftyoneDegreesResourceManager *manager,
+	uint32_t overridesCapacity) {
+	EXCEPTION_CREATE;
+	OwnedResults results(
+		ResultsHashCreate(manager, overridesCapacity),
+		fiftyoneDegreesResultsHashFree);
+	if (results == nullptr) {
+		EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY);
+		EXCEPTION_THROW;
+	}
+	return results;
+}
+
+// Gives the results to the object returned to the caller, which frees them from
+// then on.
+static DeviceDetection::Hash::ResultsHash* giveResults(
+	OwnedResults &results,
+	const std::shared_ptr<fiftyoneDegreesResourceManager> &manager) {
+	DeviceDetection::Hash::ResultsHash *given =
+		new DeviceDetection::Hash::ResultsHash(results.get(), manager);
+	results.release();
+	return given;
+}
+
 DeviceDetection::Hash::ResultsHash* EngineHash::process(
 	DeviceDetection::EvidenceDeviceDetection *evidence) const {
 	return process(evidence, nullptr, -1);
@@ -259,18 +293,16 @@ DeviceDetection::Hash::ResultsHash* EngineHash::process(
 	int requiredPropertyIndexesCount) const {
 	EXCEPTION_CREATE;
 
-	fiftyoneDegreesResultsHash *results = ResultsHashCreate(
-		manager.get(),
-		overridesEnabled);
+	OwnedResults results = createResults(manager.get(), overridesEnabled);
 	ResultsHashFromEvidenceForProperties(
-		results,
+		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
 		requiredPropertyIndexes,
 		requiredPropertyIndexesCount,
 		exception);
 	EXCEPTION_THROW;
 
-	return new ResultsHash(results, manager);
+	return giveResults(results, manager);
 }
 
 DeviceDetection::Hash::ResultsHash* EngineHash::process(
@@ -281,35 +313,28 @@ DeviceDetection::Hash::ResultsHash* EngineHash::process(
 
 	// A User-Agent on its own carries no values to override, so the results
 	// need no list of override values.
-	fiftyoneDegreesResultsHash *results = ResultsHashCreate(
-		manager.get(),
-		0);
+	OwnedResults results = createResults(manager.get(), 0);
 	ResultsHashFromUserAgentForProperties(
-		results,
+		results.get(),
 		userAgent,
 		userAgent == nullptr ? 0 : strlen(userAgent),
 		requiredPropertyIndexes,
 		requiredPropertyIndexesCount,
 		exception);
 	EXCEPTION_THROW;
-	return new ResultsHash(results, manager);
+	return giveResults(results, manager);
 }
 
 Common::ResultsBase* EngineHash::processBase(
 	Common::EvidenceBase *evidence) const {
 	EXCEPTION_CREATE;
-	fiftyoneDegreesResultsHash *results = ResultsHashCreate(
-		manager.get(),
-		overridesEnabled);
+	OwnedResults results = createResults(manager.get(), overridesEnabled);
 	ResultsHashFromEvidence(
-		results, 
+		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
 		exception);
-	if (EXCEPTION_FAILED) {
-		ResultsHashFree(results);
-		EXCEPTION_THROW;
-	}
-	return new ResultsHash(results, manager);
+	EXCEPTION_THROW;
+	return giveResults(results, manager);
 }
 
 DeviceDetection::ResultsDeviceDetection* EngineHash::processDeviceDetection(
