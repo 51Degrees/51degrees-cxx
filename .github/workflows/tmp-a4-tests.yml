@@ -75,12 +75,23 @@ jobs:
           path: rust
       - name: Fetch the small data file
         run: curl -fsSL -o asn.ipi https://raw.githubusercontent.com/51Degrees/ip-intelligence-data/HEAD/51Degrees-IPIV4AsnIpiV41.ipi
-      - name: Test
+      - name: Restore the Enterprise file from the pipeline's cache
+        uses: actions/cache/restore@v5
+        with:
+          key: 20261031-539F11FF7D6024941E5118CCB848A3243AA5163E
+          path: assets
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+      - name: Test on the small data file
         run: |
           cd rust
           git submodule update --init --depth 1 owid-rust
           rustup default 1.94
-          env FIFTYONE_CXX_DIR="$GITHUB_WORKSPACE/branch" 51DEGREES_IPI_PATH="$GITHUB_WORKSPACE/asn.ipi" cargo test -p fiftyone-ip-intelligence-sys -p fiftyone-native -p fiftyone-ip-intelligence-onpremise 2>&1 | tail -60
+          env FIFTYONE_CXX_DIR="$GITHUB_WORKSPACE/branch" 51DEGREES_IPI_PATH="$GITHUB_WORKSPACE/asn.ipi" cargo test -p fiftyone-ip-intelligence-sys -p fiftyone-native -p fiftyone-ip-intelligence-onpremise 2>&1 | grep -E '^test result|^test .*FAILED|^error|Running |panicked' | tail -60
+      - name: The native IP Intelligence tests on the Enterprise file
+        run: |
+          cd rust
+          env FIFTYONE_CXX_DIR="$GITHUB_WORKSPACE/branch" 51DEGREES_IPI_PATH="$GITHUB_WORKSPACE/assets/51Degrees-EnterpriseIpiV41.ipi" timeout 2400 cargo test -p fiftyone-native ipi -- --test-threads=1 2>&1 | grep -E '^test result|^test .*FAILED|^error|Running |panicked' | tail -60
 
   go:
     runs-on: ubuntu-latest
