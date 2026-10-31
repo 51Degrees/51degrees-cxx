@@ -28,6 +28,11 @@ includes `../../common/common.h`. The APIs for other languages compile these
 sources with their own build systems, so keep includes relative to the file
 rather than relying on include directories.
 
+The exception is the `%{ %}` blocks in `src/dd/hash/hash.i` and
+`src/ipi/ipi.i`. SWIG copies them into a wrapper in the language repository, so
+they are relative to the root of this repository, which the wrapper's build
+adds as an include directory.
+
 ## Data files
 
 The tests and examples find data by searching upward from their working

@@ -29,9 +29,9 @@
 %module "DeviceDetectionHashEngineModule"
 
 %{
-#include "device-detection-cxx/src/hash/EngineHash.hpp"
-#include "device-detection-cxx/src/hash/ResultsHashSerializer.hpp"
-#include "device-detection-cxx/src/Transform.hpp"
+#include "src/dd/hash/EngineHash.hpp"
+#include "src/dd/hash/ResultsHashSerializer.hpp"
+#include "src/dd/Transform.hpp"
 
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::DeviceDetection;
