@@ -40,7 +40,9 @@ PropertyMetaData* PropertyMetaDataBuilderHash::build(
 		(int)property->categoryOffset != -1 ?
 		getString(dataSet->strings, property->categoryOffset) :
 		string(),
-		(int)property->urlOffset != -1 ?
+		// A property with no URL points at offset 0, which holds the first
+		// string in the file rather than a URL.
+		(int)property->urlOffset > 0 ?
 		getString(dataSet->strings, property->urlOffset) :
 		string(),
 		propertyIsAvailable(dataSet, &name),

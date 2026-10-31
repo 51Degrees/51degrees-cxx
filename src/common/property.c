@@ -156,11 +156,25 @@ const fiftyoneDegreesString* fiftyoneDegreesPropertyGetCategory(
 		exception);
 }
 
+/**
+ * The string given for a property with no URL. The size of a string counts its
+ * terminating null.
+ */
+static const fiftyoneDegreesString noUrl = { 1, '\0' };
+
 const fiftyoneDegreesString* fiftyoneDegreesPropertyGetUrl(
 	const fiftyoneDegreesCollection *stringsCollection,
 	const fiftyoneDegreesProperty *property,
 	fiftyoneDegreesCollectionItem *item,
 	fiftyoneDegreesException *exception) {
+	// A property with no URL points at offset 0, which holds the first string
+	// in the file rather than a URL. Callers rely on getting a string, and can
+	// release the item as usual because it holds nothing.
+	if ((int32_t)property->urlOffset <= 0) {
+		item->handle = NULL;
+		item->collection = stringsCollection;
+		return &noUrl;
+	}
 	return getString(
 		stringsCollection,
 		property->urlOffset, 

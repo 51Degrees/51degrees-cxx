@@ -286,6 +286,76 @@ void ProfileTests::assessValue(const fiftyoneDegreesValue *value, int i) {
     COLLECTION_RELEASE(item.collection, &item);
 }
 
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+/**
+ * Check a value with no description gives an empty string rather than the
+ * string at offset 0, and that the item can be released through either
+ * collection afterwards.
+ */
+TEST_F(ProfileTests, ValueWithNoDescription) {
+    const int32_t offsets[] = { 0, -1 };
+    for (const int32_t offset : offsets) {
+        EXCEPTION_CREATE
+        const fiftyoneDegreesValue value = {
+            0, // propertyIndex
+            0, // nameOffset
+            offset, // descriptionOffset
+            -1, // urlOffset
+        };
+        DataReset(&item.data);
+        const String *description = fiftyoneDegreesValueGetDescription(
+            stringsCollection, &value, &item, exception);
+        ASSERT_TRUE(EXCEPTION_OKAY);
+        ASSERT_NE(description, nullptr);
+        EXPECT_EQ(1, (int)description->size);
+        EXPECT_STREQ("", &description->value);
+        EXPECT_EQ(stringsCollection, item.collection);
+        COLLECTION_RELEASE(item.collection, &item);
+        COLLECTION_RELEASE(stringsCollection, &item);
+    }
+}
+#endif
+
+/**
+ * Check a value with no URL gives an empty string rather than the string at
+ * offset 0, and that a field holding a masked weight is not read as a URL and
+ * still gives its weight.
+ */
+TEST_F(ProfileTests, ValueWithNoUrl) {
+    EXCEPTION_CREATE
+    const fiftyoneDegreesValue noUrl = {
+        0, // propertyIndex
+        0, // nameOffset
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+        0, // descriptionOffset
+#endif
+        0, // urlOffset
+    };
+    DataReset(&item.data);
+    const String *url = fiftyoneDegreesValueGetUrl(
+        stringsCollection, &noUrl, &item, exception);
+    ASSERT_TRUE(EXCEPTION_OKAY);
+    ASSERT_NE(url, nullptr);
+    EXPECT_STREQ("", &url->value);
+    COLLECTION_RELEASE(item.collection, &item);
+
+    const fiftyoneDegreesValue weighted = {
+        0, // propertyIndex
+        0, // nameOffset
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+        0, // descriptionOffset
+#endif
+        (int32_t)0xFF001234, // masked weight
+    };
+    DataReset(&item.data);
+    url = fiftyoneDegreesValueGetUrl(
+        stringsCollection, &weighted, &item, exception);
+    ASSERT_TRUE(EXCEPTION_OKAY);
+    EXPECT_EQ(url, nullptr);
+    EXPECT_TRUE(fiftyoneDegreesValueIsWeighted(&weighted));
+    EXPECT_EQ(0x1234, (int)fiftyoneDegreesValueGetWeight(&weighted));
+}
+
 TEST_F(ProfileTests, Values) {
     for (int i=0;i<(N_PER_PROPERTY-1) * N_PROPERTIES;i++) {
         EXCEPTION_CREATE

@@ -174,13 +174,13 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Get the full description of the value.
-			 * @return description string
+			 * @return description string, empty if the value has none
 			 */
 			string getDescription() const;
 
 			/**
 			 * Get the URL containing any extra information about the value.
-			 * @return URL string
+			 * @return URL string, empty if the value has none
 			 */
 			string getUrl() const;
 

@@ -47,7 +47,9 @@ PropertyMetaData* PropertyMetaDataBuilderIpi::build(
 			property->categoryOffset,
 			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) : // category is string
 		string(),
-		(int)property->urlOffset != -1 ?
+		// A property with no URL points at offset 0, which holds the first
+		// string in the file rather than a URL.
+		(int)property->urlOffset > 0 ?
 		getValue(
 			dataSet->strings,
 			property->urlOffset,
