@@ -115,6 +115,33 @@ static void setHandle(
 }
 
 /**
+ * A handle and what keeps its memory allocated. A thread can read the active
+ * handle from the manager just before another thread replaces it, then read
+ * the handle after its last reference has gone. So the resource is freed with
+ * the last reference, but the memory of the handle stays until the manager is
+ * freed as well, which costs one of these for each replacement.
+ */
+typedef struct retained_handle_t {
+	ResourceHandle handle; /**< First, so a handle can be cast to this type */
+	ResourceHandle *replaced; /**< The handle this one replaced, or NULL */
+	volatile long owners; /**< Owners still holding the memory */
+} RetainedHandle;
+
+/** The owners of the memory of a handle: its resource and the manager. */
+#define HANDLE_MEMORY_OWNERS 2
+
+/**
+ * Releases one owner's hold on the memory of a handle, and frees the memory
+ * if that was the last owner.
+ * @param handle whose memory is no longer needed by the owner
+ */
+static void releaseHandleMemory(ResourceHandle *handle) {
+	if (INTERLOCK_DEC(&((RetainedHandle*)handle)->owners) == 0) {
+		FreeAligned((void*)handle);
+	}
+}
+
+/**
  * Returns the handle to the resource that is ready to be set for the manager,
  * or NULL if the handle was not successfully created.
  * @param manager of the resource
@@ -132,10 +159,13 @@ static void setupResource(
 
 	// Create a new active handle for the manager. Align this to double
 	// architecture's bus size to enable double width atomic operations.
-	ResourceHandle *handle = (ResourceHandle*)
+	RetainedHandle *retained = (RetainedHandle*)
 		MallocAligned(
 			sizeof(InterlockDoubleWidth),
-			sizeof(ResourceHandle));
+			sizeof(RetainedHandle));
+	ResourceHandle *handle = &retained->handle;
+	retained->replaced = NULL;
+	retained->owners = HANDLE_MEMORY_OWNERS;
 
 	// Set the handle and the number of users of the resource to zero.
 	handle->counter = emptyCounter();
@@ -160,7 +190,7 @@ static void setupResource(
 
 static void freeHandle(volatile ResourceHandle *handle) {
 	handle->freeResource((void*)handle->resource);
-	FreeAligned((void*)handle);
+	releaseHandleMemory((ResourceHandle*)handle);
 }
 
 void fiftyoneDegreesResourceManagerInit(
@@ -186,10 +216,22 @@ void fiftyoneDegreesResourceManagerFree(
 	if (manager->active != NULL) {
 
 		ResourceHandle* newHandlePointer;
+		ResourceHandle* handle;
+		ResourceHandle* replaced;
 		fiftyoneDegreesResourceReplace(
 			manager,
 			NULL,
 			&newHandlePointer);
+
+		// Nothing may read from a manager being freed, so it can let go of
+		// every handle it has replaced. A handle still in use is freed when
+		// its last reference goes.
+		for (handle = ((RetainedHandle*)newHandlePointer)->replaced;
+			handle != NULL;
+			handle = replaced) {
+			replaced = ((RetainedHandle*)handle)->replaced;
+			releaseHandleMemory(handle);
+		}
 		FreeAligned(newHandlePointer);
 	}
 }
@@ -274,12 +316,17 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 	COUNTER incremented;
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	COUNTER compare;
+	volatile ResourceHandle* active;
 	do {
-		compare = manager->active->counter;
+		// Read the active handle once for each attempt, so the counter and
+		// the exchange use the same handle. The cast forces a new read, as
+		// the pointer itself is not volatile.
+		active = *(volatile ResourceHandle* volatile*)&manager->active;
+		compare = active->counter;
 		assert(getInUse(&compare) >= 0);
 		incremented = compare;
 		add(&incremented, 1);
-		assert((uintptr_t)&manager->active->counter % ALIGN_SIZE == 0);
+		assert((uintptr_t)&active->counter % ALIGN_SIZE == 0);
 		assert((uintptr_t)&incremented % ALIGN_SIZE == 0);
 		assert((uintptr_t)&compare % ALIGN_SIZE == 0);
 #ifdef _MSC_VER
@@ -288,10 +335,13 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 // of COUNTER and HANDLE macros.
 #pragma warning (disable: 4090)
 #endif
-	} while (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
-		manager->active->counter,
-		incremented,
-		compare) == false);
+		// A null self pointer means the handle was replaced and its resource
+		// freed before it was read, so start again from the manager.
+	} while (getHandle(&compare) == NULL ||
+		FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
+			active->counter,
+			incremented,
+			compare) == false);
 #ifdef _MSC_VER
 #pragma warning (default: 4090)
 #endif
@@ -340,12 +390,15 @@ void fiftyoneDegreesResourceReplace(
 			ResourceHandleDecUse(oldHandle);
 		}
 		oldHandle = ResourceHandleIncUse(manager);
+		((RetainedHandle*)*newResourceHandle)->replaced =
+			(ResourceHandle*)oldHandle;
 	} while (INTERLOCK_EXCHANGE_PTR(
 		manager->active,
 		*newResourceHandle,
 		oldHandle) == false);
 #else
 	oldHandle = ResourceHandleIncUse(manager);
+	((RetainedHandle*)*newResourceHandle)->replaced = oldHandle;
 	manager->active = *newResourceHandle;
 #endif
 	// Release the existing resource can be freed. If nothing else is
