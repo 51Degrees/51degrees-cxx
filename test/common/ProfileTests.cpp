@@ -286,6 +286,36 @@ void ProfileTests::assessValue(const fiftyoneDegreesValue *value, int i) {
     COLLECTION_RELEASE(item.collection, &item);
 }
 
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+/**
+ * Check a value with no description gives an empty string rather than the
+ * string at offset 0, and that the item can be released through either
+ * collection afterwards.
+ */
+TEST_F(ProfileTests, ValueWithNoDescription) {
+    const int32_t offsets[] = { 0, -1 };
+    for (const int32_t offset : offsets) {
+        EXCEPTION_CREATE
+        const fiftyoneDegreesValue value = {
+            0, // propertyIndex
+            0, // nameOffset
+            offset, // descriptionOffset
+            -1, // urlOffset
+        };
+        DataReset(&item.data);
+        const String *description = fiftyoneDegreesValueGetDescription(
+            stringsCollection, &value, &item, exception);
+        ASSERT_TRUE(EXCEPTION_OKAY);
+        ASSERT_NE(description, nullptr);
+        EXPECT_EQ(1, (int)description->size);
+        EXPECT_STREQ("", &description->value);
+        EXPECT_EQ(stringsCollection, item.collection);
+        COLLECTION_RELEASE(item.collection, &item);
+        COLLECTION_RELEASE(stringsCollection, &item);
+    }
+}
+#endif
+
 TEST_F(ProfileTests, Values) {
     for (int i=0;i<(N_PER_PROPERTY-1) * N_PROPERTIES;i++) {
         EXCEPTION_CREATE

@@ -174,7 +174,7 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Get the full description of the value.
-			 * @return description string
+			 * @return description string, empty if the value has none
 			 */
 			string getDescription() const;
 
