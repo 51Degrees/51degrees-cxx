@@ -502,3 +502,229 @@ TEST_F(Evidence, IterateForHeaders_PseudoHeader_Lengths) {
     EXPECT_EQ(results[0].parsedLength, strlen(results[0].parsedValue.c_str()));
     EXPECT_EQ(results[0].parsedLength, 9);
 }
+
+// A pseudo header longer than the buffer is ignored, so the callback is not
+// called for it. The buffer has a fixed length so that assembling a pseudo
+// header never allocates memory. The headers after it are still processed,
+// including a pseudo header that fits.
+TEST_F(Evidence, IterateForHeaders_PseudoHeader_LongerThanBuffer) {
+    const char *headers[] = {
+        "Size\x1F""Color",
+        "Material",
+        "Size\x1F""Material",
+    };
+    headersContainer.CreateHeaders(headers, 3, false);
+    CreateEvidence(3);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Big");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Color", "GreenWithAVeryLongName");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Material", "Apple");
+
+    // The first pseudo header needs 27 bytes and the second needs 10.
+    const size_t length = 16;
+    char *buf = (char *)fiftyoneDegreesMalloc(length);
+    std::vector<PseudoHeaderLengthResult> results;
+    bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
+    EXPECT_FALSE(res);
+    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(results[0].value, "Apple");
+    EXPECT_EQ(results[0].valueLength, 5);
+    EXPECT_EQ(results[1].value, "Big\x1F""Apple");
+    EXPECT_EQ(results[1].valueLength, 9);
+    EXPECT_EQ(results[1].parsedLength, 9);
+    fiftyoneDegreesFree(buf);
+}
+
+// A first segment longer than the buffer is ignored in the same way, and the
+// plain header after it is still processed.
+TEST_F(Evidence, IterateForHeaders_PseudoHeader_FirstSegmentLongerThanBuffer) {
+    const char *headers[] = {
+        "Size\x1F""Color",
+        "Material",
+    };
+    headersContainer.CreateHeaders(headers, 2, false);
+    CreateEvidence(3);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Enormous");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Color", "Red");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Material", "Tin");
+
+    const size_t length = 5;
+    char *buf = (char *)fiftyoneDegreesMalloc(length);
+    std::vector<PseudoHeaderLengthResult> results;
+    bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
+    EXPECT_FALSE(res);
+    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results[0].value, "Tin");
+    fiftyoneDegreesFree(buf);
+}
+
+// A value that exactly fits the buffer, with its null terminator, is used.
+TEST_F(Evidence, IterateForHeaders_PseudoHeader_ExactlyFitsBuffer) {
+    const char *headers[] = {
+        "Size\x1F""Color",
+    };
+    headersContainer.CreateHeaders(headers, 1, false);
+    CreateEvidence(2);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Big");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Color", "Green");
+
+    // "Big\x1FGreen" is 9 characters and the null terminator makes 10 bytes.
+    const size_t length = 10;
+    char *buf = (char *)fiftyoneDegreesMalloc(length);
+    std::vector<PseudoHeaderLengthResult> results;
+    fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
+    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results[0].value, "Big\x1FGreen");
+    EXPECT_EQ(results[0].valueLength, 9);
+    EXPECT_EQ(results[0].parsedValue, "Big\x1FGreen");
+    EXPECT_EQ(results[0].parsedLength, 9);
+    fiftyoneDegreesFree(buf);
+}
+
+// A value one byte longer than the buffer holds is ignored.
+TEST_F(Evidence, IterateForHeaders_PseudoHeader_OneByteOverBuffer) {
+    const char *headers[] = {
+        "Size\x1F""Color",
+    };
+    headersContainer.CreateHeaders(headers, 1, false);
+    CreateEvidence(2);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Big");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Color", "Green");
+
+    const size_t length = 9;
+    char *buf = (char *)fiftyoneDegreesMalloc(length);
+    std::vector<PseudoHeaderLengthResult> results;
+    bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
+    EXPECT_FALSE(res);
+    EXPECT_TRUE(results.empty());
+    fiftyoneDegreesFree(buf);
+}
+
+// The separator counts towards the length, so a pseudo header is ignored when
+// the first value fills the buffer and the second value is empty.
+TEST_F(Evidence, IterateForHeaders_PseudoHeader_NoRoomForSeparator) {
+    const char *headers[] = {
+        "Size\x1F""Color",
+    };
+    headersContainer.CreateHeaders(headers, 1, false);
+    CreateEvidence(2);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Big");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Color", "");
+
+    const size_t length = 4;
+    char *buf = (char *)fiftyoneDegreesMalloc(length);
+    std::vector<PseudoHeaderLengthResult> results;
+    bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
+    EXPECT_FALSE(res);
+    EXPECT_TRUE(results.empty());
+    fiftyoneDegreesFree(buf);
+}
+
+// A zero length buffer has no room for the null terminator, so every header is
+// ignored and nothing is written to the buffer.
+TEST_F(Evidence, IterateForHeaders_PseudoHeader_ZeroLengthBuffer) {
+    const char *headers[] = {
+        "Size\x1F""Color",
+        "Material",
+    };
+    headersContainer.CreateHeaders(headers, 2, false);
+    CreateEvidence(3);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Big");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Color", "Green");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Material", "Apple");
+
+    char buf[1] = { 'x' };
+    std::vector<PseudoHeaderLengthResult> results;
+    bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, 0, &results, callbackValidateLengths);
+    EXPECT_FALSE(res);
+    EXPECT_TRUE(results.empty());
+    EXPECT_EQ(buf[0], 'x');
+}
+
+// A single header has the same limit as a pseudo header, so one longer than
+// the buffer is ignored even though it does not use the buffer.
+TEST_F(Evidence, IterateForHeaders_SingleHeader_LongerThanBuffer) {
+    const char *headers[] = {
+        "Material",
+    };
+    headersContainer.CreateHeaders(headers, 1, false);
+    CreateEvidence(1);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Material", "AppleAndPear");
+
+    const size_t length = 5;
+    char *buf = (char *)fiftyoneDegreesMalloc(length);
+    std::vector<PseudoHeaderLengthResult> results;
+    bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
+    EXPECT_FALSE(res);
+    EXPECT_TRUE(results.empty());
+    fiftyoneDegreesFree(buf);
+}
+
+// A single header exactly at the limit, which is the buffer length less the
+// null terminator, is used.
+TEST_F(Evidence, IterateForHeaders_SingleHeader_AtLimit) {
+    const char *headers[] = {
+        "Material",
+    };
+    headersContainer.CreateHeaders(headers, 1, false);
+    CreateEvidence(1);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Material", "Apple");
+
+    const size_t length = 6;
+    char *buf = (char *)fiftyoneDegreesMalloc(length);
+    std::vector<PseudoHeaderLengthResult> results;
+    bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
+    EXPECT_FALSE(res);
+    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results[0].value, "Apple");
+    EXPECT_EQ(results[0].valueLength, 5);
+    fiftyoneDegreesFree(buf);
+}
+
+// A single header one byte over the limit is ignored and the header after it
+// is still processed.
+TEST_F(Evidence, IterateForHeaders_SingleHeader_OneByteOverLimit) {
+    const char *headers[] = {
+        "Material",
+        "Size",
+    };
+    headersContainer.CreateHeaders(headers, 2, false);
+    CreateEvidence(2);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Material", "Apples");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Big");
+
+    const size_t length = 6;
+    char *buf = (char *)fiftyoneDegreesMalloc(length);
+    std::vector<PseudoHeaderLengthResult> results;
+    bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
+    EXPECT_FALSE(res);
+    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results[0].value, "Big");
+    fiftyoneDegreesFree(buf);
+}
+
+// A null buffer means nothing is assembled and no limit applies, as for a
+// caller only checking which headers are present.
+TEST_F(Evidence, IterateForHeaders_SingleHeader_NullBuffer) {
+    const char *headers[] = {
+        "Material",
+    };
+    headersContainer.CreateHeaders(headers, 1, false);
+    CreateEvidence(1);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Material", "AppleAndPear");
+
+    std::vector<PseudoHeaderLengthResult> results;
+    bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, NULL, 0, &results, callbackValidateLengths);
+    EXPECT_FALSE(res);
+    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results[0].value, "AppleAndPear");
+}

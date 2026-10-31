@@ -292,13 +292,25 @@ EXTERNAL uint32_t fiftyoneDegreesEvidenceIterate(
  * headers where multiple header values need to be combined into a single 
  * value.
  *
+ * A pseudo header is only assembled when every header that forms it has
+ * evidence and the values, the separators between them and a null terminator
+ * fit in the buffer. A pseudo header that does not fit is ignored, meaning the
+ * callback is not called for it, no error is reported and iteration moves on
+ * to the next header. This method never allocates memory to hold a longer
+ * value, which is why the caller chooses the length of the buffer up front. A
+ * single header does not use the buffer but has the same limit, so one that
+ * could not fit with a null terminator is ignored in the same way. When the
+ * buffer is null nothing is assembled and no limit applies, which suits a
+ * caller only checking which headers are present.
+ *
  * @param evidence key value pairs including prefixes
  * @param prefixes one or more prefix flags to return values for
  * @param state pointer passed to the callback method
  * @param headers to return evidence for if available
  * @param buffer that MIGHT be used with the callback, null to disable 
  * assembling headers
- * @param length of the buffer
+ * @param length of the buffer including the null terminator, where zero means
+ * every header is ignored unless the buffer is null
  * @param callback method called when a matching prefix is found
  * @return true if the callback was called successfully, otherwise false
  */
