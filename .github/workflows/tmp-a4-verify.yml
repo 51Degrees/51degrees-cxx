@@ -1,0 +1,66 @@
+name: tmp a4 verify
+
+on:
+  push:
+    branches:
+      - tmp/a4-verify
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.image }}
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: branch
+      - name: Check out main and the release branch beside the branch
+        run: |
+          git -C branch worktree add ../main origin/main
+          git -C branch worktree add ../release origin/release/4.5.98
+      - name: Copies with the choices still to be made
+        run: |
+          set -e
+          git -C branch worktree add ../memo HEAD
+          git -C branch worktree add ../nopart HEAD
+          python3 branch/.github/tmp-a4/memo_patch.py memo || python branch/.github/tmp-a4/memo_patch.py memo
+          sed -i 's/#define HELD_PROFILE_RUN_MIN_PERCENT 50/#define HELD_PROFILE_RUN_MIN_PERCENT 1000/' nopart/src/ipi/ipi.c
+          grep -n 'HELD_PROFILE_RUN_MIN_PERCENT 1000' nopart/src/ipi/ipi.c
+      - name: Build each tree
+        run: |
+          set -e
+          for name in main release branch nopart; do
+            cmake -S branch/.github/tmp-a4 -B "build-$name" -DTREE="$PWD/$name" -DCMAKE_BUILD_TYPE=Release
+            cmake --build "build-$name" --target balanced --config Release --parallel 4
+            mkdir -p "bins/$name"
+            cp build-$name/out/balanced* "bins/$name/"
+          done
+          CFLAGS=-DA4_MEMO cmake -S branch/.github/tmp-a4 -B build-memo -DTREE="$PWD/memo" -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-memo --target balanced --config Release --parallel 4
+          mkdir -p bins/memo
+          cp build-memo/out/balanced* bins/memo/
+          ls bins/*
+      - name: Fetch the addresses
+        run: |
+          curl -fsSL -o evidence.csv https://raw.githubusercontent.com/51Degrees/ip-intelligence-data/HEAD/evidence.csv
+          wc -l evidence.csv
+      - name: Restore the Enterprise file from the pipeline's cache
+        uses: actions/cache/restore@v5
+        with:
+          key: 20261031-539F11FF7D6024941E5118CCB848A3243AA5163E
+          path: assets
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+      - name: Read the file once so every case starts the same way
+        run: cat assets/51Degrees-EnterpriseIpiV41.ipi > /dev/null
+      - name: Measure
+        run: bash branch/.github/tmp-a4/verify.sh assets/51Degrees-EnterpriseIpiV41.ipi evidence.csv bins
+
