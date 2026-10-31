@@ -1,0 +1,107 @@
+name: tmp a4 tests
+
+on:
+  push:
+    branches:
+      - tmp/a4-tests
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu-latest
+            name: linux-asan
+            configuration: Release
+            extra: -DWITH_ASAN=ON
+          - image: ubuntu-latest
+            name: linux-debug
+            configuration: Debug
+            extra: -DWITH_ASAN=ON
+          - image: windows-latest
+            name: windows
+            configuration: Release
+            extra: ""
+          - image: macos-latest
+            name: macos-arm
+            configuration: Release
+            extra: ""
+    name: tests ${{ matrix.name }}
+    runs-on: ${{ matrix.image }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: branch
+      - name: Restore the Enterprise file from the pipeline's cache
+        uses: actions/cache/restore@v5
+        with:
+          key: 20261031-539F11FF7D6024941E5118CCB848A3243AA5163E
+          path: assets
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+      - name: Put the data files where the tests look
+        run: |
+          mkdir -p ip-intelligence-data
+          mv assets/51Degrees-EnterpriseIpiV41.ipi ip-intelligence-data/
+          curl -fsSL -o ip-intelligence-data/51Degrees-IPIV4AsnIpiV41.ipi https://raw.githubusercontent.com/51Degrees/ip-intelligence-data/HEAD/51Degrees-IPIV4AsnIpiV41.ipi
+          ls -la ip-intelligence-data
+      - name: Build the tests
+        run: |
+          cmake -S branch -B build -DCMAKE_BUILD_TYPE=${{ matrix.configuration }} ${{ matrix.extra }} -DFIFTYONE_BUILD_DEVICE_DETECTION=OFF -DFIFTYONE_COMMON_CXX_BUILD_TESTING=OFF -DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=OFF
+          cmake --build build --target IpiTests --config ${{ matrix.configuration }} --parallel 4
+      - name: Run the tests
+        run: |
+          test=$(ls build/bin/IpiTests* build/bin/${{ matrix.configuration }}/IpiTests.exe 2>/dev/null | head -1)
+          echo "$PWD/$test"
+          ASAN_OPTIONS=detect_leaks=1:allocator_may_return_null=1 "$PWD/$test" --gtest_filter='IpiBalanced*'
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: branch
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/rust
+          path: rust
+      - name: Fetch the small data file
+        run: curl -fsSL -o asn.ipi https://raw.githubusercontent.com/51Degrees/ip-intelligence-data/HEAD/51Degrees-IPIV4AsnIpiV41.ipi
+      - name: Test
+        run: |
+          cd rust
+          git submodule update --init --depth 1 owid-rust
+          rustup default 1.94
+          env FIFTYONE_CXX_DIR="$GITHUB_WORKSPACE/branch" 51DEGREES_IPI_PATH="$GITHUB_WORKSPACE/asn.ipi" cargo test -p fiftyone-ip-intelligence-sys -p fiftyone-native -p fiftyone-ip-intelligence-onpremise 2>&1 | tail -60
+
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: branch
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/ip-intelligence-go
+          path: go
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+      - name: Fetch the small data file
+        run: curl -fsSL -o asn.ipi https://raw.githubusercontent.com/51Degrees/ip-intelligence-data/HEAD/51Degrees-IPIV4AsnIpiV41.ipi
+      - name: Amalgamate as the Go build does and test
+        run: |
+          awkfile="$GITHUB_WORKSPACE/go/ci/amalgamate.awk"
+          ls "$awkfile"
+          (cd branch/src && awk -f "$awkfile" ipi/fiftyone.h ipi/graph/graph.h) > go/ipi_interop/ip-intelligence-cxx.h
+          (cd branch/src && awk -f "$awkfile" common/*.c ipi/graph/*.c ipi/*.c) > go/ipi_interop/ip-intelligence-cxx.c
+          cd go
+          DATA_FILE="$GITHUB_WORKSPACE/asn.ipi" go test ./ipi_interop 2>&1 | tail -30
