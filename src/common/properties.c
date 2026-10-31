@@ -24,7 +24,7 @@
 #include "fiftyone.h"
 
 /* Array of valid property name separators */
-static char separators[] = { '|', ',', ' ', '\0' };
+static char separators[] = FIFTYONE_DEGREES_PROPERTIES_SEPARATORS;
 
 PropertiesRequired PropertiesDefault = {
 	NULL, // No array of properties
@@ -66,6 +66,7 @@ static PropertiesAvailable* initRequiredPropertiesMemory(uint32_t count) {
 	if (available != NULL) {
 		available->count = 0;
 		available->capacity = count;
+		available->allComponentsRequired = false;
 		available->items = (PropertyAvailable*)(available + 1);
 		for (i = 0; i < available->capacity; i++) {
 			// Initialize the evidence properties to prevent them from being
@@ -249,9 +250,6 @@ static PropertiesAvailable* initRequiredPropertiesFromString(
 	const char* properties) {
 	PropertiesAvailable *available;
 	uint32_t count = countPropertiesFromString(source, properties);
-	if (count == 0) {
-		return NULL;
-	}
 	available = initRequiredPropertiesMemory(count);
 	if (available != NULL) {
 		iteratePropertiesFromString(
@@ -269,6 +267,7 @@ static PropertiesAvailable* initSpecificPropertiesFromExisting(
 	uint32_t count = countPropertiesFromExisting(source, properties);
 	PropertiesAvailable *available = initRequiredPropertiesMemory(count);
 	if (available != NULL) {
+		available->allComponentsRequired = properties->allComponentsRequired;
 		iteratePropertiesFromExisting(
 			source,
 			available,

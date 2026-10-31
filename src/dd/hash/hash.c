@@ -1306,6 +1306,14 @@ static StatusCode initComponentsAvailable(
 		COLLECTION_RELEASE(dataSet->properties, &item);
 	}
 
+	// The device id is composed from the profile of every component, so all of
+	// them must be resolved even where they have no available property.
+	if (dataSet->b.b.available->allComponentsRequired) {
+		for (i = 0; i < dataSet->componentsList.count; i++) {
+			dataSet->componentsAvailable[i] = true;
+		}
+	}
+
 	// Count the number of components with available properties. Needed when
 	// creating results to allocate sufficient capacity for all the components.
 	dataSet->componentsAvailableCount = 0;
@@ -1987,15 +1995,6 @@ static StatusCode initDataSetFromFile(
 			FileDelete(dataSet->b.b.fileName);
 		}
 		return status;
-	}
-
-	// Check there are properties available for retrieval.
-	if (dataSet->b.b.available->count == 0) {
-		// Delete the temp file if one has been created.
-		if (config->b.b.useTempFile == true) {
-			FileDelete(dataSet->b.b.fileName);
-		}
-		return REQ_PROP_NOT_PRESENT;
 	}
 
 	// Initialise the index for properties and profiles to values.

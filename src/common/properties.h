@@ -132,6 +132,9 @@
 #include "array.h"
 #include "common.h"
 
+/** Characters which separate the names in a required properties string. */
+#define FIFTYONE_DEGREES_PROPERTIES_SEPARATORS "|, "
+
 /**
  * Index in the properties collection to a property which is required to get
  * evidence for another property.
@@ -168,7 +171,14 @@ typedef struct fiftyone_degrees_property_available_t {
                          evaluate. */
 } fiftyoneDegreesPropertyAvailable;
 
-FIFTYONE_DEGREES_ARRAY_TYPE(fiftyoneDegreesPropertyAvailable,)
+FIFTYONE_DEGREES_ARRAY_TYPE(
+	fiftyoneDegreesPropertyAvailable,
+	bool allComponentsRequired; /**< True if every component must be resolved
+	                                whether or not it has an available property.
+	                                Initialised to false and set by the engine.
+	                                A list created from an existing list keeps
+	                                the value, which carries it across a reload */
+)
 
 /** Array of properties which are available in a data set. */
 typedef fiftyoneDegreesPropertyAvailableArray 
