@@ -22,6 +22,7 @@
 
 #ifndef FIFTYONE_DEGREES_WEIGHTED_VALUE_HPP
 #define FIFTYONE_DEGREES_WEIGHTED_VALUE_HPP
+#include <utility>
 #include "../common/weightedItem.h"
 
 namespace FiftyoneDegrees {
@@ -75,7 +76,7 @@ namespace FiftyoneDegrees {
 				 * Set the value
 				 * @param v the value to set
 				 */
-				void setValue(T v) { value = v; };
+				void setValue(T v) { value = std::move(v); };
 
 				/**
 				 * Get the weight (0.0 ~ 1.0)

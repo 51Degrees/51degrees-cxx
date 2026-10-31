@@ -170,6 +170,17 @@ TEST_F(Strings, StringBuilder_AddMaxInt) {
     ASSERT_FALSE(builder->full);
 }
 
+TEST_F(Strings, StringBuilder_AddInteger64Limits) {
+    const int64_t values[] = {
+        INT64_MIN, INT64_MIN + 1, -10, -9, -1, 0, 1, 9, 10, INT64_MAX };
+    for (const int64_t value : values) {
+        fiftyoneDegreesStringBuilderInit(builder);
+        fiftyoneDegreesStringBuilderAddInteger(builder, value);
+        fiftyoneDegreesStringBuilderComplete(builder);
+        ASSERT_STREQ(builder->ptr, std::to_string((long long)value).c_str());
+    }
+}
+
 TEST_F(Strings, StringBuilder_NullBuffer) {
     StringBuilder *prev = builder;
     StringBuilder local = {nullptr, 0};
