@@ -1625,7 +1625,7 @@ int fiftyoneDegreesIpiCountryOverlap(
 	properties.string = countryOverlapProperties;
 
 	// The Balanced configuration loads the graph structures into memory
-	// which gives the best sweep throughput but requires several GB of
+	// which gives the best sweep throughput but requires a lot of
 	// committed memory for a large data file. When no configuration is
 	// provided and that allocation fails, the example falls back to the
 	// LowMemory configuration with enlarged caches. The operating system
