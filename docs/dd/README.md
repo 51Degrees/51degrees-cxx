@@ -55,6 +55,39 @@ The CMake project also builds a single shared library containing everything. Thi
 
 The Visual Studio solution contains static libraries which have all the dependencies set up correctly, so referencing these in a Visual Studio solution should be fairly self explanatory.
 
+# Pseudo header length limit
+
+A pseudo header joins the values of several HTTP headers into one value, for
+example `Sec-CH-UA`, `Sec-CH-UA-Mobile`, `Sec-CH-UA-Platform` and `User-Agent`.
+The value is built in working memory that is allocated when a set of results is
+created, and detection does not grow that memory. So a pseudo header longer than
+the limit is ignored. Detection moves on to the next header, no error is
+reported, and the result can rest on less detailed evidence.
+
+The limit is `maxMatchedUserAgentLength` in the device detection configuration,
+which defaults to 500. It counts bytes, including one separator between each
+value. A single header such as `User-Agent` does not use this memory, so it is
+processed whatever its length.
+
+To raise the limit, set a larger value before the data set is created:
+
+| API | Setting |
+| --- | --- |
+| C | `config.b.maxMatchedUserAgentLength` on the `fiftyoneDegreesConfigHash` used to create the data set |
+| C++ | `setMaxMatchedUserAgentLength` on the `ConfigHash` used to create the engine |
+
+Each set of results then holds more memory, made up of:
+
+- the limit plus one byte for pseudo headers
+- twice the limit for transforming evidence
+- the limit plus one byte for each component, only when
+  `updateMatchedUserAgent` is true. Detection also overwrites this memory for
+  each result it resets, so a larger limit adds to the time each detection takes
+
+The C examples create a set of results up front and use it for each detection.
+`EngineHash::process` in the C++ API creates a new set of results for each call,
+so there the memory is allocated once for each call, at the same fixed size.
+
 # Examples
 
 There are several examples available, the source files can be found in the [`examples/dd`](../../examples/dd) folder. The examples are written in C or CPP.

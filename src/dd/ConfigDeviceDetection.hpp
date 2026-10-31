@@ -90,9 +90,18 @@ namespace FiftyoneDegrees {
 			void setUpdateMatchedUserAgent(bool update);
 
 			/**
-			 * Set the maximum length string to be allocated to the matched
-			 * User-Agent. This is only required if #setUpdateMatchedUserAgent
-			 * is set to true.
+			 * Set the limit in bytes on the length of a pseudo header,
+			 * including the separators between its values, and on the
+			 * matched User-Agent. The working memory for a pseudo header
+			 * is allocated from this value when a set of results is
+			 * created, and detection does not grow it. A pseudo header
+			 * longer than the limit is therefore ignored and detection
+			 * moves on to the next header. The limit applies whether or
+			 * not #setUpdateMatchedUserAgent is true. A single header such
+			 * as User-Agent does not use this memory, so it is processed
+			 * whatever its length. The default is 500. To raise the limit
+			 * set a larger value before the engine is created, which also
+			 * raises the memory each set of results holds.
 			 * @param length to set
 			 */
 			void setMaxMatchedUserAgentLength(int length);
@@ -122,10 +131,11 @@ namespace FiftyoneDegrees {
 			bool getUpdateMatchedUserAgent();
 
 			/**
-			 * If the matched User-Agent characters should be stored the
-			 * maximum number which should be available.
-			 * @return the number of characters to store if enabled, otherwise
-			 * 0.
+			 * Get the limit in bytes on the length of a pseudo header and on
+			 * the matched User-Agent, as described in
+			 * #setMaxMatchedUserAgentLength.
+			 * @return the limit, whether or not the matched User-Agent is
+			 * stored
 			 */
 			int getMaxMatchedUserAgentLength();
 

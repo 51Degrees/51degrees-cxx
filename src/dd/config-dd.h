@@ -54,9 +54,19 @@ typedef struct fiftyone_degrees_config_device_detecton_t {
 	bool updateMatchedUserAgent; /**< True if the detection should record the
 									matched characters from the target
 									User-Agent */
-	size_t maxMatchedUserAgentLength; /**< Number of characters to consider in
-										the matched User-Agent. Ignored if
-										updateMatchedUserAgent is false. */
+	/**
+	 * Limit in bytes on the length of a pseudo header, including the
+	 * separators between its values, and on the matched User-Agent. The
+	 * working memory for a pseudo header is allocated from this value when
+	 * a set of results is created, and detection does not grow it. A pseudo
+	 * header longer than the limit is therefore ignored and detection moves
+	 * on to the next header. The limit applies whether or not
+	 * updateMatchedUserAgent is true. A single header such as User-Agent does
+	 * not use this memory, so it is processed whatever its length. To raise
+	 * the limit set a larger value before the data set is created, which also
+	 * raises the memory each set of results holds.
+	 */
+	size_t maxMatchedUserAgentLength;
 	bool allowUnmatched; /**< True if there should be at least one matched node
 						 in order for the results to be considered valid. By
 						 default, this is false */
@@ -89,23 +99,25 @@ FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_UPDATE_DEFAULT
 
 /**
  * Default value for the #fiftyoneDegreesConfigDeviceDetection structure with
- * index
+ * index. maxMatchedUserAgentLength defaults to 500, so a pseudo header longer
+ * than 500 bytes is ignored unless the limit is raised.
  */
 #define FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX \
 	FIFTYONE_DEGREES_CONFIG_DEFAULT_WITH_INDEX, \
 	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_UPDATE, \
-	500, /* Default to 500 characters for the matched User-Agent */ \
+	500, /* Default limit on a pseudo header and the matched User-Agent */ \
 	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_UNMATCHED, \
 	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_SPECIAL_EVIDENCE
 
  /**
-  * Default value for the #fiftyoneDegreesConfigDeviceDetection structure 
-  * without index.
+  * Default value for the #fiftyoneDegreesConfigDeviceDetection structure
+  * without index. maxMatchedUserAgentLength defaults to 500, so a pseudo
+  * header longer than 500 bytes is ignored unless the limit is raised.
   */
 #define FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX \
 	FIFTYONE_DEGREES_CONFIG_DEFAULT_NO_INDEX, \
 	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_UPDATE, \
-	500, /* Default to 500 characters for the matched User-Agent */ \
+	500, /* Default limit on a pseudo header and the matched User-Agent */ \
 	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_UNMATCHED, \
 	FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_SPECIAL_EVIDENCE
 
