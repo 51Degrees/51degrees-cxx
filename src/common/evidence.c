@@ -162,7 +162,7 @@ static void addPairValueToBuffer(
 // found then copies the parsed value into the buffer considering the remaining
 // length available. Returns true if successful, or false if there is no
 // evidence for the header or the value does not fit the buffer, which has a
-// fixed length so that detection does not need to allocate memory.
+// fixed length so that assembling a pseudo header never allocates memory.
 
 static bool addHeaderValueToBuilder(
 	fiftyoneDegreesEvidenceKeyValuePairArray* evidence,

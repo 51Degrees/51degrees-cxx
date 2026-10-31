@@ -504,9 +504,9 @@ TEST_F(Evidence, IterateForHeaders_PseudoHeader_Lengths) {
 }
 
 // A pseudo header longer than the buffer is ignored, so the callback is not
-// called for it. The buffer has a fixed length so that detection does not need
-// to allocate memory. The headers after it are still processed, including a
-// pseudo header that fits.
+// called for it. The buffer has a fixed length so that assembling a pseudo
+// header never allocates memory. The headers after it are still processed,
+// including a pseudo header that fits.
 TEST_F(Evidence, IterateForHeaders_PseudoHeader_LongerThanBuffer) {
     const char *headers[] = {
         "Size\x1F""Color",
