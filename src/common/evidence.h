@@ -293,7 +293,8 @@ EXTERNAL uint32_t fiftyoneDegreesEvidenceIterate(
  * value. A pseudo header is only assembled when every header that forms it
  * has evidence. When the values together are longer than the buffer the
  * callback receives the characters the buffer holds, so the value is cut to
- * the buffer length less one rather than skipped.
+ * the buffer length less one rather than skipped. Only the start of the value
+ * is kept, so a segment that falls after the cut is lost entirely.
  *
  * @param evidence key value pairs including prefixes
  * @param prefixes one or more prefix flags to return values for
@@ -301,7 +302,8 @@ EXTERNAL uint32_t fiftyoneDegreesEvidenceIterate(
  * @param headers to return evidence for if available
  * @param buffer that MIGHT be used with the callback, null to disable
  * assembling headers
- * @param length of the buffer, including the null terminator
+ * @param length of the buffer, including the null terminator, zero also
+ * disables assembling headers
  * @param callback method called when a matching prefix is found
  * @return true if the callback was called successfully, otherwise false
  */

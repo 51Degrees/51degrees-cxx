@@ -559,3 +559,50 @@ TEST_F(Evidence, IterateForHeaders_PseudoHeader_FirstSegmentLongerThanBuffer) {
     EXPECT_EQ(results[0].parsedLength, 4);
     fiftyoneDegreesFree(buf);
 }
+
+// The buffer can run out straight after a separator, which leaves the separator
+// as the last character of the value.
+TEST_F(Evidence, IterateForHeaders_PseudoHeader_CutAfterSeparator) {
+    const char *headers[] = {
+        "Size\x1F""Color",
+    };
+    headersContainer.CreateHeaders(headers, 1, false);
+    CreateEvidence(2);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Big");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Color", "Green");
+
+    const size_t length = 5;
+    char *buf = (char *)fiftyoneDegreesMalloc(length);
+    std::vector<PseudoHeaderLengthResult> results;
+    fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
+    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results[0].value, "Big\x1F");
+    EXPECT_EQ(results[0].valueLength, 4);
+    EXPECT_EQ(results[0].parsedLength, 4);
+    fiftyoneDegreesFree(buf);
+}
+
+// A zero length buffer has no room for the null terminator, so the pseudo header
+// is not assembled, as with a null buffer, and nothing is written to the buffer.
+// The headers after it are still processed.
+TEST_F(Evidence, IterateForHeaders_PseudoHeader_ZeroLengthBuffer) {
+    const char *headers[] = {
+        "Size\x1F""Color",
+        "Material",
+    };
+    headersContainer.CreateHeaders(headers, 2, false);
+    CreateEvidence(3);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Big");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Color", "Green");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Material", "Apple");
+
+    char buf[1] = { 'x' };
+    std::vector<PseudoHeaderLengthResult> results;
+    bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buf, 0, &results, callbackValidateLengths);
+    EXPECT_FALSE(res);
+    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results[0].value, "Apple");
+    EXPECT_EQ(buf[0], 'x');
+}

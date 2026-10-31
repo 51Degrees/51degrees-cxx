@@ -159,8 +159,10 @@ static void addPairValueToBuffer(
 }
 
 // For the header finds the corresponding evidence in the array of evidence. If
-// found then appends the parsed value to the builder, which keeps as much of
-// the value as fits. Returns false if there is no evidence for the header.
+// found then appends the parsed value to the builder. The builder never writes
+// past the buffer and always leaves room for the null terminator, so it keeps
+// what fits and drops the rest, including all of any later segment. Returns
+// false if there is no evidence for the header.
 static bool addHeaderValueToBuilder(
 	fiftyoneDegreesEvidenceKeyValuePairArray* evidence,
 	int prefixes,
@@ -224,8 +226,7 @@ static bool processPseudoHeader(
 
 	// The characters in the buffer before the null terminator, which are fewer
 	// than were added when the buffer could not hold them all.
-	const size_t valueLength = builder->current > builder->ptr ?
-		(size_t)(builder->current - builder->ptr) - 1 : 0;
+	const size_t valueLength = (size_t)(builder->current - builder->ptr) - 1;
 
 	// A header has been formed so call the callback with an evidence pair
 	// containing the parsed value.
@@ -416,7 +417,8 @@ bool fiftyoneDegreesEvidenceIterateForHeaders(
 		// segment then that will be the header that was already processed in 
 		// processHeader therefore there is no point processing the same value
 		// a second time as a pseudo header.
-		if (buffer != NULL && 
+		if (buffer != NULL &&
+			length > 0 &&
 			header->segmentHeaders != NULL &&
 			header->segmentHeaders->count > 1) {
 			StringBuilderInit(&builder);
