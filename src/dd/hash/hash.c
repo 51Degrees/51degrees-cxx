@@ -88,10 +88,17 @@ d->componentsList.items[i].data.ptr : NULL))
 #define FILTER_MIN_POSITIONS 32
 
 /**
- * Match a table hash using a reciprocal prepared once for the node scan.
- * The caller validates the positive divisor and table bounds. The estimated
- * quotient is exact or one below floor(hash / divisor), so one subtraction
- * gives the exact remainder. A zero hash remains a reserved table marker.
+ * Finds a hash in a usable hash table node without dividing. The lookup in
+ * graph.c finds the slot with hash % modulo, and that division is slow when
+ * repeated at every position of a scan. The modulo does not change during a
+ * scan, so the caller works out the reciprocal, floor(2^32 / modulo), once.
+ * Multiplying a hash by the reciprocal and shifting right by 32 then estimates
+ * hash / modulo. The reciprocal is rounded down, so the estimate is exact or one
+ * too low. That makes hash - estimate * modulo less than twice the modulo, and
+ * subtracting the modulo once if needed gives the slot. The reciprocal needs 64
+ * bits because a modulo of 1 gives 2^32. A hash of zero never matches because
+ * zero is a reserved marker in a table.
+ * @return the matching record, or NULL if there is none
  */
 SCAN_INLINE GraphNodeHash* getMatchingHashFromTablePrepared(
 	GraphNode* node,
@@ -787,6 +794,8 @@ SCAN_INLINE GraphNodeHash* scanSmallList(GraphNode *node, rollingHash *rolling) 
  */
 SCAN_INLINE GraphNodeHash* scanTable(GraphNode *node, rollingHash *rolling) {
 	GraphNodeHash *nodeHash = NULL;
+	// One division here replaces one at every position which reaches the table.
+	// See getMatchingHashFromTablePrepared.
 	const uint64_t reciprocal = (UINT64_C(1) << 32) / (uint32_t)node->modulo;
 	uint64_t filter = UINT64_MAX;
 	if (node->hashesCount <= FILTER_MAX_RECORDS &&
