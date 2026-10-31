@@ -350,6 +350,75 @@ namespace FiftyoneDegrees {
 			virtual Value<double> getValueAsDouble(int requiredPropertyIndex);
 
 			/**
+			 * Get the value as a boolean only if its text is "True" or
+			 * "False". Any other text, such as "Unknown", gives no value,
+			 * where #getValueAsBool(const char*) gives false.
+			 * @param propertyName string containing the property name
+			 * @return the value, or the reason there is no value
+			 */
+			Value<bool> getValueAsStrictBool(const char *propertyName);
+
+			/**
+			 * @copydoc getValueAsStrictBool(const char*)
+			 */
+			Value<bool> getValueAsStrictBool(const string &propertyName);
+
+			/**
+			 * Get the value as a boolean only if its text is "True" or
+			 * "False". Any other text, such as "Unknown", gives no value,
+			 * where #getValueAsBool(int) gives false.
+			 * @param requiredPropertyIndex in the required properties
+			 * @return the value, or the reason there is no value
+			 */
+			Value<bool> getValueAsStrictBool(int requiredPropertyIndex);
+
+			/**
+			 * Get the value as an integer only if all of its text is a whole
+			 * number an int can hold. Any other text, such as "Unknown", gives
+			 * no value, where #getValueAsInteger(const char*) gives 0.
+			 * @param propertyName string containing the property name
+			 * @return the value, or the reason there is no value
+			 */
+			Value<int> getValueAsStrictInteger(const char *propertyName);
+
+			/**
+			 * @copydoc getValueAsStrictInteger(const char*)
+			 */
+			Value<int> getValueAsStrictInteger(const string &propertyName);
+
+			/**
+			 * Get the value as an integer only if all of its text is a whole
+			 * number an int can hold. Any other text, such as "Unknown", gives
+			 * no value, where #getValueAsInteger(int) gives 0.
+			 * @param requiredPropertyIndex in the required properties
+			 * @return the value, or the reason there is no value
+			 */
+			Value<int> getValueAsStrictInteger(int requiredPropertyIndex);
+
+			/**
+			 * Get the value as a double only if all of its text is a finite
+			 * number. Any other text, such as "Unknown", gives no value, where
+			 * #getValueAsDouble(const char*) gives 0.
+			 * @param propertyName string containing the property name
+			 * @return the value, or the reason there is no value
+			 */
+			Value<double> getValueAsStrictDouble(const char *propertyName);
+
+			/**
+			 * @copydoc getValueAsStrictDouble(const char*)
+			 */
+			Value<double> getValueAsStrictDouble(const string &propertyName);
+
+			/**
+			 * Get the value as a double only if all of its text is a finite
+			 * number. Any other text, such as "Unknown", gives no value, where
+			 * #getValueAsDouble(int) gives 0.
+			 * @param requiredPropertyIndex in the required properties
+			 * @return the value, or the reason there is no value
+			 */
+			Value<double> getValueAsStrictDouble(int requiredPropertyIndex);
+
+			/**
 			 * @}
 			 */
 
@@ -419,6 +488,21 @@ namespace FiftyoneDegrees {
 			pointer reference is required by the resource manager logic. See
 			resource.h for more information. */
 			shared_ptr<fiftyoneDegreesResourceManager> manager;
+
+			/**
+			 * Get the text of the one value of a property for the strict
+			 * accessors. If there is not one value, then the reason is set in
+			 * the result.
+			 * @tparam T the type of the value being read
+			 * @param requiredPropertyIndex index in the available properties
+			 * @param result to set the reason in if there is not one value
+			 * @param text set to the text of the value if there is one
+			 * @return true if there is one value
+			 */
+			template <class T> bool getOneValueText(
+				int requiredPropertyIndex,
+				Value<T> &result,
+				string &text);
 		};
 	}
 }

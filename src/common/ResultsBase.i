@@ -52,4 +52,13 @@ public:
 
 	Value<double> getValueAsDouble(const std::string &propertyName);
 	Value<double> getValueAsDouble(int requiredPropertyIndex);
+
+	Value<bool> getValueAsStrictBool(const std::string &propertyName);
+	Value<bool> getValueAsStrictBool(int requiredPropertyIndex);
+
+	Value<int> getValueAsStrictInteger(const std::string &propertyName);
+	Value<int> getValueAsStrictInteger(int requiredPropertyIndex);
+
+	Value<double> getValueAsStrictDouble(const std::string &propertyName);
+	Value<double> getValueAsStrictDouble(int requiredPropertyIndex);
 };
