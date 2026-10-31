@@ -36,6 +36,7 @@ using namespace FiftyoneDegrees;
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Meta data builder class contains static helper methods used when
 		 * building meta data instances.
@@ -112,6 +113,7 @@ namespace FiftyoneDegrees {
 			 * @}
 			 */
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

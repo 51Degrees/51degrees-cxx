@@ -92,6 +92,10 @@
 #ifndef FIFTYONE_DEGREES_CACHE_H_INCLUDED
 #define FIFTYONE_DEGREES_CACHE_H_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 /* Define NDEBUG if needed, to ensure asserts are disabled in release builds */
 #if !defined(DEBUG) && !defined(_DEBUG) && !defined(NDEBUG)
 #define NDEBUG

@@ -54,6 +54,9 @@
     <ClInclude Include="..\..\..\src\common\ip.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\common\ipiSymbols.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\src\common\list.h">
       <Filter>Header Files</Filter>
     </ClInclude>

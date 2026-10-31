@@ -32,7 +32,7 @@
 #include "fiftyone.h"
 
 namespace FiftyoneDegrees::Common {
-
+FIFTYONE_DEGREES_COMMON_CXX_BEGIN
     WkbtotResult writeWkbStringToStringStream(
         const VarLengthByteArray * const wkbString,
         WkbtotReductionMode reductionMode,
@@ -101,4 +101,5 @@ namespace FiftyoneDegrees::Common {
         }
         return toWktResult;
     }
+FIFTYONE_DEGREES_COMMON_CXX_END
 }

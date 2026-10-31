@@ -29,6 +29,7 @@
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Encapsulates a value returned an instance of ResultsBase for a
 		 * specified property. An instance contains either the value, or the
@@ -204,6 +205,7 @@ namespace FiftyoneDegrees {
 			fiftyoneDegreesResultsNoValueReason noValueReason =
 				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

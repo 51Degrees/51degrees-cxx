@@ -97,10 +97,19 @@
     "Products": ["common", "dd", "ipi"]
   },
   {
+    "Image": "ubuntu-latest",
+    "Name": "Ubuntu_x64_Release_CxxBothProducts",
+    "Configuration": "Release",
+    "Arch": "x64",
+    "CxxBothProducts": true,
+    "Products": ["dd", "ipi"]
+  },
+  {
     "Image": "ubuntu-24.04-arm",
     "Name": "Ubuntu_arm64_Release",
     "Configuration": "Release",
     "Arch": "arm64",
+    "IpiSymbols": false,
     "Products": ["ipi"]
   },
   {

@@ -47,6 +47,10 @@
 #ifndef FIFTYONE_DEGREES_SYNONYM_COMMON_INCLUDED
 #define FIFTYONE_DEGREES_SYNONYM_COMMON_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 #include "exceptions.h"
 #include "cache.h"
 #include "collection.h"

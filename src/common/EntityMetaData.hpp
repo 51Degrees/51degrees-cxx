@@ -32,6 +32,7 @@ using std::string;
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Base class for any entity meta data. All meta data classes should
 		 * extend this class.
@@ -100,6 +101,7 @@ namespace FiftyoneDegrees {
 			/** The unique key for this instance. */
 			K key;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 
