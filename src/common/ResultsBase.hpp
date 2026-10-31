@@ -237,6 +237,9 @@ namespace FiftyoneDegrees {
 			 * Get a boolean representation of the value associated with the
 			 * required property name. If the property name is not valid then
 			 * false is returned.
+			 * Stored text such as "Unknown" gives false with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictBool(const char*).
 			 * @param propertyName string containing the property name
 			 * @return a boolean representation of the value for the property
 			 */
@@ -246,6 +249,9 @@ namespace FiftyoneDegrees {
 			 * Get a boolean representation of the value associated with the
 			 * required property name. If the property name is not valid then
 			 * false is returned.
+			 * Stored text such as "Unknown" gives false with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictBool(const char*).
 			 * @param propertyName string containing the property name
 			 * @return a boolean representation of the value for the property
 			 */
@@ -255,6 +261,9 @@ namespace FiftyoneDegrees {
 			 * Get a boolean representation of the value associated with the
 			 * required property name. If the property name is not valid then
 			 * false is returned.
+			 * Stored text such as "Unknown" gives false with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictBool(const char*).
 			 * @param propertyName string containing the property name
 			 * @return a boolean representation of the value for the property
 			 */
@@ -264,6 +273,9 @@ namespace FiftyoneDegrees {
 			 * Get a boolean representation of the value associated with the
 			 * required property index. If the property index is not valid then
 			 * false is returned.
+			 * Stored text such as "Unknown" gives false with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictBool(int).
 			 * @param requiredPropertyIndex in the required properties
 			 * @return a boolean representation of the value for the property
 			 */
@@ -274,6 +286,9 @@ namespace FiftyoneDegrees {
 			 * required property name. If the property name is not valid then 0
 			 * is returned. Using a property which returns non-numeric
 			 * characters will result in unexpected behavior.
+			 * Stored text such as "Unknown" gives 0 with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictInteger(const char*).
 			 * @param propertyName string containing the property name
 			 * @return an integer representation of the value for the property
 			 */
@@ -284,6 +299,9 @@ namespace FiftyoneDegrees {
 			 * required property name. If the property name is not valid then 0
 			 * is returned. Using a property which returns non-numeric
 			 * characters will result in unexpected behavior.
+			 * Stored text such as "Unknown" gives 0 with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictInteger(const char*).
 			 * @param propertyName string containing the property name
 			 * @return an integer representation of the value for the property
 			 */
@@ -294,6 +312,9 @@ namespace FiftyoneDegrees {
 			 * required property name. If the property name is not valid then 0
 			 * is returned. Using a property which returns non-numeric
 			 * characters will result in unexpected behavior.
+			 * Stored text such as "Unknown" gives 0 with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictInteger(const char*).
 			 * @param propertyName string containing the property name
 			 * @return an integer representation of the value for the property
 			 */
@@ -304,6 +325,9 @@ namespace FiftyoneDegrees {
 			 * required property index. If the property index is not valid then
 			 * 0 is returned. Using a property which returns non-numeric
 			 * characters will result in unexpected behavior.
+			 * Stored text such as "Unknown" gives 0 with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictInteger(int).
 			 * @param requiredPropertyIndex in the required properties
 			 * @return an integer representation of the value for the property
 			 */
@@ -314,6 +338,9 @@ namespace FiftyoneDegrees {
 			 * required property name. If the property name is not valid then 0
 			 * is returned. Using a property which returns non-numeric
 			 * characters will result in unexpected behavior.
+			 * Stored text such as "Unknown" gives 0 with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictDouble(const char*).
 			 * @param propertyName string containing the property name
 			 * @return a double representation of the value for the property
 			 */
@@ -324,6 +351,9 @@ namespace FiftyoneDegrees {
 			 * required property name. If the property name is not valid then 0
 			 * is returned. Using a property which returns non-numeric
 			 * characters will result in unexpected behavior.
+			 * Stored text such as "Unknown" gives 0 with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictDouble(const char*).
 			 * @param propertyName string containing the property name
 			 * @return a double representation of the value for the property
 			 */
@@ -334,6 +364,9 @@ namespace FiftyoneDegrees {
 			 * required property name. If the property name is not valid then 0
 			 * is returned. Using a property which returns non-numeric
 			 * characters will result in unexpected behavior.
+			 * Stored text such as "Unknown" gives 0 with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictDouble(const char*).
 			 * @param propertyName string containing the property name
 			 * @return a double representation of the value for the property
 			 */
@@ -344,6 +377,9 @@ namespace FiftyoneDegrees {
 			 * required property index. If the property index is not valid then
 			 * 0 is returned. Using a property which returns non-numeric
 			 * characters will result in unexpected behavior.
+			 * Stored text such as "Unknown" gives 0 with a value, which is
+			 * kept for backwards compatibility. The remedy until version 5 is
+			 * #getValueAsStrictDouble(int).
 			 * @param requiredPropertyIndex in the required properties
 			 * @return a double representation of the value for the property
 			 */
@@ -353,6 +389,8 @@ namespace FiftyoneDegrees {
 			 * Get the value as a boolean only if its text is "True" or
 			 * "False". Any other text, such as "Unknown", gives no value,
 			 * where #getValueAsBool(const char*) gives false.
+			 * This is the remedy until version 5, as that accessor keeps its
+			 * behaviour for backwards compatibility.
 			 * @param propertyName string containing the property name
 			 * @return the value, or the reason there is no value
 			 */
@@ -367,6 +405,8 @@ namespace FiftyoneDegrees {
 			 * Get the value as a boolean only if its text is "True" or
 			 * "False". Any other text, such as "Unknown", gives no value,
 			 * where #getValueAsBool(int) gives false.
+			 * This is the remedy until version 5, as that accessor keeps its
+			 * behaviour for backwards compatibility.
 			 * @param requiredPropertyIndex in the required properties
 			 * @return the value, or the reason there is no value
 			 */
@@ -376,6 +416,8 @@ namespace FiftyoneDegrees {
 			 * Get the value as an integer only if all of its text is a whole
 			 * number an int can hold. Any other text, such as "Unknown", gives
 			 * no value, where #getValueAsInteger(const char*) gives 0.
+			 * This is the remedy until version 5, as that accessor keeps its
+			 * behaviour for backwards compatibility.
 			 * @param propertyName string containing the property name
 			 * @return the value, or the reason there is no value
 			 */
@@ -390,6 +432,8 @@ namespace FiftyoneDegrees {
 			 * Get the value as an integer only if all of its text is a whole
 			 * number an int can hold. Any other text, such as "Unknown", gives
 			 * no value, where #getValueAsInteger(int) gives 0.
+			 * This is the remedy until version 5, as that accessor keeps its
+			 * behaviour for backwards compatibility.
 			 * @param requiredPropertyIndex in the required properties
 			 * @return the value, or the reason there is no value
 			 */
@@ -399,6 +443,8 @@ namespace FiftyoneDegrees {
 			 * Get the value as a double only if all of its text is a finite
 			 * number. Any other text, such as "Unknown", gives no value, where
 			 * #getValueAsDouble(const char*) gives 0.
+			 * This is the remedy until version 5, as that accessor keeps its
+			 * behaviour for backwards compatibility.
 			 * @param propertyName string containing the property name
 			 * @return the value, or the reason there is no value
 			 */
@@ -413,6 +459,8 @@ namespace FiftyoneDegrees {
 			 * Get the value as a double only if all of its text is a finite
 			 * number. Any other text, such as "Unknown", gives no value, where
 			 * #getValueAsDouble(int) gives 0.
+			 * This is the remedy until version 5, as that accessor keeps its
+			 * behaviour for backwards compatibility.
 			 * @param requiredPropertyIndex in the required properties
 			 * @return the value, or the reason there is no value
 			 */
