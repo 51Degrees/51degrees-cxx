@@ -398,8 +398,12 @@ static int bitsCompare(
 }
 
 // Copies bits from the source to the destination starting at the start bit in
-// the source provided and including the subsequent bits.
+// the source provided and including the subsequent bits, up to the VAR_SIZE
+// bytes that every destination holds.
 static void copyBits(byte* dest, const byte* src, int startBit, int bits) {
+	if (bits > VAR_SIZE * 8) {
+		bits = VAR_SIZE * 8;
+	}
 	const int sourceByte = startBit / 8;
 	const int sourceOffset = startBit % 8;
 	const int fullBytes = bits / 8;
@@ -414,7 +418,7 @@ static void copyBits(byte* dest, const byte* src, int startBit, int bits) {
 		}
 		return;
 	}
-	const int outputBytes = fullBytes + (remainingBits > 0 ? 1 : 0);
+	const int outputBytes = (bits + 7) / 8;
 	for (int i = 0; i < outputBytes; i++) {
 		const int bitsLeft = bits - (i * 8);
 		byte value = (byte)(src[sourceByte + i] << sourceOffset);
