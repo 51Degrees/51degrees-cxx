@@ -89,6 +89,21 @@ TEST(Status, Get_CorruptDataMessage) {
 		NULL);
 	assertValidMessage(message);
 	assertContains(message, "not in the correct format");
+	assertContains(message, "complete and uncompressed");
+	free((void*)message);
+}
+
+/**
+ * Check that a message is returned for an 'invalid collection config' status
+ * and that it names both of the causes the status can report.
+ */
+TEST(Status, Get_InvalidCollectionConfigMessage) {
+	const char *message = fiftyoneDegreesStatusGetMessage(
+		FIFTYONE_DEGREES_STATUS_INVALID_COLLECTION_CONFIG,
+		NULL);
+	assertValidMessage(message);
+	assertContains(message, "configuration");
+	assertContains(message, "lack of memory");
 	free((void*)message);
 }
 

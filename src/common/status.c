@@ -35,7 +35,7 @@ static StatusMessage messages[] = {
 		"Insufficient memory allocated for the operation." },
 	{ CORRUPT_DATA,
 		"The data was not in the correct format. Check the data file '%s' is "
-		"uncompressed." },
+		"complete and uncompressed." },
 	{ INCORRECT_VERSION,
 		"The data (file: '%s') is an unsupported version. Check you have the latest data "
 		"and API." },
@@ -102,7 +102,8 @@ static StatusMessage messages[] = {
 	{ INVALID_COLLECTION_CONFIG,
 		"The configuration provided could not be used to create a valid "
 		"collection. If a cached collection is included in the configuration "
-		"this maybe caused by insufficient capacity for the concurrency."},
+		"this maybe caused by insufficient capacity for the concurrency. It "
+		"can also be caused by a lack of memory."},
 	{ INVALID_CONFIG,
 		"The configuration provided was not valid, and has caused a failure "
 		"while building the resource it configures." },
