@@ -29,6 +29,7 @@
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * A group of items accessible by index or key.
 		 *
@@ -125,6 +126,7 @@ namespace FiftyoneDegrees {
 			 */
 			Collection() { }
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

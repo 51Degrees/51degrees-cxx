@@ -29,6 +29,7 @@
 #include "storedBinaryValue.h"
 
 namespace FiftyoneDegrees::Common {
+FIFTYONE_DEGREES_COMMON_CXX_BEGIN
     /**
      * Converts stored binary value to text and pushes into a string stream.
      * @param binaryValue stored binary value from data file
@@ -42,6 +43,7 @@ namespace FiftyoneDegrees::Common {
         std::stringstream &stream,
         uint8_t decimalPlaces,
         fiftyoneDegreesException *exception);
+FIFTYONE_DEGREES_COMMON_CXX_END
 }
 
 #endif //FIFTYONE_DEGREES_STRING_HPP_INCLUDED

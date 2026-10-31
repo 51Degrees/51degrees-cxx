@@ -31,6 +31,7 @@
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Key used to store ValueMetaData in a Collection. A value name is not
 		 * unique, however it is unique within the collection of values for a
@@ -200,6 +201,7 @@ namespace FiftyoneDegrees {
 			/** URL containing more information on the value */
 			string url;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

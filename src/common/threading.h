@@ -33,6 +33,10 @@
 #ifndef FIFTYONE_DEGREES_THREADING_INCLUDED
 #define FIFTYONE_DEGREES_THREADING_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 

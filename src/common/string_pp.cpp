@@ -36,7 +36,7 @@
 static const size_t TEXT_PER_GEOMETRY_BYTE = 5;
 
 namespace FiftyoneDegrees::Common {
-
+FIFTYONE_DEGREES_COMMON_CXX_BEGIN
     void writeStoredBinaryValueToStringStream(
         const StoredBinaryValue * const binaryValue,
         const PropertyValueType valueType,
@@ -114,4 +114,5 @@ namespace FiftyoneDegrees::Common {
         }
         return;
     }
+FIFTYONE_DEGREES_COMMON_CXX_END
 }

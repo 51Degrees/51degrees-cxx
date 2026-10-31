@@ -23,6 +23,10 @@
 #ifndef FIFTYONE_DEGREES_RESULTS_INCLUDED
 #define FIFTYONE_DEGREES_RESULTS_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 /**
  * @ingroup FiftyOneDegreesCommon
  * @defgroup FiftyOneDegreesResults Results

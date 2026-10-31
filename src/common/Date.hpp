@@ -27,6 +27,7 @@
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * The Date class wraps the C #fiftyoneDegreesDate structure and is
 		 * used to represent dates in engines. This is a memory efficient way
@@ -95,6 +96,7 @@ namespace FiftyoneDegrees {
 			/** The underlying date structure. */
 			fiftyoneDegreesDate date;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

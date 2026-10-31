@@ -117,6 +117,10 @@
 #ifndef FIFTYONE_DEGREES_PROPERTIES_H_INCLUDED
 #define FIFTYONE_DEGREES_PROPERTIES_H_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 #include <stdint.h>
 #ifdef _MSC_FULL_VER
 #include <string.h>

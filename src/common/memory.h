@@ -34,6 +34,10 @@
 #ifndef FIFTYONE_DEGREES_MEMORY_H_INCLUDED
 #define FIFTYONE_DEGREES_MEMORY_H_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include "data.h"

@@ -38,6 +38,7 @@ using std::stringstream;
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Encapsulates the results of an engine's processing. The class is
 		 * constructed using an instance of a C #fiftyoneDegreesResultsBase
@@ -552,6 +553,7 @@ namespace FiftyoneDegrees {
 				Value<T> &result,
 				string &text);
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 
