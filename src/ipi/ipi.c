@@ -1840,11 +1840,16 @@ static StatusCode heldPlanCreate(
 		plan->values,
 		plan->valuesCount,
 		dataSet->values->elementSize);
+
+	// Holding all the profile groups frees their cache, which is usually much
+	// larger than they are.
+	const uint64_t groupsBytes = dataSet->header.profileGroups.length;
+	const uint64_t groupsCacheBytes =
+		(uint64_t)dataSet->config.profileGroups.capacity * sizeof(CacheNode);
 	if (dataSet->config.profileGroups.loaded == false &&
-		dataSet->header.profileGroups.length > 0 &&
-		dataSet->header.profileGroups.length <= plan->budget) {
+		groupsBytes <= plan->budget + groupsCacheBytes) {
 		plan->holdProfileGroups = true;
-		plan->budget -= dataSet->header.profileGroups.length;
+		plan->budget = plan->budget + groupsCacheBytes - groupsBytes;
 	}
 	return heldPlanProfiles(dataSet, file, plan, exception);
 }
@@ -1895,12 +1900,14 @@ static StatusCode heldPlanApply(
 		return status;
 	}
 	if (plan->holdProfileGroups) {
+		// With no profile groups there is nothing to hold or to read.
 		static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
+		static const fiftyoneDegreesCollectionConfig onFile = { false, 0, 0 };
 		FIFTYONE_DEGREES_COLLECTION_FREE(dataSet->profileGroups);
 		dataSet->profileGroups = CollectionCreateFromFile(
 			file,
 			&dataSet->b.b.filePool,
-			&inMemory,
+			dataSet->header.profileGroups.length > 0 ? &inMemory : &onFile,
 			dataSet->header.profileGroups,
 			CollectionReadFileFixed);
 		if (dataSet->profileGroups == NULL) {
@@ -1951,6 +1958,23 @@ static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
 }
 
 /**
+ * Gets the number of names in a list of required properties.
+ */
+static uint32_t heldCountNames(const char* list) {
+	uint32_t count = 0;
+	bool inName = false;
+	for (; *list != '\0'; list++) {
+		const bool isName =
+			strchr(FIFTYONE_DEGREES_PROPERTIES_SEPARATORS, *list) == NULL;
+		if (isName && inName == false) {
+			count++;
+		}
+		inName = isName;
+	}
+	return count;
+}
+
+/**
  * True for the shape of the Balanced preset when the caller has named fewer
  * properties than the data file has. The other presets, and a caller who names
  * nothing, use the configuration as it is.
@@ -1974,7 +1998,9 @@ static bool heldIsWanted(
 	if (properties->array != NULL && properties->count > 0) {
 		return (uint32_t)properties->count < count;
 	}
-	return properties->string != NULL && strlen(properties->string) > 0;
+	return properties->string != NULL &&
+		strlen(properties->string) > 0 &&
+		heldCountNames(properties->string) < count;
 }
 
 static StatusCode readDataSetFromFile(
