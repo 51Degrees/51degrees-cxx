@@ -123,6 +123,14 @@ namespace FiftyoneDegrees {
 			void setMaxPerformance();
 
 			/**
+			 * Set whether only the components with a required property have
+			 * their graphs and profiles held in memory. Off by default.
+			 * See #fiftyoneDegreesConfigIpi::requiredComponentsOnly
+			 * @param requiredComponentsOnly true to leave the rest in the file
+			 */
+			void setRequiredComponentsOnly(bool requiredComponentsOnly);
+
+			/**
 			 * Set the expected concurrent requests for all the data set's
 			 * collections. All collections in the data set which use
 			 * cached elements will have their caches constructued to allow
@@ -138,6 +146,13 @@ namespace FiftyoneDegrees {
 			 * @name Getters
 			 * @{
 			 */
+
+			/**
+			 * Get whether only the components with a required property have
+			 * their graphs and profiles held in memory.
+			 * @return true if the rest are left in the file
+			 */
+			bool getRequiredComponentsOnly() const;
 
 			/**
 			 * Get the configuration for the strings collection.

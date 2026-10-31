@@ -182,7 +182,8 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiInMemoryConfig = {
 	{0,0,0}, // ProfileGroups
 	{0,0,0}, // PropertyTypes
 	{0,0,0}, // ProfileOffsets
-	{0,0,0}  // Graph
+	{0,0,0}, // Graph
+	false // Required components only
 };
 #undef FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY
 #define FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY \
@@ -200,7 +201,8 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiHighPerformanceConfig = {
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileGroups
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // PropertyTypes
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileOffsets
-	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }  // Graph
+	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Graph
+	false // Required components only
 };
 
 fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
@@ -215,7 +217,8 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileGroups
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // PropertyTypes
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileOffsets
-	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }  // Graph
+	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Graph
+	false // Required components only
 };
 
 #define FIFTYONE_DEGREES_IPI_CONFIG_BALANCED \
@@ -230,7 +233,8 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
 { FIFTYONE_DEGREES_PROFILE_GROUPS_LOADED, FIFTYONE_DEGREES_PROFILE_GROUPS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileGroups */ \
 { FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Property Types */ \
 { FIFTYONE_DEGREES_PROFILE_LOADED, FIFTYONE_DEGREES_PROFILE_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */ \
-{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY } /* Graph */
+{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Graph */ \
+false /* Required components only */
 
 fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig = {
 	FIFTYONE_DEGREES_IPI_CONFIG_BALANCED
@@ -267,7 +271,8 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedTempConfig = {
 	{ FIFTYONE_DEGREES_PROFILE_GROUPS_LOADED, FIFTYONE_DEGREES_PROFILE_GROUPS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileGroups */
 	{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Property Types */
 	{ FIFTYONE_DEGREES_PROFILE_LOADED, FIFTYONE_DEGREES_PROFILE_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */
-	{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY } /* Graph */
+	{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Graph */
+	false /* Required components only */
 };
 #undef FIFTYONE_DEGREES_CONFIG_USE_TEMP_FILE
 #define FIFTYONE_DEGREES_CONFIG_USE_TEMP_FILE \
@@ -924,6 +929,34 @@ static StatusCode readHeaderFromFile(
 	return SUCCESS;
 }
 
+static StatusCode createProfilesFromFile(
+	DataSetIpi* dataSet,
+	FILE* file,
+	const fiftyoneDegreesCollectionConfig* config) {
+	const uint32_t profileCount = dataSet->header.profiles.count;
+	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+	// The profiles collection stores offsets in the unit declared by the
+	// header. No other collection uses shifted offsets.
+	dataSet->profiles = fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
+		file,
+		&dataSet->b.b.filePool,
+		config,
+		dataSet->header.profiles,
+		fiftyoneDegreesProfileReadFromFile,
+		getProfilesOffsetShift(dataSet));
+#else
+	dataSet->profiles = CollectionCreateFromFile(
+		file,
+		&dataSet->b.b.filePool,
+		config,
+		dataSet->header.profiles,
+		fiftyoneDegreesProfileReadFromFile);
+#endif
+	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
+	return dataSet->profiles == NULL ? INVALID_COLLECTION_CONFIG : SUCCESS;
+}
+
 static StatusCode readDataSetFromFile(
 	DataSetIpi* dataSet,
 	FILE* file,
@@ -959,25 +992,17 @@ static StatusCode readDataSetFromFile(
 	COLLECTION_CREATE_FILE(properties, CollectionReadFileFixed);
 	COLLECTION_CREATE_FILE(values, CollectionReadFileFixed);
 
-	const uint32_t profileCount = dataSet->header.profiles.count;
-	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
-#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
-	// The profiles collection stores offsets in the unit declared by the
-	// header. No other collection uses shifted offsets.
-	dataSet->profiles = fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
-		file,
-		&dataSet->b.b.filePool,
-		&dataSet->config.profiles,
-		dataSet->header.profiles,
-		fiftyoneDegreesProfileReadFromFile,
-		getProfilesOffsetShift(dataSet));
-	if (dataSet->profiles == NULL) {
-		return INVALID_COLLECTION_CONFIG;
+	// With the required components only setting the profiles and the graphs
+	// wait until the required properties are known. See loadRequiredComponents.
+	if (dataSet->config.requiredComponentsOnly == false) {
+		status = createProfilesFromFile(
+			dataSet,
+			file,
+			&dataSet->config.profiles);
+		if (status != SUCCESS) {
+			return status;
+		}
 	}
-#else
-	COLLECTION_CREATE_FILE(profiles, fiftyoneDegreesProfileReadFromFile);
-#endif
-	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
 
 	COLLECTION_CREATE_FILE(graphs, CollectionReadFileFixed);
 
@@ -985,14 +1010,16 @@ static StatusCode readDataSetFromFile(
 	COLLECTION_CREATE_FILE(propertyTypes, CollectionReadFileFixed);
 	COLLECTION_CREATE_FILE(profileOffsets, CollectionReadFileFixed);
 
-	dataSet->graphsArray = fiftyoneDegreesIpiGraphCreateFromFile(
-		dataSet->graphs,
-		file,
-		&dataSet->b.b.filePool,
-		// This is not the configuration for the collection of all graphs, but
-		// the configuration for each individual graph.
-		dataSet->config.graph,
-		exception);
+	if (dataSet->config.requiredComponentsOnly == false) {
+		dataSet->graphsArray = fiftyoneDegreesIpiGraphCreateFromFile(
+			dataSet->graphs,
+			file,
+			&dataSet->b.b.filePool,
+			// This is not the configuration for the collection of all graphs,
+			// but the configuration for each individual graph.
+			dataSet->config.graph,
+			exception);
+	}
 
 	initDataSetPost(dataSet, exception);
 
@@ -1074,6 +1101,325 @@ static StatusCode initWithFile(DataSetIpi* dataSet, Exception* exception) {
 	return status;
 }
 
+/**
+ * A range of the profiles collection held in memory. Offsets are in the units
+ * the collection stores them in. Used with the required components only
+ * setting.
+ */
+typedef struct required_profile_range_t {
+	uint32_t first; /* Offset of the first profile in the range */
+	uint32_t last; /* Offset of the last profile in the range */
+	uint32_t end; /* Offset after the last profile in the range */
+	byte* memory; /* The bytes of the range */
+} requiredProfileRange;
+
+/**
+ * State of a profiles collection that holds the profiles of the required
+ * components in memory and reads every other profile from the file. Lookups
+ * only reach the profiles in memory, so they neither read the file nor
+ * allocate. There is at most one range for each component, and a property's
+ * component index is a byte, which limits the ranges to 256.
+ */
+typedef struct required_profiles_t {
+	Collection* file; /* Reads the profiles that are not in memory */
+	byte offsetShift; /* Bits to shift an offset by to convert it to bytes */
+	uint32_t count; /* Number of ranges */
+	requiredProfileRange ranges[256]; /* The ranges */
+} requiredProfiles;
+
+static void* requiredProfilesGet(
+	const Collection* collection,
+	const CollectionKey* const key,
+	Item* item,
+	Exception* exception) {
+	const requiredProfiles* const state =
+		(const requiredProfiles*)collection->state;
+	const uint32_t offset = key->indexOrOffset.offset;
+	for (uint32_t i = 0; i < state->count; i++) {
+		const requiredProfileRange* const range = &state->ranges[i];
+		if (offset >= range->first && offset < range->end) {
+			item->data.ptr = range->memory +
+				((size_t)(offset - range->first) << state->offsetShift);
+			item->handle = NULL;
+			item->collection = collection;
+			return item->data.ptr;
+		}
+	}
+	void* const ptr = state->file->get(state->file, key, item, exception);
+	if (ptr != NULL) {
+		item->collection = collection;
+	}
+	return ptr;
+}
+
+static void requiredProfilesRelease(Item* item) {
+	if (item->handle != NULL) {
+		const requiredProfiles* const state =
+			(const requiredProfiles*)item->collection->state;
+		state->file->release(item);
+	}
+	else {
+		DataReset(&item->data);
+	}
+}
+
+static void requiredProfilesFree(Collection* collection) {
+	requiredProfiles* const state = (requiredProfiles*)collection->state;
+	for (uint32_t i = 0; i < state->count; i++) {
+		if (state->ranges[i].memory != NULL) {
+			Free(state->ranges[i].memory);
+		}
+	}
+	FIFTYONE_DEGREES_COLLECTION_FREE(state->file);
+	Free(state);
+	Free(collection);
+}
+
+static void requiredProfileRangeAdd(
+	requiredProfileRange* range,
+	const uint32_t offset) {
+	if (offset != NULL_PROFILE_OFFSET) {
+		if (offset < range->first) {
+			range->first = offset;
+		}
+		if (offset > range->last) {
+			range->last = offset;
+		}
+	}
+}
+
+/**
+ * Sets the first and last offsets of the range to those of the profiles the
+ * graphs of the component lead to, directly or through a profile group. The
+ * range is left with first higher than last if there are none.
+ */
+static void requiredProfileRangeSet(
+	const DataSetIpi* dataSet,
+	const byte componentId,
+	requiredProfileRange* range,
+	Exception* exception) {
+	static const CollectionKeyType groupKeyType = {
+		FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_OFFSET_PERCENTAGE,
+		sizeof(offsetPercentage),
+		NULL,
+	};
+	range->first = UINT32_MAX;
+	range->last = 0;
+	range->end = 0;
+	range->memory = NULL;
+	for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+		const fiftyoneDegreesIpiCgInfo* const info =
+			&dataSet->graphsArray->items[g].info;
+		if (info->componentId != componentId) {
+			continue;
+		}
+		for (uint32_t i = 0;
+			i < info->profileCount && EXCEPTION_OKAY;
+			i++) {
+			const int32_t offset = CollectionGetInteger32(
+				dataSet->profileOffsets,
+				info->firstProfileIndex + i,
+				exception);
+			if (EXCEPTION_OKAY) {
+				requiredProfileRangeAdd(range, (uint32_t)offset);
+			}
+		}
+		for (uint32_t i = 0;
+			i < info->profileGroupCount && EXCEPTION_OKAY;
+			i++) {
+			Item item;
+			DataReset(&item.data);
+			const CollectionKey key = {
+				info->firstProfileGroupIndex + i,
+				&groupKeyType,
+			};
+			const offsetPercentage* const entry =
+				(const offsetPercentage*)dataSet->profileGroups->get(
+					dataSet->profileGroups,
+					&key,
+					&item,
+					exception);
+			if (entry != NULL && EXCEPTION_OKAY) {
+				requiredProfileRangeAdd(range, entry->offset);
+				COLLECTION_RELEASE(dataSet->profileGroups, &item);
+			}
+		}
+	}
+}
+
+/**
+ * Sets the end of the range from the size of its last profile, rounded up to
+ * the unit the collection's offsets are in.
+ */
+static StatusCode requiredProfileRangeSetEnd(
+	const requiredProfiles* state,
+	requiredProfileRange* range,
+	Exception* exception) {
+	Item item;
+	DataReset(&item.data);
+	const CollectionKey key = { range->last, CollectionKeyType_Profile };
+	const Profile* const profile = (const Profile*)state->file->get(
+		state->file,
+		&key,
+		&item,
+		exception);
+	if (profile == NULL || EXCEPTION_FAILED) {
+		return COLLECTION_FAILURE;
+	}
+	const uint64_t bytes =
+		sizeof(Profile) + (uint64_t)profile->valueCount * sizeof(uint32_t);
+	const uint64_t unit = (uint64_t)1 << state->offsetShift;
+	const uint64_t units = (bytes + unit - 1) >> state->offsetShift;
+	COLLECTION_RELEASE(state->file, &item);
+	if (units > (uint64_t)state->file->size - range->last) {
+		return CORRUPT_DATA;
+	}
+	range->end = range->last + (uint32_t)units;
+	return SUCCESS;
+}
+
+/**
+ * Replaces the profiles collection, which reads every profile from the file,
+ * with one that holds the profiles of the required components in memory.
+ * Anything allocated is freed with the data set if this fails.
+ */
+static StatusCode requiredProfilesInit(
+	DataSetIpi* dataSet,
+	FILE* file,
+	Exception* exception) {
+	requiredProfiles* const state =
+		(requiredProfiles*)Malloc(sizeof(requiredProfiles));
+	if (state == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	Collection* const collection = (Collection*)Malloc(sizeof(Collection));
+	if (collection == NULL) {
+		Free(state);
+		return INSUFFICIENT_MEMORY;
+	}
+	state->file = dataSet->profiles;
+	state->count = 0;
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+	state->offsetShift = getProfilesOffsetShift(dataSet);
+#else
+	state->offsetShift = 0;
+#endif
+	*collection = *dataSet->profiles;
+	collection->state = state;
+	collection->get = requiredProfilesGet;
+	collection->release = requiredProfilesRelease;
+	collection->freeCollection = requiredProfilesFree;
+	collection->typeName = "CollectionRequiredProfiles";
+	dataSet->profiles = collection;
+
+	for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
+		const Component* const component = COMPONENT(dataSet, c);
+		if (component == NULL || !dataSet->componentsAvailable[c]) {
+			continue;
+		}
+		requiredProfileRange* const range = &state->ranges[state->count];
+		requiredProfileRangeSet(
+			dataSet,
+			component->componentId,
+			range,
+			exception);
+		if (EXCEPTION_FAILED) {
+			return COLLECTION_FAILURE;
+		}
+		if (range->first <= range->last) {
+			const StatusCode status = requiredProfileRangeSetEnd(
+				state,
+				range,
+				exception);
+			if (status != SUCCESS) {
+				return status;
+			}
+			state->count++;
+		}
+	}
+
+	for (uint32_t i = 0; i < state->count; i++) {
+		requiredProfileRange* const range = &state->ranges[i];
+		const uint64_t start = (uint64_t)range->first << state->offsetShift;
+		const size_t length = (size_t)(
+			(uint64_t)(range->end - range->first) << state->offsetShift);
+		range->memory = (byte*)Malloc(length);
+		if (range->memory == NULL) {
+			return INSUFFICIENT_MEMORY;
+		}
+		if (FileSeek(
+			file,
+			(FileOffset)(dataSet->header.profiles.startPosition + start),
+			SEEK_SET) != 0) {
+			return COLLECTION_FILE_SEEK_FAIL;
+		}
+		if (fread(range->memory, 1, length, file) != length) {
+			return COLLECTION_FILE_READ_FAIL;
+		}
+	}
+	return SUCCESS;
+}
+
+/**
+ * Creates the graphs and the profiles once the required properties are known.
+ * The graph and profiles settings apply to the components with a required
+ * property, and everything else is left to be read from the file. With every
+ * component required the settings apply to everything, as they do without the
+ * required components only setting.
+ */
+static StatusCode loadRequiredComponents(
+	DataSetIpi* dataSet,
+	Exception* exception) {
+	static const fiftyoneDegreesCollectionConfig readFromFile = { false, 0, 0 };
+	bool requiredIds[256];
+	bool allRequired = true;
+	FILE* file;
+
+	memset(requiredIds, 0, sizeof(requiredIds));
+	for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
+		const Component* const component = COMPONENT(dataSet, c);
+		if (component != NULL && dataSet->componentsAvailable[c]) {
+			requiredIds[component->componentId] = true;
+		}
+		else {
+			allRequired = false;
+		}
+	}
+
+	StatusCode status = FileOpen(dataSet->b.b.fileName, &file);
+	if (status != SUCCESS) {
+		return status;
+	}
+	dataSet->graphsArray = fiftyoneDegreesIpiGraphCreateFromFileForComponents(
+		dataSet->graphs,
+		file,
+		&dataSet->b.b.filePool,
+		dataSet->config.graph,
+		allRequired ? NULL : requiredIds,
+		exception);
+	if (dataSet->graphsArray == NULL) {
+		if (EXCEPTION_OKAY) {
+			status = CORRUPT_DATA;
+		}
+	}
+	else if (EXCEPTION_OKAY) {
+		if (allRequired || dataSet->config.profiles.loaded == false) {
+			status = createProfilesFromFile(
+				dataSet,
+				file,
+				&dataSet->config.profiles);
+		}
+		else {
+			status = createProfilesFromFile(dataSet, file, &readFromFile);
+			if (status == SUCCESS) {
+				status = requiredProfilesInit(dataSet, file, exception);
+			}
+		}
+	}
+	fclose(file);
+	return status;
+}
+
 #endif
 
 static StatusCode initDataSetFromFile(
@@ -1142,6 +1488,19 @@ static StatusCode initDataSetFromFile(
 		}
 		return status;
 	}
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+	if (config->requiredComponentsOnly == true &&
+		config->b.allInMemory == false) {
+		status = loadRequiredComponents(dataSet, exception);
+		if (status != SUCCESS || EXCEPTION_FAILED) {
+			if (config->b.useTempFile == true) {
+				FileDelete(dataSet->b.b.fileName);
+			}
+			return status;
+		}
+	}
+#endif
 
 	// Check there are properties available for retrieval.
 	if (dataSet->b.b.available->count == 0) {

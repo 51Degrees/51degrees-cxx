@@ -60,6 +60,10 @@ typedef struct file_collection_t {
 	FILE* file;
 	fiftyoneDegreesFilePool* reader;
 	const fiftyoneDegreesCollectionConfig config;
+	const bool* requiredComponentIds; // Graphs flagged here use the config and
+									  // the rest read from the file. NULL for
+									  // every graph to use the config.
+	byte componentId; // The component of the graph being created
 } FileCollection;
 
 // Function used to create the collection for each of the graphs.
@@ -1128,6 +1132,9 @@ static Collection* ipiGraphCreateFromFile(
 	CollectionHeader header,
 	void* state) {
 	FileCollection * const s = (FileCollection*)state;
+	static const fiftyoneDegreesCollectionConfig readFromFile = { false, 0, 0 };
+	const bool useConfig = s->requiredComponentIds == NULL ||
+		s->requiredComponentIds[s->componentId];
 
 	const FileOffset current = FileTell(s->file);
 	if (current < 0) {
@@ -1143,7 +1150,7 @@ static Collection* ipiGraphCreateFromFile(
 	Collection* collection = CollectionCreateFromFile(
 		s->file,
 		s->reader,
-		&s->config,
+		useConfig ? &s->config : &readFromFile,
 		header,
 		CollectionReadFileFixed);
 	if (shouldRestore) {
@@ -1181,10 +1188,13 @@ static const CollectionKeyType CollectionKeyType_GraphInfo = {
 	NULL,
 };
 
+// componentId, when not NULL, is set to the component of each graph before the
+// collections of that graph are created.
 static IpiCgArray* ipiGraphCreate(
 	Collection* collection,
 	collectionCreate collectionCreate,
 	void* state,
+	byte* componentId,
 	Exception* exception) {
 	IpiCgArray* graphs;
 
@@ -1199,6 +1209,8 @@ static IpiCgArray* ipiGraphCreate(
 	for (uint32_t i = 0; i < count; i++) {
 		graphs->items[i].nodes = NULL;
 		graphs->items[i].spans = NULL;
+		graphs->items[i].spanBytes = NULL;
+		graphs->items[i].clusters = NULL;
 
 		Item itemInfo;
 		DataReset(&itemInfo.data);
@@ -1220,6 +1232,9 @@ static IpiCgArray* ipiGraphCreate(
 		graphs->items[i].info = *info;
 		COLLECTION_RELEASE(collection, &itemInfo);
 		graphs->count++;
+		if (componentId != NULL) {
+			*componentId = graphs->items[i].info.componentId;
+		}
 
 		// Create the collection for the node values. Must overwrite the count
 		// to zero as it is consumed as a variable width collection.
@@ -1303,6 +1318,7 @@ fiftyoneDegreesIpiCgArray* fiftyoneDegreesIpiGraphCreateFromMemory(
 		collection,
 		ipiGraphCreateFromMemory,
 		(void*)reader,
+		NULL,
 		exception);
 }
 
@@ -1312,15 +1328,34 @@ fiftyoneDegreesIpiCgArray* fiftyoneDegreesIpiGraphCreateFromFile(
 	fiftyoneDegreesFilePool* reader,
 	const fiftyoneDegreesCollectionConfig config,
 	fiftyoneDegreesException* exception) {
+	return fiftyoneDegreesIpiGraphCreateFromFileForComponents(
+		collection,
+		file,
+		reader,
+		config,
+		NULL,
+		exception);
+}
+
+fiftyoneDegreesIpiCgArray* fiftyoneDegreesIpiGraphCreateFromFileForComponents(
+	fiftyoneDegreesCollection* collection,
+	FILE* file,
+	fiftyoneDegreesFilePool* reader,
+	const fiftyoneDegreesCollectionConfig config,
+	const bool* requiredComponentIds,
+	fiftyoneDegreesException* exception) {
 	FileCollection state = {
 		file,
 		reader,
-		config
+		config,
+		requiredComponentIds,
+		0
 	};
 	return ipiGraphCreate(
 		collection,
 		ipiGraphCreateFromFile,
 		(void*)&state,
+		&state.componentId,
 		exception);
 }
 

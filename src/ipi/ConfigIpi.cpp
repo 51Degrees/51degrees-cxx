@@ -41,9 +41,11 @@ ConfigIpi::ConfigIpi(fiftyoneDegreesConfigIpi *config) :
 void ConfigIpi::setPerformanceFromExistingConfig(
 	const fiftyoneDegreesConfigIpi &existing) {
 	const fiftyoneDegreesConfigBase b = config.b;
+	const bool requiredComponentsOnly = config.requiredComponentsOnly;
 	config = existing;
 	config.b = b;
 	config.b.allInMemory = existing.b.allInMemory;
+	config.requiredComponentsOnly = requiredComponentsOnly;
 }
 
 void ConfigIpi::setHighPerformance() {
@@ -64,6 +66,14 @@ void ConfigIpi::setLowMemory() {
 
 void ConfigIpi::setMaxPerformance() {
 	setPerformanceFromExistingConfig(fiftyoneDegreesIpiInMemoryConfig);
+}
+
+void ConfigIpi::setRequiredComponentsOnly(bool requiredComponentsOnly) {
+	config.requiredComponentsOnly = requiredComponentsOnly;
+}
+
+bool ConfigIpi::getRequiredComponentsOnly() const {
+	return config.requiredComponentsOnly;
 }
 
 const CollectionConfig & ConfigIpi::getStrings() const {
