@@ -1298,7 +1298,7 @@ TEST_F(HashDeviceIdPropertyTests, UnknownPropertyStillFails) {
 /*
  * A reload takes the required property names from the available properties of
  * the data set being replaced, which never include DeviceId, so the device id
- * survives through the config the reload passes on.
+ * survives through the mark on that list, which the new list keeps.
  */
 TEST_F(HashDeviceIdPropertyTests, DeviceIdSurvivesReload) {
 	EXCEPTION_CREATE;
@@ -1331,6 +1331,23 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdSurvivesReloadFromMemory) {
 		"The device id should be unchanged by a reload.\n";
 	ResourceManagerFree(&deviceIdManager);
 	Free(reader.startByte);
+}
+
+TEST_F(HashDeviceIdPropertyTests, DeviceIdWithStoredPropertySurvivesReload) {
+	EXCEPTION_CREATE;
+	ResourceManager deviceIdManager;
+	PropertiesRequired required = PropertiesDefault;
+	required.string = "DeviceId,IsMobile";
+	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
+	ASSERT_EQ(SUCCESS, HashReloadManagerFromFile(
+		&deviceIdManager, dataFilePath.c_str(), exception));
+	EXCEPTION_THROW;
+	EXPECT_EQ(unrestrictedDeviceId(),
+		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent));
+	DataSetHash *dataSet = (DataSetHash*)DataSetGet(&deviceIdManager);
+	EXPECT_EQ(1u, dataSet->b.b.available->count);
+	DataSetHashRelease(dataSet);
+	ResourceManagerFree(&deviceIdManager);
 }
 
 /*
@@ -1393,10 +1410,10 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdResolvesEveryComponentProfile) {
 }
 
 /*
- * Naming DeviceId is recorded on the data set's own copy of the config, so a
- * config the caller reuses must behave as if it had never been used.
+ * Naming DeviceId marks that data set's own list of available properties, so
+ * another data set made with the same config must not be affected.
  */
-TEST_F(HashDeviceIdPropertyTests, ConfigReusedForAnotherDataSet) {
+TEST_F(HashDeviceIdPropertyTests, NotCarriedToAnotherDataSet) {
 	EXCEPTION_CREATE;
 	ConfigHash config = HashDefaultConfig;
 	PropertiesRequired required = PropertiesDefault;
@@ -1406,8 +1423,6 @@ TEST_F(HashDeviceIdPropertyTests, ConfigReusedForAnotherDataSet) {
 	ASSERT_EQ(SUCCESS, HashInitManagerFromFile(
 		&deviceIdManager, &config, &required, dataFilePath.c_str(), exception));
 	EXCEPTION_THROW;
-	EXPECT_FALSE(config.b.deviceIdRequired) <<
-		"The caller's config should be left as it was.\n";
 
 	ResourceManager storedManager;
 	required.string = "IsMobile";

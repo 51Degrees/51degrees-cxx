@@ -24,7 +24,7 @@
 #include "fiftyone.h"
 
 /* Array of valid property name separators */
-static char separators[] = { '|', ',', ' ', '\0' };
+static char separators[] = FIFTYONE_DEGREES_PROPERTIES_SEPARATORS;
 
 PropertiesRequired PropertiesDefault = {
 	NULL, // No array of properties
@@ -66,6 +66,7 @@ static PropertiesAvailable* initRequiredPropertiesMemory(uint32_t count) {
 	if (available != NULL) {
 		available->count = 0;
 		available->capacity = count;
+		available->allComponentsRequired = false;
 		available->items = (PropertyAvailable*)(available + 1);
 		for (i = 0; i < available->capacity; i++) {
 			// Initialize the evidence properties to prevent them from being
@@ -244,35 +245,6 @@ static uint32_t countPropertiesFromExisting(
 	return counter.count;
 }
 
-bool fiftyoneDegreesPropertiesRequiredContains(
-	PropertiesRequired *properties,
-	const char *propertyName) {
-	const char *name;
-	size_t length;
-	int i;
-	if (properties == NULL || properties->existing != NULL) {
-		return false;
-	}
-	if (properties->array != NULL && properties->count > 0) {
-		for (i = 0; i < properties->count; i++) {
-			if (_stricmp(properties->array[i], propertyName) == 0) {
-				return true;
-			}
-		}
-		return false;
-	}
-	name = properties->string;
-	while (name != NULL && *name != '\0') {
-		length = strcspn(name, separators);
-		if (length == strlen(propertyName) &&
-			_strnicmp(name, propertyName, length) == 0) {
-			return true;
-		}
-		name += length + strspn(name + length, separators);
-	}
-	return false;
-}
-
 static PropertiesAvailable* initRequiredPropertiesFromString(
 	propertiesSource *source,
 	const char* properties) {
@@ -295,6 +267,7 @@ static PropertiesAvailable* initSpecificPropertiesFromExisting(
 	uint32_t count = countPropertiesFromExisting(source, properties);
 	PropertiesAvailable *available = initRequiredPropertiesMemory(count);
 	if (available != NULL) {
+		available->allComponentsRequired = properties->allComponentsRequired;
 		iteratePropertiesFromExisting(
 			source,
 			available,

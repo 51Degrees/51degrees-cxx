@@ -1308,7 +1308,7 @@ static StatusCode initComponentsAvailable(
 
 	// The device id is composed from the profile of every component, so all of
 	// them must be resolved even where they have no available property.
-	if (dataSet->config.b.deviceIdRequired) {
+	if (dataSet->b.b.available->allComponentsRequired) {
 		for (i = 0; i < dataSet->componentsList.count; i++) {
 			dataSet->componentsAvailable[i] = true;
 		}
@@ -1518,17 +1518,6 @@ static StatusCode initPropertiesAndHeaders(
 	stateWithException state;
 	state.state = (void*)dataSet;
 	state.exception = exception;
-
-	// The device id is not a stored property, so it never reaches the
-	// available properties a reload rebuilds its required properties from.
-	// Recording it on the data set's own copy of the config leaves the
-	// caller's config alone, and a reload passes this copy on.
-	if (PropertiesRequiredContains(
-		properties,
-		FIFTYONE_DEGREES_DEVICE_ID_PROPERTY_NAME)) {
-		((ConfigHash*)&dataSet->config)->b.deviceIdRequired = true;
-	}
-
 	StatusCode status = DataSetDeviceDetectionInitPropertiesAndHeaders(
 		&dataSet->b,
 		properties,
