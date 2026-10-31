@@ -740,7 +740,11 @@ static StatusCode checkVersion(DataSetIpi* dataSet) {
 	}
 #ifndef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
 	// Converting shifted offsets to byte positions requires the 64 bit
-	// arithmetic of large data file support.
+	// arithmetic of large data file support. A shift of zero passing this
+	// check does not mean the file loads, because without that support the
+	// collection positions in the header are read as 4 bytes where every IP
+	// Intelligence data file has 8. The builds in this repository always
+	// define it for IP Intelligence.
 	if (dataSet->header.profilesOffsetShift != 0) {
 		return INCORRECT_VERSION;
 	}
