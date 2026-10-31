@@ -17,6 +17,7 @@ $ProductPaths = @{
 $SolutionDirs = @{
     common = 'VisualStudio/Common'
     dd = 'VisualStudio/DeviceDetection'
+    ipi = 'VisualStudio/IpIntelligence'
 }
 
 # Returns the products the changed paths affect.

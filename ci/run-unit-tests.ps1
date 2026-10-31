@@ -36,6 +36,14 @@ if ($BuildMethod -eq "msbuild") {
 
     foreach ($product in $Products) {
         if (!$SolutionDirs.ContainsKey($product)) { continue }
+        # The IP Intelligence solution is built but not tested. Its googletest
+        # package has no GTEST_SKIP, and the stand-in in its test project does
+        # not stop a test skipped in SetUp, so the temp file tests crash when
+        # CI is true. The cmake entries run these tests.
+        if ($product -eq 'ipi') {
+            Write-Output "Not running the tests of the Visual Studio '$product' build"
+            continue
+        }
         $run = {
             param($suffix)
             ./cxx/run-unit-tests.ps1 -RepoName $RepoName -ProjectDir $SolutionDirs[$product] `
