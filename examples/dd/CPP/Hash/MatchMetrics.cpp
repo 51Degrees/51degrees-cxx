@@ -236,10 +236,16 @@ extern "C" void fiftyoneDegreesExampleCPPMatchMetricsRun(ExampleParameters *para
 	fiftyoneDegreesConfigHash configHash = fiftyoneDegreesHashDefaultConfig;
 	DeviceDetection::Hash::ConfigHash* cppConfig = new DeviceDetection::Hash::ConfigHash(&configHash);
 
-	MatchMetrics *matchMetrics = new MatchMetrics(
-		params->dataFilePath, cppConfig);
-	matchMetrics->run();
-	delete matchMetrics;
+	try {
+		MatchMetrics *matchMetrics = new MatchMetrics(
+			params->dataFilePath, cppConfig);
+		matchMetrics->run();
+		delete matchMetrics;
+	}
+	catch (const StatusCodeException &e) {
+		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);
+		exit(1);
+	}
 }
 
 #ifndef TEST

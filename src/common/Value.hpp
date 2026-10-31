@@ -23,12 +23,14 @@
 #ifndef FIFTYONE_DEGREES_VALUE_HPP
 #define FIFTYONE_DEGREES_VALUE_HPP
 
+#include <utility>
 #include "Exceptions.hpp"
 #include "results.h"
 
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Encapsulates a value returned an instance of ResultsBase for a
 		 * specified property. An instance contains either the value, or the
@@ -157,7 +159,7 @@ namespace FiftyoneDegrees {
 			 * @param targetValue the value to set
 			 */
 			void setValue(T targetValue) {
-				this->value = targetValue;
+				this->value = std::move(targetValue);
 				hasValueInternal = true;
 			}
 
@@ -204,6 +206,7 @@ namespace FiftyoneDegrees {
 			fiftyoneDegreesResultsNoValueReason noValueReason =
 				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

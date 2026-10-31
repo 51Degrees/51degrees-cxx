@@ -20,11 +20,8 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-#define __STDC_FORMAT_MACROS
-
 #include "stringBuilder.h"
 #include "fiftyone.h"
-#include <inttypes.h>
 
 /**
  * Add IPv4 address (raw bytes) to string builder (as text)
@@ -124,15 +121,23 @@ fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddChar(
 fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddInteger(
 	fiftyoneDegreesStringBuilder* builder,
 	int64_t const value) {
-    // 64-bit INT_MIN is  -9,223,372,036,854,775,807 => 21 characters
-	char temp[22];
-	if (snprintf(temp, sizeof(temp), "%" PRId64, value) > 0) {
-		StringBuilderAddChars(
-			builder,
-			temp,
-			strlen(temp));
+	// 64-bit INT_MIN is -9,223,372,036,854,775,808 => 20 characters, written
+	// from the end. Written by hand as this is called for every coordinate of
+	// a geometry. The magnitude is unsigned so that INT_MIN can be negated.
+	char temp[20];
+	char *first = temp + sizeof(temp);
+	uint64_t magnitude = value < 0 ? 0 - (uint64_t)value : (uint64_t)value;
+	do {
+		*--first = (char)('0' + magnitude % 10);
+		magnitude /= 10;
+	} while (magnitude != 0);
+	if (value < 0) {
+		*--first = '-';
 	}
-	return builder;
+	return StringBuilderAddChars(
+		builder,
+		first,
+		(size_t)(temp + sizeof(temp) - first));
 }
 
 StringBuilder* fiftyoneDegreesStringBuilderAddDouble(

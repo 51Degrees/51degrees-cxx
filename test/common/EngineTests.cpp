@@ -144,6 +144,68 @@ bool EngineTests::mustHaveValue(string *name) {
 	return (isMandatory || hasDefault) && (isJavaScript == false);
 }
 
+/**
+ * True if the text is an optional minus sign and then only digits, short
+ * enough to be sure an int can hold it.
+ */
+static bool isSmallWholeNumber(const string &text) {
+	size_t start = !text.empty() && text[0] == '-' ? 1 : 0;
+	if (text.size() == start || text.size() - start > 9) {
+		return false;
+	}
+	for (size_t i = start; i < text.size(); i++) {
+		if (text[i] < '0' || text[i] > '9') {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Checks the strict accessors for a property with one value, whose text comes
+ * from the string accessor. They answer only when the text is of the type, and
+ * the accessors they stand beside still answer for all text.
+ */
+static void validateStrictOneValue(ResultsBase *results, int index) {
+	const string name = results->getPropertyName(index);
+	const string text = *results->getValueAsString(index);
+
+	Value<bool> strictBool = results->getValueAsStrictBool(index);
+	if (text == "True" || text == "False") {
+		ASSERT_TRUE(strictBool.hasValue()) << name << " text " << text;
+		EXPECT_EQ(text == "True", *strictBool) << name << " text " << text;
+	}
+	else {
+		EXPECT_FALSE(strictBool.hasValue()) << name << " text " << text;
+		EXPECT_NE(nullptr, strictBool.getNoValueMessage()) << name;
+	}
+	EXPECT_TRUE(results->getValueAsBool(index).hasValue()) << name;
+
+	Value<int> strictInteger = results->getValueAsStrictInteger(index);
+	if (isSmallWholeNumber(text)) {
+		ASSERT_TRUE(strictInteger.hasValue()) << name << " text " << text;
+		EXPECT_EQ(atoi(text.c_str()), *strictInteger) << name << " text " << text;
+	}
+	else if (text == "True" || text == "False" || text == "Unknown" ||
+		text == "N/A" || text.empty()) {
+		EXPECT_FALSE(strictInteger.hasValue()) << name << " text " << text;
+		EXPECT_NE(nullptr, strictInteger.getNoValueMessage()) << name;
+	}
+	EXPECT_TRUE(results->getValueAsInteger(index).hasValue()) << name;
+
+	Value<double> strictDouble = results->getValueAsStrictDouble(index);
+	if (isSmallWholeNumber(text)) {
+		ASSERT_TRUE(strictDouble.hasValue()) << name << " text " << text;
+		EXPECT_EQ(strtod(text.c_str(), nullptr), *strictDouble) << name;
+	}
+	else if (text == "True" || text == "False" || text == "Unknown" ||
+		text == "N/A" || text.empty()) {
+		EXPECT_FALSE(strictDouble.hasValue()) << name << " text " << text;
+		EXPECT_NE(nullptr, strictDouble.getNoValueMessage()) << name;
+	}
+	EXPECT_TRUE(results->getValueAsDouble(index).hasValue()) << name;
+}
+
 void EngineTests::validateName(ResultsBase *results, string *name) {
 	if (isNameAvailable(results, name) == false) {
 
@@ -223,6 +285,7 @@ void EngineTests::validateIndex(ResultsBase *results, int index) {
 			EXPECT_NO_THROW(*results->getValueAsDouble(index)) << "Double value "
 				"for property '" << results->getPropertyName(index) << "' at "
 				"index '" << index << "' can't throw exception";;
+			validateStrictOneValue(results, index);
 		}
 		else if ((*values).size() > 1) {
 			EXPECT_NO_THROW(*results->getValueAsString(index)) << "String value "
@@ -231,6 +294,9 @@ void EngineTests::validateIndex(ResultsBase *results, int index) {
 			EXPECT_THROW(*results->getValueAsBool(index), TooManyValuesException);
 			EXPECT_THROW(*results->getValueAsInteger(index), TooManyValuesException);
 			EXPECT_THROW(*results->getValueAsDouble(index), TooManyValuesException);
+			EXPECT_THROW(*results->getValueAsStrictBool(index), TooManyValuesException);
+			EXPECT_THROW(*results->getValueAsStrictInteger(index), TooManyValuesException);
+			EXPECT_THROW(*results->getValueAsStrictDouble(index), TooManyValuesException);
 		}
 	}
 }

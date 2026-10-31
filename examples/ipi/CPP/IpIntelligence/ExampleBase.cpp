@@ -61,7 +61,7 @@ ExampleBase::~ExampleBase() = default;
 void ExampleBase::reportStatus(fiftyoneDegreesStatusCode status,
                                const char *fileName) {
 	const char *message = fiftyoneDegreesStatusGetMessage(status, fileName);
-	cout << message;
+	cout << message << "\n";
 	fiftyoneDegreesFree((void *)message);
 }
 

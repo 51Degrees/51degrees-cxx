@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (argc > 2) {
-		strcpy(dataFilePath, argv[2]);
+		strcpy(ipAddressFilePath, argv[2]);
 	}
 	else {
 		status = fiftyoneDegreesFileGetPath(
@@ -236,11 +236,17 @@ int main(int argc, char* argv[]) {
 #endif
 	auto const config = std::make_shared<ConfigIpi>();
 	config->setConcurrency(THREAD_COUNT);
-	auto const reloadFromFile = std::make_unique<ReloadFromFile>(
-		dataFilePath,
-		ipAddressFilePath,
-		config);
-	reloadFromFile->run();
+	try {
+		auto const reloadFromFile = std::make_unique<ReloadFromFile>(
+			dataFilePath,
+			ipAddressFilePath,
+			config);
+		reloadFromFile->run();
+	}
+	catch (const StatusCodeException &e) {
+		ExampleBase::reportStatus(e.getCode(), dataFilePath);
+		return 1;
+	}
 
 #ifdef _DEBUG
 #ifdef _MSC_VER

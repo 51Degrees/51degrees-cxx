@@ -40,6 +40,22 @@ project(51Degrees VERSION 4.0.1 LANGUAGES CXX C)
 option(FIFTYONE_BUILD_DEVICE_DETECTION "Build Device Detection" ON)
 option(FIFTYONE_BUILD_IP_INTELLIGENCE "Build IP Intelligence" ON)
 
+# Gives IP Intelligence's copy of common its own linked names, which one program
+# linking both products needs. A project that includes this file keeps the
+# original names unless it turns this on, so language wrappers don't change.
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_LIST_DIR)
+	set(FIFTYONE_IPI_SYMBOLS_DEFAULT ON)
+else()
+	set(FIFTYONE_IPI_SYMBOLS_DEFAULT OFF)
+endif()
+option(FIFTYONE_IPI_SYMBOLS
+	"Give IP Intelligence's copy of common its own linked names"
+	${FIFTYONE_IPI_SYMBOLS_DEFAULT})
+# The same for the common C++ classes. Off by default because the wrappers SWIG
+# generates have not been checked with the changed linked names.
+option(FIFTYONE_CXX_BOTH_PRODUCTS
+	"Give IP Intelligence's copy of the common C++ classes its own linked names" OFF)
+
 if (MSVC)
 	# Check minimum required versions for MSVC
 	if (CMAKE_VS_PLATFORM_TOOLSET MATCHES "v([0-9]+)")
@@ -167,6 +183,7 @@ endif()
 if (FIFTYONE_BUILD_DEVICE_DETECTION)
 	include(${CMAKE_CURRENT_LIST_DIR}/src/dd/CMakeLists.txt NO_POLICY_SCOPE)
 	include(${CMAKE_CURRENT_LIST_DIR}/examples/dd/CMakeLists.txt NO_POLICY_SCOPE)
+	include(${CMAKE_CURRENT_LIST_DIR}/tools/dd/js-snippet-export/CMakeLists.txt NO_POLICY_SCOPE)
 	if (BUILD_TESTING)
 		include(${CMAKE_CURRENT_LIST_DIR}/test/dd/CMakeLists.txt NO_POLICY_SCOPE)
 	endif()
@@ -178,4 +195,9 @@ if (FIFTYONE_BUILD_IP_INTELLIGENCE)
 	if (BUILD_TESTING)
 		include(${CMAKE_CURRENT_LIST_DIR}/test/ipi/CMakeLists.txt NO_POLICY_SCOPE)
 	endif()
+endif()
+
+if (BUILD_TESTING AND FIFTYONE_BUILD_DEVICE_DETECTION AND
+	FIFTYONE_BUILD_IP_INTELLIGENCE AND FIFTYONE_IPI_SYMBOLS)
+	include(${CMAKE_CURRENT_LIST_DIR}/test/both/CMakeLists.txt NO_POLICY_SCOPE)
 endif()

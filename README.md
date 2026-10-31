@@ -22,6 +22,7 @@ these sources.
 | `test/common`, `test/dd`, `test/ipi` | Unit, integration and performance tests |
 | `examples/dd`, `examples/ipi` | C and C++ examples |
 | `docs/dd`, `docs/ipi` | Doxygen configuration for the reference documentation |
+| `tools/dd` | Command line tools, such as `js-snippet-export`, which exports the JavaScript snippets in a data file |
 | `VisualStudio` | Visual Studio solutions for each product |
 | `device-detection-data`, `ip-intelligence-data` | Data file submodules, used by the tests and examples |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
@@ -91,6 +92,12 @@ The compile options of the common library, `MemoryOnly`, `NoThreading` and
 always builds its own copy of common with large data file support and the
 reduced file layout, so its libraries link `fiftyone-common-c-ipi` and
 `fiftyone-common-cxx-ipi`.
+
+When this repository is the top level build, that copy also has its own linked
+C names, so one C program can link both products, and
+[`test/both`](test/both) is the smallest example. A project that includes this
+CMake file keeps the original names unless it sets
+`-DFIFTYONE_IPI_SYMBOLS=ON`.
 
 Another CMake project can build these libraries as part of its own build by
 including this repository's `CMakeLists.txt`, with the options above set

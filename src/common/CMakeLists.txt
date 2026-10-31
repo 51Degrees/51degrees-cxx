@@ -4,7 +4,9 @@
 # IP Intelligence data files can exceed 4 GB and hold a reduced profile
 # record, so its copy is built with 64 bit file offsets and the reduced
 # layout. The switches change structure sizes, so the two copies cannot be
-# shared and each product links its own.
+# shared and each product links its own. FIFTYONE_DEGREES_IPI_SYMBOLS gives the
+# IP Intelligence copy its own linked names (see ipiSymbols.h), so one program
+# can link both.
 
 FILE(GLOB COMC_SRC ${CMAKE_CURRENT_LIST_DIR}/*.c)
 FILE(GLOB COMC_H ${CMAKE_CURRENT_LIST_DIR}/*.h)
@@ -54,8 +56,16 @@ endif()
 fiftyone_add_common("" ${FIFTYONE_COMMON_DEFINITIONS})
 
 if (FIFTYONE_BUILD_IP_INTELLIGENCE OR FIFTYONE_COMMON_CXX_BUILD_TESTING_IPI)
-	fiftyone_add_common(-ipi
+	set(FIFTYONE_COMMON_IPI_DEFINITIONS
 		FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
 		_FILE_OFFSET_BITS=64
 		FIFTYONE_DEGREES_REDUCED_FILE)
+	if (FIFTYONE_IPI_SYMBOLS)
+		list(APPEND FIFTYONE_COMMON_IPI_DEFINITIONS FIFTYONE_DEGREES_IPI_SYMBOLS)
+		if (FIFTYONE_CXX_BOTH_PRODUCTS)
+			list(APPEND FIFTYONE_COMMON_IPI_DEFINITIONS
+				FIFTYONE_DEGREES_IPI_CXX_SYMBOLS)
+		endif()
+	endif()
+	fiftyone_add_common(-ipi ${FIFTYONE_COMMON_IPI_DEFINITIONS})
 endif()

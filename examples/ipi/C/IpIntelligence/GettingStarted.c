@@ -153,6 +153,9 @@ static const char* dataDir = "ip-intelligence-data";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
+
 static char valueBuffer[4096] = "";
 
 static const char* getPropertyValueAsString(
@@ -289,14 +292,15 @@ void fiftyoneDegreesIpiGettingStarted(
 		&properties,
 		dataFilePath,
 		exception);
-	EXCEPTION_THROW;
 	if (status != SUCCESS) {
 		reportStatus(status, dataFilePath);
+		exitCode = 1;
 #ifndef TEST
 		fgetc(stdin);
 #endif
 		return;
 	}
+	EXCEPTION_THROW;
 
 	// Create a results instance to store and process ip
 	ResultsIpi* results = ResultsIpiCreate(&manager);
@@ -393,7 +397,7 @@ int main(int argc, char* argv[]) {
 	// Wait for a character to be pressed.
 	fgetc(stdin);
 
-	return 0;
+	return exitCode;
 }
 
 #endif

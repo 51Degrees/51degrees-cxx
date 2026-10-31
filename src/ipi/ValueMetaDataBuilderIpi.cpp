@@ -98,8 +98,9 @@ ValueMetaData* ValueMetaDataBuilderIpi::build(
 	EXCEPTION_THROW;
 	if (property != nullptr) {
 		// Get URL only if not weighted (weighted values use urlOffsetOrWeight for weight)
+		// and if there is one, as offset 0 holds the first string in the file.
 		string url;
-		if (!ValueIsWeighted(value) && value->urlOffsetOrWeight >= 0) {
+		if (!ValueIsWeighted(value) && value->urlOffsetOrWeight > 0) {
 			url = getValue(
 				dataSet->strings,
 				value->urlOffsetOrWeight,

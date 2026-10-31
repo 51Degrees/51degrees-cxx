@@ -31,8 +31,12 @@
 
 #include "fiftyone.h"
 
-namespace FiftyoneDegrees::Common {
+// Bytes of text expected for each byte of a stored geometry. More than the
+// data needs, and a value which needs more only costs another conversion.
+static const size_t TEXT_PER_GEOMETRY_BYTE = 5;
 
+namespace FiftyoneDegrees::Common {
+FIFTYONE_DEGREES_COMMON_CXX_BEGIN
     void writeStoredBinaryValueToStringStream(
         const StoredBinaryValue * const binaryValue,
         const PropertyValueType valueType,
@@ -50,7 +54,20 @@ namespace FiftyoneDegrees::Common {
             return;
         }
 
-        {
+        // Finding out that a large geometry does not fit the buffer below
+        // costs a complete conversion, so go straight to one that should fit.
+        const size_t estimate =
+            (valueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB ||
+                valueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R)
+            ? (size_t)binaryValue->byteArrayValue.size * TEXT_PER_GEOMETRY_BYTE
+            : 0;
+        if (estimate >= REASONABLE_WKT_STRING_LENGTH) {
+            toWktResult = {
+                estimate,
+                true,
+            };
+        }
+        else {
             char buffer[REASONABLE_WKT_STRING_LENGTH];
             StringBuilder builder = { buffer, REASONABLE_WKT_STRING_LENGTH };
             StringBuilderInit(&builder);
@@ -71,7 +88,8 @@ namespace FiftyoneDegrees::Common {
                 return;
             }
         }
-        if (toWktResult.bufferTooSmall) {
+        // At most twice, as a buffer too small still counts the exact length.
+        for (int attempt = 0; attempt < 2 && toWktResult.bufferTooSmall; attempt++) {
             EXCEPTION_CLEAR;
             const size_t requiredSize = toWktResult.written + 1;
             const std::unique_ptr<char[]> buffer = std::make_unique<char[]>(requiredSize);
@@ -96,4 +114,5 @@ namespace FiftyoneDegrees::Common {
         }
         return;
     }
+FIFTYONE_DEGREES_COMMON_CXX_END
 }

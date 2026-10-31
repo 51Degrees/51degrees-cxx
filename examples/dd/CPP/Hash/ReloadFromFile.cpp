@@ -162,12 +162,18 @@ extern "C" void fiftyoneDegreesExampleCPPReloadFromFileRun(ExampleParameters *pa
 	fiftyoneDegreesConfigHash configHash = fiftyoneDegreesHashDefaultConfig;
 	DeviceDetection::Hash::ConfigHash* cppConfig = new DeviceDetection::Hash::ConfigHash(&configHash);
 	cppConfig->setConcurrency(THREAD_COUNT);
-	ReloadFromFile *reloadFromFile = new ReloadFromFile(
-		params->dataFilePath,
-		params->evidenceFilePath,
-		cppConfig);
-	reloadFromFile->run();
-	delete reloadFromFile;
+	try {
+		ReloadFromFile *reloadFromFile = new ReloadFromFile(
+			params->dataFilePath,
+			params->evidenceFilePath,
+			cppConfig);
+		reloadFromFile->run();
+		delete reloadFromFile;
+	}
+	catch (const StatusCodeException &e) {
+		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);
+		exit(1);
+	}
 }
 
 #ifndef TEST
@@ -196,7 +202,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (argc > 2) {
-		strcpy(dataFilePath, argv[2]);
+		strcpy(userAgentFilePath, argv[2]);
 	}
 	else {
 		status = fiftyoneDegreesFileGetPath(

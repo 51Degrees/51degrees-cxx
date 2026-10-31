@@ -23,6 +23,10 @@
 #ifndef FIFTYONE_DEGREES_EXCEPTIONS_H_INCLUDED
 #define FIFTYONE_DEGREES_EXCEPTIONS_H_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 /**
  * @ingroup FiftyOneDegreesCommon
  * @defgroup FiftyOneDegreesExceptions Exceptions
@@ -206,7 +210,10 @@ FIFTYONE_DEGREES_EXCEPTION_CLEAR
 
 /**
  * Returns an English error message for the exception. The caller must free the
- * memory when they have finished consuming the error message.
+ * memory when they have finished consuming the error message. An exception
+ * holds no file name, so a message about a file says 'null'. A caller that has
+ * the status and the file name gets a message naming the file from
+ * #fiftyoneDegreesStatusGetMessage.
  * @param exception to get a string message from
  * @return pointer to the newly allocated message string
  */

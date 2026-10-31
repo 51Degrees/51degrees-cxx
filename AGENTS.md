@@ -21,6 +21,31 @@ Both change structure sizes, so the copies cannot be shared.
 - The common tests run against both copies, as `CommonTests` and
   `CommonTestsIpi`.
 
+Both copies would export the same names, so `src/common/ipiSymbols.h` lists
+every common function and global and renames them with an `ipi_` prefix. Common
+headers include it first when `FIFTYONE_DEGREES_IPI_SYMBOLS` is defined.
+
+That define must never change anything for a language wrapper. CMake sets it on
+the IP Intelligence copy through the `FIFTYONE_IPI_SYMBOLS` option, which is on
+only when this repository is the top level project. A project that includes this
+CMake file, and any build that compiles the sources itself, keeps the original
+names and doesn't need the list. `Ubuntu_arm64_Release` in `ci/options.json`
+builds with the option off, so CI keeps testing those names.
+
+When you add a common function or global, add it to the list. A new common
+header includes the list first, in the same way as the others.
+`ci/check-common-symbols.ps1` fails the build otherwise, and `test/both` links
+both products into one program.
+
+The common C++ classes have the same problem, so each common C++ header opens
+`FIFTYONE_DEGREES_COMMON_CXX_BEGIN` inside its namespace. That expands to nothing
+unless `FIFTYONE_DEGREES_IPI_CXX_SYMBOLS` is defined, which makes it an inline
+namespace, changing linked names and not source names. The CMake option
+`FIFTYONE_CXX_BOTH_PRODUCTS` turns it on, and it stays off by default until the
+wrappers SWIG generates have been checked. The
+`Ubuntu_x64_Release_CxxBothProducts` entry in `ci/options.json` builds and tests
+with it on.
+
 ## Includes are relative
 
 Sources include each other by relative path, for example `src/dd/hash/hash.h`
@@ -42,8 +67,8 @@ The workflows in `.github/workflows` call the shared workflows in
 [common-ci](https://github.com/51Degrees/common-ci), which run the scripts in
 `ci/`. Each entry in `ci/options.json` lists the `Products` it builds and
 tests. On a pull request, `ci/products.ps1` skips a product the change does
-not touch. A change outside `src/dd`, `src/ipi` and their tests, examples and
-docs counts as touching every product.
+not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
+docs and tools counts as touching every product.
 
 ## Versions
 

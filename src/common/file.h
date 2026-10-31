@@ -144,6 +144,10 @@
 #ifndef FIFTYONE_DEGREES_FILE_H_INCLUDED
 #define FIFTYONE_DEGREES_FILE_H_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 /* Define NDEBUG if needed, to ensure asserts are disabled in release builds */
 #if !defined(DEBUG) && !defined(_DEBUG) && !defined(NDEBUG)
 #define NDEBUG
@@ -504,6 +508,14 @@ EXTERNAL void fiftyoneDegreesFilePoolReset(fiftyoneDegreesFilePool *filePool);
  * @return the file name from the file path.
  */
 EXTERNAL const char* fiftyoneDegreesFileGetFileName(const char *filePath);
+
+/**
+ * Gets the name of the file after the last separator in the path. A forward
+ * slash and a backslash both count as a separator.
+ * @param path full path to the file.
+ * @return the file name, or NULL if the path has no separator or ends with one.
+ */
+EXTERNAL const char* fiftyoneDegreesFileGetBaseName(const char *path);
 
 /**
  * @}

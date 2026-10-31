@@ -23,6 +23,10 @@
 #ifndef FIFTYONE_DEGREES_CONSTANTS_H
 #define FIFTYONE_DEGREES_CONSTANTS_H
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 #include <stdint.h>
 
 /**

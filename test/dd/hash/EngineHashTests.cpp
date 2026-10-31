@@ -214,6 +214,7 @@ public:
 		verifyProfileOverrideBad();
 		verifyProfileOverrideNoUserAgent();
 		verifyWithLongPseudoHeader();
+		verifyUserAgentLengthLimit();
 		verifyProcessDeviceId();
 		verifyProcessDeviceIdQuery();
 		verifyProfileOverridePartial();
@@ -551,6 +552,39 @@ public:
 		validate(results);
 		free((void*)almostTooLongHeader);
 		delete results;
+	}
+
+	// A User-Agent at the limit is used and one byte over is ignored, both as
+	// evidence and in the direct call, which must agree.
+	void verifyUserAgentLengthLimit() {
+		bool originalAllowUnmatched = setAllowUnmatched(engine, false);
+		const size_t limit =
+			(size_t)this->config->getMaxMatchedUserAgentLength();
+		std::string atLimit(mobileUserAgent);
+		atLimit.append(limit - atLimit.size(), 'X');
+		const std::string overLimit = atLimit + "X";
+		EvidenceDeviceDetection evidenceAtLimit;
+		evidenceAtLimit["header.user-agent"] = atLimit.c_str();
+		EvidenceDeviceDetection evidenceOverLimit;
+		evidenceOverLimit["header.user-agent"] = overLimit.c_str();
+		EngineHash* hash = (EngineHash*)getEngine();
+		std::unique_ptr<ResultsHash> evidenceUsed(
+			hash->process(&evidenceAtLimit));
+		std::unique_ptr<ResultsHash> directUsed(
+			hash->process(atLimit.c_str()));
+		std::unique_ptr<ResultsHash> evidenceIgnored(
+			hash->process(&evidenceOverLimit));
+		std::unique_ptr<ResultsHash> directIgnored(
+			hash->process(overLimit.c_str()));
+		EXPECT_GT(evidenceUsed->getUserAgents(), 0) <<
+			L"Evidence at the limit should be used.";
+		EXPECT_GT(directUsed->getUserAgents(), 0) <<
+			L"A direct call at the limit should be used.";
+		EXPECT_EQ(evidenceIgnored->getUserAgents(), 0) <<
+			L"Evidence over the limit should be ignored.";
+		EXPECT_EQ(directIgnored->getUserAgents(), 0) <<
+			L"A direct call over the limit should be ignored.";
+		setAllowUnmatched(engine, originalAllowUnmatched);
 	}
 
 	void verifyProcessDeviceId() {

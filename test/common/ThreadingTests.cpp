@@ -23,6 +23,8 @@
 #include "pch.h"
 #include "../../src/common/threading.h"
 #include "Base.hpp"
+#include <thread>
+#include <vector>
 
 /**
  * Macro used to ensure that local variables are aligned to memory boundaries
@@ -129,4 +131,34 @@ TEST_F(Threading, DoubleWidthExchange_NonMatching) {
     ASSERT_NE(
         *(int*)newItem.testDW.ptr, 
         *(int*)item.testDW.ptr);
+}
+
+/**
+ * Adds to a plain counter from several threads, each taking the mutex for
+ * every addition. A mutex that let two threads in at once would lose additions.
+ */
+TEST_F(Threading, Mutex_OneThreadAtATime) {
+    static const int threadCount = 8;
+    static const int additionsPerThread = 100000;
+
+    fiftyoneDegreesMutex mutex;
+    FIFTYONE_DEGREES_MUTEX_CREATE(mutex);
+
+    int total = 0;
+    std::vector<std::thread> threads;
+    for (int i = 0; i < threadCount; i++) {
+        threads.emplace_back([&mutex, &total]() {
+            for (int j = 0; j < additionsPerThread; j++) {
+                FIFTYONE_DEGREES_MUTEX_LOCK(&mutex);
+                total++;
+                FIFTYONE_DEGREES_MUTEX_UNLOCK(&mutex);
+            }
+        });
+    }
+    for (std::thread &thread : threads) {
+        thread.join();
+    }
+    FIFTYONE_DEGREES_MUTEX_CLOSE(mutex);
+
+    ASSERT_EQ(threadCount * additionsPerThread, total);
 }

@@ -29,6 +29,7 @@
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * EntityMetaData relating to a component populated by an engine
 		 * implementation.
@@ -107,6 +108,7 @@ namespace FiftyoneDegrees {
 			/** The unique if of the default profile for this component */
 			uint32_t defaultProfileId;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

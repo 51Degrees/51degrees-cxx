@@ -45,6 +45,19 @@ MAP_TYPE(Collection)
 /** Default values separator */
 #define DEFAULT_VALUES_SEPARATOR "|"
 
+/**
+ * States for the entries of the has values cache in the results. The cache
+ * records the outcome of the profile walk performed to determine whether a
+ * required property has values for the current results avoiding repeated
+ * walks for the same property within a single detection.
+ */
+/** The walk has not been performed for the property. */
+#define IPI_HAS_VALUES_UNKNOWN 0
+/** The walk found at least one value for the property. */
+#define IPI_HAS_VALUES_TRUE 1
+/** The walk found no values for the property. */
+#define IPI_HAS_VALUES_FALSE 2
+
 #define COMPONENT(d, i) i < d->componentsList.count ? \
 (Component*)d->componentsList.items[i].data.ptr : NULL
 
@@ -56,7 +69,7 @@ dataSet->t = CollectionCreateFromMemory( \
 reader, \
 dataSet->header.t); \
 if (dataSet->t == NULL) { \
-	return INVALID_COLLECTION_CONFIG; \
+	return CORRUPT_DATA; \
 }
 
 #define COLLECTION_CREATE_FILE(t,f) \
@@ -67,7 +80,7 @@ dataSet->t = CollectionCreateFromFile( \
 	dataSet->header.t, \
 	f); \
 if (dataSet->t == NULL) { \
-	return INVALID_COLLECTION_CONFIG; \
+	return getCollectionFileStatus(dataSet, dataSet->header.t, 0); \
 }
 
 /** 
@@ -164,7 +177,7 @@ static const uint16_t FULL_RAW_WEIGHTING = 0xFFFFU;
 /**
  * The largest profiles offset shift the header can declare. A shift of 8
  * gives 256 byte units addressing 1TB, well beyond any expected file, so
- * larger values indicate a corrupt header.
+ * larger values are refused.
  */
 #define FIFTYONE_DEGREES_IPI_MAX_PROFILES_OFFSET_SHIFT 8
 
@@ -280,6 +293,7 @@ FIFTYONE_DEGREES_CONFIG_USE_TEMP_FILE_DEFAULT
 static void resultIpiReset(ResultIpi* result) {
 	memset(result->targetIpAddress.value, 0, FIFTYONE_DEGREES_IPV6_LENGTH);
 	result->targetIpAddress.type = IP_TYPE_INVALID;
+	result->componentIndex = -1;
 }
 
 static int compareIpAddresses(
@@ -710,6 +724,16 @@ static StatusCode readHeaderFromMemory(
 	MemoryReader* reader,
 	const DataSetIpiHeader* header) {
 
+	// MemoryAdvance below only reports an overrun once the copy has already
+	// read past the end, so the space is checked here instead. The pointers
+	// are compared before subtracting because a negative size puts lastByte
+	// behind current.
+	if (reader->current > reader->lastByte ||
+		(size_t)(reader->lastByte - reader->current) <
+		sizeof(DataSetIpiHeader)) {
+		return CORRUPT_DATA;
+	}
+
 	// Copy the bytes that make up the dataset header.
 	if (memcpy(
 		(void*)header,
@@ -732,15 +756,22 @@ static StatusCode checkVersion(DataSetIpi* dataSet) {
 	}
 
 	// The shift used to convert stored profile offsets to byte positions is
-	// declared in the header and validated rather than assumed.
+	// declared in the header and validated rather than assumed. A shift
+	// outside the range is one this API cannot use, so it is reported as an
+	// unsupported version. The message for corrupt data would send the reader
+	// to check the file is uncompressed, which it is.
 	if (dataSet->header.profilesOffsetShift < 0 ||
 		dataSet->header.profilesOffsetShift >
 		FIFTYONE_DEGREES_IPI_MAX_PROFILES_OFFSET_SHIFT) {
-		return CORRUPT_DATA;
+		return INCORRECT_VERSION;
 	}
 #ifndef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
 	// Converting shifted offsets to byte positions requires the 64 bit
-	// arithmetic of large data file support.
+	// arithmetic of large data file support. A shift of zero passing this
+	// check does not mean the file loads, because without that support the
+	// collection positions in the header are read as 4 bytes where every IP
+	// Intelligence data file has 8. The builds in this repository always
+	// define it for IP Intelligence.
 	if (dataSet->header.profilesOffsetShift != 0) {
 		return INCORRECT_VERSION;
 	}
@@ -841,7 +872,7 @@ static StatusCode initWithMemory(
 		dataSet->header.profiles,
 		getProfilesOffsetShift(dataSet));
 	if (dataSet->profiles == NULL) {
-		return INVALID_COLLECTION_CONFIG;
+		return CORRUPT_DATA;
 	}
 #else
 	COLLECTION_CREATE_MEMORY(profiles)
@@ -909,6 +940,23 @@ static void initDataSet(DataSetIpi* dataSet, ConfigIpi** config) {
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
+/**
+ * Gets the status for a collection that could not be created from the file,
+ * as the create methods do not say why they failed. A collection the header
+ * places beyond the end of the file is a fault in the file, which no
+ * configuration can cause or cure. Anything else comes from the configuration
+ * or a lack of memory.
+ */
+static StatusCode getCollectionFileStatus(
+	const DataSetIpi* dataSet,
+	const CollectionHeader header,
+	const byte offsetShift) {
+	const uint64_t end = (uint64_t)header.startPosition +
+		((uint64_t)header.length << offsetShift);
+	return end > (uint64_t)dataSet->b.b.filePool.length ?
+		CORRUPT_DATA : INVALID_COLLECTION_CONFIG;
+}
+
 static StatusCode readHeaderFromFile(
 	FILE* file,
 	const DataSetIpiHeader* header) {
@@ -972,7 +1020,10 @@ static StatusCode readDataSetFromFile(
 		fiftyoneDegreesProfileReadFromFile,
 		getProfilesOffsetShift(dataSet));
 	if (dataSet->profiles == NULL) {
-		return INVALID_COLLECTION_CONFIG;
+		return getCollectionFileStatus(
+			dataSet,
+			dataSet->header.profiles,
+			getProfilesOffsetShift(dataSet));
 	}
 #else
 	COLLECTION_CREATE_FILE(profiles, fiftyoneDegreesProfileReadFromFile);
@@ -1396,8 +1447,7 @@ FIFTYONE_DEGREES_DATASET_RELOAD(Ipi)
 
 
 /* 
- * Note: WeightedItemList functions are now provided by common-cxx/weightedItem.h
- * The local list functions have been removed in favor of:
+ * The WeightedItemList functions are in src/common/weightedItem.h:
  * - WeightedItemListInit() 
  * - WeightedItemListRelease()
  * - WeightedItemListFree()
@@ -1408,6 +1458,20 @@ FIFTYONE_DEGREES_DATASET_RELOAD(Ipi)
 /**
  * Results methods
  */
+
+/**
+ * Marks all the entries in the has values cache as unknown. Must be called
+ * whenever the results are repopulated as the cached outcomes only relate
+ * to the results they were recorded for.
+ */
+static void resultsIpiResetHasValuesCache(ResultsIpi* const results) {
+	if (results->hasValuesCache != NULL) {
+		memset(
+			results->hasValuesCache,
+			IPI_HAS_VALUES_UNKNOWN,
+			results->hasValuesCacheCount);
+	}
+}
 
 fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 	fiftyoneDegreesResourceManager* manager) {
@@ -1429,10 +1493,26 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 		// Initialise the results.
 		fiftyoneDegreesResultsInit(&results->b, (void*)(&dataSet->b));
 
-		// Reset the property and values list ready for first use sized for 
+		// Reset the property and values list ready for first use sized for
 		// a single value to be returned.
 		WeightedItemListInit(&results->values, 1, FIFTYONE_DEGREES_WEIGHTED_ITEM_LIST_DEFAULT_LOAD_FACTOR);
 		DataReset(&results->propertyItem.data);
+
+		// Allocate the cache used to avoid repeating the profile walks
+		// which check whether a property has values for the current
+		// results. If the allocation fails the cache is not used.
+		results->hasValuesCache = NULL;
+		results->hasValuesCacheCount = 0;
+		if (dataSet->b.b.available != NULL &&
+			dataSet->b.b.available->count > 0) {
+			results->hasValuesCache = (byte*)Malloc(
+				dataSet->b.b.available->count);
+			if (results->hasValuesCache != NULL) {
+				results->hasValuesCacheCount =
+					dataSet->b.b.available->count;
+				resultsIpiResetHasValuesCache(results);
+			}
+		}
 	}
 	else {
 		DataSetRelease((DataSetBase *)dataSet);
@@ -1454,6 +1534,11 @@ static void resultsIpiRelease(ResultsIpi* results) {
 void fiftyoneDegreesResultsIpiFree(fiftyoneDegreesResultsIpi* results) {
 	resultsIpiRelease(results);
 	WeightedItemListFree(&results->values);
+	if (results->hasValuesCache != NULL) {
+		Free(results->hasValuesCache);
+		results->hasValuesCache = NULL;
+		results->hasValuesCacheCount = 0;
+	}
 	DataSetRelease((DataSetBase*)results->b.dataSet);
 	Free(results);
 }
@@ -1483,6 +1568,10 @@ static bool addResultsFromIpAddressNoChecks(
 		nextResult->graphResult.rawOffset = NULL_PROFILE_OFFSET; // Default IP range offset
 		nextResult->targetIpAddress.type = type;
 		nextResult->type = type;
+		// Record the component the result relates to so that property
+		// lookups can be routed to the result for the component that owns
+		// the property.
+		nextResult->componentIndex = (int32_t)componentIndex;
 
 		if (type == IP_TYPE_IPV4) {
 			// We only get the exact length of ipv4
@@ -1532,6 +1621,7 @@ void fiftyoneDegreesResultsIpiFromIpAddressForProperties(
 
 	// Reset the results data before iterating the evidence.
 	results->count = 0;
+	resultsIpiResetHasValuesCache(results);
 
 	addResultsFromIpAddressNoChecks(
 		results,
@@ -1709,6 +1799,7 @@ void fiftyoneDegreesResultsIpiFromEvidenceForProperties(
 	if (evidence != (EvidenceKeyValuePairArray*)NULL) {
 		// Reset the results data before iterating the evidence.
 		results->count = 0;
+		resultsIpiResetHasValuesCache(results);
 
 		fiftyoneDegreesIterateHeadersWithEvidence(
 			results,
@@ -1794,7 +1885,8 @@ static bool addWeightedValue(
 static bool addWeightedValueWithState(void* state, Item* item) {
 	// The results values are a list of collection items and their weighting.
 	// The weighting cannot be passed along with Item as this is the profile
-	// standard in common-cxx. Thus the weighting is passed along with the state.
+	// standard in the common library. Thus the weighting is passed along with
+	// the state.
 	const stateWithWeighting* weightingState = (stateWithWeighting*)((stateWithException*)state)->state;
 	ResultsIpi* results =
 		(ResultsIpi*)weightingState->subState;
@@ -1960,7 +2052,7 @@ static uint32_t getProfileOffset(
 }
 
 /**
- * Achieves the same as getValuesFromResult, but gets the value from the
+ * Achieves the same as addValuesFromResult, but gets the value from the
  * default value in the property. This is used when there is no value in
  * the profile, but the property is mandatory.
  */
@@ -2081,13 +2173,19 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 				results->propertyItem.collection = dataSet->properties;
 			}
 
-			// There will only be one result
+			// Only the result for the component that owns the property can
+			// hold values for it. Profiles only carry values for properties
+			// of their own component, so the results for other components
+			// are skipped.
 			for (uint32_t i = 0; i < results->count && EXCEPTION_OKAY; i++) {
-				firstValue = getValuesFromResult(
-					results,
-					&results->items[i],
-					property,
-					exception);
+				if (results->items[i].componentIndex ==
+					(int32_t)property->componentIndex) {
+					firstValue = getValuesFromResult(
+						results,
+						&results->items[i],
+						property,
+						exception);
+				}
 			}
 
 			if (results->values.count == 0 &&
@@ -2158,15 +2256,84 @@ static bool profileHasValidPropertyValue(
 	return valueFound;
 }
 
-static bool resultGetHasValidPropertyValueOffset(
+static bool resultHasValidPropertyValueOffset(
 	fiftyoneDegreesResultsIpi* const results,
 	const fiftyoneDegreesResultIpi* const result,
+	Property * const property,
+	fiftyoneDegreesException* const exception) {
+	bool hasValidOffset = false;
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	Item item;
+	DataReset(&item.data);
+
+	// We will only execute this step if successfully obtained the
+	// profile groups offset from the previous step
+	if (result->graphResult.rawOffset != NULL_PROFILE_OFFSET) {
+		if (!result->graphResult.isGroupOffset) {
+			const uint32_t profileOffsetValue = getProfileOffset(
+				dataSet->profileOffsets,
+				result->graphResult.offset,
+				exception);
+			if (EXCEPTION_OKAY) {
+				hasValidOffset = profileHasValidPropertyValue(
+					dataSet,
+					profileOffsetValue,
+					property,
+					exception);
+			}
+		} else {
+			const Collection * const profileGroups = dataSet->profileGroups;
+			for (uint32_t totalWeight = 0,
+				nextOffset = result->graphResult.offset;
+				(!hasValidOffset) && (totalWeight < FULL_RAW_WEIGHTING) && EXCEPTION_OKAY;
+				++nextOffset) {
+				const CollectionKey profileGroupKey = {
+					nextOffset,
+					&CollectionKeyType_OffsetPercentage,
+				};
+				const offsetPercentage* const nextWeightedProfileOffset = (const offsetPercentage*)profileGroups->get(
+					profileGroups,
+					&profileGroupKey,
+					&item,
+					exception);
+				if (!(nextWeightedProfileOffset && EXCEPTION_OKAY)) {
+					break;
+				}
+				totalWeight += nextWeightedProfileOffset->rawWeighting;
+				if (totalWeight <= FULL_RAW_WEIGHTING) {
+					hasValidOffset = profileHasValidPropertyValue(
+						dataSet,
+						nextWeightedProfileOffset->offset,
+						property,
+						exception);
+				} else {
+					EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA);
+				}
+				COLLECTION_RELEASE(profileGroups, &item);
+			}
+		}
+	}
+	return hasValidOffset;
+}
+
+static bool resultsGetHasValidPropertyValueOffset(
+	fiftyoneDegreesResultsIpi* const results,
 	const int requiredPropertyIndex,
 	fiftyoneDegreesException* const exception) {
 	bool hasValidOffset = false;
-	Item item;
-	DataReset(&item.data);
 	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+
+	// Return the outcome of a previous walk over the same results for the
+	// property if one was recorded.
+	const bool canUseCache = results->hasValuesCache != NULL &&
+		requiredPropertyIndex >= 0 &&
+		(uint32_t)requiredPropertyIndex < results->hasValuesCacheCount;
+	if (canUseCache) {
+		const byte cached = results->hasValuesCache[requiredPropertyIndex];
+		if (cached != IPI_HAS_VALUES_UNKNOWN) {
+			return cached == IPI_HAS_VALUES_TRUE;
+		}
+	}
 
 	// Work out the property index from the required property index.
 	const int32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
@@ -2183,54 +2350,31 @@ static bool resultGetHasValidPropertyValueOffset(
 			&results->propertyItem,
 			exception);
 
-		const char * const propertyName = STRING( // name is string
-			PropertiesGetNameFromRequiredIndex(
-				dataSet->b.b.available,
-				requiredPropertyIndex));
-		if (propertyName != NULL && EXCEPTION_OKAY) {
-			// We will only execute this step if successfully obtained the
-			// profile groups offset from the previous step
-			if (result->graphResult.rawOffset != NULL_PROFILE_OFFSET) {
-				if (!result->graphResult.isGroupOffset) {
-					const uint32_t profileOffsetValue = getProfileOffset(
-						dataSet->profileOffsets,
-						result->graphResult.offset,
+		if (property != NULL && EXCEPTION_OKAY) {
+			// Only the result for the component that owns the property can
+			// hold values for it. Profiles only carry values for properties
+			// of their own component, so the results for other components
+			// are skipped.
+			for (uint32_t i = 0;
+				i < results->count && !hasValidOffset && EXCEPTION_OKAY;
+				i++) {
+				if (results->items[i].componentIndex ==
+					(int32_t)property->componentIndex) {
+					hasValidOffset = resultHasValidPropertyValueOffset(
+						results,
+						&results->items[i],
+						property,
 						exception);
-					if (EXCEPTION_OKAY) {
-						hasValidOffset = profileHasValidPropertyValue(
-							dataSet,
-							profileOffsetValue,
-							property,
-							exception);
-					}
-				} else {
-					const Collection * const profileGroups = dataSet->profileGroups;
-					for (uint32_t totalWeight = 0,
-						nextOffset = result->graphResult.offset;
-						(!hasValidOffset) && (totalWeight < FULL_RAW_WEIGHTING) && EXCEPTION_OKAY;
-						++nextOffset) {
-						const CollectionKey profileGroupKey = {
-							nextOffset,
-							&CollectionKeyType_OffsetPercentage,
-						};
-						const offsetPercentage* const nextWeightedProfileOffset = (const offsetPercentage*)profileGroups->get(
-							profileGroups,
-							&profileGroupKey,
-							&item,
-							exception);
-						if (!(nextWeightedProfileOffset && EXCEPTION_OKAY)) {
-							break;
-						}
-						totalWeight += nextWeightedProfileOffset->rawWeighting;
-						if (totalWeight <= FULL_RAW_WEIGHTING) {
-							hasValidOffset = profileHasValidPropertyValue(
-								dataSet, nextWeightedProfileOffset->offset, property, exception);
-						} else {
-							EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA);
-						}
-						COLLECTION_RELEASE(profileGroups, &item);
-					}
 				}
+			}
+
+			// Record the outcome of the walk so that later has values or
+			// no value reason calls for the same property and results do
+			// not need to repeat it.
+			if (EXCEPTION_OKAY && canUseCache) {
+				results->hasValuesCache[requiredPropertyIndex] =
+					hasValidOffset ?
+					IPI_HAS_VALUES_TRUE : IPI_HAS_VALUES_FALSE;
 			}
 		}
 	}
@@ -2255,19 +2399,17 @@ bool fiftyoneDegreesResultsIpiGetHasValues(
 		// There is no result
 		return false;
 
-	// There will only be one result
-	for (uint32_t i = 0; i < results->count; i++) {
-		const bool hasValidOffset = resultGetHasValidPropertyValueOffset(
-			results,
-			&results->items[i],
-			requiredPropertyIndex,
-			exception);
-		if (EXCEPTION_FAILED) {
-			return false;
-		}
-		if (hasValidOffset) {
-			return true;
-		}
+	// Check the result for the component the property belongs to. The
+	// outcome of a previous walk for the property is used if available.
+	const bool hasValidOffset = resultsGetHasValidPropertyValueOffset(
+		results,
+		requiredPropertyIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return false;
+	}
+	if (hasValidOffset) {
+		return true;
 	}
 	const uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
 		dataSet->b.b.available,
@@ -2309,19 +2451,17 @@ fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason(
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULTS;
 	}
 
-	// There will only be one result
-	for (uint32_t i = 0; i < results->count; i++) {
-		const bool hasValidOffset = resultGetHasValidPropertyValueOffset(
-			results,
-			&results->items[i],
-			requiredPropertyIndex,
-			exception);
-		if (EXCEPTION_FAILED) {
-			return false;
-		}
-		if (hasValidOffset) {
-			return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
-		}
+	// Check the result for the component the property belongs to. The
+	// outcome of a previous walk for the property is used if available.
+	const bool hasValidOffset = resultsGetHasValidPropertyValueOffset(
+		results,
+		requiredPropertyIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return false;
+	}
+	if (hasValidOffset) {
+		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
 	}
 	if (EXCEPTION_OKAY) {
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE;

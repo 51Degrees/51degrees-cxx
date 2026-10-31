@@ -75,6 +75,9 @@ static const char *dataDir = "device-detection-data";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
+
 /**
  * CHOOSE THE DEFAULT MEMORY CONFIGURATION BY UNCOMMENTING ONE OF THE FOLLOWING
  * MACROS.
@@ -154,6 +157,7 @@ void fiftyoneDegreesHashFindProfiles(
 		exception);
 	if (status != SUCCESS) {
 		reportStatus(status, dataFilePath);
+		exitCode = 1;
 		fgetc(stdin);
 		return;
 	}
@@ -207,7 +211,7 @@ int main(int argc, char* argv[]) {
 	// Wait for a character to be pressed.
 	fgetc(stdin);
 
-	return 0;
+	return exitCode;
 }
 
 #endif

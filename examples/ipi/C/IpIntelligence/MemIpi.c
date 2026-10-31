@@ -48,6 +48,9 @@ static const char* dataFileName = "51Degrees-LiteV41.ipi";
 
 static const char* ipAddressFileName = "evidence.yml";
 
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
+
 static char valueBuffer[1024] = "";
 
 /**
@@ -376,12 +379,13 @@ void fiftyoneDegreesMemIpiRun(
 		&properties,
 		dataFilePath,
 		exception);
-	EXCEPTION_THROW;
 
 	if (status != SUCCESS) {
 		reportStatus(status, dataFilePath);
+		exitCode = 1;
 	}
 	else {
+		EXCEPTION_THROW;
 		// Run the performance tests.
 		run(&manager, ipAddressFilePath);
 
@@ -503,7 +507,7 @@ int main(int argc, char* argv[]) {
 	// Wait for a character to be pressed.
 	fgetc(stdin);
 
-	return 0;
+	return exitCode;
 }
 
 #endif

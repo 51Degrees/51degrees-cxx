@@ -32,7 +32,9 @@ not listed moved with its parent. Deleted: each repository's `ci/` and
 | `ip-intelligence-cxx/test/` | `test/ipi/` |
 | `common-cxx/.gitignore` | `.gitignore` |
 | `common-cxx/LICENSE` | `LICENSE` |
+| `device-detection-cxx/CMakeLists.txt` | `CMakeLists.txt` |
 | `device-detection-cxx/README.md` | `docs/dd/README.md` |
+| `ip-intelligence-cxx/CMakeLists.txt` | `CMakeLists.txt` |
 | `ip-intelligence-cxx/Directory.Build.props` | `VisualStudio/IpIntelligence/Directory.Build.props` |
 | `ip-intelligence-cxx/README.md` | `docs/ipi/README.md` |
 | `ip-intelligence-cxx/STORED_WEIGHTED_VALUE_DESIGN_PROPOSAL.md` | `docs/ipi/STORED_WEIGHTED_VALUE_DESIGN_PROPOSAL.md` |
@@ -41,3 +43,16 @@ not listed moved with its parent. Deleted: each repository's `ci/` and
 | `device-detection-cxx/src/common-cxx/` (submodule) | the `common-cxx` rows above |
 | `ip-intelligence-cxx/src/common-cxx/` (submodule) | the `common-cxx` rows above |
 | `ip-intelligence-cxx/src/ip-graph-cxx/` (submodule) | the `ip-graph-cxx` rows above |
+
+## In a language repository
+
+A language repository mounts this repository as one submodule at `cxx/` in its
+root.
+
+- A native build includes `cxx/CMakeLists.txt`. `src/dd/CMakeLists.txt` and
+  `src/ipi/CMakeLists.txt` only work when the root includes them. To leave out
+  the product a package does not use, set `FIFTYONE_BUILD_DEVICE_DETECTION` or
+  `FIFTYONE_BUILD_IP_INTELLIGENCE` to `OFF`.
+- The SWIG interface files include `cxx/src/...`, so a generated wrapper needs
+  the folder that holds `cxx/` on its include path. A wrapper already committed
+  includes the old path, so it needs the same change or generating again.
