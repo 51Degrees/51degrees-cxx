@@ -22,7 +22,6 @@
     <ClCompile Include="..\..\..\test\ipi\ExampleProcTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromFileTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromMemoryTests.cpp" />
-    <ClCompile Include="..\..\test\ExampleStronglyTypedTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\MemLeakReloadFromFileTests.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -32,11 +31,9 @@
     <ClInclude Include="..\..\..\test\common\pch.h" />
     <ClInclude Include="..\..\..\src\common\textfile.h" />
     <ClInclude Include="..\..\..\src\ipi\EngineIpi.hpp" />
-    <ClInclude Include="..\..\src\GraphIpi.hpp" />
     <ClInclude Include="..\..\..\test\ipi\Constants.hpp" />
     <ClInclude Include="..\..\..\test\ipi\EngineIpIntelligenceTests.hpp" />
     <ClInclude Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.hpp" />
-    <ClInclude Include="..\..\test\GraphIpIntelligenceTests.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Examples\Base\ExampleBase\ExampleBase.vcxproj">
