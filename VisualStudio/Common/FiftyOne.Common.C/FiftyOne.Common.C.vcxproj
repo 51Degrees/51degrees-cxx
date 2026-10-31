@@ -23,6 +23,7 @@
     <ClInclude Include="..\..\..\src\common\float.h" />
     <ClInclude Include="..\..\..\src\common\headers.h" />
     <ClInclude Include="..\..\..\src\common\ip.h" />
+    <ClInclude Include="..\..\..\src\common\ipiSymbols.h" />
     <ClInclude Include="..\..\..\src\common\json.h" />
     <ClInclude Include="..\..\..\src\common\list.h" />
     <ClInclude Include="..\..\..\src\common\indices.h" />

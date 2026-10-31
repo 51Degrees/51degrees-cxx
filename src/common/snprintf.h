@@ -20,6 +20,10 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 #include <stdio.h>
 
 #if defined(__MINGW32__) || defined(__MINGW64__)

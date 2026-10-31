@@ -21,6 +21,21 @@ Both change structure sizes, so the copies cannot be shared.
 - The common tests run against both copies, as `CommonTests` and
   `CommonTestsIpi`.
 
+Both copies would export the same names, so `src/common/ipiSymbols.h` lists
+every common function and global and renames them with an `ipi_` prefix. Common
+headers include it first when `FIFTYONE_DEGREES_IPI_SYMBOLS` is defined.
+
+That define must never change anything for a language wrapper. CMake sets it on
+the IP Intelligence copy through the `FIFTYONE_IPI_SYMBOLS` option, which is on
+only when this repository is the top level project. A project that includes this
+CMake file, and any build that compiles the sources itself, keeps the original
+names and doesn't need the list. `Ubuntu_arm64_Release` in `ci/options.json`
+builds with the option off, so CI keeps testing those names.
+
+When you add a common function or global, add it to the list. A new common
+header includes the list first, in the same way as the others.
+`ci/check-common-symbols.ps1` fails the build otherwise.
+
 ## Includes are relative
 
 Sources include each other by relative path, for example `src/dd/hash/hash.h`

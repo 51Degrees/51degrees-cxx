@@ -40,6 +40,18 @@ project(51Degrees VERSION 4.0.1 LANGUAGES CXX C)
 option(FIFTYONE_BUILD_DEVICE_DETECTION "Build Device Detection" ON)
 option(FIFTYONE_BUILD_IP_INTELLIGENCE "Build IP Intelligence" ON)
 
+# Gives IP Intelligence's copy of common its own linked names, which one program
+# linking both products needs. A project that includes this file keeps the
+# original names unless it turns this on, so language wrappers don't change.
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_LIST_DIR)
+	set(FIFTYONE_IPI_SYMBOLS_DEFAULT ON)
+else()
+	set(FIFTYONE_IPI_SYMBOLS_DEFAULT OFF)
+endif()
+option(FIFTYONE_IPI_SYMBOLS
+	"Give IP Intelligence's copy of common its own linked names"
+	${FIFTYONE_IPI_SYMBOLS_DEFAULT})
+
 if (MSVC)
 	# Check minimum required versions for MSVC
 	if (CMAKE_VS_PLATFORM_TOOLSET MATCHES "v([0-9]+)")

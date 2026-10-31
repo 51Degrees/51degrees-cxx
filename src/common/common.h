@@ -23,6 +23,10 @@
 #ifndef FIFTYONE_DEGREES_COMMON_H_INCLUDED
 #define FIFTYONE_DEGREES_COMMON_H_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 #ifdef _MSC_FULL_VER
 #define DEPRECATED __declspec(deprecated)
 #else

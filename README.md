@@ -92,6 +92,11 @@ always builds its own copy of common with large data file support and the
 reduced file layout, so its libraries link `fiftyone-common-c-ipi` and
 `fiftyone-common-cxx-ipi`.
 
+When this repository is the top level build, that copy also has its own linked
+C names, so one C program can link both products. A project that includes this
+CMake file keeps the original names unless it sets
+`-DFIFTYONE_IPI_SYMBOLS=ON`.
+
 Another CMake project can build these libraries as part of its own build by
 including this repository's `CMakeLists.txt`, with the options above set
 first.
