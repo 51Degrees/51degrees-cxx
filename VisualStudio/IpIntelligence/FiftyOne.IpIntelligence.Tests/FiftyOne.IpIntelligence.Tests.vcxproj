@@ -4,6 +4,12 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{1072D528-83C9-433F-95C2-8EB8401F0DF1}</ProjectGuid>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!-- The googletest package predates GTEST_SKIP. This returns from the function it is in, so a skip in SetUp does not stop the test. -->
+      <PreprocessorDefinitions>GTEST_SKIP=return GTEST_SUCCEED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\test\common\Base.cpp" />
     <ClCompile Include="..\..\..\test\common\EngineTests.cpp" />
@@ -65,9 +71,6 @@
     </ProjectReference>
     <ProjectReference Include="..\Examples\C\Reload From Memory\Reload From Memory.vcxproj">
       <Project>{08c02792-fe84-4d92-be4c-1c0171328f27}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Examples\C\Strongly Typed\Strongly Typed.vcxproj">
-      <Project>{be731a07-e830-4089-8c74-450d38048163}</Project>
     </ProjectReference>
     <ProjectReference Include="..\FiftyOne.IpIntelligence.CPP\FiftyOne.IpIntelligence.CPP.vcxproj">
       <Project>{341fd8cb-9456-4711-bec8-c4a218fa1c6c}</Project>
