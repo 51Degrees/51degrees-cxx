@@ -98,7 +98,8 @@ namespace FiftyoneDegrees {
 			void setHighPerformance();
 
 			/**
-			 * Set the collections to use the balanced configuration.
+			 * Set the collections to use the balanced configuration. Naming
+			 * the required properties decides what this holds in memory.
 			 * See #fiftyoneDegreesIpiBalancedConfig
 			 */
 			void setBalanced();

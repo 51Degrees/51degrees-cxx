@@ -53,6 +53,13 @@ includes `../../common/common.h`. The APIs for other languages compile these
 sources with their own build systems, so keep includes relative to the file
 rather than relying on include directories.
 
+## Balanced and required properties
+
+Naming fewer properties than the data file has changes what the Balanced preset
+holds in memory (`heldInit` in `src/ipi/ipi.c`). Anything not held reads from
+the file, so a mistake in what is held makes a lookup slower and never wrong.
+Memory must not rise above what naming nothing uses.
+
 ## Data files
 
 The tests and examples find data by searching upward from their working

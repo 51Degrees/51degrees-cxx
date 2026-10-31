@@ -98,7 +98,8 @@ typedef struct performanceConfig_t {
  * 
  * InMemory - all the data is loaded into memory and file closed. Fast.
  * Balanced - popular data is loaded into memory, other cached and loaded from 
- *   data file. Quite slow, but okay for web sites.
+ *   data file. Quite slow, but okay for web sites. Naming the required
+ *   properties holds what they read in memory, which makes it much faster.
  * LowMemory - all data loaded from data file when needed. Slow.
  */
 performanceConfig performanceConfigs[] = {
