@@ -180,7 +180,7 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Get the URL containing any extra information about the value.
-			 * @return URL string
+			 * @return URL string, empty if the value has none
 			 */
 			string getUrl() const;
 
