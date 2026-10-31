@@ -371,3 +371,99 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_Inc) {
 		disposeManager();
 	}
 }
+
+// Number of times the resource is replaced while threads are using it
+#define NUMBER_OF_REPLACEMENTS 20000
+
+/*
+ * A resource which can tell a thread that it has been freed.
+ */
+typedef struct checked_resource_t {
+	fiftyoneDegreesResourceHandle *handle;
+	volatile bool live;
+} CheckedResource;
+
+/*
+ * The state shared by the threads using a resource that is being replaced.
+ */
+typedef struct replaced_state_t {
+	fiftyoneDegreesResourceManager *manager;
+	volatile bool finished;
+	volatile long faults;
+} ReplacedState;
+
+static CheckedResource* newCheckedResource() {
+	CheckedResource *resource = new CheckedResource();
+	resource->handle = nullptr;
+	resource->live = true;
+	return resource;
+}
+
+static void freeCheckedResource(void *pointer) {
+	CheckedResource *resource = (CheckedResource*)pointer;
+	resource->live = false;
+	delete resource;
+}
+
+/*
+ * Run by each thread to take and release handles, counting any that do not
+ * lead to a live resource which has that handle.
+ */
+static void runResourceIncDec(void *pointer) {
+	ReplacedState *state = (ReplacedState*)pointer;
+	while (state->finished == false) {
+		fiftyoneDegreesResourceHandle *handle =
+			fiftyoneDegreesResourceHandleIncUse(state->manager);
+		if (handle == nullptr) {
+			FIFTYONE_DEGREES_INTERLOCK_INC(&state->faults);
+			continue;
+		}
+		const CheckedResource *resource =
+			(const CheckedResource*)handle->resource;
+		if (resource == nullptr ||
+			resource->live == false ||
+			resource->handle != handle) {
+			FIFTYONE_DEGREES_INTERLOCK_INC(&state->faults);
+		}
+		fiftyoneDegreesResourceHandleDecUse(handle);
+	}
+}
+
+/*
+ * Check that threads taking and releasing handles while the resource is
+ * replaced always get a live resource, and that no memory is read after it
+ * has been freed when run with AddressSanitizer. The threads spend most of
+ * their time between reading the active handle and updating its counter,
+ * which is where another thread can release the handle's last reference.
+ */
+TEST_F(ResourceManager, MultiThreading_HandleReplace_IncDec) {
+	if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
+		FIFTYONE_DEGREES_THREAD threads[THREAD_COUNT];
+		fiftyoneDegreesResourceManager replacedManager;
+		ReplacedState state = { &replacedManager, false, 0 };
+		CheckedResource *first = newCheckedResource();
+		fiftyoneDegreesResourceManagerInit(
+			&replacedManager,
+			first,
+			&first->handle,
+			freeCheckedResource);
+
+		startThreads(
+			threads,
+			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceIncDec,
+			&state);
+		for (int i = 0; i < NUMBER_OF_REPLACEMENTS; i++) {
+			CheckedResource *next = newCheckedResource();
+			fiftyoneDegreesResourceReplace(
+				&replacedManager,
+				next,
+				&next->handle);
+		}
+		state.finished = true;
+		joinThreads(threads);
+
+		fiftyoneDegreesResourceManagerFree(&replacedManager);
+		ASSERT_EQ(0L, (long)state.faults) <<
+			"A thread was given a handle without a live resource.";
+	}
+}
