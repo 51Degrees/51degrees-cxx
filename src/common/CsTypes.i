@@ -31,3 +31,4 @@
 %apply unsigned char *UCHAR {unsigned char data[]}
 %apply unsigned char *UCHAR {unsigned char ipAddress[]}
 %apply unsigned char *UCHAR {unsigned char copy[]}
+%apply unsigned char *UCHAR {unsigned char propertyName[]}

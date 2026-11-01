@@ -3649,6 +3649,64 @@ const char* fiftyoneDegreesResultsIpiGetNoValueReasonMessage(
 	}
 }
 
+/**
+ * Compares a name with the name of a required property in the order the
+ * required properties are sorted in, which ignores case and puts a name before
+ * any longer name it starts.
+ */
+static int compareRequiredPropertyName(
+	const char* const name,
+	const size_t nameLength,
+	const PropertyAvailable* const item) {
+	const String* const itemName = (const String*)item->name.data.ptr;
+	const size_t itemLength = itemName->size > 0 ?
+		(size_t)itemName->size - 1 : 0;
+	const int difference = StringCompareLength(
+		name,
+		&itemName->value,
+		nameLength < itemLength ? nameLength : itemLength);
+	if (difference != 0) {
+		return difference;
+	}
+	if (nameLength < itemLength) {
+		return -1;
+	}
+	return nameLength > itemLength ? 1 : 0;
+}
+
+int fiftyoneDegreesResultsIpiGetRequiredPropertyIndex(
+	const fiftyoneDegreesResultsIpi* const results,
+	const char* const propertyName,
+	const size_t propertyNameLength) {
+	if (results == NULL || propertyName == NULL) {
+		return -1;
+	}
+	const PropertiesAvailable* const available =
+		((const DataSetIpi*)results->b.dataSet)->b.b.available;
+	if (available == NULL) {
+		return -1;
+	}
+	int lower = 0;
+	int upper = (int)available->count - 1;
+	while (lower <= upper) {
+		const int middle = lower + (upper - lower) / 2;
+		const int difference = compareRequiredPropertyName(
+			propertyName,
+			propertyNameLength,
+			&available->items[middle]);
+		if (difference == 0) {
+			return middle;
+		}
+		if (difference < 0) {
+			upper = middle - 1;
+		}
+		else {
+			lower = middle + 1;
+		}
+	}
+	return -1;
+}
+
 static void pushValues(
 	const WeightedItem * const weightedItem,
 	const uint32_t count,

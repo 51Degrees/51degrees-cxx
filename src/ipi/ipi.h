@@ -900,6 +900,26 @@ EXTERNAL const char* fiftyoneDegreesResultsIpiGetNoValueReasonMessage(
 	fiftyoneDegreesResultsNoValueReason reason);
 
 /**
+ * Gets the required property index of the property named, in the data set the
+ * results hold. That is the index the functions taking a required property
+ * index use. Found through the results, the index always matches them, which
+ * an index kept by the caller does not once a reload moves the indexes, so a
+ * caller needs no index of its own. The name is compared without regard to
+ * case.
+ * @param results pointer to the results to find the property for
+ * @param propertyName the UTF-8 bytes of the property name, which need not be
+ * followed by a null
+ * @param propertyNameLength the number of bytes in the name, not counting any
+ * null that follows it
+ * @return the required property index, or -1 if the property is not a
+ * required property of the data set the results hold
+ */
+EXTERNAL int fiftyoneDegreesResultsIpiGetRequiredPropertyIndex(
+	const fiftyoneDegreesResultsIpi* results,
+	const char* propertyName,
+	size_t propertyNameLength);
+
+/**
  * Populates the list of values in the results instance with value structure
  * instances associated with the required property index. When the results 
  * are released then the value items will be released. There is no need for

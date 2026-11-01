@@ -124,4 +124,39 @@ public:
         }
         return required;
     }
+
+    int getRequiredPropertyIndex(
+        unsigned char propertyName[],
+        int propertyNameLength) {
+        if (propertyName == nullptr || propertyNameLength < 0) {
+            return -1;
+        }
+        return $self->getRequiredPropertyIndex(
+            (const char *)propertyName,
+            (size_t)propertyNameLength);
+    }
+
+    int copyValueAsUTF8StringByName(
+        unsigned char propertyName[],
+        int propertyNameLength,
+        unsigned char copy[],
+        int length) {
+        if (propertyName == nullptr || propertyNameLength < 0) {
+            return -1;
+        }
+        Value<std::vector<uint8_t>> value = $self->getValueAsUTF8String(
+            (const char *)propertyName,
+            (size_t)propertyNameLength);
+        if (!value.hasValue()) {
+            return -1;
+        }
+        std::vector<uint8_t> bytes = value.getValue();
+        int required = (int)bytes.size();
+        if (copy != nullptr && length >= required) {
+            for (int i = 0; i < required; i++) {
+                copy[i] = bytes[i];
+            }
+        }
+        return required;
+    }
 }

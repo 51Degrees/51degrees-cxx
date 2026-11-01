@@ -619,6 +619,20 @@ IpIntelligence::ResultsIpi::getValueAsUTF8String(
     return result;
 }
 
+int IpIntelligence::ResultsIpi::getRequiredPropertyIndex(
+	const char *propertyName,
+	size_t length) const {
+	return ResultsIpiGetRequiredPropertyIndex(results, propertyName, length);
+}
+
+Common::Value<std::vector<uint8_t>>
+IpIntelligence::ResultsIpi::getValueAsUTF8String(
+	const char *propertyName,
+	size_t length) {
+	return getValueAsUTF8String(
+		getRequiredPropertyIndex(propertyName, length));
+}
+
 Common::Value<vector<WeightedValue<string>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedStringList(
     const string &propertyName) {

@@ -385,6 +385,121 @@ IpIntelligence::ResultsIpi *EngineIpi::process(
 	return giveResults(results, manager);
 }
 
+namespace {
+
+// The required property indexes of the names given, found in the data set of
+// the results, so the graphs evaluated match the results. A short list is held
+// here so the usual call allocates nothing.
+class NamedIndexes {
+public:
+	NamedIndexes(
+		const fiftyoneDegreesResultsIpi *results,
+		const vector<string> *propertyNames) : names(propertyNames) {
+		if (names == nullptr) {
+			return;
+		}
+		if (names->size() > shortLength) {
+			longList.resize(names->size());
+		}
+		int *indexes = items();
+		for (size_t i = 0; i < names->size(); i++) {
+			const string &name = (*names)[i];
+			indexes[i] = ResultsIpiGetRequiredPropertyIndex(
+				results,
+				name.c_str(),
+				name.size());
+		}
+	}
+
+	// NULL, meaning every graph, when no names were given.
+	const int *get() const {
+		return names == nullptr ? nullptr : items();
+	}
+
+	// Negative, meaning every graph, when no names were given.
+	int count() const {
+		return names == nullptr ? -1 : (int)names->size();
+	}
+
+private:
+	static const size_t shortLength = 16;
+	const vector<string> *names;
+	int shortList[shortLength];
+	vector<int> longList;
+
+	int *items() {
+		return longList.empty() ? shortList : longList.data();
+	}
+
+	const int *items() const {
+		return longList.empty() ? shortList : longList.data();
+	}
+};
+
+}
+
+IpIntelligence::ResultsIpi* EngineIpi::process(
+	IpIntelligence::EvidenceIpi *evidence,
+	const vector<string> *propertyNames) {
+	EXCEPTION_CREATE;
+	OwnedResults results = createResults(manager.get());
+	const NamedIndexes indexes(results.get(), propertyNames);
+	ResultsIpiFromEvidenceForProperties(
+		results.get(),
+		evidence == nullptr ? nullptr : evidence->get(),
+		indexes.get(),
+		indexes.count(),
+		exception);
+	if (exception->status !=
+		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
+		EXCEPTION_THROW;
+	}
+	return giveResults(results, manager);
+}
+
+IpIntelligence::ResultsIpi* EngineIpi::process(
+	const char *ipAddress,
+	const vector<string> *propertyNames) {
+	EXCEPTION_CREATE;
+	OwnedResults results = createResults(manager.get());
+	const NamedIndexes indexes(results.get(), propertyNames);
+	ResultsIpiFromIpAddressStringForProperties(
+		results.get(),
+		ipAddress,
+		ipAddress == nullptr ? 0 : strlen(ipAddress),
+		indexes.get(),
+		indexes.count(),
+		exception);
+	if (exception->status !=
+		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
+		EXCEPTION_THROW;
+	}
+	return giveResults(results, manager);
+}
+
+IpIntelligence::ResultsIpi *EngineIpi::process(
+	unsigned char ipAddress[],
+	long length,
+	fiftyoneDegreesIpType type,
+	const vector<string> *propertyNames) {
+	EXCEPTION_CREATE;
+	OwnedResults results = createResults(manager.get());
+	const NamedIndexes indexes(results.get(), propertyNames);
+	ResultsIpiFromIpAddressForProperties(
+		results.get(),
+		ipAddress,
+		length,
+		type,
+		indexes.get(),
+		indexes.count(),
+		exception);
+	if (exception->status !=
+		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
+		EXCEPTION_THROW;
+	}
+	return giveResults(results, manager);
+}
+
 Common::ResultsBase* EngineIpi::processBase(
 	Common::EvidenceBase *evidence) const {
 	EXCEPTION_CREATE;
