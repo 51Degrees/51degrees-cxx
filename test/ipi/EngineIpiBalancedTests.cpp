@@ -445,7 +445,9 @@ TEST_F(IpiBalancedTests, NamingNothingKeepsThePreset) {
 	{
 		BalancedDataSet dataSet(&manager.manager);
 		EXPECT_STREQ(balancedMemoryType, dataSet->strings->typeName);
-		EXPECT_STREQ(balancedCacheType, dataSet->values->typeName);
+		// Only the default values are held, and the rest read through the
+		// cache of the preset.
+		EXPECT_STREQ(balancedHeldType, dataSet->values->typeName);
 		EXPECT_STREQ(balancedCacheType, dataSet->profiles->typeName);
 		EXPECT_EQ(
 			fiftyoneDegreesIpiBalancedConfig.profiles.capacity,
@@ -477,6 +479,62 @@ TEST_F(IpiBalancedTests, NamingEveryPropertyKeepsThePreset) {
 	EXPECT_STREQ(
 		balancedMemoryType,
 		BalancedDataSet(&manager.manager)->strings->typeName);
+}
+
+TEST_F(IpiBalancedTests, DefaultValuesAreHeldWhenNothingIsNamed) {
+	vector<const char*> names;
+	for (const string& name : allNames) {
+		names.push_back(name.c_str());
+	}
+	fiftyoneDegreesPropertiesRequired every = fiftyoneDegreesPropertiesDefault;
+	every.array = names.data();
+	every.count = (int)names.size();
+	const fiftyoneDegreesPropertiesRequired namings[] = {
+		fiftyoneDegreesPropertiesDefault,
+		every };
+	const fiftyoneDegreesConfigIpi* presets[] = {
+		&fiftyoneDegreesIpiBalancedConfig,
+		&fiftyoneDegreesIpiDefaultConfig };
+	for (const fiftyoneDegreesConfigIpi* preset : presets) {
+		for (const fiftyoneDegreesPropertiesRequired& properties : namings) {
+			BalancedManager manager(dataFilePath, *preset, properties);
+			BalancedDataSet dataSet(&manager.manager);
+			const fiftyoneDegreesPropertiesAvailable* available =
+				dataSet->b.b.available;
+			uint32_t defaults = 0;
+			for (uint32_t i = 0; i < available->count; i++) {
+				EXCEPTION_CREATE;
+				fiftyoneDegreesCollectionItem item;
+				fiftyoneDegreesDataReset(&item.data);
+				const fiftyoneDegreesProperty* property =
+					fiftyoneDegreesPropertyGet(
+						dataSet->properties,
+						available->items[i].propertyIndex,
+						&item,
+						exception);
+				EXCEPTION_THROW;
+				ASSERT_NE(nullptr, property);
+				const uint32_t index = property->defaultValueIndex;
+				FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->properties, &item);
+				if (index >= dataSet->values->count) {
+					continue;
+				}
+				fiftyoneDegreesDataReset(&item.data);
+				ASSERT_NE(nullptr, fiftyoneDegreesValueGet(
+					dataSet->values,
+					index,
+					&item,
+					exception));
+				EXCEPTION_THROW;
+				EXPECT_EQ(nullptr, item.handle) <<
+					"The default value of required index " << i <<
+					" was not held.";
+				FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->values, &item);
+				defaults++;
+			}
+			EXPECT_GT(defaults, 0u);
+		}
+	}
 }
 
 TEST_F(IpiBalancedTests, OtherPresetsAreUnchangedByNaming) {

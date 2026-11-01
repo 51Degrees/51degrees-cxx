@@ -1040,6 +1040,10 @@ static StatusCode createProfilesFromFile(
  * memory never rises and lookups need fewer locks, file reads and allocations.
  * Everything still reads from the file if it is not held, so this can only
  * change where an answer comes from and never the answer.
+ *
+ * A caller who names nothing, or every property, has only the default values
+ * held, which a lookup reads for each mandatory property its profile has no
+ * value for.
  */
 
 /**
@@ -1967,6 +1971,60 @@ static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
 }
 
 /**
+ * Holds the default value of each required property, so that reading one takes
+ * no lock and reads nothing from the file. Anything allocated is freed with the
+ * data set if this fails.
+ */
+static StatusCode heldDefaultsInit(DataSetIpi* dataSet, Exception* exception) {
+	const PropertiesAvailable* const available = dataSet->b.b.available;
+	const uint32_t valueCount = dataSet->values->count;
+	uint32_t count = 0;
+	FILE* file;
+	if (available->count == 0) {
+		return SUCCESS;
+	}
+	heldRange* const ranges = (heldRange*)Malloc(
+		sizeof(heldRange) * available->count);
+	if (ranges == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t i = 0; i < available->count; i++) {
+		Item item;
+		DataReset(&item.data);
+		const Property* const property = PropertyGet(
+			dataSet->properties,
+			available->items[i].propertyIndex,
+			&item,
+			exception);
+		if (property == NULL || EXCEPTION_FAILED) {
+			Free(ranges);
+			return COLLECTION_FAILURE;
+		}
+		const uint32_t index = property->defaultValueIndex;
+		COLLECTION_RELEASE(dataSet->properties, &item);
+		if (index < valueCount) {
+			heldRangeAdd(ranges, &count, index, index + 1);
+		}
+	}
+	StatusCode status = SUCCESS;
+	if (count > 0) {
+		status = FileOpen(dataSet->b.b.fileName, &file);
+		if (status == SUCCESS) {
+			status = heldCreate(
+				&dataSet->values,
+				file,
+				(uint64_t)dataSet->header.values.startPosition,
+				dataSet->values->elementSize,
+				ranges,
+				count);
+			fclose(file);
+		}
+	}
+	Free(ranges);
+	return status;
+}
+
+/**
  * Gets the number of names in a list of required properties.
  */
 static uint32_t heldCountNames(const char* list) {
@@ -1984,20 +2042,26 @@ static uint32_t heldCountNames(const char* list) {
 }
 
 /**
+ * True for the shape of the Balanced preset, which holds the strings and the
+ * graphs in memory and reads the values and the profiles from the file. The
+ * other presets use the configuration as it is.
+ */
+static bool heldIsBalanced(const ConfigIpi* config) {
+	return config->b.allInMemory == false &&
+		config->strings.loaded &&
+		config->graph.loaded &&
+		config->values.loaded == false &&
+		config->profiles.loaded == false;
+}
+
+/**
  * True for the shape of the Balanced preset when the caller has named fewer
- * properties than the data file has. The other presets, and a caller who names
- * nothing, use the configuration as it is.
+ * properties than the data file has.
  */
 static bool heldIsWanted(
 	const DataSetIpi* dataSet,
 	const PropertiesRequired* properties) {
-	const ConfigIpi* const config = &dataSet->config;
-	if (config->b.allInMemory ||
-		config->strings.loaded == false ||
-		config->graph.loaded == false ||
-		config->values.loaded ||
-		config->profiles.loaded ||
-		properties == NULL) {
+	if (heldIsBalanced(&dataSet->config) == false || properties == NULL) {
 		return false;
 	}
 	const uint32_t count = dataSet->header.properties.count;
@@ -2243,6 +2307,15 @@ static StatusCode initDataSetFromFile(
 	// Now the required properties are known, hold what they read.
 	if (heldIsWanted(dataSet, properties)) {
 		status = heldInit(dataSet, exception);
+		if (status != SUCCESS || EXCEPTION_FAILED) {
+			if (config->b.useTempFile == true) {
+				FileDelete(dataSet->b.b.fileName);
+			}
+			return status;
+		}
+	}
+	else if (heldIsBalanced(&dataSet->config)) {
+		status = heldDefaultsInit(dataSet, exception);
 		if (status != SUCCESS || EXCEPTION_FAILED) {
 			if (config->b.useTempFile == true) {
 				FileDelete(dataSet->b.b.fileName);

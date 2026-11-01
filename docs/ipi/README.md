@@ -44,7 +44,7 @@ The memory that frees is then spent, in this order, as far as it lasts:
 3. The profiles of the components with a required property, smallest first.
 4. A larger profile cache, then part of the next component's profiles if at least half of them fit.
 
-The memory used does not rise above what naming nothing uses, and the answers do not change. A caller who names nothing, or every property, gets the configuration as it is.
+The memory used does not rise above what naming nothing uses, and the answers do not change. A caller who names nothing, or every property, gets the configuration as it is, with only the default value of each property held in memory. A lookup reads the default of each mandatory property its profile has no value for, so holding the defaults means those reads take no lock and read nothing from the file.
 
 Whatever is named, a profile read through a cache is read once for each lookup rather than once for each property, which uses 512 bytes for each component in each set of results.
 
