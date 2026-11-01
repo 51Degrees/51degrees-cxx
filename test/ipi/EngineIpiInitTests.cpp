@@ -23,19 +23,28 @@
 /**
  * @file EngineIpiInitTests.cpp
  * @brief Tests that the engine constructor from memory frees the copy it takes
- * of the memory when the data set cannot be created, and that a configuration
- * holds its own values.
+ * of the memory when the data set cannot be created, that a configuration
+ * holds its own values, and that the constructors take null required
+ * properties.
  *
- * Each test builds the memory it offers, so no data file is needed.
+ * The tests of the copy build the memory they offer, so need no data file.
  */
 
 #include "pch.h"
+#include <fstream>
+#include <memory>
+#include <string>
+#include <vector>
 #include "../common/Base.hpp"
 #include "../../src/ipi/EngineIpi.hpp"
+#include "Constants.hpp"
 #include "IpiTestMemory.hpp"
 
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
+
+/** The data file committed to the data submodule, so every build has it. */
+static const char asnFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 class EngineIpiInitTests : public Base {
 protected:
@@ -106,8 +115,8 @@ TEST_F(EngineIpiInitTests, Garbage_Memory_FreesCopy) {
 }
 
 /**
- * Test that the copy is freed when only the exception shows the failure, as
- * the init method returns success with no data set.
+ * Test that the copy is freed when the failure is one the init method finds
+ * in the exception, and so reports as the status.
  */
 TEST_F(EngineIpiInitTests, ComponentMissing_Memory_FreesCopy) {
 	TestMemory memory = emptyDataSet();
@@ -120,4 +129,45 @@ TEST_F(EngineIpiInitTests, ComponentMissing_Memory_FreesCopy) {
 	expectFreesCopy(
 		memory,
 		FIFTYONE_DEGREES_STATUS_COLLECTION_OFFSET_OUT_OF_RANGE);
+}
+
+/**
+ * Gets the number of properties an engine makes available.
+ */
+static int availableProperties(EngineIpi &engine) {
+	std::unique_ptr<ResultsIpi> results(engine.process("1.1.1.1"));
+	return results->getAvailableProperties();
+}
+
+/**
+ * Test that null required properties mean every property for the constructors
+ * from a file and from memory, as they do for the C init functions.
+ */
+TEST_F(EngineIpiInitTests, NullProperties_LoadsEveryProperty) {
+	const std::string path = GetFilePath(_dataFolderName, asnFileName);
+	if (path.empty()) {
+		GTEST_SKIP() << "The file '" << asnFileName << "' was not found. "
+			"Run 'git submodule update --init' to fetch it.";
+	}
+	ConfigIpi config;
+	RequiredPropertiesConfig every;
+	EngineIpi expected(path.c_str(), &config, &every);
+	const int count = availableProperties(expected);
+	ASSERT_GT(count, 0);
+
+	EngineIpi fromFile(path.c_str(), &config, nullptr);
+	EXPECT_EQ(count, availableProperties(fromFile));
+
+	std::ifstream file(path, std::ios::binary | std::ios::ate);
+	std::vector<unsigned char> data((size_t)file.tellg());
+	file.seekg(0, std::ios::beg);
+	ASSERT_TRUE((bool)file.read(
+		(char*)data.data(),
+		(std::streamsize)data.size()));
+	EngineIpi fromMemory(
+		(void*)data.data(),
+		(fiftyoneDegreesFileOffset)data.size(),
+		&config,
+		nullptr);
+	EXPECT_EQ(count, availableProperties(fromMemory));
 }

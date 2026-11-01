@@ -230,8 +230,8 @@ TEST_F(IpiSizeManagerFromMemoryTests, BytesLeftOver_ReportsOutOfBounds) {
 }
 
 /**
- * Test that a graph running past the end of the memory is reported. Only the
- * exception shows this failure, as the init method returns success.
+ * Test that a graph running past the end of the memory is reported. The init
+ * method finds this failure in the exception.
  */
 TEST_F(IpiSizeManagerFromMemoryTests, GraphTooLong_ReportsCorruptData) {
 	Memory memory = graphTooLong();
@@ -239,8 +239,8 @@ TEST_F(IpiSizeManagerFromMemoryTests, GraphTooLong_ReportsCorruptData) {
 }
 
 /**
- * Test that a failure only the exception shows is left in the exception. The
- * init method returns success for this one.
+ * Test that a failure the init method finds in the exception is left in the
+ * exception.
  */
 TEST_F(IpiSizeManagerFromMemoryTests, ComponentMissing_ReportsOutOfRange) {
 	Memory memory = emptyDataSet();

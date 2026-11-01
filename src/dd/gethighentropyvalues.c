@@ -275,8 +275,9 @@ void fiftyoneDegreesGhevDeviceDetectionInit(
         NULL,
         exception);
 
-    // If no headers are identified then set the array to empty.
-    if (capacity == 0) {
+    // If no headers are identified then set the array to empty. A read that
+    // failed leaves the exception for the caller.
+    if (capacity == 0 || EXCEPTION_FAILED) {
         return;
     }
 
@@ -300,8 +301,9 @@ void fiftyoneDegreesGhevDeviceDetectionInit(
         addHeaderCallback,
         exception);
 
-    // Check the number of headers added is the same as the capacity.
-    assert(count == capacity);
+    // Check the number of headers added is the same as the capacity, unless
+    // a read failed.
+    assert(count == capacity || EXCEPTION_FAILED);
 }
 
 bool fiftyoneDegreesGhevDeviceDetectionAllPresent(

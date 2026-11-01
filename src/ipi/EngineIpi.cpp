@@ -71,7 +71,7 @@ EngineIpi::EngineIpi(
 	StatusCode status = IpiInitManagerFromMemory(
 		manager.get(),
 		&config->getConfig(),
-		properties->getConfig(),
+		properties ? properties->getConfig() : nullptr,
 		dataCopy,
 		(size_t)length,
 		exception);
