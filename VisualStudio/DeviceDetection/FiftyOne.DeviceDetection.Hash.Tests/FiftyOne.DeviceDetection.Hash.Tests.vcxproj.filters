@@ -32,6 +32,13 @@
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashReloadFromFileTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashReloadFromMemoryTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashStronglyTypedTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\EngineHashGraphFilterTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\GraphDataFileTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\GraphNodeTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\ResultsHashSerializerTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\SimpleEngineTestBase.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\SimpleEngineTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\TransformTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\test\common\Base.hpp" />
@@ -40,9 +47,11 @@
     <ClInclude Include="..\..\..\test\common\pch.h" />
     <ClInclude Include="..\..\..\test\common\TestUtils_SizeManager.hpp" />
     <ClInclude Include="..\..\..\test\dd\hash\HashTestMemory.hpp" />
+    <ClInclude Include="..\..\..\test\dd\hash\SimpleEngineTestBase.hpp" />
     <ClInclude Include="..\..\..\src\common\textfile.h" />
     <ClInclude Include="..\..\..\test\dd\Constants.hpp" />
     <ClInclude Include="..\..\..\test\dd\EngineDeviceDetectionTests.hpp" />
+    <ClInclude Include="..\..\..\test\dd\EngineDeviceDetectionTestsMacros.hpp" />
     <ClInclude Include="..\..\..\test\dd\ExampleDeviceDetectionTests.hpp" />
   </ItemGroup>
   <ItemGroup>

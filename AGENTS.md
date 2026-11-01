@@ -77,6 +77,12 @@ tests. On a pull request, `ci/products.ps1` skips a product the change does
 not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
 docs and tools counts as touching every product.
 
+CMake builds every test file in a test folder, but the Visual Studio test
+projects list theirs by name, so add a new test file to its `.vcxproj` and
+`.vcxproj.filters`. `ci/check-visual-studio-tests.ps1` fails the Visual Studio
+builds when one is missing. Those builds run the common and Device Detection
+tests, and build the IP Intelligence tests without running them.
+
 ## Versions
 
 The repository has one version, tagged as a plain version such as `4.5.96`.

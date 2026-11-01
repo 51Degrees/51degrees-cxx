@@ -45,6 +45,10 @@ if ($BuildMethod -eq "cmake") {
 
 } elseif ($BuildMethod -eq "msbuild") {
 
+    # The test projects list their files by name, so check none is missing.
+    & $PSScriptRoot/check-visual-studio-tests.ps1 -RepoPath $RepoName
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     foreach ($product in $Products) {
         if (!$SolutionDirs.ContainsKey($product)) {
             Write-Output "No Visual Studio build for '$product'"

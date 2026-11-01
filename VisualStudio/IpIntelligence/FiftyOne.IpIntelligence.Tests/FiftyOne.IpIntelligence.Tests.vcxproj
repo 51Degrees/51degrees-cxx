@@ -15,9 +15,17 @@
     <ClCompile Include="..\..\..\test\common\EngineTests.cpp" />
     <ClCompile Include="..\..\..\test\common\ExampleTests.cpp" />
     <ClCompile Include="..\..\..\src\common\textfile.c" />
+    <ClCompile Include="..\..\..\test\ipi\DataFileHeaderTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\DataFilePathTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\EngineIpiAddressAnswerTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\EngineIpiBalancedTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\EngineIpiGraphFilterTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\EngineIpiInitTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpIntelligenceTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\EngineIpiProcessTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsFile.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsMemory.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCountryOverlapTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleFindProfilesTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleGettingStartedTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.cpp" />
@@ -28,6 +36,10 @@
     <ClCompile Include="..\..\..\test\ipi\ExampleProcTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromFileTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromMemoryTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\HeaderStatusTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\InvalidVersionTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiReloadTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiSizeManagerFromMemoryTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\MemLeakReloadFromFileTests.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -40,6 +52,7 @@
     <ClInclude Include="..\..\..\test\ipi\Constants.hpp" />
     <ClInclude Include="..\..\..\test\ipi\EngineIpIntelligenceTests.hpp" />
     <ClInclude Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.hpp" />
+    <ClInclude Include="..\..\..\test\ipi\IpiTestMemory.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Examples\Base\ExampleBase\ExampleBase.vcxproj">
