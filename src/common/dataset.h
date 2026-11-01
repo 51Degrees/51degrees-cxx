@@ -312,8 +312,8 @@ void fiftyoneDegreesDataSetFree(fiftyoneDegreesDataSetBase *dataSet);
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the status associated with the data set reload. Any value other than
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded
- * correctly
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and
+ * the current one stays in use
  */
 fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromMemory(
 	fiftyoneDegreesResourceManager *manager,
@@ -345,8 +345,8 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromMemory(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the status associated with the data set reload. Any value other than
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded
- * correctly
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and
+ * the current one stays in use
  */
 fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromFile(
 	fiftyoneDegreesResourceManager* manager,
@@ -379,8 +379,8 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromFile(
  * @param exception pointer to an exception data structure to be used if an \
  * exception occurs. See exceptions.h \
  * @return the status associated with the data set reload. Any value other than \
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded \
- * correctly \
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and \
+ * the current one stays in use \
  */ \
 fiftyoneDegreesStatusCode fiftyoneDegrees##t##ReloadManagerFromMemory( \
 fiftyoneDegreesResourceManager *manager, \
@@ -409,8 +409,8 @@ fiftyoneDegreesException *exception) { \
  * @param exception pointer to an exception data structure to be used if an \
  * exception occurs. See exceptions.h \
  * @return the status associated with the data set reload. Any value other than \
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded \
- * correctly \
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and \
+ * the current one stays in use \
  */ \
 fiftyoneDegreesStatusCode fiftyoneDegrees##t##ReloadManagerFromFile( \
 fiftyoneDegreesResourceManager* manager, \
@@ -436,8 +436,8 @@ fiftyoneDegreesException *exception) { \
  * @param exception pointer to an exception data structure to be used if an \
  * exception occurs. See exceptions.h \
  * @return the status associated with the data set reload. Any value other than \
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded \
- * correctly \
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and \
+ * the current one stays in use \
   */ \
 fiftyoneDegreesStatusCode fiftyoneDegrees##t##ReloadManagerFromOriginalFile( \
 fiftyoneDegreesResourceManager* manager, \
