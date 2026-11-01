@@ -24,6 +24,7 @@
     <ClCompile Include="..\..\..\test\dd\hash\HashCTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashMemLeakReloadFromFileTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashGettingStartedTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashReloadTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashMatchMetricsTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashMetaDataTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashReloadFromFileTests.cpp" />
