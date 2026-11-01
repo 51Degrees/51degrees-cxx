@@ -450,10 +450,13 @@ fiftyoneDegreesHashInitManagerFromFile(
  * @param properties the properties that will be consumed from the data set, or
  * NULL if all available properties in the Hash data file should be available
  * for consumption
- * @param memory pointer to continuous memory containing the Hash data set
+ * @param memory pointer to continuous memory containing the Hash data set,
+ * which stays with the caller
  * @param size the number of bytes that make up the Hash data set
  * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
+ * exception occurs. See exceptions.h. Holds the status if the data set could
+ * not be initialised, for example from memory that is short or rejected, and
+ * the number returned then means nothing.
  * @return the total number of bytes needed to initialise a Hash resource
  * and associated manager with the configuration provided or zero
  */
@@ -474,7 +477,9 @@ EXTERNAL size_t fiftyoneDegreesHashSizeManagerFromMemory(
  * @param properties the properties that will be consumed from the data set, or
  * NULL if all available properties in the Hash data file should be available
  * for consumption
- * @param memory pointer to continuous memory containing the Hash data set
+ * @param memory pointer to continuous memory containing the Hash data set. If
+ * the data set is not created the memory stays with the caller, even if the
+ * configuration says to free it
  * @param size the number of bytes that make up the Hash data set
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.

@@ -2414,12 +2414,16 @@ fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromMemory(
 		size,
 		exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
-		Free(dataSet);
+		// The memory stays with the caller until the data set is set up, so
+		// it is not freed with what the data set allocated.
+		dataSet->b.b.memoryToFree = NULL;
+		freeDataSet(dataSet);
 		return status;
 	}
 	ResourceManagerInit(manager, dataSet, &dataSet->b.b.handle, freeDataSet);
 	if (dataSet->b.b.handle == NULL)
 	{
+		dataSet->b.b.memoryToFree = NULL;
 		freeDataSet(dataSet);
 		status = INSUFFICIENT_MEMORY;
 	}
@@ -2434,9 +2438,8 @@ size_t fiftyoneDegreesIpiSizeManagerFromMemory(
 	fiftyoneDegreesException* exception) {
 	size_t allocated;
 	ResourceManager manager;
-#ifdef _DEBUG
 	StatusCode status;
-#endif
+
 	// Set the memory allocation and free methods for tracking.
 	MemoryTrackingReset();
 	Malloc = MemoryTrackingMalloc;
@@ -2449,25 +2452,25 @@ size_t fiftyoneDegreesIpiSizeManagerFromMemory(
 	sizeConfig.b.freeData = false;
 
 	// Initialise the manager with the tracking methods in use to determine
-	// the amount of memory that is allocated.
-#ifdef _DEBUG
-	status =
-#endif
-		IpiInitManagerFromMemory(
-			&manager,
-			&sizeConfig,
-			properties,
-			memory,
-			size,
-			exception);
-#ifdef _DEBUG
-	assert(status == SUCCESS);
-#endif
-	assert(EXCEPTION_OKAY);
+	// the amount of memory that is allocated. The init method has freed its
+	// memory and not set up the manager unless it worked, so only then is
+	// there a manager to free. Otherwise the caller needs the status.
+	status = IpiInitManagerFromMemory(
+		&manager,
+		&sizeConfig,
+		properties,
+		memory,
+		size,
+		exception);
+	if (status != SUCCESS) {
+		EXCEPTION_SET(status);
+	}
+	else if (EXCEPTION_OKAY) {
+		ResourceManagerFree(&manager);
+	}
 
-	// Free the manager and get the total maximum amount of allocated memory
-	// needed for the manager and associated resources.
-	ResourceManagerFree(&manager);
+	// Get the total maximum amount of allocated memory needed for the manager
+	// and associated resources.
 	allocated = MemoryTrackingGetMax();
 
 	// Check that all the memory has been freed.

@@ -1737,13 +1737,17 @@ static bool initComponentHeaders(
 	DataSetHash* dataSet,
 	Exception* exception) {
 	
-	// Create the memory to store an array of pointers to headers in.
-	dataSet->componentHeaders = (HeaderPtrs**)Malloc(
-		sizeof(HeaderPtrs) * dataSet->componentsList.count);
+	// Create the memory to store an array of pointers to headers in. They start
+	// as null because freeing the data set frees them all, even if only some
+	// are created.
+	const size_t headersSize =
+		sizeof(HeaderPtrs) * dataSet->componentsList.count;
+	dataSet->componentHeaders = (HeaderPtrs**)Malloc(headersSize);
 	if (dataSet->componentHeaders == NULL) {
 		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return false;
 	}
+	memset(dataSet->componentHeaders, 0, headersSize);
 
 	// For each component get the headers array.
 	for (uint32_t i = 0; i < dataSet->componentsList.count; i++) {
@@ -2376,16 +2380,16 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromMemory(
 		size,
 		exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
-		// A plain free is used rather than the engine's free method so
-		// that the memory provided by the caller is left for the caller
-		// to release, keeping the behaviour callers have always had on
-		// this path.
-		Free(dataSet);
+		// The memory stays with the caller until the data set is set up, so
+		// it is not freed with what the data set allocated.
+		dataSet->b.b.memoryToFree = NULL;
+		freeDataSet(dataSet);
 		return status;
 	}
 	ResourceManagerInit(manager, dataSet, &dataSet->b.b.handle, freeDataSet);
 	if (dataSet->b.b.handle == NULL)
 	{
+		dataSet->b.b.memoryToFree = NULL;
 		freeDataSet(dataSet);
 		status = INSUFFICIENT_MEMORY;
 	}
@@ -2400,9 +2404,8 @@ size_t fiftyoneDegreesHashSizeManagerFromMemory(
 	fiftyoneDegreesException *exception) {
 	size_t allocated;
 	ResourceManager manager;
-#ifdef _DEBUG
 	StatusCode status;
-#endif
+
 	// Set the memory allocation and free methods for tracking.
 	MemoryTrackingReset();
 	Malloc = MemoryTrackingMalloc;
@@ -2415,25 +2418,25 @@ size_t fiftyoneDegreesHashSizeManagerFromMemory(
 	sizeConfig.b.b.freeData = false;
 
 	// Initialise the manager with the tracking methods in use to determine
-	// the amount of memory that is allocated.
-#ifdef _DEBUG
-	status =
-#endif
-	HashInitManagerFromMemory(
+	// the amount of memory that is allocated. The init method has freed its
+	// memory and not set up the manager unless it worked, so only then is
+	// there a manager to free. Otherwise the caller needs the status.
+	status = HashInitManagerFromMemory(
 		&manager,
 		&sizeConfig,
 		properties,
 		memory,
 		size,
 		exception);
-#ifdef _DEBUG
-	assert(status == SUCCESS);
-#endif
-	assert(EXCEPTION_OKAY);
+	if (status != SUCCESS) {
+		EXCEPTION_SET(status);
+	}
+	else if (EXCEPTION_OKAY) {
+		ResourceManagerFree(&manager);
+	}
 
-	// Free the manager and get the total maximum amount of allocated memory
-	// needed for the manager and associated resources.
-	ResourceManagerFree(&manager);
+	// Get the total maximum amount of allocated memory needed for the manager
+	// and associated resources.
 	allocated = MemoryTrackingGetMax();
 
 	// Check that all the memory has been freed.
