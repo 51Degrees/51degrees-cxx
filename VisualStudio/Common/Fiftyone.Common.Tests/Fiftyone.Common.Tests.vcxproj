@@ -21,6 +21,7 @@
     <ClCompile Include="..\..\..\test\common\CacheTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionConfigTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionOffsetTests.cpp" />
+    <ClCompile Include="..\..\..\test\common\CollectionOffsetShiftTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionTests.cpp" />
     <ClCompile Include="..\..\..\test\common\EngineTests.cpp" />
     <ClCompile Include="..\..\..\test\common\EvidenceTests.cpp" />
@@ -71,6 +72,7 @@
     <ClInclude Include="..\..\..\test\common\TestStrings.hpp" />
     <ClInclude Include="..\..\..\test\common\FixedSizeCollection.hpp" />
     <ClInclude Include="..\..\..\test\common\TestUtils_Pointers.hpp" />
+    <ClInclude Include="..\..\..\test\common\TestUtils_SizeManager.hpp" />
     <ClInclude Include="..\..\..\test\common\VariableSizeCollection.hpp" />
     <ClInclude Include="..\..\..\test\common\HeadersContainer.hpp" />
   </ItemGroup>

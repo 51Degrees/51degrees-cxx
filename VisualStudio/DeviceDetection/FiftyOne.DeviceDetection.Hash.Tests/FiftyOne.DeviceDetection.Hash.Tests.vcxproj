@@ -18,6 +18,7 @@
     <ClInclude Include="..\..\..\src\common\textfile.h" />
     <ClInclude Include="..\..\..\test\dd\Constants.hpp" />
     <ClInclude Include="..\..\..\test\dd\EngineDeviceDetectionTests.hpp" />
+    <ClInclude Include="..\..\..\test\dd\EngineDeviceDetectionTestsMacros.hpp" />
     <ClInclude Include="..\..\..\test\dd\ExampleDeviceDetectionTests.hpp" />
     <ClInclude Include="..\..\..\test\dd\hash\HashTestMemory.hpp" />
     <ClInclude Include="..\..\..\test\dd\hash\SimpleEngineTestBase.hpp" />
@@ -29,6 +30,7 @@
     <ClCompile Include="..\..\..\src\common\textfile.c" />
     <ClCompile Include="..\..\..\test\dd\EngineDeviceDetectionTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\ExampleDeviceDetectionTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\EngineHashGraphFilterTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\EngineHashInitTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashGettingStartedTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashMatchMetricsTests.cpp" />
@@ -49,6 +51,8 @@
     <ClCompile Include="..\..\..\test\dd\hash\ExampleHashReloadFromMemoryTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleHashStronglyTypedTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleHashTests.hpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\GraphDataFileTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\GraphNodeTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashCTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashMemLeakReloadFromFileTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashInitFailureTests.cpp" />
