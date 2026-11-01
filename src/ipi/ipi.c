@@ -2616,6 +2616,16 @@ void fiftyoneDegreesResultsIpiFree(fiftyoneDegreesResultsIpi* results) {
 	Free(results);
 }
 
+/**
+ * True if the IPv6 address is in ::ffff:0:0/96, which represents the IPv4
+ * address in its last four bytes (RFC 4291 section 2.5.5.2).
+ */
+static bool isIpv4Mapped(const unsigned char* const ipAddress) {
+	static const byte prefix[IPV6_LENGTH - IPV4_LENGTH] =
+		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
+	return memcmp(ipAddress, prefix, sizeof(prefix)) == 0;
+}
+
 static bool addResultsFromIpAddressNoChecks(
 	ResultsIpi* results,
 	const unsigned char* ipAddress,
@@ -2623,6 +2633,12 @@ static bool addResultsFromIpAddressNoChecks(
 	uint32_t componentMask,
 	fiftyoneDegreesException* exception) {
 	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	// Every lookup comes through here, so an IPv4-mapped address takes the
+	// answers of its IPv4 address however it was given.
+	if (type == IP_TYPE_IPV6 && isIpv4Mapped(ipAddress)) {
+		ipAddress += IPV6_LENGTH - IPV4_LENGTH;
+		type = IP_TYPE_IPV4;
+	}
 	for (uint32_t componentIndex = 0;
 		componentIndex < dataSet->componentsList.count;
 		componentIndex++) {

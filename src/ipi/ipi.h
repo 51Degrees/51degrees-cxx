@@ -711,6 +711,16 @@ EXTERNAL void fiftyoneDegreesResultsIpiFree(
  * Process a single byte array format IP Address and populate the IP range 
  * offset in the results structure. The result IP type will need to be checked
  * to determined the version of IP being processed.
+ *
+ * An IPv4-mapped IPv6 address (::ffff:a.b.c.d) is processed as its IPv4
+ * address, and the result's type and target address are those of the IPv4
+ * address. This applies to every way of giving an address, including strings
+ * and evidence.
+ *
+ * An address below the lowest key in a graph has no profile for that graph's
+ * component and no exception is set. A property of that component has no value
+ * with the reason #FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE, unless
+ * it is mandatory with a default value, in which case it reads as that default.
  * @param results preallocated results structure to populate
  * @param ipAddress byte array to process
  * @param ipAddressLength of the IP address byte array
