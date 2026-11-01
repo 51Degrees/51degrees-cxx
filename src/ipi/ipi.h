@@ -153,10 +153,12 @@
 #endif
 /**
  * Default value for the value cache size used in the default collection
- * configuration.
+ * configuration. The Balanced preset reads the values of every property of a
+ * lookup through this cache, so it holds enough of them that most reads find
+ * their value there.
  */
 #ifndef FIFTYONE_DEGREES_VALUE_CACHE_SIZE
-#define FIFTYONE_DEGREES_VALUE_CACHE_SIZE 500
+#define FIFTYONE_DEGREES_VALUE_CACHE_SIZE 50000
 #endif
 /**
  * Default value for the value cache loaded size used in the default collection
