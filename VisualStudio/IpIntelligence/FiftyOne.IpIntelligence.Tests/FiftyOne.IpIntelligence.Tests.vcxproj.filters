@@ -66,9 +66,15 @@
     <ClCompile Include="..\..\..\test\ipi\ExamplePerformanceLegacyTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiDoubleTextTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\test\common\Base.hpp">
+      <Filter>Headers Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\test\common\DoubleText.hpp">
       <Filter>Headers Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\src\ipi\EngineIpi.hpp">
