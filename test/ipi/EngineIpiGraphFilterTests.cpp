@@ -56,13 +56,15 @@ static const uint32_t graphFilterNullOffset = UINT32_MAX;
 class IpiGraphFilterCTests : public Base {
 public:
 	void SetUp() {
-		Base::SetUp();
-		EXCEPTION_CREATE;
+		// Found before the memory checkpoint, as the path is freed after the
+		// check.
 		for (int i = 0;
 			i < _IpiFileNamesLength && dataFilePath == "";
 			i++) {
 			dataFilePath = GetFilePath(_dataFolderName, _IpiFileNames[i]);
 		}
+		Base::SetUp();
+		EXCEPTION_CREATE;
 		fiftyoneDegreesIpiInitManagerFromFile(
 			&manager,
 			&config,
