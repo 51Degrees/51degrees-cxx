@@ -41,6 +41,7 @@ public:
 	void setUsePerformanceGraph(bool use);
 	void setUsePredictiveGraph(bool use);
 	void setTraceRoute(bool trace);
+	void setPropertyValueIndex(bool index);
 	CollectionConfig getStrings();
 	CollectionConfig getProperties();
 	CollectionConfig getValues();
@@ -53,4 +54,5 @@ public:
 	bool getUsePredictiveGraph();
 	uint16_t getConcurrency();
 	bool getTraceRoute();
+	bool getPropertyValueIndex();
 };
