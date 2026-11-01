@@ -82,6 +82,14 @@
   },
   {
     "Image": "ubuntu-latest",
+    "Name": "Ubuntu_x64_Debug_Asan",
+    "Configuration": "Debug",
+    "Arch": "x64",
+    "Asan": true,
+    "Products": ["common", "dd", "ipi"]
+  },
+  {
+    "Image": "ubuntu-latest",
     "Name": "Ubuntu_x86_Release",
     "Configuration": "Release",
     "Arch": "x86",

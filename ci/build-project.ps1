@@ -6,7 +6,8 @@ param(
     [string]$BuildMethod = "cmake",
     [string[]]$Products,
     [bool]$IpiSymbols = $true,
-    [bool]$CxxBothProducts
+    [bool]$CxxBothProducts,
+    [bool]$Asan
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
@@ -34,6 +35,7 @@ if ($BuildMethod -eq "cmake") {
             "-DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=$(OnOff ($Arch -eq 'x64'))"
             "-DFIFTYONE_IPI_SYMBOLS=$(OnOff $IpiSymbols)"
             "-DFIFTYONE_CXX_BOTH_PRODUCTS=$(OnOff $CxxBothProducts)"
+            "-DWITH_ASAN=$(OnOff $Asan)"
         )
 
     # CMake builds both copies of common in these cases.
