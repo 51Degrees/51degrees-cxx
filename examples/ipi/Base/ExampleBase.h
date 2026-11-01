@@ -31,11 +31,16 @@
 #endif
 #include "../../../src/ipi/fiftyone.h"
 
+// Times in milliseconds. Windows uses the performance counter, as the tick
+// count only moves every 15 or 16 milliseconds, which is as long as some
+// timed runs take.
 #ifdef _MSC_VER
-#define TIMER_CREATE double start, end
-#define TIMER_START start = GetTickCount()
-#define TIMER_END end = GetTickCount()
-#define TIMER_ELAPSED (end == start ? 1 : end - start)
+#define TIMER_CREATE LARGE_INTEGER start, end, frequency
+#define TIMER_START (QueryPerformanceFrequency(&frequency), \
+QueryPerformanceCounter(&start))
+#define TIMER_END QueryPerformanceCounter(&end)
+#define TIMER_ELAPSED ((double)(end.QuadPart - start.QuadPart) * 1000.0 / \
+(double)frequency.QuadPart)
 #else
 #define TIMER_CREATE struct timespec start, end
 #define TIMER_START clock_gettime(CLOCK_MONOTONIC, &start)
