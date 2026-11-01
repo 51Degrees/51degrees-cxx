@@ -613,6 +613,32 @@ TEST_F(HashCTests, HashSizeManagerFromFileException) {
 	internalSetUp();
 }
 
+/*
+ * Check that a null configuration, which the comments on the method allow,
+ * means the balanced one for a data file that loads.
+ */
+TEST_F(HashCTests, HashSizeManagerFromFileNullConfig) {
+	internalTearDown();
+
+	EXCEPTION_CREATE;
+	const size_t size = fiftyoneDegreesHashSizeManagerFromFile(
+		nullptr,
+		&this->properties,
+		dataFilePath.c_str(),
+		exception);
+	EXPECT_TRUE(EXCEPTION_OKAY);
+	const size_t balanced = fiftyoneDegreesHashSizeManagerFromFile(
+		&fiftyoneDegreesHashBalancedConfig,
+		&this->properties,
+		dataFilePath.c_str(),
+		exception);
+	EXPECT_TRUE(EXCEPTION_OKAY);
+	EXPECT_GT(size, (size_t)0);
+	EXPECT_EQ(balanced, size);
+
+	internalSetUp();
+}
+
 /**
  * Check that when an index for a property was not found (i.e. the index is -1)
  * an approriate error is set, and there is no segfault.

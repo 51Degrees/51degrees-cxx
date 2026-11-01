@@ -526,3 +526,54 @@ TEST_F(DataFileHeaderTests, SizeManagerFromFile_NoSuchProperty_ReportsStatus) {
 		tempFilePath.c_str(),
 		"NoSuchProperty");
 }
+
+/**
+ * Test that a null configuration, which the comments on the method allow, means
+ * the balanced one for a file that loads.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromFile_NullConfig_SameAsBalanced) {
+	ASSERT_NO_FATAL_FAILURE(writeTempFile());
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	const size_t size = fiftyoneDegreesIpiSizeManagerFromFile(
+		nullptr,
+		&properties,
+		tempFilePath.c_str(),
+		exception);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, exception->status);
+	const size_t balanced = fiftyoneDegreesIpiSizeManagerFromFile(
+		&fiftyoneDegreesIpiBalancedConfig,
+		&properties,
+		tempFilePath.c_str(),
+		exception);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, exception->status);
+	EXPECT_GT(size, (size_t)0);
+	EXPECT_EQ(balanced, size);
+}
+
+/**
+ * Test that a null configuration, which the comments on the method allow, means
+ * the balanced one for memory that loads.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromMemory_NullConfig_SameAsBalanced) {
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	const size_t size = fiftyoneDegreesIpiSizeManagerFromMemory(
+		nullptr,
+		&properties,
+		data.data(),
+		(fiftyoneDegreesFileOffset)data.size(),
+		exception);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, exception->status);
+	const size_t balanced = fiftyoneDegreesIpiSizeManagerFromMemory(
+		&fiftyoneDegreesIpiBalancedConfig,
+		&properties,
+		data.data(),
+		(fiftyoneDegreesFileOffset)data.size(),
+		exception);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, exception->status);
+	EXPECT_GT(size, (size_t)0);
+	EXPECT_EQ(balanced, size);
+}

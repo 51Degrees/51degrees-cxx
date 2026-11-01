@@ -32,7 +32,7 @@ ConfigIpi::ConfigIpi() : ConfigBase(&this->config.b) {
 }
 
 ConfigIpi::ConfigIpi(fiftyoneDegreesConfigIpi *config) :
-	ConfigBase(&config->b) {
+	ConfigBase(&this->config.b) {
 	this->config = config != nullptr ?
 		*config : fiftyoneDegreesIpiInMemoryConfig;
 	initCollectionConfig();
