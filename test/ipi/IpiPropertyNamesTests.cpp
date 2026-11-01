@@ -323,7 +323,7 @@ protected:
 		RequiredPropertiesConfig properties;
 		EngineIpi engine(masterPath.c_str(), &config, &properties);
 		const std::vector<std::string> before = engine.getRequiredProperties();
-		ASSERT_GT(before.size(), (size_t)2);
+		ASSERT_GE(before.size(), (size_t)2);
 		ASSERT_EQ(renamedName, before[0]);
 		Values expected;
 		{
@@ -439,7 +439,7 @@ protected:
 		RequiredPropertiesConfig properties;
 		EngineIpi engine(masterPath.c_str(), &config, &properties);
 		const std::vector<std::string> before = engine.getRequiredProperties();
-		ASSERT_GT(before.size(), (size_t)2);
+		ASSERT_GE(before.size(), (size_t)2);
 		// The reload keeps this property and moves its index from 1 to 0.
 		const std::vector<std::string> named = { before[1] };
 		std::string expected;
