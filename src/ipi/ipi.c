@@ -2414,12 +2414,16 @@ fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromMemory(
 		size,
 		exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
-		Free(dataSet);
+		// The memory stays with the caller until the data set is set up, so
+		// it is not freed with what the data set allocated.
+		dataSet->b.b.memoryToFree = NULL;
+		freeDataSet(dataSet);
 		return status;
 	}
 	ResourceManagerInit(manager, dataSet, &dataSet->b.b.handle, freeDataSet);
 	if (dataSet->b.b.handle == NULL)
 	{
+		dataSet->b.b.memoryToFree = NULL;
 		freeDataSet(dataSet);
 		status = INSUFFICIENT_MEMORY;
 	}
@@ -2434,9 +2438,8 @@ size_t fiftyoneDegreesIpiSizeManagerFromMemory(
 	fiftyoneDegreesException* exception) {
 	size_t allocated;
 	ResourceManager manager;
-#ifdef _DEBUG
 	StatusCode status;
-#endif
+
 	// Set the memory allocation and free methods for tracking.
 	MemoryTrackingReset();
 	Malloc = MemoryTrackingMalloc;
@@ -2444,30 +2447,31 @@ size_t fiftyoneDegreesIpiSizeManagerFromMemory(
 	Free = MemoryTrackingFree;
 	FreeAligned = MemoryTrackingFreeAligned;
 
-	// Ensure that the memory used is not freed with the data set.
-	ConfigIpi sizeConfig = *config;
+	// Ensure that the memory used is not freed with the data set. A null
+	// configuration means the balanced one, as it does in initDataSet.
+	ConfigIpi sizeConfig = config != NULL ? *config : IpiBalancedConfig;
 	sizeConfig.b.freeData = false;
 
 	// Initialise the manager with the tracking methods in use to determine
-	// the amount of memory that is allocated.
-#ifdef _DEBUG
-	status =
-#endif
-		IpiInitManagerFromMemory(
-			&manager,
-			&sizeConfig,
-			properties,
-			memory,
-			size,
-			exception);
-#ifdef _DEBUG
-	assert(status == SUCCESS);
-#endif
-	assert(EXCEPTION_OKAY);
+	// the amount of memory that is allocated. The init method has freed its
+	// memory and not set up the manager unless it worked, so only then is
+	// there a manager to free. Otherwise the caller needs the status.
+	status = IpiInitManagerFromMemory(
+		&manager,
+		&sizeConfig,
+		properties,
+		memory,
+		size,
+		exception);
+	if (status != SUCCESS) {
+		EXCEPTION_SET(status);
+	}
+	else if (EXCEPTION_OKAY) {
+		ResourceManagerFree(&manager);
+	}
 
-	// Free the manager and get the total maximum amount of allocated memory
-	// needed for the manager and associated resources.
-	ResourceManagerFree(&manager);
+	// Get the total maximum amount of allocated memory needed for the manager
+	// and associated resources.
 	allocated = MemoryTrackingGetMax();
 
 	// Check that all the memory has been freed.
@@ -2616,6 +2620,17 @@ void fiftyoneDegreesResultsIpiFree(fiftyoneDegreesResultsIpi* results) {
 	Free(results);
 }
 
+/**
+ * True if the IPv6 address is in ::ffff:0:0/96, which represents the IPv4
+ * address in its last four bytes. See
+ * https://github.com/51Degrees/specifications/blob/main/ip-intelligence-specification/pipeline-elements/ip-intelligence-on-premise.md#address-forms
+ */
+static bool isIpv4Mapped(const unsigned char* const ipAddress) {
+	static const byte prefix[IPV6_LENGTH - IPV4_LENGTH] =
+		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
+	return memcmp(ipAddress, prefix, sizeof(prefix)) == 0;
+}
+
 static bool addResultsFromIpAddressNoChecks(
 	ResultsIpi* results,
 	const unsigned char* ipAddress,
@@ -2623,6 +2638,12 @@ static bool addResultsFromIpAddressNoChecks(
 	uint32_t componentMask,
 	fiftyoneDegreesException* exception) {
 	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	// Every lookup comes through here, so an IPv4-mapped address takes the
+	// answers of its IPv4 address however it was given.
+	if (type == IP_TYPE_IPV6 && isIpv4Mapped(ipAddress)) {
+		ipAddress += IPV6_LENGTH - IPV4_LENGTH;
+		type = IP_TYPE_IPV4;
+	}
 	for (uint32_t componentIndex = 0;
 		componentIndex < dataSet->componentsList.count;
 		componentIndex++) {

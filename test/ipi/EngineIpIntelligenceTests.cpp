@@ -68,6 +68,7 @@ EngineIpIntelligenceTests::~EngineIpIntelligenceTests() {
 	while (ipAddresses.empty() == false) {
 		ipAddresses.pop_back();
 	}
+	delete config;
 }
 
 EngineBase* EngineIpIntelligenceTests::getEngine() { return (EngineBase*)engine; }

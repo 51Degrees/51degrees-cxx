@@ -50,6 +50,16 @@ Whatever is named, a profile read through a cache is read once for each lookup r
 
 Anything not held reads from the file, so it still works, more slowly and allocating memory. That covers a direct graph call for a component with no required property, and meta data for what was not named. A property that was not named gives no value, as it does with every other configuration.
 
+## Address forms
+
+An IPv4-mapped IPv6 address (`::ffff:a.b.c.d`) is looked up as the IPv4 address `a.b.c.d`, whether it is given as text in any form, as evidence or as bytes. Every property and the target address are then those of the IPv4 address.
+
+Every other IPv6 address is looked up as an IPv6 address, including those that hold an IPv4 address. An IPv4-embedded address from [RFC 6052](https://www.rfc-editor.org/rfc/rfc6052.html), such as `64:ff9b::a.b.c.d`, stays an IPv6 address, because deriving the IPv4 address from it is the job of an address translator ([RFC 6052 section 1.3](https://www.rfc-editor.org/rfc/rfc6052.html#section-1.3)).
+
+An address below the lowest key in a graph has no profile for that graph's component. A property of that component then reads as its default if it is mandatory with a default value, and otherwise has no value.
+
+The [IP Intelligence specification](https://github.com/51Degrees/specifications/blob/main/ip-intelligence-specification/pipeline-elements/ip-intelligence-on-premise.md#address-forms) sets out each form.
+
 ## Referencing the API
 
 ### Adding references with CMake

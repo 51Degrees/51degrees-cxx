@@ -75,6 +75,10 @@ EngineIpi::EngineIpi(
 		dataCopy,
 		(size_t)length,
 		exception);
+	if (status != SUCCESS || EXCEPTION_FAILED) {
+		// The memory stays with the caller until the data set is set up.
+		Free(dataCopy);
+	}
 	if (status != SUCCESS) {
 		throw StatusCodeException(status);
 	}

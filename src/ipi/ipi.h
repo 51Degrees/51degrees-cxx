@@ -558,10 +558,13 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromFile(
  * @param properties the properties that will be consumed from the data set, or
  * NULL if all available properties in the IP Intelligence data file should be available
  * for consumption
- * @param memory pointer to continuous memory containing the IP intelligence data set
+ * @param memory pointer to continuous memory containing the IP intelligence data set,
+ * which stays with the caller
  * @param size the number of bytes that make up the IP intelligence data set
  * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
+ * exception occurs. See exceptions.h. Holds the status if the data set could
+ * not be initialised, for example from memory that is short or rejected, and
+ * the number returned then means nothing.
  * @return the total number of bytes needed to initialise a IP Intelligence resource
  * and associated manager with the configuration provided or zero
  */
@@ -582,7 +585,9 @@ EXTERNAL size_t fiftyoneDegreesIpiSizeManagerFromMemory(
  * @param properties the properties that will be consumed from the data set, or
  * NULL if all available properties in the IP intelligence data file should be available
  * for consumption
- * @param memory pointer to continuous memory containing the IP Intelligence data set
+ * @param memory pointer to continuous memory containing the IP Intelligence data set.
+ * If the data set is not created the memory stays with the caller, even if the
+ * configuration says to free it
  * @param size the number of bytes that make up the IP Intelligence data set
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
@@ -630,8 +635,8 @@ EXTERNAL void* fiftyoneDegreesProfileCombinationReadFromFile(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the status associated with the data set reload. Any value other than
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded
- * correctly
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and
+ * the current one stays in use
  */
 EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiReloadManagerFromFile(
 	fiftyoneDegreesResourceManager* manager,
@@ -655,8 +660,8 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiReloadManagerFromFile(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the status associated with the data set reload. Any value other than
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded
- * correctly
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and
+ * the current one stays in use
  */
 EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiReloadManagerFromMemory(
 	fiftyoneDegreesResourceManager* manager,
@@ -678,8 +683,8 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiReloadManagerFromMemory(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the status associated with the data set reload. Any value other than
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded
- * correctly
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and
+ * the current one stays in use
  */
 EXTERNAL fiftyoneDegreesStatusCode  
 fiftyoneDegreesIpiReloadManagerFromOriginalFile(
@@ -711,6 +716,19 @@ EXTERNAL void fiftyoneDegreesResultsIpiFree(
  * Process a single byte array format IP Address and populate the IP range 
  * offset in the results structure. The result IP type will need to be checked
  * to determined the version of IP being processed.
+ *
+ * An IPv4-mapped IPv6 address (::ffff:a.b.c.d) is processed as its IPv4
+ * address, and the result's type and target address are those of the IPv4
+ * address. This applies to every way of giving an address, including strings
+ * and evidence. An IPv4-embedded address from RFC 6052, such as
+ * 64:ff9b::a.b.c.d, stays an IPv6 address, because deriving the IPv4 address
+ * from it is the job of an address translator (RFC 6052 section 1.3). See
+ * https://github.com/51Degrees/specifications/blob/main/ip-intelligence-specification/pipeline-elements/ip-intelligence-on-premise.md#address-forms
+ *
+ * An address below the lowest key in a graph has no profile for that graph's
+ * component and no exception is set. A property of that component has no value
+ * with the reason #FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE, unless
+ * it is mandatory with a default value, in which case it reads as that default.
  * @param results preallocated results structure to populate
  * @param ipAddress byte array to process
  * @param ipAddressLength of the IP address byte array
