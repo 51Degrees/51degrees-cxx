@@ -2254,27 +2254,24 @@ size_t fiftyoneDegreesHashSizeManagerFromFile(
 	FreeAligned = MemoryTrackingFreeAligned;
 
 	// Initialise the manager with the tracking methods in use to determine
-	// the amount of memory that is allocated. Then if successful free all the
-	// memory having tracked the total amount of memory allocated. If not 
-	// successful then update the status of the exception.
+	// the amount of memory that is allocated. The init method has freed its
+	// memory and not set up the manager unless it worked, so only then is
+	// there a manager to free. Otherwise the caller needs the status.
 	status = HashInitManagerFromFile(
 		&manager,
 		config,
 		properties,
 		fileName,
 		exception);
-	if (status == SUCCESS) {
+	if (status != SUCCESS) {
+		EXCEPTION_SET(status);
+	}
+	else if (EXCEPTION_OKAY) {
 		ResourceManagerFree(&manager);
 	}
-#ifndef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
-	// Only set the exception status if enabled. 
-	else {
-		exception->status = status;
-	}
-#endif
 
-	// Get the total maximum amount of allocated memory
-	// needed for the manager and associated resources.
+	// Get the total maximum amount of allocated memory needed for the manager
+	// and associated resources.
 	allocated = MemoryTrackingGetMax();
 
 	// Check that all the memory has been freed.
