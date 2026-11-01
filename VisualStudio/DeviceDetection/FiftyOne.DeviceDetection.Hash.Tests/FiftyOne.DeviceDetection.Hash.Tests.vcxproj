@@ -7,6 +7,8 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <!-- The googletest package predates GTEST_SKIP. This returns from the function it is in, so a skip in SetUp does not stop the test. -->
+      <PreprocessorDefinitions>GTEST_SKIP=return GTEST_SUCCEED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
