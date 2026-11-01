@@ -120,6 +120,13 @@ static void setHandle(
  * the handle after its last reference has gone. So the resource is freed with
  * the last reference, but the memory of the handle stays until the manager is
  * freed as well, which costs one of these for each replacement.
+ *
+ * Nothing limits how long a thread can pause between reading the active handle
+ * and adding to its counter, so a handle can still be read after several more
+ * replacements, and freeing it at a later replacement is not safe. Knowing that
+ * no thread still holds one would need every lookup to update a second counter
+ * shared by all threads. That is a cost on every lookup to save a few tens of
+ * bytes for each replacement, so the memory is kept until the manager is freed.
  */
 typedef struct retained_handle_t {
 	ResourceHandle handle; /**< First, so a handle can be cast to this type */

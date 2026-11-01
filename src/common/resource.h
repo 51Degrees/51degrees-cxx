@@ -246,7 +246,9 @@ EXTERNAL int32_t fiftyoneDegreesResourceHandleGetUse(
 /**
  * Replaces the resource with the new resource. If the existing resource is 
  * not being used it will be freed. Otherwise it is left to the decrement 
- * function to free the resource when the usage count is zero.
+ * function to free the resource when the usage count is zero. The memory of
+ * the replaced handle itself, a few tens of bytes, is kept until the manager
+ * is freed, because a thread can still be reading it.
  * @param manager the resource manager to initialise with the resource
  * @param newResource pointer to the resource which the manager should manage
  * access to
