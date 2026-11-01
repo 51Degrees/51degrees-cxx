@@ -91,6 +91,14 @@ void ConfigHash::setTraceRoute(bool shouldTrace) {
 	config.traceRoute = shouldTrace;
 }
 
+void ConfigHash::setIndexedProperties(std::vector<std::string> names) {
+	indexedProperties = names;
+}
+
+std::vector<std::string> ConfigHash::getIndexedProperties() const {
+	return indexedProperties;
+}
+
 bool ConfigHash::getUsePerformanceGraph() {
 	return config.usePerformanceGraph;
 }

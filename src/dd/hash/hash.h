@@ -228,6 +228,37 @@ typedef struct fiftyone_degrees_hash_rootnodes_t {
 } fiftyoneDegreesHashRootNodes;
 
 /**
+ * Index from each value of the properties named when the data set is
+ * initialised to the profiles holding it, so those profiles are found without
+ * reading every profile.
+ *
+ * Property i is the first in the properties collection named names[i]. Each
+ * of its values has a key, from firstKeys[i] to firstKeys[i + 1] - 1, in the
+ * order of the values collection from firstValueIndexes[i]. The profiles
+ * holding the value with key k are profiles[starts[k]] to
+ * profiles[starts[k + 1] - 1]. Each is a position in the profile offsets
+ * collection, in ascending order, which is the order of the profiles in the
+ * data file.
+ */
+typedef struct fiftyone_degrees_hash_value_profiles_t {
+	uint32_t propertiesCount; /**< Number of properties named */
+	uint32_t keysCount; /**< Number of values with a key */
+	uint32_t profilesCount; /**< Number of entries in profiles */
+	const char **names; /**< Copy of each name the caller gave, in the order
+	                        given, without nulls or repeats */
+	uint32_t *propertyIndexes; /**< Index in the properties collection of each
+	                               property, or UINT32_MAX when the data file
+	                               has no property of the name */
+	uint32_t *firstValueIndexes; /**< Index in the values collection of the
+	                                 first value of each property */
+	uint32_t *firstKeys; /**< Key of the first value of each property, then
+	                         keysCount */
+	uint32_t *starts; /**< Position in profiles of the first profile of each
+	                      key, then profilesCount */
+	uint32_t *profiles; /**< Positions in the profile offsets collection */
+} fiftyoneDegreesHashValueProfiles;
+
+/**
  * Data set structure containing all the components used for detections.
  * This should predominantly be used through a #fiftyoneDegreesResourceManager
  * pointer to maintain a safe reference. If access the data set is needed then
@@ -260,6 +291,10 @@ typedef struct fiftyone_degrees_dataset_hash_t {
 	fiftyoneDegreesCollection *profileOffsets; /**< Collection of all offsets
 											   to profiles in the profiles
 											   collection */
+	fiftyoneDegreesHashValueProfiles *valueProfiles; /**< Profiles holding each
+	                                                 value of the properties
+	                                                 named to index, or NULL
+	                                                 when none were named */
 } fiftyoneDegreesDataSetHash;
 
 /** @cond FORWARD_DECLARATIONS */
@@ -441,6 +476,41 @@ fiftyoneDegreesHashInitManagerFromFile(
 	fiftyoneDegreesException *exception);
 
 /**
+ * Initialises the resource manager as #fiftyoneDegreesHashInitManagerFromFile
+ * does, and indexes the profiles holding each value of the properties named,
+ * so that #fiftyoneDegreesHashIterateProfilesForPropertyAndValue and
+ * #fiftyoneDegreesHashGetProfileIdsForPropertyAndValue find them without
+ * reading every profile. A property is indexed whether or not it is required,
+ * and whatever the configuration. A reload indexes the same names again.
+ * @param manager the resource manager to manage the shared data set resource
+ * @param config configuration for the operation of the data set, or NULL if
+ * default detection configuration is required
+ * @param properties the properties that will be consumed from the data set, or
+ * NULL if all available properties in the Hash data file should be available
+ * for consumption
+ * @param fileName the full path to a file with read permission that contains
+ * the Hash data set
+ * @param indexedProperties names of the properties to index, matched exactly,
+ * or NULL to index none. Null names and repeats are ignored, and a name the
+ * data file has no property of indexes nothing. The names are copied
+ * @param indexedPropertiesCount number of names in indexedProperties
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the status associated with the data set resource assigned to the
+ * resource manager. Any value other than #FIFTYONE_DEGREES_STATUS_SUCCESS
+ * means the data set was not created and the resource manager can not be used.
+ */
+EXTERNAL fiftyoneDegreesStatusCode
+fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesConfigHash *config,
+	fiftyoneDegreesPropertiesRequired *properties,
+	const char *fileName,
+	const char **indexedProperties,
+	int indexedPropertiesCount,
+	fiftyoneDegreesException *exception);
+
+/**
  * Gets the total size in bytes which will be allocated when intialising a
  * Hash resource and associated manager with the same parameters. If any of
  * the configuration options prevent the memory from being constant (i.e. more
@@ -494,6 +564,42 @@ fiftyoneDegreesHashInitManagerFromMemory(
 	fiftyoneDegreesPropertiesRequired *properties,
 	void *memory,
 	long size,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Initialises the resource manager as
+ * #fiftyoneDegreesHashInitManagerFromMemory does, and indexes the profiles
+ * holding each value of the properties named, as
+ * #fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties does.
+ * @param manager the resource manager to manage the shared data set resource
+ * @param config configuration for the operation of the data set, or NULL if
+ * default detection configuration is required
+ * @param properties the properties that will be consumed from the data set, or
+ * NULL if all available properties in the Hash data file should be available
+ * for consumption
+ * @param memory pointer to continuous memory containing the Hash data set. If
+ * the data set is not created the memory stays with the caller, even if the
+ * configuration says to free it
+ * @param size the number of bytes that make up the Hash data set
+ * @param indexedProperties names of the properties to index, matched exactly,
+ * or NULL to index none. Null names and repeats are ignored, and a name the
+ * data file has no property of indexes nothing. The names are copied
+ * @param indexedPropertiesCount number of names in indexedProperties
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the status associated with the data set resource assigned to the
+ * resource manager. Any value other than #FIFTYONE_DEGREES_STATUS_SUCCESS
+ * means the data set was not created and the resource manager can not be used.
+ */
+EXTERNAL fiftyoneDegreesStatusCode
+fiftyoneDegreesHashInitManagerFromMemoryWithIndexedProperties(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesConfigHash *config,
+	fiftyoneDegreesPropertiesRequired *properties,
+	void *memory,
+	long size,
+	const char **indexedProperties,
+	int indexedPropertiesCount,
 	fiftyoneDegreesException *exception);
 
 /**
@@ -899,7 +1005,16 @@ EXTERNAL void fiftyoneDegreesDataSetHashRelease(
 
 /**
  * Iterates over the profiles in the data set calling the callback method for
- * any profiles that contain the property and value provided.
+ * any profiles that contain the property and value provided. The profiles are
+ * iterated in the order of the data file, which is ascending profile id, and
+ * each one is passed to the callback whatever the callback returns. Both names
+ * are matched exactly.
+ *
+ * For a property named to index when the data set was initialised, with
+ * #fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties or
+ * #fiftyoneDegreesHashInitManagerFromMemoryWithIndexedProperties, an index
+ * finds the profiles. For any other property every profile is read. Both give
+ * the same profiles.
  * @param manager the resource manager containing a hash data set initialised
  * by one of the Hash data set init methods
  * @param propertyName name of the property which the value relates to
@@ -916,6 +1031,30 @@ EXTERNAL uint32_t fiftyoneDegreesHashIterateProfilesForPropertyAndValue(
 	const char *valueName,
 	void *state,
 	fiftyoneDegreesProfileIterateMethod callback,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the ids of the profiles that contain the property and value provided.
+ * They are the profiles #fiftyoneDegreesHashIterateProfilesForPropertyAndValue
+ * iterates over, in the same order, found in the same way.
+ * @param manager the resource manager containing a hash data set initialised
+ * by one of the Hash data set init methods
+ * @param propertyName name of the property which the value relates to
+ * @param valueName name of the property value which the profiles must contain
+ * @param profileIds array to set the profile ids in, or NULL to count them
+ * @param length number of ids the array can hold
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the number of profiles that contain the value. When this is more
+ * than length only the first length ids are set, so a larger array is needed
+ * for the rest.
+ */
+EXTERNAL uint32_t fiftyoneDegreesHashGetProfileIdsForPropertyAndValue(
+	fiftyoneDegreesResourceManager *manager,
+	const char *propertyName,
+	const char *valueName,
+	uint32_t *profileIds,
+	uint32_t length,
 	fiftyoneDegreesException *exception);
 
 /**
