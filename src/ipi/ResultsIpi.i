@@ -136,17 +136,24 @@ public:
             (size_t)propertyNameLength);
     }
 
+    // Returns the number of bytes the value needs, -1 if the property has no
+    // value, or -2 if it is not a required property of these results.
     int copyValueAsUTF8StringByName(
         unsigned char propertyName[],
         int propertyNameLength,
         unsigned char copy[],
         int length) {
         if (propertyName == nullptr || propertyNameLength < 0) {
-            return -1;
+            return -2;
         }
-        Value<std::vector<uint8_t>> value = $self->getValueAsUTF8String(
+        const int index = $self->getRequiredPropertyIndex(
             (const char *)propertyName,
             (size_t)propertyNameLength);
+        if (index < 0) {
+            return -2;
+        }
+        Value<std::vector<uint8_t>> value =
+            $self->getValueAsUTF8String(index);
         if (!value.hasValue()) {
             return -1;
         }
