@@ -6,7 +6,10 @@ param(
     [string]$BuildMethod = "cmake",
     [string[]]$Products,
     [bool]$IpiSymbols = $true,
-    [bool]$CxxBothProducts
+    [bool]$CxxBothProducts,
+    [bool]$ExceptionsDisabled,
+    # Builds the libraries, examples and tools without the tests.
+    [bool]$BuildOnly
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
@@ -24,17 +27,22 @@ if ($BuildMethod -eq "cmake") {
     # One configure builds every product in the entry. The large data file
     # copy of the common tests runs on x64 only. The shared script selects
     # 32 bit on Windows, and Linux needs the CMake option.
+    $extraArgs = @(
+        "-D32bit=$(OnOff ($IsLinux -and $Arch -eq 'x86'))"
+        "-DFIFTYONE_BUILD_DEVICE_DETECTION=$(OnOff ($Products -contains 'dd'))"
+        "-DFIFTYONE_BUILD_IP_INTELLIGENCE=$(OnOff ($Products -contains 'ipi'))"
+        "-DFIFTYONE_COMMON_CXX_BUILD_TESTING=$(OnOff ($Products -contains 'common'))"
+        "-DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=$(OnOff ($Arch -eq 'x64'))"
+        "-DFIFTYONE_IPI_SYMBOLS=$(OnOff $IpiSymbols)"
+        "-DFIFTYONE_CXX_BOTH_PRODUCTS=$(OnOff $CxxBothProducts)"
+    )
+    # The tests read the exception that ExceptionsDisabled removes, so the
+    # entry that turns it on is BuildOnly as well.
+    if ($ExceptionsDisabled) { $extraArgs += "-DExceptionsDisabled=ON" }
+    if ($BuildOnly) { $extraArgs += "-DBUILD_TESTING=OFF" }
     ./cxx/build-project.ps1 -RepoName $RepoName -ProjectDir . -Name $Name `
         -Configuration $Configuration -Arch $Arch -BuildMethod $BuildMethod `
-        -ExtraArgs @(
-            "-D32bit=$(OnOff ($IsLinux -and $Arch -eq 'x86'))"
-            "-DFIFTYONE_BUILD_DEVICE_DETECTION=$(OnOff ($Products -contains 'dd'))"
-            "-DFIFTYONE_BUILD_IP_INTELLIGENCE=$(OnOff ($Products -contains 'ipi'))"
-            "-DFIFTYONE_COMMON_CXX_BUILD_TESTING=$(OnOff ($Products -contains 'common'))"
-            "-DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=$(OnOff ($Arch -eq 'x64'))"
-            "-DFIFTYONE_IPI_SYMBOLS=$(OnOff $IpiSymbols)"
-            "-DFIFTYONE_CXX_BOTH_PRODUCTS=$(OnOff $CxxBothProducts)"
-        )
+        -ExtraArgs $extraArgs
 
     # CMake builds both copies of common in these cases.
     if ($IpiSymbols -and ($Products -contains 'ipi' -or

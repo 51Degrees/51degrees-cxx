@@ -113,6 +113,15 @@
     "Products": ["dd", "ipi"]
   },
   {
+    "Image": "ubuntu-latest",
+    "Name": "Ubuntu_x64_Release_ExceptionsDisabled_BuildOnly",
+    "Configuration": "Release",
+    "Arch": "x64",
+    "ExceptionsDisabled": true,
+    "BuildOnly": true,
+    "Products": ["dd", "ipi"]
+  },
+  {
     "Image": "ubuntu-24.04-arm",
     "Name": "Ubuntu_arm64_Release",
     "Configuration": "Release",
