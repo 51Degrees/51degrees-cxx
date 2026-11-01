@@ -54,6 +54,7 @@
     <ClCompile Include="..\..\..\test\dd\hash\HashInitFailureTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashSizeManagerFromMemoryTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\TransformTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashReloadTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ResultsHashSerializerTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\SimpleEngineTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\SimpleEngineTestBase.cpp" />

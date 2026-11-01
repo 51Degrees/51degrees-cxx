@@ -48,6 +48,35 @@ static StatusCode replace(
 	return SUCCESS;
 }
 
+/**
+ * Gets the exception a reload passes to the init method. Some failures only an
+ * exception can show, so there is always one, even if the caller has none.
+ */
+static Exception* getReloadException(Exception *exception, Exception *own) {
+	if (exception == NULL) {
+		exception = own;
+		EXCEPTION_CLEAR;
+	}
+	return exception;
+}
+
+/**
+ * Gets the status of the init method a reload called. That method returns
+ * success for a failure only the exception shows, having stopped part way
+ * through. An exception holding success was not cleared before the call, which
+ * stops the method in the same way.
+ */
+static StatusCode getReloadStatus(StatusCode status, Exception *exception) {
+#ifdef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
+	(void)exception;
+#else
+	if (status == SUCCESS && EXCEPTION_FAILED) {
+		return exception->status == SUCCESS ? INVALID_INPUT : exception->status;
+	}
+#endif
+	return status;
+}
+
 static StatusCode initWithTempFile(
 	DataSetBase *dataSet,
 	FileOffset bytesToCompare) {
@@ -278,6 +307,8 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromMemory(
 	DataSetBase *replacement = NULL;
 	const void *config;
 	PropertiesRequired properties = PropertiesDefault;
+	Exception ownException;
+	exception = getReloadException(exception, &ownException);
 
 	// Reference the properties and config from the existing data set in the
 	// replacement.
@@ -303,14 +334,12 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromMemory(
 		source,
 		length,
 		exception);
+	status = getReloadStatus(status, exception);
 	if (status != SUCCESS) {
 		// The engine's free method releases everything the partial
-		// initialisation allocated, the file pool's open handles
-		// included, where a plain free of the structure, or returning
-		// without freeing, leaked it on every failed reload. Every init
-		// method resets the data set's pointers before anything can
-		// fail, so the free method is safe on a partially initialised
-		// data set.
+		// initialisation allocated, the file pool's open handles included.
+		// Every init method resets the data set's pointers before anything
+		// can fail, so it is safe on a partially initialised data set.
 		freeDataSet(replacement);
 		return status;
 	}
@@ -328,6 +357,8 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromFile(
 	DataSetBase *replacement = NULL;
 	const void *config;
 	PropertiesRequired properties = PropertiesDefault;
+	Exception ownException;
+	exception = getReloadException(exception, &ownException);
 
 	// Reference the properties and config from the existing data set in the
 	// replacement.
@@ -347,14 +378,12 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromFile(
 		&properties,
 		fileName,
 		exception);
+	status = getReloadStatus(status, exception);
 	if (status != SUCCESS) {
 		// The engine's free method releases everything the partial
-		// initialisation allocated, the file pool's open handles
-		// included, where a plain free of the structure, or returning
-		// without freeing, leaked it on every failed reload. Every init
-		// method resets the data set's pointers before anything can
-		// fail, so the free method is safe on a partially initialised
-		// data set.
+		// initialisation allocated, the file pool's open handles included.
+		// Every init method resets the data set's pointers before anything
+		// can fail, so it is safe on a partially initialised data set.
 		freeDataSet(replacement);
 		return status;
 	}

@@ -635,8 +635,8 @@ EXTERNAL void* fiftyoneDegreesProfileCombinationReadFromFile(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the status associated with the data set reload. Any value other than
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded
- * correctly
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and
+ * the current one stays in use
  */
 EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiReloadManagerFromFile(
 	fiftyoneDegreesResourceManager* manager,
@@ -660,8 +660,8 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiReloadManagerFromFile(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the status associated with the data set reload. Any value other than
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded
- * correctly
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and
+ * the current one stays in use
  */
 EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiReloadManagerFromMemory(
 	fiftyoneDegreesResourceManager* manager,
@@ -683,8 +683,8 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiReloadManagerFromMemory(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the status associated with the data set reload. Any value other than
- * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded
- * correctly
+ * #FIFTYONE_DEGREES_STATUS_SUCCESS means the data set was not reloaded and
+ * the current one stays in use
  */
 EXTERNAL fiftyoneDegreesStatusCode  
 fiftyoneDegreesIpiReloadManagerFromOriginalFile(
