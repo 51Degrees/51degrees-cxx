@@ -115,8 +115,10 @@ namespace FiftyoneDegrees {
 			void setTempDirectories(vector<string> tempDirs);
 			
 			/**
-			 * Set whether or not an index to speed up the retrieval of values
-			 * for profiles and properties is created.
+			 * Set whether or not the data set creates its indexes when it is
+			 * initialised. They speed up getting the values of a profile for
+			 * a property and, in Hash, finding the profiles holding a value.
+			 * The performance profile setters leave this as it is.
 			 * @param index should create an index
 			 */
 			void setPropertyValueIndex(bool index);
@@ -158,9 +160,9 @@ namespace FiftyoneDegrees {
 			vector<string> getTempDirectories() const;
 
 			/**
-			 * Gets a flag indicating if an index of values for properties and
-			 * profile is created.
-			 * @return true if an index should be created, or false if not.
+			 * Gets a flag indicating if the data set creates its indexes when
+			 * it is initialised. See setPropertyValueIndex.
+			 * @return true if the indexes should be created, or false if not.
 			 */
 			bool getPropertyValueIndex() const;
 

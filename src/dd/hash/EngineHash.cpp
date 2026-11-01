@@ -350,6 +350,46 @@ DeviceDetection::ResultsDeviceDetection* EngineHash::processDeviceDetection(
 	return process(userAgent);
 }
 
+namespace {
+	// The ids of the profiles the C layer passes. A failure to grow the list
+	// is recorded rather than thrown through the C layer.
+	struct ProfileIdsState {
+		std::vector<uint32_t> ids;
+		bool failed = false;
+	};
+}
+
+static bool addProfileId(void *state, fiftyoneDegreesCollectionItem *item) {
+	ProfileIdsState *profileIds = (ProfileIdsState*)state;
+	try {
+		profileIds->ids.push_back(
+			((fiftyoneDegreesProfile*)item->data.ptr)->profileId);
+	}
+	catch (...) {
+		profileIds->failed = true;
+	}
+	return true;
+}
+
+std::vector<uint32_t> EngineHash::getProfileIdsForPropertyValue(
+	const std::string &propertyName,
+	const std::string &valueName) const {
+	EXCEPTION_CREATE;
+	ProfileIdsState profileIds;
+	HashIterateProfilesForPropertyAndValue(
+		manager.get(),
+		propertyName.c_str(),
+		valueName.c_str(),
+		&profileIds,
+		addProfileId,
+		exception);
+	EXCEPTION_THROW;
+	if (profileIds.failed) {
+		throw StatusCodeException(INSUFFICIENT_MEMORY);
+	}
+	return profileIds.ids;
+}
+
 void EngineHash::initMetaData() {
 	metaData = new MetaDataHash(manager);
 }

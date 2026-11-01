@@ -1287,6 +1287,421 @@ static bool processRoots(
 }
 
 /**
+ * INDEX OF PROFILES BY VALUE
+ */
+
+/**
+ * The values of one required property, used while the index of profiles by
+ * value is built.
+ */
+typedef struct value_profiles_range_t {
+	uint32_t firstValueIndex; /* Index of the property's first value */
+	uint32_t valuesCount; /* Number of values the property has */
+	uint32_t firstKey; /* Key of the property's first value */
+} valueProfilesRange;
+
+/**
+ * Holds the ids of the profiles found when every profile is read.
+ */
+typedef struct value_profiles_ids_t {
+	uint32_t *profileIds; /* Array to set the ids in, or NULL */
+	uint32_t length; /* Number of ids the array can hold */
+	uint32_t count; /* Number of profiles found */
+} valueProfilesIds;
+
+static int valueProfilesCompareRanges(const void *a, const void *b) {
+	const uint32_t x = ((const valueProfilesRange*)a)->firstValueIndex;
+	const uint32_t y = ((const valueProfilesRange*)b)->firstValueIndex;
+	return x < y ? -1 : (x > y ? 1 : 0);
+}
+
+/**
+ * Frees an index of profiles by value. Every array but the profiles is in the
+ * memory of the index itself.
+ */
+static void valueProfilesFree(HashValueProfiles *index) {
+	if (index->profiles != NULL) {
+		Free(index->profiles);
+	}
+	Free(index);
+}
+
+/**
+ * Sets the values of each required property, in the order of the required
+ * properties, giving them the keys after those of the property before.
+ */
+static StatusCode valueProfilesGetRanges(
+	DataSetHash *dataSet,
+	valueProfilesRange *ranges,
+	uint32_t *keysCount,
+	Exception *exception) {
+	Item item;
+	Property *property;
+	uint64_t keys = 0;
+	const PropertiesAvailable *available = dataSet->b.b.available;
+	const uint32_t valuesCount = CollectionGetCount(dataSet->values);
+	DataReset(&item.data);
+	for (uint32_t i = 0; i < available->count; i++) {
+		property = PropertyGet(
+			dataSet->properties,
+			available->items[i].propertyIndex,
+			&item,
+			exception);
+		if (property == NULL || EXCEPTION_FAILED) {
+			if (property != NULL) {
+				COLLECTION_RELEASE(dataSet->properties, &item);
+			}
+			return COLLECTION_FAILURE;
+		}
+
+		// A property whose values are not all in the values collection is
+		// given none, so that no key reaches past the collection.
+		ranges[i].firstValueIndex = property->firstValueIndex;
+		ranges[i].firstKey = (uint32_t)keys;
+		ranges[i].valuesCount =
+			property->firstValueIndex <= property->lastValueIndex &&
+			property->lastValueIndex < valuesCount ?
+			property->lastValueIndex - property->firstValueIndex + 1 : 0;
+		keys += ranges[i].valuesCount;
+		COLLECTION_RELEASE(dataSet->properties, &item);
+	}
+
+	// The starts of the keys need one more entry than there are keys.
+	if (keys >= UINT32_MAX) {
+		EXCEPTION_SET(CORRUPT_DATA);
+		return CORRUPT_DATA;
+	}
+	*keysCount = (uint32_t)keys;
+	return SUCCESS;
+}
+
+/**
+ * Reads every profile and, for each of its values that has a key, counts the
+ * profile for the key or, once the index is sized, puts the profile in front
+ * of those already placed for the key. Filling reads from the last profile to
+ * the first, so the profiles of each key end up in the order of the data file.
+ */
+static StatusCode valueProfilesRead(
+	DataSetHash *dataSet,
+	HashValueProfiles *index,
+	const valueProfilesRange *ranges,
+	uint32_t rangesCount,
+	bool fill,
+	uint64_t *found,
+	Exception *exception) {
+	Item item;
+	Profile *profile;
+	const uint32_t *values;
+	uint32_t i, position, key, r, v;
+	const uint32_t count = CollectionGetCount(dataSet->profileOffsets);
+	DataReset(&item.data);
+	for (i = 0; i < count; i++) {
+		position = fill ? count - 1 - i : i;
+		profile = ProfileGetByIndex(
+			dataSet->profileOffsets,
+			dataSet->profiles,
+			position,
+			&item,
+			exception);
+		if (profile == NULL || EXCEPTION_FAILED) {
+			if (profile != NULL) {
+				COLLECTION_RELEASE(dataSet->profiles, &item);
+			}
+			return COLLECTION_FAILURE;
+		}
+
+		// The values of a profile and the ranges are both in ascending order
+		// of value index, so one walk along both finds each value with a key.
+		values = (const uint32_t*)(profile + 1);
+		r = 0;
+		v = 0;
+		while (v < profile->valueCount && r < rangesCount) {
+			if (values[v] < ranges[r].firstValueIndex) {
+				v++;
+			}
+			else if (values[v] - ranges[r].firstValueIndex >=
+				ranges[r].valuesCount) {
+				r++;
+			}
+			else {
+				key = ranges[r].firstKey +
+					(values[v] - ranges[r].firstValueIndex);
+				if (fill == false) {
+					index->starts[key]++;
+				}
+				else if (index->starts[key] > 0) {
+					index->profiles[--index->starts[key]] = position;
+				}
+				(*found)++;
+				v++;
+			}
+		}
+		COLLECTION_RELEASE(dataSet->profiles, &item);
+	}
+	return SUCCESS;
+}
+
+/**
+ * Creates the index of the profiles holding each value of the required
+ * properties. The profiles are read twice, first to count the profiles of each
+ * key so that the index is allocated at its final size, and then to fill it.
+ */
+static StatusCode valueProfilesCreate(
+	DataSetHash *dataSet,
+	Exception *exception) {
+	StatusCode status;
+	HashValueProfiles *index = NULL;
+	uint32_t i, keysCount = 0;
+	uint64_t entries, total = 0, counted = 0, filled = 0;
+	const uint32_t propertiesCount = dataSet->b.b.available->count;
+
+	// One entry is allocated even for no properties, so that no memory is the
+	// only reason for a null result.
+	valueProfilesRange *ranges = (valueProfilesRange*)Malloc(
+		sizeof(valueProfilesRange) *
+		(propertiesCount > 0 ? propertiesCount : 1));
+	if (ranges == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
+		return INSUFFICIENT_MEMORY;
+	}
+	status = valueProfilesGetRanges(dataSet, ranges, &keysCount, exception);
+
+	// Every array but the profiles is allocated with the index, as their sizes
+	// are known before the profiles are counted. The entries are checked
+	// before they become bytes, so the size cannot wrap on a 32 bit build.
+	if (status == SUCCESS) {
+		entries = (uint64_t)propertiesCount * 2 + 1 + (uint64_t)keysCount + 1;
+		if (entries <=
+			(SIZE_MAX - sizeof(HashValueProfiles)) / sizeof(uint32_t)) {
+			index = (HashValueProfiles*)Malloc(
+				sizeof(HashValueProfiles) +
+				sizeof(uint32_t) * (size_t)entries);
+		}
+		if (index == NULL) {
+			EXCEPTION_SET(INSUFFICIENT_MEMORY);
+			status = INSUFFICIENT_MEMORY;
+		}
+	}
+	if (status == SUCCESS) {
+		index->propertiesCount = propertiesCount;
+		index->keysCount = keysCount;
+		index->profilesCount = 0;
+		index->firstKeys = (uint32_t*)(index + 1);
+		index->firstValueIndexes = index->firstKeys + propertiesCount + 1;
+		index->starts = index->firstValueIndexes + propertiesCount;
+		index->profiles = NULL;
+		for (i = 0; i < propertiesCount; i++) {
+			index->firstKeys[i] = ranges[i].firstKey;
+			index->firstValueIndexes[i] = ranges[i].firstValueIndex;
+		}
+		index->firstKeys[propertiesCount] = keysCount;
+		memset(index->starts, 0, sizeof(uint32_t) * ((size_t)keysCount + 1));
+		qsort(
+			ranges,
+			propertiesCount,
+			sizeof(valueProfilesRange),
+			valueProfilesCompareRanges);
+		status = valueProfilesRead(
+			dataSet,
+			index,
+			ranges,
+			propertiesCount,
+			false,
+			&counted,
+			exception);
+	}
+
+	// Each key's count becomes the end of its profiles, which filling then
+	// moves back to their start.
+	if (status == SUCCESS) {
+		if (counted > UINT32_MAX) {
+			EXCEPTION_SET(CORRUPT_DATA);
+			status = CORRUPT_DATA;
+		}
+		else {
+			for (i = 0; i < keysCount; i++) {
+				total += index->starts[i];
+				index->starts[i] = (uint32_t)total;
+			}
+			index->starts[keysCount] = (uint32_t)counted;
+			index->profilesCount = (uint32_t)counted;
+		}
+	}
+	if (status == SUCCESS && counted > 0) {
+		if (counted <= SIZE_MAX / sizeof(uint32_t)) {
+			index->profiles = (uint32_t*)Malloc(
+				sizeof(uint32_t) * (size_t)counted);
+		}
+		if (index->profiles == NULL) {
+			EXCEPTION_SET(INSUFFICIENT_MEMORY);
+			status = INSUFFICIENT_MEMORY;
+		}
+		else {
+			status = valueProfilesRead(
+				dataSet,
+				index,
+				ranges,
+				propertiesCount,
+				true,
+				&filled,
+				exception);
+		}
+	}
+
+	// The profiles of each key must lie between the start of the key and the
+	// start of the next, which a second read finding other values breaks.
+	if (status == SUCCESS) {
+		for (i = 0; i < keysCount && filled == counted; i++) {
+			if (index->starts[i] > index->starts[i + 1]) {
+				filled = 0;
+			}
+		}
+		if (filled != counted) {
+			EXCEPTION_SET(CORRUPT_DATA);
+			status = CORRUPT_DATA;
+		}
+	}
+
+	Free(ranges);
+	if (status == SUCCESS) {
+		dataSet->valueProfiles = index;
+	}
+	else if (index != NULL) {
+		valueProfilesFree(index);
+	}
+	return status;
+}
+
+/**
+ * Creates the index of profiles by value when the configuration's
+ * propertyValueIndex is true, which is when the index of first values for
+ * profiles and properties is created too.
+ */
+static StatusCode valueProfilesInit(
+	DataSetHash *dataSet,
+	Exception *exception) {
+	if (dataSet->config.b.b.propertyValueIndex == false) {
+		return SUCCESS;
+	}
+	return valueProfilesCreate(dataSet, exception);
+}
+
+/**
+ * Finds, from the index of profiles by value, the positions in the profile
+ * offsets collection of the profiles holding the value. Returns false when the
+ * index cannot answer, being when there is no index or the property is not
+ * required, so that every profile has to be read instead.
+ */
+static bool valueProfilesGet(
+	DataSetHash *dataSet,
+	const char *propertyName,
+	const char *valueName,
+	const uint32_t **profiles,
+	uint32_t *count,
+	Exception *exception) {
+	Item item;
+	Property *property;
+	long valueIndex;
+	uint32_t first, key;
+	const HashValueProfiles *index = dataSet->valueProfiles;
+	*profiles = NULL;
+	*count = 0;
+	if (index == NULL) {
+		return false;
+	}
+
+	// Required properties are found ignoring case, whilst reading every
+	// profile matches the name exactly, so the index answers only for an
+	// exact match.
+	const int requiredIndex = PropertiesGetRequiredPropertyIndexFromName(
+		dataSet->b.b.available,
+		propertyName);
+	if (requiredIndex < 0 ||
+		(uint32_t)requiredIndex >= index->propertiesCount ||
+		strcmp(
+			&((String*)dataSet->b.b.available->items[requiredIndex]
+				.name.data.ptr)->value,
+			propertyName) != 0) {
+		return false;
+	}
+
+	// The value is found as reading every profile finds it.
+	DataReset(&item.data);
+	property = PropertyGet(
+		dataSet->properties,
+		dataSet->b.b.available->items[requiredIndex].propertyIndex,
+		&item,
+		exception);
+	if (property != NULL) {
+		if (EXCEPTION_OKAY) {
+			valueIndex = ValueGetIndexByNameAndType(
+				dataSet->values,
+				dataSet->strings,
+				property,
+				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+				valueName,
+				exception);
+			first = index->firstValueIndexes[requiredIndex];
+			if (valueIndex >= 0 &&
+				EXCEPTION_OKAY &&
+				(uint32_t)valueIndex >= first &&
+				(uint32_t)valueIndex - first <
+				index->firstKeys[requiredIndex + 1] -
+				index->firstKeys[requiredIndex]) {
+				key = index->firstKeys[requiredIndex] +
+					((uint32_t)valueIndex - first);
+				*count = index->starts[key + 1] - index->starts[key];
+				if (*count > 0) {
+					*profiles = index->profiles + index->starts[key];
+				}
+			}
+		}
+		COLLECTION_RELEASE(dataSet->properties, &item);
+	}
+	return true;
+}
+
+/**
+ * Passes each profile at the positions to the callback, whatever it returns,
+ * as reading every profile does for the profiles it finds.
+ */
+static uint32_t valueProfilesIterate(
+	DataSetHash *dataSet,
+	const uint32_t *profiles,
+	uint32_t count,
+	void *state,
+	ProfileIterateMethod callback,
+	Exception *exception) {
+	Item item;
+	uint32_t i, iterated = 0;
+	DataReset(&item.data);
+	for (i = 0; i < count && EXCEPTION_OKAY; i++) {
+		if (ProfileGetByIndex(
+			dataSet->profileOffsets,
+			dataSet->profiles,
+			profiles[i],
+			&item,
+			exception) != NULL) {
+			if (EXCEPTION_OKAY) {
+				callback(state, &item);
+				iterated++;
+			}
+			COLLECTION_RELEASE(dataSet->profiles, &item);
+		}
+	}
+	return iterated;
+}
+
+static bool valueProfilesAddId(void *state, Item *item) {
+	valueProfilesIds *ids = (valueProfilesIds*)state;
+	if (ids->profileIds != NULL && ids->count < ids->length) {
+		ids->profileIds[ids->count] = ((Profile*)item->data.ptr)->profileId;
+	}
+	ids->count++;
+	return true;
+}
+
+/**
  * DATA INITIALISE AND RESET METHODS
  */
 
@@ -1304,6 +1719,7 @@ static void resetDataSet(DataSetHash *dataSet) {
 	dataSet->properties = NULL;
 	dataSet->strings = NULL;
 	dataSet->values = NULL;
+	dataSet->valueProfiles = NULL;
 }
 
 static void freeDataSet(void *dataSetPtr) {
@@ -1315,6 +1731,12 @@ static void freeDataSet(void *dataSetPtr) {
 			Free(dataSet->componentHeaders[i]);
 		}
 		Free(dataSet->componentHeaders);
+	}
+
+	// Free the index of profiles by value.
+	if (dataSet->valueProfiles != NULL) {
+		valueProfilesFree(dataSet->valueProfiles);
+		dataSet->valueProfiles = NULL;
 	}
 
 	// Free the common data set fields.
@@ -2192,6 +2614,16 @@ static StatusCode initDataSetFromFile(
 		return status;
 	}
 
+	// Initialise the index of the profiles holding each value of the required
+	// properties.
+	status = valueProfilesInit(dataSet, exception);
+	if (status != SUCCESS || EXCEPTION_FAILED) {
+		if (config->b.b.useTempFile == true) {
+			FileDelete(dataSet->b.b.fileName);
+		}
+		return status;
+	}
+
 	initGetHighEntropyValues(dataSet, exception);
 
 	return status;
@@ -2342,6 +2774,16 @@ static StatusCode initDataSetFromMemory(
 
 	// Initialise the headers for each component.
 	status = initComponentHeaders(dataSet, exception);
+	if (status != SUCCESS || EXCEPTION_FAILED) {
+		if (config->b.b.useTempFile == true) {
+			FileDelete(dataSet->b.b.fileName);
+		}
+		return status;
+	}
+
+	// Initialise the index of the profiles holding each value of the required
+	// properties.
+	status = valueProfilesInit(dataSet, exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		if (config->b.b.useTempFile == true) {
 			FileDelete(dataSet->b.b.fileName);
@@ -4171,18 +4613,98 @@ uint32_t fiftyoneDegreesHashIterateProfilesForPropertyAndValue(
 	fiftyoneDegreesProfileIterateMethod callback,
 	fiftyoneDegreesException *exception) {
 	uint32_t count = 0;
+	const uint32_t *profiles = NULL;
 	DataSetHash *dataSet = DataSetHashGet(manager);
-	count = ProfileIterateProfilesForPropertyAndValue(
-		dataSet->strings,
-		dataSet->properties,
-		dataSet->values,
-		dataSet->profiles,
-		dataSet->profileOffsets,
+	if (valueProfilesGet(
+		dataSet,
 		propertyName,
 		valueName,
-		state,
-		callback,
-		exception);
+		&profiles,
+		&count,
+		exception)) {
+		count = valueProfilesIterate(
+			dataSet,
+			profiles,
+			count,
+			state,
+			callback,
+			exception);
+	}
+	else {
+		count = ProfileIterateProfilesForPropertyAndValue(
+			dataSet->strings,
+			dataSet->properties,
+			dataSet->values,
+			dataSet->profiles,
+			dataSet->profileOffsets,
+			propertyName,
+			valueName,
+			state,
+			callback,
+			exception);
+	}
+	DataSetHashRelease(dataSet);
+	return count;
+}
+
+uint32_t fiftyoneDegreesHashGetProfileIdsForPropertyAndValue(
+	fiftyoneDegreesResourceManager *manager,
+	const char *propertyName,
+	const char *valueName,
+	uint32_t *profileIds,
+	uint32_t length,
+	fiftyoneDegreesException *exception) {
+	uint32_t i, count = 0;
+	const uint32_t *profiles = NULL;
+	const ProfileOffset *profileOffset;
+	Item item;
+	valueProfilesIds ids = { profileIds, length, 0 };
+	DataSetHash *dataSet = DataSetHashGet(manager);
+	if (valueProfilesGet(
+		dataSet,
+		propertyName,
+		valueName,
+		&profiles,
+		&count,
+		exception)) {
+
+		// Each profile offset holds the id of its profile, so the profiles
+		// themselves are not read.
+		DataReset(&item.data);
+		for (i = 0;
+			profileIds != NULL && i < count && i < length && EXCEPTION_OKAY;
+			i++) {
+			const CollectionKey profileOffsetKey = {
+				{profiles[i]},
+				CollectionKeyType_ProfileOffset,
+			};
+			profileOffset = (const ProfileOffset*)dataSet->profileOffsets->get(
+				dataSet->profileOffsets,
+				&profileOffsetKey,
+				&item,
+				exception);
+			if (profileOffset != NULL) {
+				if (EXCEPTION_OKAY) {
+					profileIds[i] = profileOffset->profileId;
+				}
+				COLLECTION_RELEASE(dataSet->profileOffsets, &item);
+			}
+		}
+	}
+	else {
+		ProfileIterateProfilesForPropertyAndValue(
+			dataSet->strings,
+			dataSet->properties,
+			dataSet->values,
+			dataSet->profiles,
+			dataSet->profileOffsets,
+			propertyName,
+			valueName,
+			&ids,
+			valueProfilesAddId,
+			exception);
+		count = ids.count;
+	}
 	DataSetHashRelease(dataSet);
 	return count;
 }

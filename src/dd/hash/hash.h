@@ -228,6 +228,30 @@ typedef struct fiftyone_degrees_hash_rootnodes_t {
 } fiftyoneDegreesHashRootNodes;
 
 /**
+ * Index from each value of the required properties to the profiles holding
+ * it, so those profiles are found without reading every profile.
+ *
+ * Each value of a required property has a key. The values of required
+ * property i have the keys firstKeys[i] to firstKeys[i + 1] - 1, in the order
+ * of the values collection from firstValueIndexes[i]. The profiles holding
+ * the value with key k are profiles[starts[k]] to profiles[starts[k + 1] - 1].
+ * Each is a position in the profile offsets collection, in ascending order,
+ * which is the order of the profiles in the data file.
+ */
+typedef struct fiftyone_degrees_hash_value_profiles_t {
+	uint32_t propertiesCount; /**< Number of required properties */
+	uint32_t keysCount; /**< Number of values with a key */
+	uint32_t profilesCount; /**< Number of entries in profiles */
+	uint32_t *firstKeys; /**< Key of the first value of each required
+	                         property, then keysCount */
+	uint32_t *firstValueIndexes; /**< Index in the values collection of the
+	                                 first value of each required property */
+	uint32_t *starts; /**< Position in profiles of the first profile of each
+	                      key, then profilesCount */
+	uint32_t *profiles; /**< Positions in the profile offsets collection */
+} fiftyoneDegreesHashValueProfiles;
+
+/**
  * Data set structure containing all the components used for detections.
  * This should predominantly be used through a #fiftyoneDegreesResourceManager
  * pointer to maintain a safe reference. If access the data set is needed then
@@ -260,6 +284,12 @@ typedef struct fiftyone_degrees_dataset_hash_t {
 	fiftyoneDegreesCollection *profileOffsets; /**< Collection of all offsets
 											   to profiles in the profiles
 											   collection */
+	fiftyoneDegreesHashValueProfiles *valueProfiles; /**< Profiles holding each
+	                                                 value of the required
+	                                                 properties, or NULL when
+	                                                 the configuration's
+	                                                 propertyValueIndex is
+	                                                 false */
 } fiftyoneDegreesDataSetHash;
 
 /** @cond FORWARD_DECLARATIONS */
@@ -899,7 +929,15 @@ EXTERNAL void fiftyoneDegreesDataSetHashRelease(
 
 /**
  * Iterates over the profiles in the data set calling the callback method for
- * any profiles that contain the property and value provided.
+ * any profiles that contain the property and value provided. The profiles are
+ * iterated in the order of the data file, which is ascending profile id, and
+ * each one is passed to the callback whatever the callback returns. Both names
+ * are matched exactly.
+ *
+ * When the configuration's propertyValueIndex is true the data set holds an
+ * index of the profiles for each value of the required properties, and that
+ * index finds the profiles. Otherwise, and for a property that is not
+ * required, every profile is read. Both give the same profiles.
  * @param manager the resource manager containing a hash data set initialised
  * by one of the Hash data set init methods
  * @param propertyName name of the property which the value relates to
@@ -916,6 +954,30 @@ EXTERNAL uint32_t fiftyoneDegreesHashIterateProfilesForPropertyAndValue(
 	const char *valueName,
 	void *state,
 	fiftyoneDegreesProfileIterateMethod callback,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the ids of the profiles that contain the property and value provided.
+ * They are the profiles #fiftyoneDegreesHashIterateProfilesForPropertyAndValue
+ * iterates over, in the same order, found in the same way.
+ * @param manager the resource manager containing a hash data set initialised
+ * by one of the Hash data set init methods
+ * @param propertyName name of the property which the value relates to
+ * @param valueName name of the property value which the profiles must contain
+ * @param profileIds array to set the profile ids in, or NULL to count them
+ * @param length number of ids the array can hold
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the number of profiles that contain the value. When this is more
+ * than length only the first length ids are set, so a larger array is needed
+ * for the rest.
+ */
+EXTERNAL uint32_t fiftyoneDegreesHashGetProfileIdsForPropertyAndValue(
+	fiftyoneDegreesResourceManager *manager,
+	const char *propertyName,
+	const char *valueName,
+	uint32_t *profileIds,
+	uint32_t length,
 	fiftyoneDegreesException *exception);
 
 /**

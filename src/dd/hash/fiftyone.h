@@ -53,6 +53,7 @@ MAP_TYPE(DataSetHashHeader)
 MAP_TYPE(ResultHashArray)
 MAP_TYPE(HashRootNodes)
 MAP_TYPE(HashMatchMethod)
+MAP_TYPE(HashValueProfiles)
 
 #define ResultsHashGetValues fiftyoneDegreesResultsHashGetValues /**< Synonym for #fiftyoneDegreesResultsHashGetValues function. */
 #define ResultsHashGetHasValues fiftyoneDegreesResultsHashGetHasValues /**< Synonym for #fiftyoneDegreesResultsHashGetHasValues function. */
@@ -79,6 +80,7 @@ MAP_TYPE(HashMatchMethod)
 #define HashReloadManagerFromFile fiftyoneDegreesHashReloadManagerFromFile /**< Synonym for #fiftyoneDegreesHashReloadManagerFromFile function. */
 #define HashReloadManagerFromMemory fiftyoneDegreesHashReloadManagerFromMemory /**< Synonym for #fiftyoneDegreesHashReloadManagerFromMemory function. */
 #define HashIterateProfilesForPropertyAndValue fiftyoneDegreesHashIterateProfilesForPropertyAndValue /**< Synonym for #fiftyoneDegreesHashIterateProfilesForPropertyAndValue function. */
+#define HashGetProfileIdsForPropertyAndValue fiftyoneDegreesHashGetProfileIdsForPropertyAndValue /**< Synonym for #fiftyoneDegreesHashGetProfileIdsForPropertyAndValue function. */
 #define ResultsHashGetValuesJson fiftyoneDegreesResultsHashGetValuesJson /**< Synonym for #fiftyoneDegreesResultsHashGetValuesJson function. */
 
 #define HashInMemoryConfig fiftyoneDegreesHashInMemoryConfig /**< Synonym for #fiftyoneDegreesHashInMemoryConfig config. */

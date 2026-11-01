@@ -67,8 +67,10 @@ typedef struct fiftyone_degrees_config_base_t {
 	const char **tempDirs; /**< Array of temp directories which can be used in
 	                           order of preference. */
 	int tempDirCount; /**< Number of directories in the tempDirs array. */
-	bool propertyValueIndex; /**< Indicates if an index to values for property 
-							     and profiles should be created. */
+	bool propertyValueIndex; /**< Indicates if the indexes should be created,
+	                             from properties and profiles to values and, in
+	                             Hash, from values to the profiles holding
+	                             them. */
 } fiftyoneDegreesConfigBase;
 
 /** Default value for the #FIFTYONE_DEGREES_CONFIG_USE_TEMP_FILE macro. */

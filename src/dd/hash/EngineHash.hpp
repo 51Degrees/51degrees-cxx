@@ -24,6 +24,8 @@
 #define FIFTYONE_DEGREES_ENGINE_HASH_HPP
 
 #include <sstream>
+#include <string>
+#include <vector>
 #include "../../common/resource.h"
 #include "../EvidenceDeviceDetection.hpp"
 #include "../EngineDeviceDetection.hpp"
@@ -198,6 +200,25 @@ namespace FiftyoneDegrees {
 					const char *userAgent,
 					const int *requiredPropertyIndexes,
 					int requiredPropertyIndexesCount) const;
+
+				/**
+				 * Gets the ids of the profiles holding a value of a property,
+				 * such as a NativeModel or a TAC, in the order of the data
+				 * file, which is ascending profile id. A value held by several
+				 * profiles gives all of them. Both names are matched exactly.
+				 * Where the property is required and the configuration's
+				 * property value index is on, see
+				 * ConfigBase::setPropertyValueIndex, the data set's index of
+				 * profiles by value finds them. Otherwise every profile is
+				 * read, which gives the same ids.
+				 * @param propertyName name of the property
+				 * @param valueName name of the value
+				 * @return ids of the profiles holding the value, which is empty
+				 * when none does
+				 */
+				std::vector<uint32_t> getProfileIdsForPropertyValue(
+					const std::string &propertyName,
+					const std::string &valueName) const;
 
 				/**
 				 * @}
