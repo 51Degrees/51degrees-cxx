@@ -394,18 +394,24 @@ bool lookupsMatch(
 	return false;
 }
 
+/**
+ * Expects both lookups to give the profiles the value really has. The context
+ * is added to a failure, as SCOPED_TRACE keeps memory that the memory check
+ * of the base class would count.
+ */
 void expectLookups(
 	Manager &manager,
 	const std::string &propertyName,
 	const std::string &valueName,
-	const ProfileIds &expected) {
+	const ProfileIds &expected,
+	const std::string &context = std::string()) {
 	std::string difference;
 	EXPECT_TRUE(lookupsMatch(
 		manager,
 		propertyName,
 		valueName,
 		expected,
-		difference)) << difference;
+		difference)) << context << difference;
 }
 
 /**
@@ -847,8 +853,8 @@ TEST_F(HashValueProfilesTests, EveryPerformanceProfile) {
 			profile.config->b.b.propertyValueIndex,
 			!profile.config->b.b.propertyValueIndex };
 		for (bool index : presets) {
-			SCOPED_TRACE(std::string(profile.name) +
-				(index ? " with" : " without") + " the indexes");
+			const std::string context = std::string(profile.name) +
+				(index ? " with" : " without") + " the indexes, ";
 			fiftyoneDegreesConfigHash config = *profile.config;
 			config.b.b.propertyValueIndex = index;
 			Manager manager;
@@ -856,21 +862,24 @@ TEST_F(HashValueProfilesTests, EveryPerformanceProfile) {
 				initFromFile(manager, config, nullptr, path));
 			fiftyoneDegreesDataSetHash *dataSet =
 				fiftyoneDegreesDataSetHashGet(manager.get());
-			EXPECT_EQ(index, dataSet->valueProfiles != nullptr);
-			EXPECT_EQ(index, dataSet->b.b.indexPropertyProfile != nullptr);
+			EXPECT_EQ(index, dataSet->valueProfiles != nullptr) << context;
+			EXPECT_EQ(index, dataSet->b.b.indexPropertyProfile != nullptr) <<
+				context;
 			fiftyoneDegreesDataSetHashRelease(dataSet);
 			expectLookups(
 				manager,
 				"ScreenPixelsWidth",
 				width.names[one],
-				expectedFor(found, width.firstValueIndex + (uint32_t)one));
+				expectedFor(found, width.firstValueIndex + (uint32_t)one),
+				context);
 			expectLookups(
 				manager,
 				"ScreenPixelsWidth",
 				width.names[several],
 				expectedFor(
 					found,
-					width.firstValueIndex + (uint32_t)several));
+					width.firstValueIndex + (uint32_t)several),
+				context);
 			for (size_t i = 0; i < isMobile.names.size(); i++) {
 				expectLookups(
 					manager,
@@ -878,9 +887,15 @@ TEST_F(HashValueProfilesTests, EveryPerformanceProfile) {
 					isMobile.names[i],
 					expectedFor(
 						found,
-						isMobile.firstValueIndex + (uint32_t)i));
+						isMobile.firstValueIndex + (uint32_t)i),
+					context);
 			}
-			expectLookups(manager, "IsMobile", "NoSuchValue", ProfileIds());
+			expectLookups(
+				manager,
+				"IsMobile",
+				"NoSuchValue",
+				ProfileIds(),
+				context);
 		}
 	}
 	EXPECT_TRUE(fiftyoneDegreesHashInMemoryConfig.b.b.propertyValueIndex);
@@ -1075,31 +1090,32 @@ TEST_F(HashValueProfilesTests, EngineHashGetsProfileIds) {
 		expectedFor(found, values.firstValueIndex + (uint32_t)i);
 	RequiredPropertiesConfig properties;
 	for (bool index : { false, true }) {
-		SCOPED_TRACE(index ? "with the indexes" : "without the indexes");
+		const char *context = index ?
+			"With the indexes" : "Without the indexes";
 		ConfigHash config;
 		if (index) {
 			config.setMaxPerformance();
 			config.setPropertyValueIndex(true);
 		}
-		EXPECT_EQ(index, config.getPropertyValueIndex());
+		EXPECT_EQ(index, config.getPropertyValueIndex()) << context;
 		EngineHash engine(path, &config, &properties);
 		EXPECT_EQ(
 			expected,
 			engine.getProfileIdsForPropertyValue(
 				"ScreenPixelsWidth",
-				values.names[i]));
+				values.names[i])) << context;
 		EXPECT_TRUE(engine.getProfileIdsForPropertyValue(
 			"ScreenPixelsWidth",
-			"NoSuchValue").empty());
+			"NoSuchValue").empty()) << context;
 		EXPECT_TRUE(engine.getProfileIdsForPropertyValue(
 			"NoSuchProperty",
-			values.names[i]).empty());
+			values.names[i]).empty()) << context;
 		engine.refreshData();
 		EXPECT_EQ(
 			expected,
 			engine.getProfileIdsForPropertyValue(
 				"ScreenPixelsWidth",
-				values.names[i]));
+				values.names[i])) << context << ", after a refresh";
 	}
 }
 
@@ -1116,8 +1132,12 @@ TEST_F(HashValueProfilesTests, EnterpriseNativeModelAndTac) {
 			enterprise = GetFilePath(_dataFolderName, name);
 		}
 	}
+	// The googletest of the Visual Studio projects has no GTEST_SKIP, so the
+	// test returns, as the other tests that need an Enterprise file do.
 	if (enterprise.empty()) {
-		GTEST_SKIP() << "No Enterprise data file is present.";
+		std::cout << "No Enterprise data file is present, so NativeModel " <<
+			"and TAC are not checked.\n";
+		return;
 	}
 	Manager indexed, scanned;
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
