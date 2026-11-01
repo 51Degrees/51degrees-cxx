@@ -26,82 +26,20 @@
  * that cannot load, that the init method it calls frees what it allocated on
  * the way to failing, and that the memory stays with the caller.
  *
- * Each test builds the memory it offers, so no data file is needed. Memory
- * that gets past the version has every collection empty and straight after the
- * header, then one thing is changed, so the failure the test looks for is the
- * first one reached.
+ * Each test builds the memory it offers, so no data file is needed.
  */
 
 #include "pch.h"
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <random>
-#include <vector>
 #include "../common/Base.hpp"
 #include "../common/TestUtils_SizeManager.hpp"
-#include "../../src/ipi/ipi.h"
+#include "IpiTestMemory.hpp"
 
 class IpiSizeManagerFromMemoryTests : public Base {
 protected:
-	typedef fiftyoneDegreesDataSetIpiHeader Header;
-	typedef std::vector<unsigned char> Memory;
-
-	static void setInt32(Memory &memory, size_t offset, int32_t value) {
-		memcpy(memory.data() + offset, &value, sizeof(value));
-	}
-
-	static void setCollection(
-		Memory &memory,
-		size_t offset,
-		size_t start,
-		uint32_t length,
-		uint32_t count = 0) {
-		fiftyoneDegreesCollectionHeader header;
-		header.startPosition = (fiftyoneDegreesFileOffsetUnsigned)start;
-		header.length = length;
-		header.count = count;
-		memcpy(memory.data() + offset, &header, sizeof(header));
-	}
-
-	/**
-	 * Gets bytes that mean nothing to the engine, the same on every run.
-	 */
-	static Memory garbage(size_t length) {
-		Memory memory(length);
-		std::minstd_rand generator(1);
-		for (unsigned char &value : memory) {
-			value = (unsigned char)generator();
-		}
-		return memory;
-	}
-
-	static void setVersion(Memory &memory) {
-		setInt32(memory, offsetof(Header, versionMajor), 4);
-		setInt32(memory, offsetof(Header, versionMinor), 6);
-		setInt32(memory, offsetof(Header, profilesOffsetShift), 0);
-	}
-
-	static Memory emptyDataSet() {
-		Memory memory(sizeof(Header), 0);
-		setVersion(memory);
-		const size_t collections[] = {
-			offsetof(Header, strings),
-			offsetof(Header, components),
-			offsetof(Header, maps),
-			offsetof(Header, properties),
-			offsetof(Header, values),
-			offsetof(Header, profiles),
-			offsetof(Header, graphs),
-			offsetof(Header, profileGroups),
-			offsetof(Header, propertyTypes),
-			offsetof(Header, profileOffsets)
-		};
-		for (const size_t collection : collections) {
-			setCollection(memory, collection, sizeof(Header), 0);
-		}
-		return memory;
-	}
+	typedef TestHeader Header;
+	typedef TestMemory Memory;
 
 	/**
 	 * Gets memory holding one graph whose nodes run past the end of the memory.
@@ -321,6 +259,26 @@ TEST_F(IpiSizeManagerFromMemoryTests, NoProperties_ReportsNotPresent) {
 	EXPECT_EQ(
 		FIFTYONE_DEGREES_STATUS_REQ_PROP_NOT_PRESENT,
 		sizeStatus(memory));
+}
+
+/**
+ * Test that a null configuration, which the comments on the method allow, gets
+ * as far as reporting the status.
+ */
+TEST_F(IpiSizeManagerFromMemoryTests, NullConfig_ReportsNotPresent) {
+	Memory memory = emptyDataSet();
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	TimeLimit limit(SizeMethodLimitSeconds);
+	fillStackWithZeroedHandles();
+	fiftyoneDegreesIpiSizeManagerFromMemory(
+		nullptr,
+		&properties,
+		memory.data(),
+		(fiftyoneDegreesFileOffset)memory.size(),
+		exception);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_REQ_PROP_NOT_PRESENT, exception->status);
 }
 
 /**

@@ -26,79 +26,44 @@
  * that cannot load, that the init method it calls frees what it allocated on
  * the way to failing, and that the memory stays with the caller.
  *
- * Each test builds the memory it offers, so no data file is needed. Memory
- * that gets past the version has every collection empty and straight after the
- * header, then one thing is changed, so the failure the test looks for is the
- * first one reached.
+ * Each test builds the memory it offers, so no data file is needed.
  */
 
 #include "../../common/pch.h"
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <random>
-#include <vector>
 #include "../../common/Base.hpp"
 #include "../../common/TestUtils_SizeManager.hpp"
-#include "../../../src/dd/hash/hash.h"
+#include "HashTestMemory.hpp"
 
 class HashSizeManagerFromMemoryTests : public Base {
 protected:
-	typedef fiftyoneDegreesDataSetHashHeader Header;
-	typedef std::vector<unsigned char> Memory;
-
-	static void setInt32(Memory &memory, size_t offset, int32_t value) {
-		memcpy(memory.data() + offset, &value, sizeof(value));
-	}
-
-	static void setCollection(
-		Memory &memory,
-		size_t offset,
-		size_t start,
-		uint32_t length,
-		uint32_t count = 0) {
-		fiftyoneDegreesCollectionHeader header;
-		header.startPosition = (fiftyoneDegreesFileOffsetUnsigned)start;
-		header.length = length;
-		header.count = count;
-		memcpy(memory.data() + offset, &header, sizeof(header));
-	}
+	typedef TestHeader Header;
+	typedef TestMemory Memory;
 
 	/**
-	 * Gets bytes that mean nothing to the engine, the same on every run.
+	 * Gets the size and the status the size method leaves in the exception,
+	 * with a required property list that may be null.
 	 */
-	static Memory garbage(size_t length) {
-		Memory memory(length);
-		std::minstd_rand generator(1);
-		for (unsigned char &value : memory) {
-			value = (unsigned char)generator();
-		}
-		return memory;
-	}
-
-	static void setVersion(Memory &memory) {
-		setInt32(memory, offsetof(Header, versionMajor), 4);
-		setInt32(memory, offsetof(Header, versionMinor), 1);
-	}
-
-	static Memory emptyDataSet() {
-		Memory memory(sizeof(Header), 0);
-		setVersion(memory);
-		const size_t collections[] = {
-			offsetof(Header, strings),
-			offsetof(Header, components),
-			offsetof(Header, maps),
-			offsetof(Header, properties),
-			offsetof(Header, values),
-			offsetof(Header, profiles),
-			offsetof(Header, rootNodes),
-			offsetof(Header, nodes),
-			offsetof(Header, profileOffsets)
-		};
-		for (const size_t collection : collections) {
-			setCollection(memory, collection, sizeof(Header), 0);
-		}
-		return memory;
+	static size_t sizeWithConfig(
+		fiftyoneDegreesConfigHash *config,
+		Memory &memory,
+		const char *required,
+		fiftyoneDegreesStatusCode *status) {
+		fiftyoneDegreesPropertiesRequired properties =
+			fiftyoneDegreesPropertiesDefault;
+		properties.string = required;
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		TimeLimit limit(SizeMethodLimitSeconds);
+		fillStackWithZeroedHandles();
+		const size_t size = fiftyoneDegreesHashSizeManagerFromMemory(
+			config,
+			&properties,
+			memory.data(),
+			(long)memory.size(),
+			exception);
+		*status = exception->status;
+		return size;
 	}
 
 	/**
@@ -270,6 +235,35 @@ TEST_F(HashSizeManagerFromMemoryTests, NoProperties_ReportsNotPresent) {
 	EXPECT_EQ(
 		FIFTYONE_DEGREES_STATUS_REQ_PROP_NOT_PRESENT,
 		sizeStatus(memory));
+}
+
+/**
+ * Test that a null configuration, which the comments on the method allow, gets
+ * as far as reporting the status.
+ */
+TEST_F(HashSizeManagerFromMemoryTests, NullConfig_ReportsNotPresent) {
+	Memory memory = emptyDataSet();
+	fiftyoneDegreesStatusCode status;
+	sizeWithConfig(nullptr, memory, nullptr, &status);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_REQ_PROP_NOT_PRESENT, status);
+}
+
+/**
+ * Test that a null configuration means the balanced one for memory that loads.
+ */
+TEST_F(HashSizeManagerFromMemoryTests, NullConfig_SameSizeAsBalanced) {
+	Memory memory = dataSetWithComponents(2);
+	fiftyoneDegreesStatusCode status;
+	const size_t size = sizeWithConfig(nullptr, memory, "DeviceId", &status);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, status);
+	const size_t balanced = sizeWithConfig(
+		&fiftyoneDegreesHashBalancedConfig,
+		memory,
+		"DeviceId",
+		&status);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, status);
+	EXPECT_GT(size, (size_t)0);
+	EXPECT_EQ(balanced, size);
 }
 
 /**
