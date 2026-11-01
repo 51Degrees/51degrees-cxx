@@ -189,6 +189,19 @@ namespace FiftyoneDegrees {
 				void setTraceRoute(bool shouldTrace);
 
 				/**
+				 * Set the properties whose values are indexed to the profiles
+				 * holding them when the engine loads the data, so that
+				 * EngineHash::getProfileIdsForPropertyValue finds the profiles
+				 * for a value of one of them without reading every profile.
+				 * A property is indexed whether or not it is required, and a
+				 * refresh indexes the same properties. By default none are.
+				 * See #fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties
+				 * @param names names of the properties to index, matched
+				 * exactly
+				 */
+				void setIndexedProperties(std::vector<std::string> names);
+
+				/**
 				 * @}
 				 * @name Getters
 				 * @{
@@ -275,6 +288,13 @@ namespace FiftyoneDegrees {
 				 */
 				bool getTraceRoute();
 
+				/**
+				 * Get the properties whose values are indexed to the profiles
+				 * holding them when the engine loads the data.
+				 * @return names of the properties to index
+				 */
+				std::vector<std::string> getIndexedProperties() const;
+
 				 /**
 				  * Gets the configuration data structure for use in C code.
 				  * Used internally.
@@ -313,6 +333,9 @@ namespace FiftyoneDegrees {
 
 				/** The underlying components configuration structure */
 				CollectionConfig components;
+
+				/** Names of the properties to index */
+				std::vector<std::string> indexedProperties;
 
 				/**
 				 * Initialise the collection configurations by creating

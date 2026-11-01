@@ -76,6 +76,8 @@ MAP_TYPE(HashValueProfiles)
 #define HashSizeManagerFromMemory fiftyoneDegreesHashSizeManagerFromMemory /**< Synonym for #fiftyoneDegreesHashSizeManagerFromMemory function. */
 #define HashInitManagerFromFile fiftyoneDegreesHashInitManagerFromFile /**< Synonym for #fiftyoneDegreesHashInitManagerFromFile function. */
 #define HashInitManagerFromMemory fiftyoneDegreesHashInitManagerFromMemory /**< Synonym for #fiftyoneDegreesHashInitManagerFromMemory function. */
+#define HashInitManagerFromFileWithIndexedProperties fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties /**< Synonym for #fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties function. */
+#define HashInitManagerFromMemoryWithIndexedProperties fiftyoneDegreesHashInitManagerFromMemoryWithIndexedProperties /**< Synonym for #fiftyoneDegreesHashInitManagerFromMemoryWithIndexedProperties function. */
 #define HashReloadManagerFromOriginalFile fiftyoneDegreesHashReloadManagerFromOriginalFile /**< Synonym for #fiftyoneDegreesHashReloadManagerFromOriginalFile function. */
 #define HashReloadManagerFromFile fiftyoneDegreesHashReloadManagerFromFile /**< Synonym for #fiftyoneDegreesHashReloadManagerFromFile function. */
 #define HashReloadManagerFromMemory fiftyoneDegreesHashReloadManagerFromMemory /**< Synonym for #fiftyoneDegreesHashReloadManagerFromMemory function. */

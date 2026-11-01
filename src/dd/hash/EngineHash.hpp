@@ -206,11 +206,9 @@ namespace FiftyoneDegrees {
 				 * such as a NativeModel or a TAC, in the order of the data
 				 * file, which is ascending profile id. A value held by several
 				 * profiles gives all of them. Both names are matched exactly.
-				 * Where the property is required and the configuration's
-				 * property value index is on, see
-				 * ConfigBase::setPropertyValueIndex, the data set's index of
-				 * profiles by value finds them. Otherwise every profile is
-				 * read, which gives the same ids.
+				 * For a property named with ConfigHash::setIndexedProperties
+				 * the data set's index of profiles by value finds them.
+				 * Otherwise every profile is read, which gives the same ids.
 				 * @param propertyName name of the property
 				 * @param valueName name of the value
 				 * @return ids of the profiles holding the value, which is empty

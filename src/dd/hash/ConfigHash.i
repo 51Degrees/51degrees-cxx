@@ -42,6 +42,7 @@ public:
 	void setUsePredictiveGraph(bool use);
 	void setTraceRoute(bool trace);
 	void setPropertyValueIndex(bool index);
+	void setIndexedProperties(std::vector<std::string> names);
 	CollectionConfig getStrings();
 	CollectionConfig getProperties();
 	CollectionConfig getValues();
@@ -55,4 +56,5 @@ public:
 	uint16_t getConcurrency();
 	bool getTraceRoute();
 	bool getPropertyValueIndex();
+	std::vector<std::string> getIndexedProperties();
 };

@@ -28,17 +28,42 @@
 using namespace FiftyoneDegrees;
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
+namespace {
+	// Holds the names of the properties to index in the form the C layer
+	// takes, which copies them before the init call returns.
+	struct IndexedProperties {
+		std::vector<std::string> names;
+		std::vector<const char*> pointers;
+		explicit IndexedProperties(
+			const DeviceDetection::Hash::ConfigHash *config)
+			: names(config->getIndexedProperties()) {
+			for (const std::string &name : names) {
+				pointers.push_back(name.c_str());
+			}
+		}
+		const char** get() {
+			return pointers.empty() ? nullptr : pointers.data();
+		}
+		int count() const {
+			return (int)pointers.size();
+		}
+	};
+}
+
 EngineHash::EngineHash(
 	const char *fileName,
 	DeviceDetection::Hash::ConfigHash *config,
 	Common::RequiredPropertiesConfig *properties)
 	: EngineDeviceDetection(config, properties) {
 	EXCEPTION_CREATE;
-	StatusCode status = HashInitManagerFromFile(
+	IndexedProperties indexed(config);
+	StatusCode status = HashInitManagerFromFileWithIndexedProperties(
 		manager.get(),
 		config->getConfig(),
 		properties->getConfig(),
 		fileName,
+		indexed.get(),
+		indexed.count(),
 		exception);
 	if (status != SUCCESS) {
 		throw StatusCodeException(status, fileName);
@@ -67,12 +92,15 @@ EngineHash::EngineHash(
 	config->getConfig()->b.b.freeData = true;
 	void *dataCopy = copyData(data, length);
 
-	StatusCode status = HashInitManagerFromMemory(
+	IndexedProperties indexed(config);
+	StatusCode status = HashInitManagerFromMemoryWithIndexedProperties(
 		manager.get(),
 		config->getConfig(),
 		properties->getConfig(),
 		dataCopy,
 		(size_t)length,
+		indexed.get(),
+		indexed.count(),
 		exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		// The memory stays with the caller until the data set is set up.
