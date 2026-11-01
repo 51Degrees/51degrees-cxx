@@ -11,7 +11,6 @@
     <ClInclude Include="..\..\..\src\common\component.h" />
     <ClInclude Include="..\..\..\src\common\config.h" />
     <ClInclude Include="..\..\..\src\common\constants.h" />
-    <ClInclude Include="..\..\coordinate.h" />
     <ClInclude Include="..\..\..\src\common\data.h" />
     <ClInclude Include="..\..\..\src\common\dataset.h" />
     <ClInclude Include="..\..\..\src\common\date.h" />
@@ -23,6 +22,7 @@
     <ClInclude Include="..\..\..\src\common\float.h" />
     <ClInclude Include="..\..\..\src\common\headers.h" />
     <ClInclude Include="..\..\..\src\common\ip.h" />
+    <ClInclude Include="..\..\..\src\common\ipiSymbols.h" />
     <ClInclude Include="..\..\..\src\common\json.h" />
     <ClInclude Include="..\..\..\src\common\list.h" />
     <ClInclude Include="..\..\..\src\common\indices.h" />

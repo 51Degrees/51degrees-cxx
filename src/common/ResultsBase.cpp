@@ -22,9 +22,34 @@
 
 #include "ResultsBase.hpp"
 
+#include <cctype>
+#include <cerrno>
+#include <climits>
+#include <cmath>
+#include <cstdlib>
+
 #include "fiftyone.h"
 
 using namespace FiftyoneDegrees::Common;
+
+// Given by the strict accessors when the text of a value is not of the type
+// asked for. Has static storage as a Value keeps only the pointer.
+static const char* const NOT_OF_TYPE_MESSAGE =
+	"The stored value of the property is not of the type requested.";
+
+/**
+ * True if a number was read from the start of the text and only white space
+ * follows it. Some stored numbers do end in a space.
+ */
+static bool isAllNumber(const char *start, const char *end) {
+	if (end == start) {
+		return false;
+	}
+	while (isspace((unsigned char)*end)) {
+		end++;
+	}
+	return *end == '\0';
+}
 
 ResultsBase::ResultsBase(
 	fiftyoneDegreesResultsBase *results,
@@ -221,6 +246,125 @@ FiftyoneDegrees::Common::Value<double> ResultsBase::getValueAsDouble(const strin
 
 FiftyoneDegrees::Common::Value<double> ResultsBase::getValueAsDouble(const string *propertyName) {
 	return getValueAsDouble(propertyName->c_str());
+}
+
+template <class T> bool ResultsBase::getOneValueText(
+	int requiredPropertyIndex,
+	FiftyoneDegrees::Common::Value<T> &result,
+	string &text) {
+	if (hasValuesInternal(requiredPropertyIndex) == false) {
+		fiftyoneDegreesResultsNoValueReason reason =
+			getNoValueReasonInternal(requiredPropertyIndex);
+		result.setNoValueReason(
+			reason,
+			getNoValueMessageInternal(reason));
+		return false;
+	}
+	vector<string> values;
+	getValuesInternal(requiredPropertyIndex, values);
+	if (values.size() > 1) {
+		result.setNoValueReason(
+			FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES,
+			nullptr);
+		return false;
+	}
+	if (values.size() == 0) {
+		return false;
+	}
+	text = *values.begin();
+	return true;
+}
+
+FiftyoneDegrees::Common::Value<bool> ResultsBase::getValueAsStrictBool(
+	int requiredPropertyIndex) {
+	Value<bool> result;
+	string text;
+	if (getOneValueText(requiredPropertyIndex, result, text)) {
+		if (text.compare("True") == 0) {
+			result.setValue(true);
+		}
+		else if (text.compare("False") == 0) {
+			result.setValue(false);
+		}
+		else {
+			result.setNoValueReason(
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN,
+				NOT_OF_TYPE_MESSAGE);
+		}
+	}
+	return result;
+}
+
+FiftyoneDegrees::Common::Value<bool> ResultsBase::getValueAsStrictBool(
+	const char *propertyName) {
+	return getValueAsStrictBool(getRequiredPropertyIndex(propertyName));
+}
+
+FiftyoneDegrees::Common::Value<bool> ResultsBase::getValueAsStrictBool(
+	const string &propertyName) {
+	return getValueAsStrictBool(propertyName.c_str());
+}
+
+FiftyoneDegrees::Common::Value<int> ResultsBase::getValueAsStrictInteger(
+	int requiredPropertyIndex) {
+	Value<int> result;
+	string text;
+	if (getOneValueText(requiredPropertyIndex, result, text)) {
+		char *end = nullptr;
+		errno = 0;
+		const long long number = strtoll(text.c_str(), &end, 10);
+		if (isAllNumber(text.c_str(), end) &&
+			errno != ERANGE &&
+			number >= INT_MIN &&
+			number <= INT_MAX) {
+			result.setValue((int)number);
+		}
+		else {
+			result.setNoValueReason(
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN,
+				NOT_OF_TYPE_MESSAGE);
+		}
+	}
+	return result;
+}
+
+FiftyoneDegrees::Common::Value<int> ResultsBase::getValueAsStrictInteger(
+	const char *propertyName) {
+	return getValueAsStrictInteger(getRequiredPropertyIndex(propertyName));
+}
+
+FiftyoneDegrees::Common::Value<int> ResultsBase::getValueAsStrictInteger(
+	const string &propertyName) {
+	return getValueAsStrictInteger(propertyName.c_str());
+}
+
+FiftyoneDegrees::Common::Value<double> ResultsBase::getValueAsStrictDouble(
+	int requiredPropertyIndex) {
+	Value<double> result;
+	string text;
+	if (getOneValueText(requiredPropertyIndex, result, text)) {
+		char *end = nullptr;
+		const double number = strtod(text.c_str(), &end);
+		if (isAllNumber(text.c_str(), end) && std::isfinite(number)) {
+			result.setValue(number);
+		}
+		else {
+			result.setNoValueReason(
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN,
+				NOT_OF_TYPE_MESSAGE);
+		}
+	}
+	return result;
+}
+
+FiftyoneDegrees::Common::Value<double> ResultsBase::getValueAsStrictDouble(
+	const char *propertyName) {
+	return getValueAsStrictDouble(getRequiredPropertyIndex(propertyName));
+}
+
+FiftyoneDegrees::Common::Value<double> ResultsBase::getValueAsStrictDouble(
+	const string &propertyName) {
+	return getValueAsStrictDouble(propertyName.c_str());
 }
 
 FiftyoneDegrees::Common::Value<vector<string>> ResultsBase::getValues(

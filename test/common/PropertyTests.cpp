@@ -120,6 +120,22 @@ void PropertyTests::assessProperty(const fiftyoneDegreesProperty *p, int i) {
     EXPECT_STREQ(strings[i*N_PER_PROPERTY + 4], &url->value);
 }
 
+/**
+ * Check a property with no URL gives an empty string rather than the string at
+ * offset 0, and that the item can be released afterwards.
+ */
+TEST_F(PropertyTests, PropertyWithNoUrl) {
+    EXCEPTION_CREATE
+    const fiftyoneDegreesProperty noUrl = {};
+    DataReset(&item.data);
+    const String *url = fiftyoneDegreesPropertyGetUrl(
+        stringsCollection, &noUrl, &item, exception);
+    ASSERT_TRUE(EXCEPTION_OKAY);
+    ASSERT_NE(url, nullptr);
+    EXPECT_STREQ("", &url->value);
+    COLLECTION_RELEASE(item.collection, &item);
+}
+
 TEST_F(PropertyTests, RetrievePropertyFromCollection) {
     
     for (int i=0;i<N_PROPERTIES;i++) {

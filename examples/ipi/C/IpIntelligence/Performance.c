@@ -75,6 +75,9 @@ static const char* dataFileName = "51Degrees-LiteV41.ipi";
 // This file contains the 20,000 random IP formatted as header values.
 static const char* evidenceFileName = "evidence.yml";
 
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
+
 /**
  * Configuration to use when building the dataset for benchmarking.
  */
@@ -95,7 +98,8 @@ typedef struct performanceConfig_t {
  * 
  * InMemory - all the data is loaded into memory and file closed. Fast.
  * Balanced - popular data is loaded into memory, other cached and loaded from 
- *   data file. Quite slow, but okay for web sites.
+ *   data file. Quite slow, but okay for web sites. Naming the required
+ *   properties holds what they read in memory, which makes it much faster.
  * LowMemory - all data loaded from data file when needed. Slow.
  */
 performanceConfig performanceConfigs[] = {
@@ -517,13 +521,15 @@ void executeBenchmark(
 		&properties,
 		state->dataFileLocation,
 		exception);
-	EXCEPTION_THROW;
 	if (status != SUCCESS) {
 		const char* message = StatusGetMessage(status, state->dataFileLocation);
 		fprintf(state->output, "%s\n", message);
 		Free((void*)message);
+		Free(state->threads);
+		exitCode = 1;
 		return;
 	}
+	EXCEPTION_THROW;
 	
 	TIMER_END;
 	state->startUpMillis = TIMER_ELAPSED;
@@ -910,7 +916,7 @@ int main(int argc, char* argv[]) {
 		fclose(params.resultsOutput);
 	}
 
-	return 0;
+	return exitCode;
 }
 
 #endif

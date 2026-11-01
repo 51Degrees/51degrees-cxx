@@ -69,6 +69,9 @@ static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 // that are relevant to device detection. For example, User-Agent and UA-CH headers.
 static const char *evidenceFileName = "20000 Evidence Records.yml";
 
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
+
 static char valueBuffer[1024] = "";
 static const size_t valueBufferLength = sizeof(valueBuffer) / sizeof(valueBuffer[0]);
 
@@ -285,6 +288,7 @@ static void reportStatus(
 	StatusCode status,
 	const char* fileName) {
 	const char *message = StatusGetMessage(status, fileName);
+	printf("%s\n", message);
 	Free((void*)message);
 }
 
@@ -335,6 +339,7 @@ void fiftyoneDegreesOfflineProcessingRun(
 	printf("%s\n", dataFilePath);
 	if (status != SUCCESS) {
 		reportStatus(status, dataFilePath);
+		exitCode = 1;
 	}
 	else {
 
@@ -458,7 +463,7 @@ int main(int argc, char* argv[]) {
 	// Wait for a character to be pressed.
 	fgetc(stdin);
 
-	return 0;
+	return exitCode;
 }
 
 #endif

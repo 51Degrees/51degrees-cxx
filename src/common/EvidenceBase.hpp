@@ -35,6 +35,7 @@ using std::stringstream;
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Base evidence class containing evidence to be processed by an engine.
 		 * This wraps a dynamically generated C evidence structure.
@@ -135,6 +136,7 @@ namespace FiftyoneDegrees {
 			/** The underlying evidence structure. */
 			fiftyoneDegreesEvidenceKeyValuePairArray* evidence;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

@@ -24,6 +24,18 @@
 %include std_pair.i
 %include std_vector.i
 
+%extend std::vector<uint8_t> {
+    int copyToArray(unsigned char copy[], int length) {
+        if (copy == nullptr || length <= 0) {
+            return 0;
+        }
+        int count = length < (int)$self->size() ? length : (int)$self->size();
+        for (int i = 0; i < count; i++) {
+            copy[i] = (*$self)[i];
+        }
+        return count;
+    }
+}
 %include "../common/ResultsBase.i"
 %include "WeightedValue.i"
 %include "../common/IpAddress.i"
@@ -92,3 +104,24 @@ public:
 
     Value<IpAddress> getTargetIpAddress();
 };
+
+%extend ResultsIpi {
+    int copyValueAsUTF8String(
+        int requiredPropertyIndex,
+        unsigned char copy[],
+        int length) {
+        Value<std::vector<uint8_t>> value =
+            $self->getValueAsUTF8String(requiredPropertyIndex);
+        if (!value.hasValue()) {
+            return -1;
+        }
+        std::vector<uint8_t> bytes = value.getValue();
+        int required = (int)bytes.size();
+        if (copy != nullptr && length >= required) {
+            for (int i = 0; i < required; i++) {
+                copy[i] = bytes[i];
+            }
+        }
+        return required;
+    }
+}

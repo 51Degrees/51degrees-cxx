@@ -28,6 +28,7 @@
 #include <sstream>
 
 namespace FiftyoneDegrees::Common {
+FIFTYONE_DEGREES_COMMON_CXX_BEGIN
     /**
      * Converts WKB "string" to WKT string and pushes into a string stream.
      * @param wkbString "string" containing WKB geometry.
@@ -43,6 +44,7 @@ namespace FiftyoneDegrees::Common {
         std::stringstream &stream,
         uint8_t decimalPlaces,
         fiftyoneDegreesException *exception);
+FIFTYONE_DEGREES_COMMON_CXX_END
 }
 
 #endif //FIFTYONE_DEGREES_WKBTOT_HPP_INCLUDED

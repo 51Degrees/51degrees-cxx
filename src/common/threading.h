@@ -33,6 +33,10 @@
 #ifndef FIFTYONE_DEGREES_THREADING_INCLUDED
 #define FIFTYONE_DEGREES_THREADING_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -83,10 +87,13 @@ typedef void*(*FIFTYONE_DEGREES_THREAD_ROUTINE)(void*);
 
 /**
  * Mutex used to synchronise access to data structures that could be used
- * in parallel in a multi threaded environment.
+ * in parallel in a multi threaded environment. On Windows this is a slim
+ * reader writer lock taken only for exclusive access, which stays in user mode
+ * unless another thread holds it. The cache takes a lock for every item it
+ * hands out, so a lock that entered the kernel each time stops threads scaling.
  */
 #ifdef _MSC_VER
-typedef HANDLE fiftyoneDegreesMutex;
+typedef SRWLOCK fiftyoneDegreesMutex;
 #else
 typedef pthread_mutex_t fiftyoneDegreesMutex;
 /**
@@ -203,17 +210,18 @@ void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
  * @param m mutex to create
  */
 #ifdef _MSC_VER
-#define FIFTYONE_DEGREES_MUTEX_CREATE(m) m = CreateMutex(NULL,FALSE,NULL)
+#define FIFTYONE_DEGREES_MUTEX_CREATE(m) InitializeSRWLock(&m)
 #else
 #define FIFTYONE_DEGREES_MUTEX_CREATE(m) fiftyoneDegreesMutexCreate(&m)
 #endif
 
 /**
- * Frees the mutex at the pointer provided.
+ * Frees the mutex at the pointer provided. A slim reader writer lock holds no
+ * resources, so there is nothing to free on Windows.
  * @param m mutex to close
  */
 #ifdef _MSC_VER
-#define FIFTYONE_DEGREES_MUTEX_CLOSE(m) if (m != NULL) { CloseHandle(m); }
+#define FIFTYONE_DEGREES_MUTEX_CLOSE(m)
 #else
 #define FIFTYONE_DEGREES_MUTEX_CLOSE(m) fiftyoneDegreesMutexClose(&m)
 #endif
@@ -223,7 +231,7 @@ void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
  * @param m mutex to lock
  */
 #ifdef _MSC_VER
-#define FIFTYONE_DEGREES_MUTEX_LOCK(m) WaitForSingleObject(*m, INFINITE)
+#define FIFTYONE_DEGREES_MUTEX_LOCK(m) AcquireSRWLockExclusive(m)
 #else
 #define FIFTYONE_DEGREES_MUTEX_LOCK(m) fiftyoneDegreesMutexLock(m)
 #endif
@@ -233,7 +241,7 @@ void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
  * @param m mutex to unlock
  */
 #ifdef _MSC_VER
-#define FIFTYONE_DEGREES_MUTEX_UNLOCK(m) ReleaseMutex(*m)
+#define FIFTYONE_DEGREES_MUTEX_UNLOCK(m) ReleaseSRWLockExclusive(m)
 #else
 #define FIFTYONE_DEGREES_MUTEX_UNLOCK(m) fiftyoneDegreesMutexUnlock(m)
 #endif
@@ -244,7 +252,7 @@ void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
  * @return true if valid
  */
 #ifdef _MSC_VER
-#define FIFTYONE_DEGREES_MUTEX_VALID(m) (*m != NULL)
+#define FIFTYONE_DEGREES_MUTEX_VALID(m) (m != NULL)
 #else
 #define FIFTYONE_DEGREES_MUTEX_VALID(m) fiftyoneDegreesMutexValid(m)
 #endif

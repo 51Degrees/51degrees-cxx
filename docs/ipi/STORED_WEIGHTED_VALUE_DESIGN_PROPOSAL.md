@@ -25,7 +25,7 @@ The weight lives in the **Value record**, not in the strings collection:
 - The field uses a **masked encoding** to distinguish weights from URL offsets:
   - If the upper 2 bytes equal `0xFF00` (i.e., `(value & 0xFFFF0000) == 0xFF000000`) → the lower 2 bytes are a `uint16_t` weight (0–65535, representing 0.0–1.0)
   - Otherwise → it is a URL offset (existing behavior), including the legacy `-1` sentinel for "no URL"
-- **Why not simple negative numbers?** The value `-1` (`0xFFFFFFFF`) is already used as a sentinel meaning "no URL" in both device-detection-cxx and ip-intelligence-cxx (see `ValueMetaDataBuilderHash.cpp:51`, `ValueMetaDataBuilderIpi.cpp:116`). A simple "negative = weight" scheme would collide with this existing convention.
+- **Why not simple negative numbers?** The value `-1` (`0xFFFFFFFF`) is already used as a sentinel meaning "no URL" in both Device Detection and IP Intelligence (see `src/dd/hash/ValueMetaDataBuilderHash.cpp`, `src/ipi/ValueMetaDataBuilderIpi.cpp`). A simple "negative = weight" scheme would collide with this existing convention.
 - **Why `0xFF00` mask?** The pattern `0xFF00` in the upper 2 bytes (`0xFF00xxxx`) creates a distinct range that does not collide with `-1` (`0xFFFFFFFF`, which has `0xFFFF` in the upper bytes) nor with any valid non-negative URL offset. The `isMasked()` check reliably distinguishes all three cases.
 - **Working range:** Masked values span from `0xFF000000` (int32: -16777216, weight=0.0) to `0xFF00FFFF` (int32: -16711681, weight=1.0)
 - Weighted properties have `isList = true` — multiple Value records per profile per property
@@ -135,9 +135,9 @@ Weighted values use `isList = true`. Multiple Value records for the same propert
 
 **Rationale:** Reuses proven infrastructure. The profile reader already groups values by property and iterates them. No new iteration patterns needed.
 
-### Decision 3: Rename Profile-Specific Types to Generic Names and Lift to common-cxx
+### Decision 3: Rename Profile-Specific Types to Generic Names and Lift to `src/common`
 
-The existing `ProfilePercentage` and `IpiList` types are generic containers for weighted collection items and should be named `WeightedItem` / `WeightedItemList`. They belong in **common-cxx** since they are general-purpose data structures.
+The existing `ProfilePercentage` and `IpiList` types are generic containers for weighted collection items and should be named `WeightedItem` / `WeightedItemList`. They belong in **`src/common`** since they are general-purpose data structures.
 
 ### Decision 4: Weighted Values Supported for Any Type
 
@@ -147,19 +147,19 @@ The `urlOffsetOrWeight` approach works for any value type — `WeightedString`, 
 
 | Current Name | New Name | New Location | Scope |
 |---|---|---|---|
-| `fiftyoneDegreesProfilePercentage` | `fiftyoneDegreesWeightedItem` | **common-cxx** (`weightedItem.h`) | Public API |
-| `fiftyone_degrees_profile_percentage_t` | `fiftyone_degrees_weighted_item_t` | common-cxx | Struct tag |
-| `fiftyoneDegreesIpiList` | `fiftyoneDegreesWeightedItemList` | **common-cxx** (`weightedItem.h`) | Public API |
-| `fiftyone_degrees_ipi_list_t` | `fiftyone_degrees_weighted_item_list_t` | common-cxx | Struct tag |
-| `addValueWithPercentage` | `addWeightedValue` | ip-intelligence-cxx (stays in ipi.c) | Static in ipi.c |
-| `stateWithPercentage` | `stateWithWeighting` | ip-intelligence-cxx (stays in ipi.c) | Static in ipi.c |
-| `profilePercentageItem` (local vars) | `weightedItem` | ip-intelligence-cxx | Local variables |
-| `ProfilePercentage` (MAP_TYPE) | `WeightedItem` | ip-intelligence-cxx (fiftyone.h) | MAP_TYPE macro |
-| `ResultsIpiGetValues` return type | `const fiftyoneDegreesWeightedItem*` | ip-intelligence-cxx | Public API |
+| `fiftyoneDegreesProfilePercentage` | `fiftyoneDegreesWeightedItem` | **`src/common`** (`weightedItem.h`) | Public API |
+| `fiftyone_degrees_profile_percentage_t` | `fiftyone_degrees_weighted_item_t` | `src/common` | Struct tag |
+| `fiftyoneDegreesIpiList` | `fiftyoneDegreesWeightedItemList` | **`src/common`** (`weightedItem.h`) | Public API |
+| `fiftyone_degrees_ipi_list_t` | `fiftyone_degrees_weighted_item_list_t` | `src/common` | Struct tag |
+| `addValueWithPercentage` | `addWeightedValue` | `src/ipi` (stays in ipi.c) | Static in ipi.c |
+| `stateWithPercentage` | `stateWithWeighting` | `src/ipi` (stays in ipi.c) | Static in ipi.c |
+| `profilePercentageItem` (local vars) | `weightedItem` | `src/ipi` | Local variables |
+| `ProfilePercentage` (MAP_TYPE) | `WeightedItem` | `src/ipi` (fiftyone.h) | MAP_TYPE macro |
+| `ResultsIpiGetValues` return type | `const fiftyoneDegreesWeightedItem*` | `src/ipi` | Public API |
 
 **`rawWeighting`** is kept as-is.
 
-Updated struct definition (now in common-cxx):
+Updated struct definition (now in `src/common`):
 
 ```c
 /**
@@ -185,11 +185,11 @@ typedef struct fiftyone_degrees_weighted_item_list_t {
 ```
 
 **Files affected by rename:**
-- **common-cxx** (new home):
+- **`src/common`** (new home):
   - `weightedItem.h` (new) — type definitions for `WeightedItem` and `WeightedItemList`
   - `weightedItem.c` (new) — list management functions (init, release, extend, add)
-- **ip-intelligence-cxx** (consumer, update references):
-  - `ipi.h` — remove old type definitions, include new common-cxx header, update `FIFTYONE_DEGREES_RESULTS_IPI_MEMBERS` macro
+- **`src/ipi`** (consumer, update references):
+  - `ipi.h`: remove old type definitions, include new `src/common` header, update `FIFTYONE_DEGREES_RESULTS_IPI_MEMBERS` macro
   - `ipi.c` — update all internal usage (~20 references), rename static functions
   - `ResultsIpi.cpp` — update C++ layer (~10 references)
   - `ipi_weighted_results.c` — update weighted value construction (~3 references)
@@ -198,7 +198,7 @@ typedef struct fiftyone_degrees_weighted_item_list_t {
 
 ## Implementation Plan
 
-### Step 1: Rename `urlOffset` to `urlOffsetOrWeight` in Value Struct (common-cxx)
+### Step 1: Rename `urlOffset` to `urlOffsetOrWeight` in Value Struct (`src/common`)
 
 **`value.h`** — Change the Value struct:
 
@@ -298,11 +298,11 @@ bool fiftyoneDegreesValueIsWeighted(
 
 **Precision:** The uint16_t encoding gives 65536 discrete levels with a maximum error of ~1.5×10⁻⁵ (approx 0.0015%), which is more than sufficient for weight/probability data.
 
-### Step 2: Lift WeightedItem / WeightedItemList Types to common-cxx
+### Step 2: Lift WeightedItem / WeightedItemList Types to `src/common`
 
-Move the `WeightedItem` and `WeightedItemList` type definitions and their list management functions (`init`, `release`, `extend`, `add`) from `ipi.h`/`ipi.c` to common-cxx. These are generic data structures with no IPI-specific logic.
+Move the `WeightedItem` and `WeightedItemList` type definitions and their list management functions (`init`, `release`, `extend`, `add`) from `ipi.h`/`ipi.c` to `src/common`. These are generic data structures with no IPI-specific logic.
 
-**New `weightedItem.h` in common-cxx:**
+**New `weightedItem.h` in `src/common`:**
 
 ```c
 #include "collection.h"
@@ -333,13 +333,13 @@ EXTERNAL fiftyoneDegreesWeightedItem* fiftyoneDegreesWeightedItemListAdd(
     fiftyoneDegreesException *exception);
 ```
 
-### Step 3: Update ip-intelligence-cxx to Use common-cxx Types
+### Step 3: Update `src/ipi` to Use `src/common` Types
 
-**`ipi.h`:** Remove old `ProfilePercentage` and `IpiList` definitions. Include the new common-cxx header. Update `FIFTYONE_DEGREES_RESULTS_IPI_MEMBERS` macro and `ResultsIpiGetValues` to use `WeightedItem` / `WeightedItemList`.
+**`ipi.h`:** Remove old `ProfilePercentage` and `IpiList` definitions. Include the new `src/common` header. Update `FIFTYONE_DEGREES_RESULTS_IPI_MEMBERS` macro and `ResultsIpiGetValues` to use `WeightedItem` / `WeightedItemList`.
 
-**`ipi.c`:** Rename all internal references (~20 occurrences). Rename static functions (`addValueWithPercentage` → `addWeightedValue`, `stateWithPercentage` → `stateWithWeighting`). Replace calls to old list functions with new common-cxx equivalents.
+**`ipi.c`:** Rename all internal references (~20 occurrences). Rename static functions (`addValueWithPercentage` → `addWeightedValue`, `stateWithPercentage` → `stateWithWeighting`). Replace calls to old list functions with new `src/common` equivalents.
 
-### Step 4: Update `addWeightedValue` Callback to Extract Weight from Value (ip-intelligence-cxx)
+### Step 4: Update `addWeightedValue` Callback to Extract Weight from Value (`src/ipi`)
 
 **`ipi.c`** — The `addWeightedValue` callback (currently `addValueWithPercentage`) is where weighted values are gathered. This callback leverages the **same infrastructure** as profile groups — no new iteration mechanism is needed.
 
@@ -412,7 +412,7 @@ static bool addWeightedValue(void* state, Item* item) {
 
 **Summary of what materializes the weighted list:** The combination of `isList=true` (causing the profile to store multiple value indices for the property) + `ProfileIterateValuesForProperty` (which iterates all of them) + the updated callback (which extracts the weight from each Value record) means the `WeightedItemList` on the results is populated with one `WeightedItem` per weighted value, each carrying the correct weight. No new iteration logic is needed — the existing list property infrastructure does the work.
 
-### Step 5: Map Weighted StoredValueTypes to Underlying Types (common-cxx)
+### Step 5: Map Weighted StoredValueTypes to Underlying Types (`src/common`)
 
 Since the strings collection stores **standard** values (not weighted blobs), we need to map weighted `storedValueType` values to their underlying type when reading from the strings collection. This mapping is used in the `addWeightedValue` callback (Step 4).
 
@@ -450,7 +450,7 @@ fiftyoneDegreesPropertyValueTypeGetUnderlyingType(
 }
 ```
 
-### Step 6: C++ ResultsIpi Accessor Updates (ip-intelligence-cxx)
+### Step 6: C++ ResultsIpi Accessor Updates (`src/ipi`)
 
 **`ResultsIpi.cpp`** — By the time the C++ accessor runs, the `WeightedItemList` on the results is already fully materialized by the callback (Step 4). It contains one `WeightedItem` per value, each with the correct `rawWeighting` — regardless of whether it came from a profile group or from a weighted list property.
 
@@ -491,7 +491,7 @@ Both produce `vector<WeightedValue<string>>` via the same code path.
 
 **In `getValuesInternal` (string formatting):** Weighted list properties naturally produce multiple values. The existing string formatting for list properties (e.g., comma-separated) should work as-is for the individual values. If a weighted-specific format is desired (e.g., `"US:0.65,GB:0.35"`), that can be added as a separate formatter.
 
-### Step 7: Debug/Logging Updates (ip-intelligence-cxx)
+### Step 7: Debug/Logging Updates (`src/ipi`)
 
 **`ipi.c`** — Add `"WeightedString"` (and other weighted types) in the storedValueType name switch (~line 783):
 
@@ -510,7 +510,7 @@ case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_DOUBLE: {
 }
 ```
 
-### Step 8: SWIG Regeneration (ip-intelligence-cxx)
+### Step 8: SWIG Regeneration (`src/ipi`)
 
 Run `RebuildSwig` with cmake to regenerate SWIG wrappers for both C# and Java. The existing SWIG templates already export:
 
@@ -524,7 +524,7 @@ No changes to the `.i` file are needed — the C++ `getValuesAsWeightedStringLis
 
 **Repository:** `ip-intelligence-dotnet`
 
-1. **Update submodule pointer** to the new `ip-intelligence-cxx`.
+1. **Update submodule pointer** to the new `51degrees-cxx`.
 2. **Copy regenerated SWIG output** — The SWIG-generated C# interop code in `FiftyOne.IpIntelligence.Engine.OnPremise` will be updated automatically from Step 8.
 3. **No changes to managed wrappers** — The existing wrapper classes (`WeightedStringListSwigWrapper.cs`, etc.) consume SWIG types that are unchanged at the C++ template level.
 4. **No changes to `IpDataOnPremise.cs`** — `GetValuesAsWeightedStringList()` already calls through to SWIG correctly.
@@ -535,7 +535,7 @@ No changes to the `.i` file are needed — the C++ `getValuesAsWeightedStringLis
 
 **Repository:** `ip-intelligence-java`
 
-1. **Update submodule pointer** to the new `ip-intelligence-cxx`.
+1. **Update submodule pointer** to the new `51degrees-cxx`.
 2. **Copy regenerated SWIG output** — Java SWIG output in `ip-intelligence.engine.on-premise/src/main/java/fiftyone/ipintelligence/engine/onpremise/interop/swig/`.
 3. **No changes to data layer** — Already handles weighted values.
 4. **Rebuild JNI native library** — Bundle updated `.so`/`.dylib`/`.dll`.
@@ -655,8 +655,8 @@ The C++ accessor doesn't know or care where the weight came from.
 ## Package Cascade
 
 ```
-common-cxx (Steps 1-2, 5: Value struct change, WeightedItem types, type mapping)
-  +-> ip-intelligence-cxx (Steps 3-4, 6-8: consume types, update callback, C++ accessors, SWIG)
+src/common (Steps 1-2, 5: Value struct change, WeightedItem types, type mapping)
+  +-> src/ipi (Steps 3-4, 6-8: consume types, update callback, C++ accessors, SWIG)
        +-> ip-intelligence-dotnet (Step 9: submodule, SWIG copy, native rebuild, version bump)
        |    +-> ip-intelligence-dotnet-examples (Step 11)
        +-> ip-intelligence-java (Step 10: submodule, SWIG copy, native rebuild, version bump)
@@ -728,20 +728,20 @@ No changes. The Value struct is read-only (const fields). Reading `urlOffsetOrWe
 
 ## Files Modified (Summary)
 
-| Repository | File | Change |
+| Location | File | Change |
 |---|---|---|
-| **common-cxx** | `value.h` | Rename `urlOffset` → `urlOffsetOrWeight` (int32_t), add `ValueGetWeight`/`ValueIsWeighted`, add `VALUE_IS_MASKED` macro |
-| **common-cxx** | `value.c` | Update `ValueGetUrl` to check mask and `-1` sentinel; implement `ValueGetWeight`/`ValueIsWeighted` using mask |
-| **common-cxx** | `propertyValueType.h` or `storedBinaryValue.c` | Add `PropertyValueTypeGetUnderlyingType` mapping |
-| **common-cxx** | `weightedItem.h` (new) | Add `WeightedItem` and `WeightedItemList` type definitions |
-| **common-cxx** | `weightedItem.c` (new) | Add list management functions (init, release, extend, add) |
-| ip-intelligence-cxx | `ipi.h` | Remove old type defs, include common-cxx header, update macros/signatures |
-| ip-intelligence-cxx | `ipi.c` | Rename internals; update `addWeightedValue` to extract weight from Value record |
-| ip-intelligence-cxx | `ipi.c` (debug) | Add `"WeightedString"` etc. in type name switch |
-| ip-intelligence-cxx | `ResultsIpi.cpp` | Update type references; no special weighted handling needed |
-| ip-intelligence-cxx | `ipi_weighted_results.c` | Update to use renamed `WeightedItem` types |
-| ip-intelligence-cxx | `fiftyone.h` | Update `MAP_TYPE` macro |
-| ip-intelligence-cxx | SWIG output | Regenerate via `RebuildSwig` |
+| **`src/common`** | `value.h` | Rename `urlOffset` → `urlOffsetOrWeight` (int32_t), add `ValueGetWeight`/`ValueIsWeighted`, add `VALUE_IS_MASKED` macro |
+| **`src/common`** | `value.c` | Update `ValueGetUrl` to check mask and `-1` sentinel; implement `ValueGetWeight`/`ValueIsWeighted` using mask |
+| **`src/common`** | `propertyValueType.h` or `storedBinaryValue.c` | Add `PropertyValueTypeGetUnderlyingType` mapping |
+| **`src/common`** | `weightedItem.h` (new) | Add `WeightedItem` and `WeightedItemList` type definitions |
+| **`src/common`** | `weightedItem.c` (new) | Add list management functions (init, release, extend, add) |
+| `src/ipi` | `ipi.h` | Remove old type defs, include `src/common` header, update macros/signatures |
+| `src/ipi` | `ipi.c` | Rename internals; update `addWeightedValue` to extract weight from Value record |
+| `src/ipi` | `ipi.c` (debug) | Add `"WeightedString"` etc. in type name switch |
+| `src/ipi` | `ResultsIpi.cpp` | Update type references; no special weighted handling needed |
+| `src/ipi` | `ipi_weighted_results.c` | Update to use renamed `WeightedItem` types |
+| `src/ipi` | `fiftyone.h` | Update `MAP_TYPE` macro |
+| `src/ipi` | SWIG output | Regenerate via `RebuildSwig` |
 | ip-intelligence-dotnet | Submodule + SWIG + native binaries | Update, rebuild, version bump |
 | ip-intelligence-java | Submodule + SWIG + native binaries | Update, rebuild, version bump |
 | ip-intelligence-dotnet-examples | Example files | Add/update weighted property example |

@@ -83,7 +83,7 @@
  *	}
  * 
  * The IP address is parsed from a string into a IpAddress instance using the
- * common-cxx IP functions.
+ * common library IP functions.
  * 
  * The array created must be freed with the fiftyoneDegreesIpiGraphFree method
  * when finished with.
@@ -240,6 +240,31 @@ EXTERNAL fiftyoneDegreesIpiCgArray* fiftyoneDegreesIpiGraphCreateFromFile(
 	FILE* file,
 	fiftyoneDegreesFilePool* reader,
 	const fiftyoneDegreesCollectionConfig config,
+	fiftyoneDegreesException* exception);
+
+/**
+ * Creates and initializes an array of graphs as
+ * fiftyoneDegreesIpiGraphCreateFromFile does, but only the graphs of the
+ * components flagged use the config. Every other graph reads from the file
+ * through the pool, so its data is not held in memory.
+ * @param collection of fiftyoneDegreesIpiCgInfo records
+ * @param file for to the source data
+ * @param reader pool connected to the file
+ * @param config for the collections of the graphs of the flagged components
+ * @param requiredComponentIds 256 flags indexed by component id, or NULL to use
+ * the config for every graph
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return a pointer to the newly allocated array, or null if the operation
+ * was not successful.
+ */
+EXTERNAL fiftyoneDegreesIpiCgArray*
+fiftyoneDegreesIpiGraphCreateFromFileForComponents(
+	fiftyoneDegreesCollection* collection,
+	FILE* file,
+	fiftyoneDegreesFilePool* reader,
+	const fiftyoneDegreesCollectionConfig config,
+	const bool* requiredComponentIds,
 	fiftyoneDegreesException* exception);
 
 /**

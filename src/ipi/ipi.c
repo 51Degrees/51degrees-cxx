@@ -45,6 +45,26 @@ MAP_TYPE(Collection)
 /** Default values separator */
 #define DEFAULT_VALUES_SEPARATOR "|"
 
+/**
+ * States for the entries of the has values cache in the results. The cache
+ * records the outcome of the profile walk performed to determine whether a
+ * required property has values for the current results avoiding repeated
+ * walks for the same property within a single detection.
+ */
+/** The walk has not been performed for the property. */
+#define IPI_HAS_VALUES_UNKNOWN 0
+/** The walk found at least one value for the property. */
+#define IPI_HAS_VALUES_TRUE 1
+/** The walk found no values for the property. */
+#define IPI_HAS_VALUES_FALSE 2
+
+/**
+ * Bytes in the slot that keeps a copy of the profile of a result. A larger
+ * profile is read again for each property, rather than allocating during a
+ * lookup.
+ */
+#define IPI_KEPT_PROFILE_BYTES 512
+
 #define COMPONENT(d, i) i < d->componentsList.count ? \
 (Component*)d->componentsList.items[i].data.ptr : NULL
 
@@ -56,19 +76,22 @@ dataSet->t = CollectionCreateFromMemory( \
 reader, \
 dataSet->header.t); \
 if (dataSet->t == NULL) { \
-	return INVALID_COLLECTION_CONFIG; \
+	return CORRUPT_DATA; \
 }
 
-#define COLLECTION_CREATE_FILE(t,f) \
+#define COLLECTION_CREATE_FILE_WITH_CONFIG(t,f,c) \
 dataSet->t = CollectionCreateFromFile( \
 	file, \
 	&dataSet->b.b.filePool, \
-	&dataSet->config.t, \
+	c, \
 	dataSet->header.t, \
 	f); \
 if (dataSet->t == NULL) { \
-	return INVALID_COLLECTION_CONFIG; \
+	return getCollectionFileStatus(dataSet, dataSet->header.t, 0); \
 }
+
+#define COLLECTION_CREATE_FILE(t,f) \
+COLLECTION_CREATE_FILE_WITH_CONFIG(t,f,&dataSet->config.t)
 
 /** 
  * Get min/max values with header guards to prevent redefinition warnings
@@ -164,7 +187,7 @@ static const uint16_t FULL_RAW_WEIGHTING = 0xFFFFU;
 /**
  * The largest profiles offset shift the header can declare. A shift of 8
  * gives 256 byte units addressing 1TB, well beyond any expected file, so
- * larger values indicate a corrupt header.
+ * larger values are refused.
  */
 #define FIFTYONE_DEGREES_IPI_MAX_PROFILES_OFFSET_SHIFT 8
 
@@ -218,6 +241,8 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }  // Graph
 };
 
+// The profile offsets and the property types are read for each property of every
+// lookup, so the Balanced configurations hold both in memory.
 #define FIFTYONE_DEGREES_IPI_CONFIG_BALANCED \
 { FIFTYONE_DEGREES_CONFIG_DEFAULT_NO_INDEX }, \
 { FIFTYONE_DEGREES_STRING_LOADED, FIFTYONE_DEGREES_STRING_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Strings */ \
@@ -228,8 +253,8 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
 { FIFTYONE_DEGREES_PROFILE_LOADED, FIFTYONE_DEGREES_PROFILE_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Profiles */ \
 { FIFTYONE_DEGREES_IP_GRAPHS_LOADED, FIFTYONE_DEGREES_IP_GRAPHS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Graphs */ \
 { FIFTYONE_DEGREES_PROFILE_GROUPS_LOADED, FIFTYONE_DEGREES_PROFILE_GROUPS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileGroups */ \
-{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Property Types */ \
-{ FIFTYONE_DEGREES_PROFILE_LOADED, FIFTYONE_DEGREES_PROFILE_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */ \
+{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */ \
+{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* PropertyTypes */ \
 { FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY } /* Graph */
 
 fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig = {
@@ -265,8 +290,8 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedTempConfig = {
 	{ FIFTYONE_DEGREES_PROFILE_LOADED, FIFTYONE_DEGREES_PROFILE_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Profiles */
 	{ FIFTYONE_DEGREES_IP_GRAPHS_LOADED, FIFTYONE_DEGREES_IP_GRAPHS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Graphs */
 	{ FIFTYONE_DEGREES_PROFILE_GROUPS_LOADED, FIFTYONE_DEGREES_PROFILE_GROUPS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileGroups */
-	{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Property Types */
-	{ FIFTYONE_DEGREES_PROFILE_LOADED, FIFTYONE_DEGREES_PROFILE_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */
+	{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */
+	{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* PropertyTypes */
 	{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY } /* Graph */
 };
 #undef FIFTYONE_DEGREES_CONFIG_USE_TEMP_FILE
@@ -280,6 +305,8 @@ FIFTYONE_DEGREES_CONFIG_USE_TEMP_FILE_DEFAULT
 static void resultIpiReset(ResultIpi* result) {
 	memset(result->targetIpAddress.value, 0, FIFTYONE_DEGREES_IPV6_LENGTH);
 	result->targetIpAddress.type = IP_TYPE_INVALID;
+	result->componentIndex = -1;
+	result->keptProfile = NULL;
 }
 
 static int compareIpAddresses(
@@ -710,6 +737,16 @@ static StatusCode readHeaderFromMemory(
 	MemoryReader* reader,
 	const DataSetIpiHeader* header) {
 
+	// MemoryAdvance below only reports an overrun once the copy has already
+	// read past the end, so the space is checked here instead. The pointers
+	// are compared before subtracting because a negative size puts lastByte
+	// behind current.
+	if (reader->current > reader->lastByte ||
+		(size_t)(reader->lastByte - reader->current) <
+		sizeof(DataSetIpiHeader)) {
+		return CORRUPT_DATA;
+	}
+
 	// Copy the bytes that make up the dataset header.
 	if (memcpy(
 		(void*)header,
@@ -732,15 +769,22 @@ static StatusCode checkVersion(DataSetIpi* dataSet) {
 	}
 
 	// The shift used to convert stored profile offsets to byte positions is
-	// declared in the header and validated rather than assumed.
+	// declared in the header and validated rather than assumed. A shift
+	// outside the range is one this API cannot use, so it is reported as an
+	// unsupported version. The message for corrupt data would send the reader
+	// to check the file is uncompressed, which it is.
 	if (dataSet->header.profilesOffsetShift < 0 ||
 		dataSet->header.profilesOffsetShift >
 		FIFTYONE_DEGREES_IPI_MAX_PROFILES_OFFSET_SHIFT) {
-		return CORRUPT_DATA;
+		return INCORRECT_VERSION;
 	}
 #ifndef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
 	// Converting shifted offsets to byte positions requires the 64 bit
-	// arithmetic of large data file support.
+	// arithmetic of large data file support. A shift of zero passing this
+	// check does not mean the file loads, because without that support the
+	// collection positions in the header are read as 4 bytes where every IP
+	// Intelligence data file has 8. The builds in this repository always
+	// define it for IP Intelligence.
 	if (dataSet->header.profilesOffsetShift != 0) {
 		return INCORRECT_VERSION;
 	}
@@ -841,7 +885,7 @@ static StatusCode initWithMemory(
 		dataSet->header.profiles,
 		getProfilesOffsetShift(dataSet));
 	if (dataSet->profiles == NULL) {
-		return INVALID_COLLECTION_CONFIG;
+		return CORRUPT_DATA;
 	}
 #else
 	COLLECTION_CREATE_MEMORY(profiles)
@@ -909,6 +953,23 @@ static void initDataSet(DataSetIpi* dataSet, ConfigIpi** config) {
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
+/**
+ * Gets the status for a collection that could not be created from the file,
+ * as the create methods do not say why they failed. A collection the header
+ * places beyond the end of the file is a fault in the file, which no
+ * configuration can cause or cure. Anything else comes from the configuration
+ * or a lack of memory.
+ */
+static StatusCode getCollectionFileStatus(
+	const DataSetIpi* dataSet,
+	const CollectionHeader header,
+	const byte offsetShift) {
+	const uint64_t end = (uint64_t)header.startPosition +
+		((uint64_t)header.length << offsetShift);
+	return end > (uint64_t)dataSet->b.b.filePool.length ?
+		CORRUPT_DATA : INVALID_COLLECTION_CONFIG;
+}
+
 static StatusCode readHeaderFromFile(
 	FILE* file,
 	const DataSetIpiHeader* header) {
@@ -924,9 +985,1037 @@ static StatusCode readHeaderFromFile(
 	return SUCCESS;
 }
 
+/**
+ * The number of bits to shift a stored profile offset by to turn it into bytes.
+ */
+static byte getProfilesFileShift(const DataSetIpi* dataSet) {
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+	return getProfilesOffsetShift(dataSet);
+#else
+	(void)dataSet;
+	return 0;
+#endif
+}
+
+static StatusCode createProfilesFromFile(
+	DataSetIpi* dataSet,
+	FILE* file,
+	const fiftyoneDegreesCollectionConfig* config) {
+	const uint32_t profileCount = dataSet->header.profiles.count;
+	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+	// The profiles collection stores offsets in the unit declared by the
+	// header. No other collection uses shifted offsets.
+	dataSet->profiles = fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
+		file,
+		&dataSet->b.b.filePool,
+		config,
+		dataSet->header.profiles,
+		fiftyoneDegreesProfileReadFromFile,
+		getProfilesOffsetShift(dataSet));
+#else
+	dataSet->profiles = CollectionCreateFromFile(
+		file,
+		&dataSet->b.b.filePool,
+		config,
+		dataSet->header.profiles,
+		fiftyoneDegreesProfileReadFromFile);
+#endif
+	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
+	if (dataSet->profiles == NULL) {
+		return getCollectionFileStatus(
+			dataSet,
+			dataSet->header.profiles,
+			getProfilesFileShift(dataSet));
+	}
+	return SUCCESS;
+}
+
+/**
+ * HOLDING WHAT THE REQUIRED PROPERTIES READ
+ *
+ * With the Balanced preset, a caller that names its required properties only
+ * reads part of the data file. The parts it does not read stay on file, and
+ * the memory that frees pays for holding more of the parts it does read, so
+ * memory never rises and lookups need fewer locks, file reads and allocations.
+ * Everything still reads from the file if it is not held, so this can only
+ * change where an answer comes from and never the answer.
+ */
+
+/**
+ * The fewest bytes between two required strings worth leaving on file, as more
+ * ranges cost time on every string read. The scan for required strings records
+ * parts of this size, because a gap this long always crosses the edge of a part.
+ */
+#define HELD_STRINGS_GAP_BYTES ((uint32_t)65536)
+
+/** Bytes read from the file at a time when scanning records. */
+#define HELD_SCAN_BUFFER_BYTES ((uint32_t)65536)
+
+/** Bytes kept back from the budget for the memory used to keep track. */
+#define HELD_RESERVED_BYTES ((uint64_t)131072)
+
+/**
+ * The most entries the profile cache is enlarged to. When measured, ten times
+ * this gave little on Linux and was usually slower on Windows.
+ */
+#define HELD_PROFILE_CACHE_MAX_ENTRIES ((uint32_t)100000)
+
+/**
+ * The least of a run of profiles worth holding when not all of it fits, as a
+ * percentage of the run.
+ */
+#define HELD_PROFILE_RUN_MIN_PERCENT 50
+
+/** Bytes the allocator uses for each block a cache entry allocates. */
+#define HELD_ALLOCATION_OVERHEAD_BYTES ((uint64_t)32)
+
+/** The number of values a component id, which is a byte, can have. */
+#define HELD_COMPONENT_IDS 256
+
+/**
+ * A stretch of a collection held in memory, in the units of the collection's
+ * keys.
+ */
+typedef struct held_range_t {
+	uint32_t first; /* Key of the first unit of the range */
+	uint32_t end; /* Key after the last unit of the range */
+	byte* memory; /* The bytes of the range */
+} heldRange;
+
+/**
+ * State of a collection that holds stretches of another collection in memory
+ * and passes every other read to that collection.
+ */
+typedef struct held_collection_t {
+	Collection* source; /* Reads whatever is not held */
+	uint64_t bytes; /* Bytes held in the ranges */
+	uint32_t unitBytes; /* Bytes in each unit of a key */
+	uint32_t count; /* Number of ranges */
+	heldRange* ranges; /* The ranges in the order of their keys */
+} heldCollection;
+
+/**
+ * Checks all of an item is in the range. An item of variable length that starts
+ * in a range might end beyond it, and is then read from the source.
+ */
+static bool heldRangeHasItem(
+	const Collection* collection,
+	const heldCollection* state,
+	const heldRange* range,
+	const CollectionKey* key,
+	const byte* ptr,
+	Exception* exception) {
+	if (collection->elementSize > 0) {
+		return true;
+	}
+	const uint64_t available =
+		(uint64_t)(range->end - key->indexOrOffset.offset) * state->unitBytes;
+	if (key->keyType->initialBytesCount > available) {
+		return false;
+	}
+	return key->keyType->getFinalSizeMethod == NULL ||
+		key->keyType->getFinalSizeMethod(ptr, exception) <= available;
+}
+
+static void* heldGet(
+	const Collection* collection,
+	const CollectionKey* const key,
+	Item* item,
+	Exception* exception) {
+	const heldCollection* const state =
+		(const heldCollection*)collection->state;
+	const uint32_t position = key->indexOrOffset.offset;
+	uint32_t low = 0;
+	uint32_t high = state->count;
+	while (low < high) {
+		const uint32_t middle = low + (high - low) / 2;
+		const heldRange* const range = &state->ranges[middle];
+		if (position < range->first) {
+			high = middle;
+		}
+		else if (position >= range->end) {
+			low = middle + 1;
+		}
+		else {
+			byte* const ptr = range->memory +
+				(size_t)((uint64_t)(position - range->first) * state->unitBytes);
+			if (heldRangeHasItem(
+				collection,
+				state,
+				range,
+				key,
+				ptr,
+				exception)) {
+				item->data.ptr = ptr;
+				item->handle = NULL;
+				item->collection = collection;
+				return ptr;
+			}
+			break;
+		}
+	}
+	void* const ptr = state->source->get(state->source, key, item, exception);
+	if (item->collection != NULL) {
+		item->collection = collection;
+	}
+	return ptr;
+}
+
+static void heldRelease(Item* item) {
+	if (item->handle != NULL) {
+		const heldCollection* const state =
+			(const heldCollection*)item->collection->state;
+		state->source->release(item);
+	}
+	else {
+		DataReset(&item->data);
+	}
+}
+
+static void heldFree(Collection* collection) {
+	heldCollection* const state = (heldCollection*)collection->state;
+	for (uint32_t i = 0; i < state->count; i++) {
+		Free(state->ranges[i].memory);
+	}
+	FIFTYONE_DEGREES_COLLECTION_FREE(state->source);
+	Free(state);
+	Free(collection);
+}
+
+static void heldRangeAdd(
+	heldRange* ranges,
+	uint32_t* count,
+	const uint32_t first,
+	const uint32_t end) {
+	if (end > first) {
+		ranges[*count].first = first;
+		ranges[*count].end = end;
+		ranges[*count].memory = NULL;
+		(*count)++;
+	}
+}
+
+static int heldRangeCompareFirst(const void* a, const void* b) {
+	const uint32_t x = ((const heldRange*)a)->first;
+	const uint32_t y = ((const heldRange*)b)->first;
+	return x < y ? -1 : (x > y ? 1 : 0);
+}
+
+static int heldRangeCompareLength(const void* a, const void* b) {
+	const uint32_t x = ((const heldRange*)a)->end - ((const heldRange*)a)->first;
+	const uint32_t y = ((const heldRange*)b)->end - ((const heldRange*)b)->first;
+	return x < y ? -1 : (x > y ? 1 : 0);
+}
+
+/**
+ * Replaces the collection with one holding the ranges in memory, which reads
+ * everything else from the collection replaced. The ranges are put in order
+ * and joined where they meet. Anything allocated is freed with the data set if
+ * this fails.
+ */
+static StatusCode heldCreate(
+	Collection** collection,
+	FILE* file,
+	const uint64_t startPosition,
+	const uint32_t unitBytes,
+	heldRange* ranges,
+	const uint32_t rangeCount) {
+	uint32_t count = 0;
+	if (rangeCount == 0) {
+		return SUCCESS;
+	}
+	qsort(ranges, rangeCount, sizeof(heldRange), heldRangeCompareFirst);
+	for (uint32_t i = 0; i < rangeCount; i++) {
+		if (count > 0 && ranges[i].first <= ranges[count - 1].end) {
+			if (ranges[i].end > ranges[count - 1].end) {
+				ranges[count - 1].end = ranges[i].end;
+			}
+		}
+		else {
+			ranges[count++] = ranges[i];
+		}
+	}
+
+	heldCollection* const state = (heldCollection*)Malloc(
+		sizeof(heldCollection) + count * sizeof(heldRange));
+	if (state == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	Collection* const held = (Collection*)Malloc(sizeof(Collection));
+	if (held == NULL) {
+		Free(state);
+		return INSUFFICIENT_MEMORY;
+	}
+	state->source = *collection;
+	state->bytes = 0;
+	state->unitBytes = unitBytes;
+	state->count = 0;
+	state->ranges = (heldRange*)(state + 1);
+	*held = **collection;
+	held->state = state;
+	held->get = heldGet;
+	held->release = heldRelease;
+	held->freeCollection = heldFree;
+	held->typeName = "CollectionHeld";
+	*collection = held;
+
+	for (uint32_t i = 0; i < count; i++) {
+		const uint64_t bytes =
+			(uint64_t)(ranges[i].end - ranges[i].first) * unitBytes;
+		if (bytes > (uint64_t)SIZE_MAX) {
+			return INSUFFICIENT_MEMORY;
+		}
+		byte* const memory = (byte*)Malloc((size_t)bytes);
+		if (memory == NULL) {
+			return INSUFFICIENT_MEMORY;
+		}
+		state->ranges[i] = ranges[i];
+		state->ranges[i].memory = memory;
+		state->count++;
+		state->bytes += bytes;
+		const uint64_t position =
+			startPosition + (uint64_t)ranges[i].first * unitBytes;
+		if (FileSeek(file, (FileOffset)position, SEEK_SET) != 0) {
+			return COLLECTION_FILE_SEEK_FAIL;
+		}
+		if (fread(memory, 1, (size_t)bytes, file) != (size_t)bytes) {
+			return COLLECTION_FILE_READ_FAIL;
+		}
+	}
+	return SUCCESS;
+}
+
+/**
+ * Calls the method for each fixed size record in a stretch of the data file.
+ */
+static StatusCode heldScan(
+	FILE* file,
+	byte* buffer,
+	const uint64_t position,
+	uint32_t count,
+	const uint32_t recordBytes,
+	void(*method)(void* state, const byte* record),
+	void* state) {
+	if (count == 0) {
+		return SUCCESS;
+	}
+	if (FileSeek(file, (FileOffset)position, SEEK_SET) != 0) {
+		return COLLECTION_FILE_SEEK_FAIL;
+	}
+	const uint32_t recordsInBuffer = HELD_SCAN_BUFFER_BYTES / recordBytes;
+	while (count > 0) {
+		const uint32_t next = count < recordsInBuffer ? count : recordsInBuffer;
+		if (fread(buffer, recordBytes, next, file) != next) {
+			return COLLECTION_FILE_READ_FAIL;
+		}
+		for (uint32_t i = 0; i < next; i++) {
+			method(state, buffer + (size_t)i * recordBytes);
+		}
+		count -= next;
+	}
+	return SUCCESS;
+}
+
+/**
+ * The lowest and highest required string offsets in part of the strings, and
+ * how the highest is stored so that its size can be worked out.
+ */
+typedef struct held_strings_bucket_t {
+	uint32_t first;
+	uint32_t last;
+	PropertyValueType lastType;
+} heldStringsBucket;
+
+/**
+ * What is worked out before anything is held, so that nothing is allocated
+ * until it is known that everything fits.
+ */
+typedef struct held_plan_t {
+	byte* buffer; /* Used to scan records */
+	heldStringsBucket* buckets; /* The strings the required properties read */
+	uint32_t bucketCount; /* Number of buckets */
+	uint32_t stringsBytes; /* Bytes in the strings collection */
+	PropertyValueType scanType; /* How the strings being scanned are stored */
+	heldRange* strings; /* The stretches of the strings to hold */
+	uint32_t stringsCount; /* Number of stretches of the strings */
+	heldRange* values; /* The stretches of the values to hold */
+	uint32_t valuesCount; /* Number of stretches of the values */
+	heldRange* profiles; /* The stretches of the profiles to hold */
+	uint32_t profilesCount; /* Number of stretches of the profiles */
+	bool holdProfileGroups; /* True to hold all the profile groups */
+	uint64_t budget; /* Bytes that can still be held */
+	uint32_t profileCacheCapacity; /* Entries for the profile cache */
+} heldPlan;
+
+static void heldFreeIfSet(void* memory) {
+	if (memory != NULL) {
+		Free(memory);
+	}
+}
+
+static void heldPlanFree(heldPlan* plan) {
+	heldFreeIfSet(plan->buffer);
+	heldFreeIfSet(plan->buckets);
+	heldFreeIfSet(plan->strings);
+	heldFreeIfSet(plan->values);
+	heldFreeIfSet(plan->profiles);
+}
+
+static void heldPlanScanValue(void* state, const byte* record) {
+	heldPlan* const plan = (heldPlan*)state;
+	const uint32_t offset = (uint32_t)((const Value*)record)->nameOffset;
+	if (offset < plan->stringsBytes) {
+		heldStringsBucket* const bucket =
+			&plan->buckets[offset / HELD_STRINGS_GAP_BYTES];
+		if (offset < bucket->first) {
+			bucket->first = offset;
+		}
+		if (offset >= bucket->last) {
+			bucket->last = offset;
+			bucket->lastType = plan->scanType;
+		}
+	}
+}
+
+/**
+ * Creates the graphs. Those of a component with no required property read from
+ * the file, which adds the memory they would have used to the budget.
+ */
+static StatusCode heldGraphsCreate(
+	DataSetIpi* dataSet,
+	FILE* file,
+	heldPlan* plan,
+	Exception* exception) {
+	bool requiredIds[HELD_COMPONENT_IDS];
+	memset(requiredIds, 0, sizeof(requiredIds));
+	for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
+		const Component* const component = COMPONENT(dataSet, c);
+		if (component != NULL && dataSet->componentsAvailable[c]) {
+			requiredIds[component->componentId] = true;
+		}
+	}
+	dataSet->graphsArray = fiftyoneDegreesIpiGraphCreateFromFileForComponents(
+		dataSet->graphs,
+		file,
+		&dataSet->b.b.filePool,
+		dataSet->config.graph,
+		requiredIds,
+		exception);
+	if (dataSet->graphsArray == NULL) {
+		return EXCEPTION_OKAY ? CORRUPT_DATA : SUCCESS;
+	}
+	for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+		const fiftyoneDegreesIpiCgInfo* const info =
+			&dataSet->graphsArray->items[g].info;
+		if (requiredIds[info->componentId] == false) {
+			plan->budget += (uint64_t)info->nodes.collection.length +
+				info->spans.length +
+				info->spanBytes.length +
+				info->clusters.length;
+		}
+	}
+	return SUCCESS;
+}
+
+/**
+ * Records the strings of a stretch of values and offers it for holding.
+ */
+static StatusCode heldPlanValues(
+	const DataSetIpi* dataSet,
+	FILE* file,
+	heldPlan* plan,
+	const uint32_t first,
+	const uint32_t count) {
+	const uint32_t valueBytes = dataSet->values->elementSize;
+	heldRangeAdd(plan->values, &plan->valuesCount, first, first + count);
+	return heldScan(
+		file,
+		plan->buffer,
+		(uint64_t)dataSet->header.values.startPosition +
+			(uint64_t)first * valueBytes,
+		count,
+		valueBytes,
+		heldPlanScanValue,
+		plan);
+}
+
+/**
+ * Plans for the values of each required property. A default value is only
+ * offered on its own if it is not in the range of its property.
+ */
+static StatusCode heldPlanProperties(
+	DataSetIpi* dataSet,
+	FILE* file,
+	heldPlan* plan,
+	Exception* exception) {
+	const PropertiesAvailable* const available = dataSet->b.b.available;
+	const uint32_t valueCount = dataSet->values->count;
+	plan->values = (heldRange*)Malloc(
+		sizeof(heldRange) * available->count * 2);
+	if (plan->values == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t i = 0; i < available->count; i++) {
+		Item item;
+		DataReset(&item.data);
+		const Property* const property = PropertyGet(
+			dataSet->properties,
+			available->items[i].propertyIndex,
+			&item,
+			exception);
+		if (property == NULL || EXCEPTION_FAILED) {
+			return COLLECTION_FAILURE;
+		}
+		const uint32_t first = property->firstValueIndex;
+		const uint32_t last = property->lastValueIndex;
+		const uint32_t defaultIndex = property->defaultValueIndex;
+		COLLECTION_RELEASE(dataSet->properties, &item);
+		plan->scanType = PropertyGetStoredTypeByIndex(
+			dataSet->propertyTypes,
+			available->items[i].propertyIndex,
+			exception);
+		if (EXCEPTION_FAILED) {
+			return COLLECTION_FAILURE;
+		}
+		StatusCode status = SUCCESS;
+		if (first <= last && last < valueCount) {
+			status = heldPlanValues(
+				dataSet,
+				file,
+				plan,
+				first,
+				last - first + 1);
+		}
+		if (status == SUCCESS &&
+			defaultIndex < valueCount &&
+			(defaultIndex < first || defaultIndex > last)) {
+			status = heldPlanValues(dataSet, file, plan, defaultIndex, 1);
+		}
+		if (status != SUCCESS) {
+			return status;
+		}
+	}
+	return SUCCESS;
+}
+
+/**
+ * Gets the offset after the string at the offset provided.
+ */
+static uint32_t heldStringEnd(
+	const DataSetIpi* dataSet,
+	const uint32_t offset,
+	const PropertyValueType type,
+	Exception* exception) {
+	Item item;
+	uint32_t end = offset;
+	DataReset(&item.data);
+	if (StoredBinaryValueGet(
+		dataSet->strings,
+		offset,
+		type,
+		&item,
+		exception) != NULL && EXCEPTION_OKAY) {
+		end += item.data.used;
+		COLLECTION_RELEASE(dataSet->strings, &item);
+	}
+	return end;
+}
+
+/**
+ * Works out the stretches of the strings to hold from the strings recorded,
+ * which leaves on file any stretch long enough that holds no required string.
+ * What that frees is added to the budget.
+ */
+static StatusCode heldPlanStrings(
+	const DataSetIpi* dataSet,
+	heldPlan* plan,
+	Exception* exception) {
+	const uint32_t size = plan->stringsBytes;
+	uint32_t start = 0;
+	uint32_t last = 0;
+	PropertyValueType lastType = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
+	bool found = false;
+	plan->strings = (heldRange*)Malloc(
+		sizeof(heldRange) * ((size / HELD_STRINGS_GAP_BYTES) + 2));
+	if (plan->strings == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t i = 0; i < plan->bucketCount; i++) {
+		const heldStringsBucket* const bucket = &plan->buckets[i];
+		if (bucket->first == UINT32_MAX) {
+			continue;
+		}
+		if (found == false) {
+			if (bucket->first >= HELD_STRINGS_GAP_BYTES) {
+				start = bucket->first;
+			}
+			found = true;
+		}
+		else if (bucket->first - last >= HELD_STRINGS_GAP_BYTES) {
+			const uint32_t end = heldStringEnd(
+				dataSet,
+				last,
+				lastType,
+				exception);
+			if (EXCEPTION_FAILED) {
+				return COLLECTION_FAILURE;
+			}
+			if (bucket->first > end &&
+				bucket->first - end >= HELD_STRINGS_GAP_BYTES) {
+				heldRangeAdd(plan->strings, &plan->stringsCount, start, end);
+				start = bucket->first;
+			}
+		}
+		last = bucket->last;
+		lastType = bucket->lastType;
+	}
+	if (found) {
+		uint32_t end = heldStringEnd(dataSet, last, lastType, exception);
+		if (EXCEPTION_FAILED) {
+			return COLLECTION_FAILURE;
+		}
+		if (end > size || size - end < HELD_STRINGS_GAP_BYTES) {
+			end = size;
+		}
+		heldRangeAdd(plan->strings, &plan->stringsCount, start, end);
+	}
+	uint64_t held = 0;
+	for (uint32_t i = 0; i < plan->stringsCount; i++) {
+		held += plan->strings[i].end - plan->strings[i].first;
+	}
+	plan->budget += size - held;
+	return SUCCESS;
+}
+
+/**
+ * Keeps as many of the ranges as the budget allows, smallest first. A larger
+ * range cannot fit once a smaller one has not.
+ */
+static uint32_t heldPlanSpend(
+	heldPlan* plan,
+	heldRange* ranges,
+	const uint32_t count,
+	const uint32_t unitBytes) {
+	uint32_t kept = 0;
+	qsort(ranges, count, sizeof(heldRange), heldRangeCompareLength);
+	while (kept < count) {
+		const uint64_t bytes =
+			(uint64_t)(ranges[kept].end - ranges[kept].first) * unitBytes;
+		if (bytes > plan->budget) {
+			break;
+		}
+		plan->budget -= bytes;
+		kept++;
+	}
+	return kept;
+}
+
+/** The profiles of a component, which are next to each other in the file. */
+typedef struct held_profile_run_t {
+	uint32_t first; /* Offset of the first profile */
+	uint32_t last; /* Offset of the last profile */
+} heldProfileRun;
+
+static void heldProfileRunAdd(heldProfileRun* run, const uint32_t offset) {
+	if (offset != NULL_PROFILE_OFFSET) {
+		if (offset < run->first) {
+			run->first = offset;
+		}
+		if (offset > run->last) {
+			run->last = offset;
+		}
+	}
+}
+
+static void heldProfileRunScanOffset(void* state, const byte* record) {
+	uint32_t offset;
+	memcpy(&offset, record, sizeof(offset));
+	heldProfileRunAdd((heldProfileRun*)state, offset);
+}
+
+static void heldProfileRunScanGroup(void* state, const byte* record) {
+	heldProfileRunAdd(
+		(heldProfileRun*)state,
+		((const offsetPercentage*)record)->offset);
+}
+
+/**
+ * Gets the number of offset units the profile at the offset provided takes up.
+ */
+static StatusCode heldProfileUnits(
+	const DataSetIpi* dataSet,
+	FILE* file,
+	const uint32_t offset,
+	uint32_t* units,
+	Exception* exception) {
+	const byte shift = getProfilesFileShift(dataSet);
+	byte initial[sizeof(Profile)];
+	const uint64_t position = (uint64_t)dataSet->header.profiles.startPosition +
+		((uint64_t)offset << shift);
+	if (FileSeek(file, (FileOffset)position, SEEK_SET) != 0) {
+		return COLLECTION_FILE_SEEK_FAIL;
+	}
+	if (fread(initial, sizeof(initial), 1, file) != 1) {
+		return COLLECTION_FILE_READ_FAIL;
+	}
+	const uint64_t bytes = fiftyoneDegreesProfileGetFinalSize(initial, exception);
+	*units = (uint32_t)((bytes + (((uint64_t)1 << shift) - 1)) >> shift);
+	return SUCCESS;
+}
+
+/**
+ * Plans for the required profiles that did not fit. The profile cache grows for
+ * them, and then the next run is held in part if enough of it is left. A profile
+ * that runs past the end of the part reads from the cache.
+ */
+static void heldPlanProfilesOnFile(
+	const DataSetIpi* dataSet,
+	heldPlan* plan,
+	heldRange* next,
+	const uint64_t averageProfileBytes) {
+	const byte shift = getProfilesFileShift(dataSet);
+	const uint32_t capacity = dataSet->config.profiles.capacity;
+	if (capacity > 0) {
+		// The data of an entry grows to the largest profile it has held.
+		const uint64_t entryBytes = sizeof(CacheNode) +
+			HELD_ALLOCATION_OVERHEAD_BYTES + 2 * averageProfileBytes;
+		const uint64_t entries = plan->budget / entryBytes;
+		plan->profileCacheCapacity = entries > HELD_PROFILE_CACHE_MAX_ENTRIES ?
+			HELD_PROFILE_CACHE_MAX_ENTRIES : (uint32_t)entries;
+		if (plan->profileCacheCapacity > capacity) {
+			plan->budget -= plan->profileCacheCapacity * entryBytes;
+		}
+	}
+	const uint64_t units = plan->budget >> shift;
+	const uint64_t runUnits = next->end - next->first;
+	if (units < runUnits && units * 100 >= runUnits * HELD_PROFILE_RUN_MIN_PERCENT) {
+		next->end = next->first + (uint32_t)units;
+		plan->budget -= units << shift;
+		plan->profilesCount++;
+	}
+}
+
+/**
+ * Offers the run of profiles of each component with a required property for
+ * holding, smallest first.
+ */
+static StatusCode heldPlanProfiles(
+	const DataSetIpi* dataSet,
+	FILE* file,
+	heldPlan* plan,
+	Exception* exception) {
+	if (plan->budget == 0) {
+		return SUCCESS;
+	}
+	const uint32_t size = dataSet->header.profiles.length;
+	const byte shift = getProfilesFileShift(dataSet);
+	const uint64_t offsetsStart =
+		(uint64_t)dataSet->header.profileOffsets.startPosition;
+	const uint64_t groupsStart =
+		(uint64_t)dataSet->header.profileGroups.startPosition;
+	uint64_t totalBytes = 0;
+	uint64_t totalProfiles = 0;
+	uint32_t count = 0;
+	plan->profiles = (heldRange*)Malloc(
+		sizeof(heldRange) * dataSet->componentsList.count);
+	if (plan->profiles == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
+		const Component* const component = COMPONENT(dataSet, c);
+		if (component == NULL || dataSet->componentsAvailable[c] == false) {
+			continue;
+		}
+		heldProfileRun run = { UINT32_MAX, 0 };
+		uint32_t profiles = 0;
+		for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+			const fiftyoneDegreesIpiCgInfo* const info =
+				&dataSet->graphsArray->items[g].info;
+			if (info->componentId != component->componentId) {
+				continue;
+			}
+			// The graphs of each IP version share the profiles of a component.
+			if (info->profileCount > profiles) {
+				profiles = info->profileCount;
+			}
+			StatusCode status = heldScan(
+				file,
+				plan->buffer,
+				offsetsStart +
+					(uint64_t)info->firstProfileIndex * sizeof(uint32_t),
+				info->profileCount,
+				sizeof(uint32_t),
+				heldProfileRunScanOffset,
+				&run);
+			if (status == SUCCESS) {
+				status = heldScan(
+					file,
+					plan->buffer,
+					groupsStart + (uint64_t)info->firstProfileGroupIndex *
+						sizeof(offsetPercentage),
+					info->profileGroupCount,
+					sizeof(offsetPercentage),
+					heldProfileRunScanGroup,
+					&run);
+			}
+			if (status != SUCCESS) {
+				return status;
+			}
+		}
+		if (run.first > run.last || run.last >= size) {
+			continue;
+		}
+		uint32_t units = 0;
+		const StatusCode status = heldProfileUnits(
+			dataSet,
+			file,
+			run.last,
+			&units,
+			exception);
+		if (status != SUCCESS || EXCEPTION_FAILED) {
+			return status;
+		}
+		if (units <= size - run.last) {
+			heldRangeAdd(plan->profiles, &count, run.first, run.last + units);
+			totalBytes += (uint64_t)(run.last + units - run.first) << shift;
+			totalProfiles += profiles;
+		}
+	}
+	plan->profilesCount = heldPlanSpend(
+		plan,
+		plan->profiles,
+		count,
+		(uint32_t)1 << shift);
+	if (plan->profilesCount < count) {
+		heldPlanProfilesOnFile(
+			dataSet,
+			plan,
+			&plan->profiles[plan->profilesCount],
+			totalProfiles > 0 ? totalBytes / totalProfiles : 0);
+	}
+	return SUCCESS;
+}
+
+/**
+ * Works out what to hold. Nothing that is going to be held is allocated here.
+ */
+static StatusCode heldPlanCreate(
+	DataSetIpi* dataSet,
+	FILE* file,
+	heldPlan* plan,
+	Exception* exception) {
+	// A collection placed beyond the end of the file is a fault in the file,
+	// and the scans below would otherwise report it as a failed read.
+	if (getCollectionFileStatus(dataSet, dataSet->header.values, 0) ==
+			CORRUPT_DATA ||
+		getCollectionFileStatus(dataSet, dataSet->header.profileGroups, 0) ==
+			CORRUPT_DATA ||
+		getCollectionFileStatus(
+			dataSet,
+			dataSet->header.profiles,
+			getProfilesFileShift(dataSet)) == CORRUPT_DATA) {
+		return CORRUPT_DATA;
+	}
+	StatusCode status = heldGraphsCreate(dataSet, file, plan, exception);
+	if (status != SUCCESS || EXCEPTION_FAILED) {
+		return status;
+	}
+	plan->buffer = (byte*)Malloc(HELD_SCAN_BUFFER_BYTES);
+	plan->stringsBytes = dataSet->header.strings.length;
+	plan->bucketCount = (plan->stringsBytes / HELD_STRINGS_GAP_BYTES) + 1;
+	plan->buckets = (heldStringsBucket*)Malloc(
+		sizeof(heldStringsBucket) * plan->bucketCount);
+	if (plan->buffer == NULL || plan->buckets == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t i = 0; i < plan->bucketCount; i++) {
+		plan->buckets[i].first = UINT32_MAX;
+		plan->buckets[i].last = 0;
+		plan->buckets[i].lastType = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
+	}
+	status = heldPlanProperties(dataSet, file, plan, exception);
+	if (status != SUCCESS || EXCEPTION_FAILED) {
+		return status;
+	}
+	status = heldPlanStrings(dataSet, plan, exception);
+	if (status != SUCCESS || EXCEPTION_FAILED) {
+		return status;
+	}
+	plan->budget = plan->budget > HELD_RESERVED_BYTES ?
+		plan->budget - HELD_RESERVED_BYTES : 0;
+	plan->valuesCount = heldPlanSpend(
+		plan,
+		plan->values,
+		plan->valuesCount,
+		dataSet->values->elementSize);
+
+	// Holding all the profile groups frees their cache, which is usually much
+	// larger than they are.
+	const uint64_t groupsBytes = dataSet->header.profileGroups.length;
+	const uint64_t groupsCacheBytes =
+		(uint64_t)dataSet->config.profileGroups.capacity * sizeof(CacheNode);
+	if (dataSet->config.profileGroups.loaded == false &&
+		groupsBytes <= plan->budget + groupsCacheBytes) {
+		plan->holdProfileGroups = true;
+		plan->budget = plan->budget + groupsCacheBytes - groupsBytes;
+	}
+	return heldPlanProfiles(dataSet, file, plan, exception);
+}
+
+/**
+ * Replaces the profile cache with the larger one the plan has room for.
+ */
+static StatusCode heldEnlargeProfileCache(
+	DataSetIpi* dataSet,
+	FILE* file,
+	const heldPlan* plan) {
+	fiftyoneDegreesCollectionConfig config = dataSet->config.profiles;
+	if (plan->profileCacheCapacity <= config.capacity) {
+		return SUCCESS;
+	}
+	config.capacity = plan->profileCacheCapacity;
+	FIFTYONE_DEGREES_COLLECTION_FREE(dataSet->profiles);
+	dataSet->profiles = NULL;
+	return createProfilesFromFile(dataSet, file, &config);
+}
+
+/**
+ * Holds what the plan says to hold. Anything allocated is freed with the data
+ * set if this fails.
+ */
+static StatusCode heldPlanApply(
+	DataSetIpi* dataSet,
+	FILE* file,
+	const heldPlan* plan) {
+	StatusCode status = heldCreate(
+		&dataSet->strings,
+		file,
+		(uint64_t)dataSet->header.strings.startPosition,
+		1,
+		plan->strings,
+		plan->stringsCount);
+	if (status != SUCCESS) {
+		return status;
+	}
+	status = heldCreate(
+		&dataSet->values,
+		file,
+		(uint64_t)dataSet->header.values.startPosition,
+		dataSet->values->elementSize,
+		plan->values,
+		plan->valuesCount);
+	if (status != SUCCESS) {
+		return status;
+	}
+	if (plan->holdProfileGroups) {
+		// With no profile groups there is nothing to hold or to read.
+		static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
+		static const fiftyoneDegreesCollectionConfig onFile = { false, 0, 0 };
+		FIFTYONE_DEGREES_COLLECTION_FREE(dataSet->profileGroups);
+		dataSet->profileGroups = CollectionCreateFromFile(
+			file,
+			&dataSet->b.b.filePool,
+			dataSet->header.profileGroups.length > 0 ? &inMemory : &onFile,
+			dataSet->header.profileGroups,
+			CollectionReadFileFixed);
+		if (dataSet->profileGroups == NULL) {
+			return getCollectionFileStatus(
+				dataSet,
+				dataSet->header.profileGroups,
+				0);
+		}
+	}
+	status = heldEnlargeProfileCache(dataSet, file, plan);
+	if (status != SUCCESS) {
+		return status;
+	}
+	return heldCreate(
+		&dataSet->profiles,
+		file,
+		(uint64_t)dataSet->header.profiles.startPosition,
+		(uint32_t)1 << getProfilesFileShift(dataSet),
+		plan->profiles,
+		plan->profilesCount);
+}
+
+/**
+ * Creates the graphs and holds in memory what the required properties read, as
+ * far as what is left on file pays for it.
+ */
+static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
+	FILE* file;
+	heldPlan plan;
+	memset(&plan, 0, sizeof(plan));
+	StatusCode status = FileOpen(dataSet->b.b.fileName, &file);
+	if (status != SUCCESS) {
+		return status;
+	}
+	status = heldPlanCreate(dataSet, file, &plan, exception);
+	if (status == SUCCESS && EXCEPTION_OKAY) {
+		// The memory used to work out the plan goes first so that it does not
+		// add to the most memory used.
+		heldFreeIfSet(plan.buffer);
+		plan.buffer = NULL;
+		heldFreeIfSet(plan.buckets);
+		plan.buckets = NULL;
+		status = heldPlanApply(dataSet, file, &plan);
+	}
+	heldPlanFree(&plan);
+	fclose(file);
+	return status;
+}
+
+/**
+ * Gets the number of names in a list of required properties.
+ */
+static uint32_t heldCountNames(const char* list) {
+	uint32_t count = 0;
+	bool inName = false;
+	for (; *list != '\0'; list++) {
+		const bool isName =
+			strchr(FIFTYONE_DEGREES_PROPERTIES_SEPARATORS, *list) == NULL;
+		if (isName && inName == false) {
+			count++;
+		}
+		inName = isName;
+	}
+	return count;
+}
+
+/**
+ * True for the shape of the Balanced preset when the caller has named fewer
+ * properties than the data file has. The other presets, and a caller who names
+ * nothing, use the configuration as it is.
+ */
+static bool heldIsWanted(
+	const DataSetIpi* dataSet,
+	const PropertiesRequired* properties) {
+	const ConfigIpi* const config = &dataSet->config;
+	if (config->b.allInMemory ||
+		config->strings.loaded == false ||
+		config->graph.loaded == false ||
+		config->values.loaded ||
+		config->profiles.loaded ||
+		properties == NULL) {
+		return false;
+	}
+	const uint32_t count = dataSet->header.properties.count;
+	if (properties->existing != NULL) {
+		return properties->existing->count < count;
+	}
+	if (properties->array != NULL && properties->count > 0) {
+		return (uint32_t)properties->count < count;
+	}
+	return properties->string != NULL &&
+		strlen(properties->string) > 0 &&
+		heldCountNames(properties->string) < count;
+}
+
 static StatusCode readDataSetFromFile(
 	DataSetIpi* dataSet,
 	FILE* file,
+	const PropertiesRequired* properties,
 	Exception* exception) {
 	StatusCode status = SUCCESS;
 
@@ -943,10 +2032,26 @@ static StatusCode readDataSetFromFile(
 		return status;
 	}
 
-	// Create the strings collection.
+	// Create the strings collection. When only some of the strings will be
+	// held, the required properties have to be known first, so the strings read
+	// from the file until then.
+	const bool hold = heldIsWanted(dataSet, properties);
 	const uint32_t stringsCount = dataSet->header.strings.count;
 	*(uint32_t*)(&dataSet->header.strings.count) = 0;
-	COLLECTION_CREATE_FILE(strings, fiftyoneDegreesStoredBinaryValueRead);
+	if (hold) {
+		static const fiftyoneDegreesCollectionConfig readFromFile = { false, 0, 0 };
+		COLLECTION_CREATE_FILE_WITH_CONFIG(
+			strings,
+			fiftyoneDegreesStoredBinaryValueRead,
+			&readFromFile);
+		if (getCollectionFileStatus(dataSet, dataSet->header.strings, 0) ==
+			CORRUPT_DATA) {
+			return CORRUPT_DATA;
+		}
+	}
+	else {
+		COLLECTION_CREATE_FILE(strings, fiftyoneDegreesStoredBinaryValueRead);
+	}
 	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
 
 	// Override the header count so that the variable collection can work.
@@ -959,25 +2064,10 @@ static StatusCode readDataSetFromFile(
 	COLLECTION_CREATE_FILE(properties, CollectionReadFileFixed);
 	COLLECTION_CREATE_FILE(values, CollectionReadFileFixed);
 
-	const uint32_t profileCount = dataSet->header.profiles.count;
-	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
-#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
-	// The profiles collection stores offsets in the unit declared by the
-	// header. No other collection uses shifted offsets.
-	dataSet->profiles = fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
-		file,
-		&dataSet->b.b.filePool,
-		&dataSet->config.profiles,
-		dataSet->header.profiles,
-		fiftyoneDegreesProfileReadFromFile,
-		getProfilesOffsetShift(dataSet));
-	if (dataSet->profiles == NULL) {
-		return INVALID_COLLECTION_CONFIG;
+	status = createProfilesFromFile(dataSet, file, &dataSet->config.profiles);
+	if (status != SUCCESS) {
+		return status;
 	}
-#else
-	COLLECTION_CREATE_FILE(profiles, fiftyoneDegreesProfileReadFromFile);
-#endif
-	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
 
 	COLLECTION_CREATE_FILE(graphs, CollectionReadFileFixed);
 
@@ -985,14 +2075,17 @@ static StatusCode readDataSetFromFile(
 	COLLECTION_CREATE_FILE(propertyTypes, CollectionReadFileFixed);
 	COLLECTION_CREATE_FILE(profileOffsets, CollectionReadFileFixed);
 
-	dataSet->graphsArray = fiftyoneDegreesIpiGraphCreateFromFile(
-		dataSet->graphs,
-		file,
-		&dataSet->b.b.filePool,
-		// This is not the configuration for the collection of all graphs, but
-		// the configuration for each individual graph.
-		dataSet->config.graph,
-		exception);
+	// Which graphs to hold is only known once the required properties are.
+	if (hold == false) {
+		dataSet->graphsArray = fiftyoneDegreesIpiGraphCreateFromFile(
+			dataSet->graphs,
+			file,
+			&dataSet->b.b.filePool,
+			// This is not the configuration for the collection of all graphs,
+			// but the configuration for each individual graph.
+			dataSet->config.graph,
+			exception);
+	}
 
 	initDataSetPost(dataSet, exception);
 
@@ -1027,7 +2120,10 @@ static uint16_t getMaxConcurrency(const ConfigIpi* config) {
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
-static StatusCode initWithFile(DataSetIpi* dataSet, Exception* exception) {
+static StatusCode initWithFile(
+	DataSetIpi* dataSet,
+	const PropertiesRequired* properties,
+	Exception* exception) {
 	StatusCode status;
 	FileHandle handle;
 
@@ -1051,7 +2147,7 @@ static StatusCode initWithFile(DataSetIpi* dataSet, Exception* exception) {
 	}
 
 	// Read the data set from the source.
-	status = readDataSetFromFile(dataSet, handle.file, exception);
+	status = readDataSetFromFile(dataSet, handle.file, properties, exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		fclose(handle.file);
 		return status;
@@ -1107,7 +2203,7 @@ static StatusCode initDataSetFromFile(
 	}
 	else {
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
-		status = initWithFile(dataSet, exception);
+		status = initWithFile(dataSet, properties, exception);
 #else
 		status = INVALID_CONFIG;
 #endif
@@ -1142,6 +2238,19 @@ static StatusCode initDataSetFromFile(
 		}
 		return status;
 	}
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+	// Now the required properties are known, hold what they read.
+	if (heldIsWanted(dataSet, properties)) {
+		status = heldInit(dataSet, exception);
+		if (status != SUCCESS || EXCEPTION_FAILED) {
+			if (config->b.useTempFile == true) {
+				FileDelete(dataSet->b.b.fileName);
+			}
+			return status;
+		}
+	}
+#endif
 
 	// Check there are properties available for retrieval.
 	if (dataSet->b.b.available->count == 0) {
@@ -1195,9 +2304,7 @@ size_t fiftyoneDegreesIpiSizeManagerFromFile(
 	fiftyoneDegreesException* exception) {
 	size_t allocated;
 	ResourceManager manager;
-#ifdef _DEBUG 
 	StatusCode status;
-#endif
 
 	// Set the memory allocation and free methods for tracking.
 	MemoryTrackingReset();
@@ -1207,24 +2314,24 @@ size_t fiftyoneDegreesIpiSizeManagerFromFile(
 	FreeAligned = MemoryTrackingFreeAligned;
 
 	// Initialise the manager with the tracking methods in use to determine
-	// the amount of memory that is allocated.
-#ifdef _DEBUG 
-	status =
-#endif
-		IpiInitManagerFromFile(
-			&manager,
-			config,
-			properties,
-			fileName,
-			exception);
-#ifdef _DEBUG
-	assert(status == SUCCESS);
-#endif
-	assert(EXCEPTION_OKAY);
+	// the amount of memory that is allocated. The init method has freed its
+	// memory and not set up the manager unless it worked, so only then is
+	// there a manager to free. Otherwise the caller needs the status.
+	status = IpiInitManagerFromFile(
+		&manager,
+		config,
+		properties,
+		fileName,
+		exception);
+	if (status != SUCCESS) {
+		EXCEPTION_SET(status);
+	}
+	else if (EXCEPTION_OKAY) {
+		ResourceManagerFree(&manager);
+	}
 
-	// Free the manager and get the total maximum amount of allocated memory
-	// needed for the manager and associated resources.
-	ResourceManagerFree(&manager);
+	// Get the total maximum amount of allocated memory needed for the manager
+	// and associated resources.
 	allocated = MemoryTrackingGetMax();
 
 	// Check that all the memory has been freed.
@@ -1396,8 +2503,7 @@ FIFTYONE_DEGREES_DATASET_RELOAD(Ipi)
 
 
 /* 
- * Note: WeightedItemList functions are now provided by common-cxx/weightedItem.h
- * The local list functions have been removed in favor of:
+ * The WeightedItemList functions are in src/common/weightedItem.h:
  * - WeightedItemListInit() 
  * - WeightedItemListRelease()
  * - WeightedItemListFree()
@@ -1408,6 +2514,20 @@ FIFTYONE_DEGREES_DATASET_RELOAD(Ipi)
 /**
  * Results methods
  */
+
+/**
+ * Marks all the entries in the has values cache as unknown. Must be called
+ * whenever the results are repopulated as the cached outcomes only relate
+ * to the results they were recorded for.
+ */
+static void resultsIpiResetHasValuesCache(ResultsIpi* const results) {
+	if (results->hasValuesCache != NULL) {
+		memset(
+			results->hasValuesCache,
+			IPI_HAS_VALUES_UNKNOWN,
+			results->hasValuesCacheCount);
+	}
+}
 
 fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 	fiftyoneDegreesResourceManager* manager) {
@@ -1429,10 +2549,39 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 		// Initialise the results.
 		fiftyoneDegreesResultsInit(&results->b, (void*)(&dataSet->b));
 
-		// Reset the property and values list ready for first use sized for 
+		// Reset the property and values list ready for first use sized for
 		// a single value to be returned.
 		WeightedItemListInit(&results->values, 1, FIFTYONE_DEGREES_WEIGHTED_ITEM_LIST_DEFAULT_LOAD_FACTOR);
 		DataReset(&results->propertyItem.data);
+
+		// Allocate the cache used to avoid repeating the profile walks
+		// which check whether a property has values for the current
+		// results. If the allocation fails the cache is not used.
+		results->hasValuesCache = NULL;
+		results->hasValuesCacheCount = 0;
+		if (dataSet->b.b.available != NULL &&
+			dataSet->b.b.available->count > 0) {
+			results->hasValuesCache = (byte*)Malloc(
+				dataSet->b.b.available->count);
+			if (results->hasValuesCache != NULL) {
+				results->hasValuesCacheCount =
+					dataSet->b.b.available->count;
+				resultsIpiResetHasValuesCache(results);
+			}
+		}
+
+		// Reading a profile through a cache takes a lock twice, so one read
+		// for each result is kept for all the properties of that result. It is
+		// a copy because a cache entry held between calls could leave a shard
+		// of the cache with no entry to give. If this allocation fails each
+		// property reads the cache.
+		results->keptProfiles = NULL;
+		if (dataSet->config.profiles.loaded == false &&
+			dataSet->config.profiles.capacity > 0 &&
+			results->capacity > 0) {
+			results->keptProfiles = (byte*)Malloc(
+				(size_t)results->capacity * IPI_KEPT_PROFILE_BYTES);
+		}
 	}
 	else {
 		DataSetRelease((DataSetBase *)dataSet);
@@ -1454,6 +2603,15 @@ static void resultsIpiRelease(ResultsIpi* results) {
 void fiftyoneDegreesResultsIpiFree(fiftyoneDegreesResultsIpi* results) {
 	resultsIpiRelease(results);
 	WeightedItemListFree(&results->values);
+	if (results->hasValuesCache != NULL) {
+		Free(results->hasValuesCache);
+		results->hasValuesCache = NULL;
+		results->hasValuesCacheCount = 0;
+	}
+	if (results->keptProfiles != NULL) {
+		Free(results->keptProfiles);
+		results->keptProfiles = NULL;
+	}
 	DataSetRelease((DataSetBase*)results->b.dataSet);
 	Free(results);
 }
@@ -1483,6 +2641,10 @@ static bool addResultsFromIpAddressNoChecks(
 		nextResult->graphResult.rawOffset = NULL_PROFILE_OFFSET; // Default IP range offset
 		nextResult->targetIpAddress.type = type;
 		nextResult->type = type;
+		// Record the component the result relates to so that property
+		// lookups can be routed to the result for the component that owns
+		// the property.
+		nextResult->componentIndex = (int32_t)componentIndex;
 
 		if (type == IP_TYPE_IPV4) {
 			// We only get the exact length of ipv4
@@ -1532,6 +2694,7 @@ void fiftyoneDegreesResultsIpiFromIpAddressForProperties(
 
 	// Reset the results data before iterating the evidence.
 	results->count = 0;
+	resultsIpiResetHasValuesCache(results);
 
 	addResultsFromIpAddressNoChecks(
 		results,
@@ -1709,6 +2872,7 @@ void fiftyoneDegreesResultsIpiFromEvidenceForProperties(
 	if (evidence != (EvidenceKeyValuePairArray*)NULL) {
 		// Reset the results data before iterating the evidence.
 		results->count = 0;
+		resultsIpiResetHasValuesCache(results);
 
 		fiftyoneDegreesIterateHeadersWithEvidence(
 			results,
@@ -1794,7 +2958,8 @@ static bool addWeightedValue(
 static bool addWeightedValueWithState(void* state, Item* item) {
 	// The results values are a list of collection items and their weighting.
 	// The weighting cannot be passed along with Item as this is the profile
-	// standard in common-cxx. Thus the weighting is passed along with the state.
+	// standard in the common library. Thus the weighting is passed along with
+	// the state.
 	const stateWithWeighting* weightingState = (stateWithWeighting*)((stateWithException*)state)->state;
 	ResultsIpi* results =
 		(ResultsIpi*)weightingState->subState;
@@ -1960,7 +3125,67 @@ static uint32_t getProfileOffset(
 }
 
 /**
- * Achieves the same as getValuesFromResult, but gets the value from the
+ * Gets the profile of a result that is not a profile group, or NULL if it has
+ * none. A profile read through a cache is kept until the results are next
+ * populated, unless it is too large for its slot. The caller passes what it is
+ * given to releaseResultProfile when it has finished with the profile.
+ */
+static const Profile* getResultProfile(
+	ResultsIpi* results,
+	ResultIpi* result,
+	Item* item,
+	Exception* exception) {
+	const DataSetIpi* const dataSet = (const DataSetIpi*)results->b.dataSet;
+	DataReset(&item->data);
+	item->handle = NULL;
+	item->collection = NULL;
+	if (result->keptProfile != NULL) {
+		return (const Profile*)result->keptProfile;
+	}
+	const uint32_t offset = getProfileOffset(
+		dataSet->profileOffsets,
+		result->graphResult.offset,
+		exception);
+	if (EXCEPTION_FAILED || offset == NULL_PROFILE_OFFSET) {
+		return NULL;
+	}
+	const CollectionKey key = { offset, CollectionKeyType_Profile };
+	const Profile* const profile = (const Profile*)dataSet->profiles->get(
+		dataSet->profiles,
+		&key,
+		item,
+		exception);
+	if (profile == NULL || EXCEPTION_FAILED || results->keptProfiles == NULL) {
+		return profile;
+	}
+	if (item->handle == NULL) {
+		// Held in memory for as long as the data set is.
+		result->keptProfile = (const byte*)profile;
+	}
+	else {
+		const size_t bytes =
+			sizeof(Profile) + (size_t)profile->valueCount * sizeof(uint32_t);
+		if (bytes > IPI_KEPT_PROFILE_BYTES) {
+			return profile;
+		}
+		byte* const slot = results->keptProfiles +
+			(size_t)(result - results->items) * IPI_KEPT_PROFILE_BYTES;
+		memcpy(slot, profile, bytes);
+		result->keptProfile = slot;
+	}
+	COLLECTION_RELEASE(dataSet->profiles, item);
+	item->collection = NULL;
+	return (const Profile*)result->keptProfile;
+}
+
+static void releaseResultProfile(const DataSetIpi* dataSet, Item* item) {
+	if (item->collection != NULL) {
+		COLLECTION_RELEASE(dataSet->profiles, item);
+	}
+}
+
+/**
+ * Achieves the same as addValuesFromResult, but gets the value from the
  * default value in the property. This is used when there is no value in
  * the profile, but the property is mandatory.
  */
@@ -2008,18 +3233,21 @@ static uint32_t addValuesFromResult(
 	if (results->count > 0) {
 		if (result->graphResult.rawOffset != NULL_PROFILE_OFFSET) {
 			if (!result->graphResult.isGroupOffset) {
-				const uint32_t profileOffsetValue = getProfileOffset(
-					dataSet->profileOffsets,
-					result->graphResult.offset,
+				Item profileItem;
+				const Profile* const profile = getResultProfile(
+					results,
+					result,
+					&profileItem,
 					exception);
-
-				if (EXCEPTION_OKAY) {
-					count += addValuesFromSingleProfile(
+				if (profile != NULL && EXCEPTION_OKAY) {
+					count += addValuesFromProfile(
+						(DataSetIpi*)dataSet,
 						results,
+						(Profile*)profile,
 						property,
-						profileOffsetValue,
 						FULL_RAW_WEIGHTING,
 						exception);
+					releaseResultProfile(dataSet, &profileItem);
 				}
 			} else {
 				count += addValuesFromProfileGroup(
@@ -2081,13 +3309,19 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 				results->propertyItem.collection = dataSet->properties;
 			}
 
-			// There will only be one result
+			// Only the result for the component that owns the property can
+			// hold values for it. Profiles only carry values for properties
+			// of their own component, so the results for other components
+			// are skipped.
 			for (uint32_t i = 0; i < results->count && EXCEPTION_OKAY; i++) {
-				firstValue = getValuesFromResult(
-					results,
-					&results->items[i],
-					property,
-					exception);
+				if (results->items[i].componentIndex ==
+					(int32_t)property->componentIndex) {
+					firstValue = getValuesFromResult(
+						results,
+						&results->items[i],
+						property,
+						exception);
+				}
 			}
 
 			if (results->values.count == 0 &&
@@ -2158,15 +3392,89 @@ static bool profileHasValidPropertyValue(
 	return valueFound;
 }
 
-static bool resultGetHasValidPropertyValueOffset(
+static bool resultHasValidPropertyValueOffset(
 	fiftyoneDegreesResultsIpi* const results,
-	const fiftyoneDegreesResultIpi* const result,
+	fiftyoneDegreesResultIpi* const result,
+	Property * const property,
+	fiftyoneDegreesException* const exception) {
+	bool hasValidOffset = false;
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	Item item;
+	DataReset(&item.data);
+
+	// We will only execute this step if successfully obtained the
+	// profile groups offset from the previous step
+	if (result->graphResult.rawOffset != NULL_PROFILE_OFFSET) {
+		if (!result->graphResult.isGroupOffset) {
+			Item profileItem;
+			const Profile* const profile = getResultProfile(
+				results,
+				result,
+				&profileItem,
+				exception);
+			if (profile != NULL && EXCEPTION_OKAY) {
+				ProfileIterateValuesForProperty(
+					dataSet->values,
+					profile,
+					property,
+					&hasValidOffset,
+					visitProfilePropertyValue,
+					exception);
+				releaseResultProfile(dataSet, &profileItem);
+			}
+		} else {
+			const Collection * const profileGroups = dataSet->profileGroups;
+			for (uint32_t totalWeight = 0,
+				nextOffset = result->graphResult.offset;
+				(!hasValidOffset) && (totalWeight < FULL_RAW_WEIGHTING) && EXCEPTION_OKAY;
+				++nextOffset) {
+				const CollectionKey profileGroupKey = {
+					nextOffset,
+					&CollectionKeyType_OffsetPercentage,
+				};
+				const offsetPercentage* const nextWeightedProfileOffset = (const offsetPercentage*)profileGroups->get(
+					profileGroups,
+					&profileGroupKey,
+					&item,
+					exception);
+				if (!(nextWeightedProfileOffset && EXCEPTION_OKAY)) {
+					break;
+				}
+				totalWeight += nextWeightedProfileOffset->rawWeighting;
+				if (totalWeight <= FULL_RAW_WEIGHTING) {
+					hasValidOffset = profileHasValidPropertyValue(
+						dataSet,
+						nextWeightedProfileOffset->offset,
+						property,
+						exception);
+				} else {
+					EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA);
+				}
+				COLLECTION_RELEASE(profileGroups, &item);
+			}
+		}
+	}
+	return hasValidOffset;
+}
+
+static bool resultsGetHasValidPropertyValueOffset(
+	fiftyoneDegreesResultsIpi* const results,
 	const int requiredPropertyIndex,
 	fiftyoneDegreesException* const exception) {
 	bool hasValidOffset = false;
-	Item item;
-	DataReset(&item.data);
 	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+
+	// Return the outcome of a previous walk over the same results for the
+	// property if one was recorded.
+	const bool canUseCache = results->hasValuesCache != NULL &&
+		requiredPropertyIndex >= 0 &&
+		(uint32_t)requiredPropertyIndex < results->hasValuesCacheCount;
+	if (canUseCache) {
+		const byte cached = results->hasValuesCache[requiredPropertyIndex];
+		if (cached != IPI_HAS_VALUES_UNKNOWN) {
+			return cached == IPI_HAS_VALUES_TRUE;
+		}
+	}
 
 	// Work out the property index from the required property index.
 	const int32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
@@ -2183,54 +3491,31 @@ static bool resultGetHasValidPropertyValueOffset(
 			&results->propertyItem,
 			exception);
 
-		const char * const propertyName = STRING( // name is string
-			PropertiesGetNameFromRequiredIndex(
-				dataSet->b.b.available,
-				requiredPropertyIndex));
-		if (propertyName != NULL && EXCEPTION_OKAY) {
-			// We will only execute this step if successfully obtained the
-			// profile groups offset from the previous step
-			if (result->graphResult.rawOffset != NULL_PROFILE_OFFSET) {
-				if (!result->graphResult.isGroupOffset) {
-					const uint32_t profileOffsetValue = getProfileOffset(
-						dataSet->profileOffsets,
-						result->graphResult.offset,
+		if (property != NULL && EXCEPTION_OKAY) {
+			// Only the result for the component that owns the property can
+			// hold values for it. Profiles only carry values for properties
+			// of their own component, so the results for other components
+			// are skipped.
+			for (uint32_t i = 0;
+				i < results->count && !hasValidOffset && EXCEPTION_OKAY;
+				i++) {
+				if (results->items[i].componentIndex ==
+					(int32_t)property->componentIndex) {
+					hasValidOffset = resultHasValidPropertyValueOffset(
+						results,
+						&results->items[i],
+						property,
 						exception);
-					if (EXCEPTION_OKAY) {
-						hasValidOffset = profileHasValidPropertyValue(
-							dataSet,
-							profileOffsetValue,
-							property,
-							exception);
-					}
-				} else {
-					const Collection * const profileGroups = dataSet->profileGroups;
-					for (uint32_t totalWeight = 0,
-						nextOffset = result->graphResult.offset;
-						(!hasValidOffset) && (totalWeight < FULL_RAW_WEIGHTING) && EXCEPTION_OKAY;
-						++nextOffset) {
-						const CollectionKey profileGroupKey = {
-							nextOffset,
-							&CollectionKeyType_OffsetPercentage,
-						};
-						const offsetPercentage* const nextWeightedProfileOffset = (const offsetPercentage*)profileGroups->get(
-							profileGroups,
-							&profileGroupKey,
-							&item,
-							exception);
-						if (!(nextWeightedProfileOffset && EXCEPTION_OKAY)) {
-							break;
-						}
-						totalWeight += nextWeightedProfileOffset->rawWeighting;
-						if (totalWeight <= FULL_RAW_WEIGHTING) {
-							hasValidOffset = profileHasValidPropertyValue(
-								dataSet, nextWeightedProfileOffset->offset, property, exception);
-						} else {
-							EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA);
-						}
-						COLLECTION_RELEASE(profileGroups, &item);
-					}
 				}
+			}
+
+			// Record the outcome of the walk so that later has values or
+			// no value reason calls for the same property and results do
+			// not need to repeat it.
+			if (EXCEPTION_OKAY && canUseCache) {
+				results->hasValuesCache[requiredPropertyIndex] =
+					hasValidOffset ?
+					IPI_HAS_VALUES_TRUE : IPI_HAS_VALUES_FALSE;
 			}
 		}
 	}
@@ -2255,19 +3540,17 @@ bool fiftyoneDegreesResultsIpiGetHasValues(
 		// There is no result
 		return false;
 
-	// There will only be one result
-	for (uint32_t i = 0; i < results->count; i++) {
-		const bool hasValidOffset = resultGetHasValidPropertyValueOffset(
-			results,
-			&results->items[i],
-			requiredPropertyIndex,
-			exception);
-		if (EXCEPTION_FAILED) {
-			return false;
-		}
-		if (hasValidOffset) {
-			return true;
-		}
+	// Check the result for the component the property belongs to. The
+	// outcome of a previous walk for the property is used if available.
+	const bool hasValidOffset = resultsGetHasValidPropertyValueOffset(
+		results,
+		requiredPropertyIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return false;
+	}
+	if (hasValidOffset) {
+		return true;
 	}
 	const uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
 		dataSet->b.b.available,
@@ -2309,19 +3592,17 @@ fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason(
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULTS;
 	}
 
-	// There will only be one result
-	for (uint32_t i = 0; i < results->count; i++) {
-		const bool hasValidOffset = resultGetHasValidPropertyValueOffset(
-			results,
-			&results->items[i],
-			requiredPropertyIndex,
-			exception);
-		if (EXCEPTION_FAILED) {
-			return false;
-		}
-		if (hasValidOffset) {
-			return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
-		}
+	// Check the result for the component the property belongs to. The
+	// outcome of a previous walk for the property is used if available.
+	const bool hasValidOffset = resultsGetHasValidPropertyValueOffset(
+		results,
+		requiredPropertyIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return false;
+	}
+	if (hasValidOffset) {
+		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
 	}
 	if (EXCEPTION_OKAY) {
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE;

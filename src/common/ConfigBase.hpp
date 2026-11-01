@@ -32,6 +32,7 @@ using std::vector;
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * C++ class wrapper for the #fiftyoneDegreesConfigBase configuration
 		 * structure. See config.h.
@@ -191,6 +192,7 @@ namespace FiftyoneDegrees {
 			 */
 			void mapTempDirectories();
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

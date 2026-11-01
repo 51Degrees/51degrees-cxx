@@ -336,10 +336,16 @@ extern "C" void fiftyoneDegreesExampleCPPGettingStartedRun(
 	// enabled.
 	cppConfig->setProcessSpecialEvidence(true);
 
-	GettingStarted *gettingStarted = new GettingStarted(
-		params->dataFilePath, cppConfig);
-	gettingStarted->run();
-	delete gettingStarted;
+	try {
+		GettingStarted *gettingStarted = new GettingStarted(
+			params->dataFilePath, cppConfig);
+		gettingStarted->run();
+		delete gettingStarted;
+	}
+	catch (const StatusCodeException &e) {
+		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);
+		exit(1);
+	}
 }
 
 #ifndef TEST

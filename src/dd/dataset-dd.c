@@ -22,6 +22,7 @@
 
 #include "dataset-dd.h"
 
+#include <string.h>
 #include "fiftyone.h"
 
 #ifndef MIN
@@ -31,6 +32,42 @@
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
 #endif
 #endif
+
+/** Name which asks for the device id. It is not stored in the data file. */
+#define DEVICE_ID_PROPERTY "DeviceId"
+
+/**
+ * Returns true if the required properties name the device id. The fields are
+ * evaluated as #fiftyoneDegreesPropertiesCreate evaluates them, so existing
+ * properties name nothing here, and case is ignored.
+ */
+static bool isDeviceIdNamed(PropertiesRequired *properties) {
+	const char *name;
+	size_t length;
+	int i;
+	if (properties == NULL || properties->existing != NULL) {
+		return false;
+	}
+	if (properties->array != NULL && properties->count > 0) {
+		for (i = 0; i < properties->count; i++) {
+			if (_stricmp(properties->array[i], DEVICE_ID_PROPERTY) == 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+	name = properties->string;
+	while (name != NULL && *name != '\0') {
+		length = strcspn(name, FIFTYONE_DEGREES_PROPERTIES_SEPARATORS);
+		if (length == strlen(DEVICE_ID_PROPERTY) &&
+			_strnicmp(name, DEVICE_ID_PROPERTY, length) == 0) {
+			return true;
+		}
+		name += length;
+		name += strspn(name, FIFTYONE_DEGREES_PROPERTIES_SEPARATORS);
+	}
+	return false;
+}
 
 fiftyoneDegreesStatusCode 
 fiftyoneDegreesDataSetDeviceDetectionInitPropertiesAndHeaders(
@@ -48,6 +85,20 @@ fiftyoneDegreesDataSetDeviceDetectionInitPropertiesAndHeaders(
 		state,
 		getPropertyMethod,
 		getEvidencePropertiesMethod);
+
+	// The device id needs the profile of every component and no stored
+	// property, so naming it marks the list rather than adding to it. A reload
+	// keeps the mark because it creates the new list from this one. An empty
+	// list is then valid, and this status with a list means the list is empty.
+	if (dataSet->b.available != NULL) {
+		if (isDeviceIdNamed(properties)) {
+			dataSet->b.available->allComponentsRequired = true;
+		}
+		if (status == REQ_PROP_NOT_PRESENT &&
+			dataSet->b.available->allComponentsRequired) {
+			status = SUCCESS;
+		}
+	}
 	if (status != SUCCESS) {
 		return status;
 	}

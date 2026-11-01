@@ -27,6 +27,7 @@
 
 namespace FiftyoneDegrees {
     namespace IpIntelligence {
+    FIFTYONE_DEGREES_COMMON_CXX_BEGIN
         /**
          * A class which represents an IP address.
          *
@@ -119,6 +120,7 @@ namespace FiftyoneDegrees {
             /** The IP address byte array */
             unsigned char ipAddress[FIFTYONE_DEGREES_IPV6_LENGTH];
         };
+    FIFTYONE_DEGREES_COMMON_CXX_END
     }
 }
 

@@ -532,9 +532,7 @@ void EngineDeviceDetectionTests::reloadFileWithLock() {
  * check that the reload reports a failure and that the engine continues
  * to answer from the data set it already holds. The memory check in the
  * fixture tear down asserts that the failed reload did not leak the
- * replacement data set or its file pool handles. Before common-cxx
- * freed the replacement data set on the reload failure path this test
- * failed that tear down check.
+ * replacement data set or its file pool handles.
  */
 void EngineDeviceDetectionTests::reloadFileWithBadData() {
 	int i;

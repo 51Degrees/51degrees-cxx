@@ -45,10 +45,12 @@ ValueMetaData* ValueMetaDataBuilderHash::build(
 			ValueMetaDataKey(
 				getString(dataSet->strings, property->nameOffset),
 				getString(dataSet->strings, value->nameOffset)),
-			value->descriptionOffset == -1 ?
+			// A value with no description points at offset 0, which holds
+			// the first string in the file rather than a description.
+			value->descriptionOffset <= 0 ?
 			"" :
 			getString(dataSet->strings, value->descriptionOffset),
-			value->urlOffsetOrWeight < 0 ?
+			value->urlOffsetOrWeight <= 0 ?
 			"" :
 			getString(dataSet->strings, value->urlOffsetOrWeight));
 		COLLECTION_RELEASE(dataSet->properties, &item);

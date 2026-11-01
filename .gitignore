@@ -13,7 +13,8 @@ lib/
 **/Intermediate/
 googletest*/
 
-# CMake files written by an in-source build. The modules in cmake/ are source.
+# CMake files written by an in-source build. The modules in cmake/ and the
+# scripts in test/dd/tools/ are source.
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
@@ -22,6 +23,7 @@ Makefile
 **/CMakeCache.txt
 **/*.cmake
 !/cmake/*.cmake
+!/test/dd/tools/*.cmake
 **/DartConfiguration.tcl
 **/CMakeScripts/
 **/*.ninja*

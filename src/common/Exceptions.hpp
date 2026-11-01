@@ -38,6 +38,7 @@ using std::shared_ptr;
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Exception containing the status code which caused the exception.
 		 */
@@ -175,6 +176,7 @@ namespace FiftyoneDegrees {
 			 */
 			NoValuesAvailableException(const char *message);
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

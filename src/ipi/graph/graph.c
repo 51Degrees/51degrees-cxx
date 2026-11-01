@@ -60,6 +60,10 @@ typedef struct file_collection_t {
 	FILE* file;
 	fiftyoneDegreesFilePool* reader;
 	const fiftyoneDegreesCollectionConfig config;
+	const bool* requiredComponentIds; // Graphs flagged here use the config and
+									  // the rest read from the file. NULL for
+									  // every graph to use the config.
+	byte componentId; // The component of the graph being created
 } FileCollection;
 
 // Function used to create the collection for each of the graphs.
@@ -398,14 +402,37 @@ static int bitsCompare(
 }
 
 // Copies bits from the source to the destination starting at the start bit in
-// the source provided and including the subsequent bits.
+// the source provided and including the subsequent bits, up to the VAR_SIZE
+// bytes that every destination holds.
 static void copyBits(byte* dest, const byte* src, int startBit, int bits) {
-	for (int i = 0, s = startBit; i < bits; i++, s++) {
-
-		// If 1 then set the bit in the destination.
-		if (GET_BIT(src, s)) {
-			SET_BIT(dest, i);
+	if (bits > VAR_SIZE * 8) {
+		bits = VAR_SIZE * 8;
+	}
+	const int sourceByte = startBit / 8;
+	const int sourceOffset = startBit % 8;
+	const int fullBytes = bits / 8;
+	const int remainingBits = bits % 8;
+	if (sourceOffset == 0) {
+		for (int i = 0; i < fullBytes; i++) {
+			dest[i] |= src[sourceByte + i];
 		}
+		if (remainingBits > 0) {
+			dest[fullBytes] |= src[sourceByte + fullBytes] &
+				(byte)(0xff << (8 - remainingBits));
+		}
+		return;
+	}
+	const int outputBytes = (bits + 7) / 8;
+	for (int i = 0; i < outputBytes; i++) {
+		const int bitsLeft = bits - (i * 8);
+		byte value = (byte)(src[sourceByte + i] << sourceOffset);
+		if (bitsLeft > 8 - sourceOffset) {
+			value |= src[sourceByte + i + 1] >> (8 - sourceOffset);
+		}
+		if (bitsLeft < 8) {
+			value &= (byte)(0xff << (8 - bitsLeft));
+		}
+		dest[i] |= value;
 	}
 }
 
@@ -1128,6 +1155,9 @@ static Collection* ipiGraphCreateFromFile(
 	CollectionHeader header,
 	void* state) {
 	FileCollection * const s = (FileCollection*)state;
+	static const fiftyoneDegreesCollectionConfig readFromFile = { false, 0, 0 };
+	const bool useConfig = s->requiredComponentIds == NULL ||
+		s->requiredComponentIds[s->componentId];
 
 	const FileOffset current = FileTell(s->file);
 	if (current < 0) {
@@ -1143,7 +1173,7 @@ static Collection* ipiGraphCreateFromFile(
 	Collection* collection = CollectionCreateFromFile(
 		s->file,
 		s->reader,
-		&s->config,
+		useConfig ? &s->config : &readFromFile,
 		header,
 		CollectionReadFileFixed);
 	if (shouldRestore) {
@@ -1181,10 +1211,13 @@ static const CollectionKeyType CollectionKeyType_GraphInfo = {
 	NULL,
 };
 
+// componentId, when not NULL, is set to the component of each graph before the
+// collections of that graph are created.
 static IpiCgArray* ipiGraphCreate(
 	Collection* collection,
 	collectionCreate collectionCreate,
 	void* state,
+	byte* componentId,
 	Exception* exception) {
 	IpiCgArray* graphs;
 
@@ -1199,6 +1232,8 @@ static IpiCgArray* ipiGraphCreate(
 	for (uint32_t i = 0; i < count; i++) {
 		graphs->items[i].nodes = NULL;
 		graphs->items[i].spans = NULL;
+		graphs->items[i].spanBytes = NULL;
+		graphs->items[i].clusters = NULL;
 
 		Item itemInfo;
 		DataReset(&itemInfo.data);
@@ -1220,6 +1255,9 @@ static IpiCgArray* ipiGraphCreate(
 		graphs->items[i].info = *info;
 		COLLECTION_RELEASE(collection, &itemInfo);
 		graphs->count++;
+		if (componentId != NULL) {
+			*componentId = graphs->items[i].info.componentId;
+		}
 
 		// Create the collection for the node values. Must overwrite the count
 		// to zero as it is consumed as a variable width collection.
@@ -1303,6 +1341,7 @@ fiftyoneDegreesIpiCgArray* fiftyoneDegreesIpiGraphCreateFromMemory(
 		collection,
 		ipiGraphCreateFromMemory,
 		(void*)reader,
+		NULL,
 		exception);
 }
 
@@ -1312,15 +1351,34 @@ fiftyoneDegreesIpiCgArray* fiftyoneDegreesIpiGraphCreateFromFile(
 	fiftyoneDegreesFilePool* reader,
 	const fiftyoneDegreesCollectionConfig config,
 	fiftyoneDegreesException* exception) {
+	return fiftyoneDegreesIpiGraphCreateFromFileForComponents(
+		collection,
+		file,
+		reader,
+		config,
+		NULL,
+		exception);
+}
+
+fiftyoneDegreesIpiCgArray* fiftyoneDegreesIpiGraphCreateFromFileForComponents(
+	fiftyoneDegreesCollection* collection,
+	FILE* file,
+	fiftyoneDegreesFilePool* reader,
+	const fiftyoneDegreesCollectionConfig config,
+	const bool* requiredComponentIds,
+	fiftyoneDegreesException* exception) {
 	FileCollection state = {
 		file,
 		reader,
-		config
+		config,
+		requiredComponentIds,
+		0
 	};
 	return ipiGraphCreate(
 		collection,
 		ipiGraphCreateFromFile,
 		(void*)&state,
+		&state.componentId,
 		exception);
 }
 

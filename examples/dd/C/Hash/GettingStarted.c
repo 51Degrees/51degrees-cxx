@@ -57,6 +57,9 @@ static const char *dataDir = "device-detection-data";
 // https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-gettingstarted.c&utm_term=top
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
+
 static char valueBuffer[1024] = "";
 static const size_t valueBufferLength = 
 	sizeof(valueBuffer) / sizeof(valueBuffer[0]);
@@ -365,12 +368,13 @@ void fiftyoneDegreesHashGettingStarted(
 		&properties,
 		dataFilePath,
 		exception);
-	EXCEPTION_THROW;
 	if (status != SUCCESS) {
 		reportStatus(status, dataFilePath);
+		exitCode = 1;
 		fgetc(stdin);
 		return;
 	}
+	EXCEPTION_THROW;
 
 	// Create a results instance to store and process evidence.
 	// The capacity of the results should be the same as the maximum potential
@@ -492,7 +496,7 @@ int main(int argc, char* argv[]) {
 	// Wait for a character to be pressed.
 	fgetc(stdin);
 
-	return 0;
+	return exitCode;
 }
 
 #endif

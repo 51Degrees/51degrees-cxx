@@ -33,6 +33,14 @@
   },
   {
     "Image": "windows-latest",
+    "Name": "Windows_VS_IPI_x64_Release_BuildOnly",
+    "Configuration": "Release",
+    "Arch": "x64",
+    "BuildMethod": "msbuild",
+    "Products": ["ipi"]
+  },
+  {
+    "Image": "windows-latest",
     "Name": "Windows_x64_Debug",
     "Configuration": "Debug",
     "Arch": "x64",
@@ -97,10 +105,19 @@
     "Products": ["common", "dd", "ipi"]
   },
   {
+    "Image": "ubuntu-latest",
+    "Name": "Ubuntu_x64_Release_CxxBothProducts",
+    "Configuration": "Release",
+    "Arch": "x64",
+    "CxxBothProducts": true,
+    "Products": ["dd", "ipi"]
+  },
+  {
     "Image": "ubuntu-24.04-arm",
     "Name": "Ubuntu_arm64_Release",
     "Configuration": "Release",
     "Arch": "arm64",
+    "IpiSymbols": false,
     "Products": ["ipi"]
   },
   {

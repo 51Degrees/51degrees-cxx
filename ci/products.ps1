@@ -7,7 +7,7 @@ $AllProducts = @('common', 'dd', 'ipi')
 # Paths that belong to a single product. A change anywhere else, including
 # common, the CMake files and CI, affects every product.
 $ProductPaths = @{
-    dd = @('src/dd/', 'test/dd/', 'examples/dd/', 'docs/dd/',
+    dd = @('src/dd/', 'test/dd/', 'examples/dd/', 'docs/dd/', 'tools/dd/',
         'VisualStudio/DeviceDetection/', 'device-detection-data')
     ipi = @('src/ipi/', 'test/ipi/', 'examples/ipi/', 'docs/ipi/',
         'VisualStudio/IpIntelligence/', 'ip-intelligence-data')
@@ -17,6 +17,7 @@ $ProductPaths = @{
 $SolutionDirs = @{
     common = 'VisualStudio/Common'
     dd = 'VisualStudio/DeviceDetection'
+    ipi = 'VisualStudio/IpIntelligence'
 }
 
 # Returns the products the changed paths affect.

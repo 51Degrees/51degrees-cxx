@@ -32,6 +32,7 @@ using std::vector;
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * C++ class wrapper for the #fiftyoneDegreesPropertiesRequired
 		 * structure. It defines a set of properties which are required by a
@@ -165,6 +166,7 @@ namespace FiftyoneDegrees {
 			/** The underlying C configuration structure. */
 			fiftyoneDegreesPropertiesRequired conf;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

@@ -56,6 +56,9 @@
 // the default number of tests to execute.
 #define DEFAULT_ITERATIONS 10000
 
+// Optional CLI control. Set before workers start and read-only during a run.
+static bool detectionOnly = false;
+
 // Parameters used for allocating memory when reading evidence. 
 #define SIZE_OF_KEY 500
 #define SIZE_OF_VALUE 1000
@@ -78,6 +81,9 @@ static const char* dataFileName = "51Degrees-LiteV4.1.hash";
 // values that are relevant to device detection. For example, User-Agent and 
 // UA-CH headers.
 static const char* evidenceFileName = "20000 Evidence Records.yml";
+
+// Returned by main. Set to 1 when the data file cannot be used.
+static int exitCode = 0;
 
 // The value of the evidence for User-Agent is not stored in the shared string
 // structure as these are almost always unique.
@@ -451,7 +457,8 @@ void runPerformanceThread(void* state) {
 
 		// Get the all properties from the results if this is part of the
 		// performance evaluation.
-		for (uint32_t j = 0; j < dataSet->b.b.available->count; j++) {
+		for (uint32_t j = 0; detectionOnly == false &&
+			j < dataSet->b.b.available->count; j++) {
 			if (ResultsHashGetValues(
 				results,
 				j,
@@ -549,12 +556,15 @@ void doReport(performanceState *state) {
 		state->startUpMillis);
 	fprintf(state->output,
 		"Properties retrieved %d\n",
-		state->availableProperties);
-	fprintf(state->output, "\n");
+		detectionOnly ? 0 : state->availableProperties);
+	fprintf(state->output, "Detection only: %s\n\n",
+		detectionOnly ? "true" : "false");
 
 	if (state->resultsOutput != NULL) {
 		fprintf(state->resultsOutput, "  \"DetectionsPerSecond\": %.2f,\n", round(1000.0 / millisPerTest));
 		fprintf(state->resultsOutput, "  \"StartupMs\": %.0lf,\n", state->startUpMillis);
+		fprintf(state->resultsOutput, "  \"DetectionOnly\": %s\n",
+			detectionOnly ? "true" : "false");
 	}
 }
 
@@ -613,13 +623,15 @@ void executeBenchmark(
 		&properties,
 		state->dataFileLocation,
 		exception);
-	EXCEPTION_THROW;
 	if (status != SUCCESS) {
 		const char* message = StatusGetMessage(status, state->dataFileLocation);
 		fprintf(state->output, "%s\n", message);
 		Free((void*)message);
+		Free(state->threads);
+		exitCode = 1;
 		return;
 	}
+	EXCEPTION_THROW;
 	
 	TIMER_END;
 	state->startUpMillis = TIMER_ELAPSED;
@@ -873,6 +885,7 @@ void fiftyoneDegreesExampleCPerformanceRun(ExampleParameters* params) {
 #define JSON_OPTION_SHORT "-j"
 #define ITERATIONS_OPTION "--iterations"
 #define ITERATIONS_OPTION_SHORT "-i"
+#define DETECTION_ONLY_OPTION "--detection-only"
 #define HELP_OPTION "--help"
 #define HELP_OPTION_SHORT "-h"
 #define OPTION_PADDING(o) ((int)(30 - strlen(o)))
@@ -883,6 +896,7 @@ void fiftyoneDegreesExampleCPerformanceRun(ExampleParameters* params) {
  */
 void printHelp() {
 	printf("Available options are:\n");
+	printf("  --detection-only: Skip property retrieval, keeping component selection unchanged\n");
 	OPTION_MESSAGE("Path to a 51Degrees Hash data file", DATA_OPTION, DATA_OPTION_SHORT);
 	OPTION_MESSAGE("Path to a User-Agents YAML file", UA_OPTION, UA_OPTION_SHORT);
 	OPTION_MESSAGE("Number of threads to run in parallel", THREAD_OPTION, THREAD_OPTION_SHORT);
@@ -935,6 +949,9 @@ int main(int argc, char* argv[]) {
 			strcmp(argv[i], ITERATIONS_OPTION_SHORT) == 0) {
 			// Set the iterations per thread
 			iterations = atoi(argv[i + 1]);
+		}
+		else if (strcmp(argv[i], DETECTION_ONLY_OPTION) == 0) {
+			detectionOnly = true;
 		}
 		else if (strcmp(argv[i], HELP_OPTION) == 0 ||
 			strcmp(argv[i], HELP_OPTION_SHORT) == 0) {
@@ -1009,7 +1026,7 @@ int main(int argc, char* argv[]) {
 		fclose(params.resultsOutput);
 	}
 
-	return 0;
+	return exitCode;
 }
 
 #endif

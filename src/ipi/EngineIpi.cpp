@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include <iostream>
+#include <memory>
 #include "EngineIpi.hpp"
 #include "fiftyone.h"
 
@@ -208,7 +209,7 @@ void EngineIpi::refreshData() const {
 		manager.get(),
 		exception);
 	if (status != SUCCESS) {
-		throw StatusCodeException(status);
+		throw StatusCodeException(status, getDataFilePath().c_str());
 	}
 	EXCEPTION_THROW;
 	// The new data set may declare different client IP headers, so the
@@ -223,7 +224,7 @@ void EngineIpi::refreshData(const char *fileName) const {
 		fileName,
 		exception);
 	if (status != SUCCESS) {
-		throw StatusCodeException(status);
+		throw StatusCodeException(status, fileName);
 	}
 	EXCEPTION_THROW;
 	// The new data set may declare different client IP headers, so the
@@ -268,6 +269,39 @@ void EngineIpi::refreshData(
 	refreshData((void*)data, length);
 }
 
+// Owns a set of results until a ResultsIpi takes them, so that they are freed on
+// every way out of a process method.
+typedef std::unique_ptr<
+	fiftyoneDegreesResultsIpi,
+	decltype(&fiftyoneDegreesResultsIpiFree)> OwnedResults;
+
+// Creates a set of results for one call, and throws if there is no memory for
+// them.
+static OwnedResults createResults(fiftyoneDegreesResourceManager *manager) {
+	EXCEPTION_CREATE;
+	OwnedResults results(
+		ResultsIpiCreate(manager),
+		fiftyoneDegreesResultsIpiFree);
+	if (results == nullptr) {
+		EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY);
+		EXCEPTION_THROW;
+	}
+	return results;
+}
+
+// Gives the results to the object returned to the caller, which frees them from
+// then on.
+static IpIntelligence::ResultsIpi* giveResults(
+	OwnedResults &results,
+	const std::shared_ptr<fiftyoneDegreesResourceManager> &manager) {
+	IpIntelligence::ResultsIpi *given =
+		new IpIntelligence::ResultsIpi(results.get(), manager);
+	results.release();
+	return given;
+}
+
+// As in EngineHash, a set of results is created for each call rather than taken
+// from a pool made at startup, because of the complexity that would add.
 IpIntelligence::ResultsIpi* EngineIpi::process(
 	IpIntelligence::EvidenceIpi *evidence) {
 	return process(evidence, nullptr, -1);
@@ -290,10 +324,9 @@ IpIntelligence::ResultsIpi* EngineIpi::process(
 	const int *requiredPropertyIndexes,
 	int requiredPropertyIndexesCount) {
 	EXCEPTION_CREATE;
-	fiftyoneDegreesResultsIpi *results = ResultsIpiCreate(
-		manager.get());
+	OwnedResults results = createResults(manager.get());
 	ResultsIpiFromEvidenceForProperties(
-		results,
+		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
 		requiredPropertyIndexes,
 		requiredPropertyIndexesCount,
@@ -302,7 +335,7 @@ IpIntelligence::ResultsIpi* EngineIpi::process(
 		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
 		EXCEPTION_THROW;
 	}
-	return new ResultsIpi(results, manager);
+	return giveResults(results, manager);
 }
 
 IpIntelligence::ResultsIpi* EngineIpi::process(
@@ -310,10 +343,9 @@ IpIntelligence::ResultsIpi* EngineIpi::process(
 	const int *requiredPropertyIndexes,
 	int requiredPropertyIndexesCount) {
 	EXCEPTION_CREATE;
-	fiftyoneDegreesResultsIpi *results = ResultsIpiCreate(
-		manager.get());
+	OwnedResults results = createResults(manager.get());
 	ResultsIpiFromIpAddressStringForProperties(
-		results,
+		results.get(),
 		ipAddress,
 		ipAddress == nullptr ? 0 : strlen(ipAddress),
 		requiredPropertyIndexes,
@@ -323,7 +355,7 @@ IpIntelligence::ResultsIpi* EngineIpi::process(
 		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
 		EXCEPTION_THROW;
 	}
-	return new ResultsIpi(results, manager);
+	return giveResults(results, manager);
 }
 
 IpIntelligence::ResultsIpi *EngineIpi::process(
@@ -333,9 +365,9 @@ IpIntelligence::ResultsIpi *EngineIpi::process(
 	const int *requiredPropertyIndexes,
 	int requiredPropertyIndexesCount) {
 	EXCEPTION_CREATE;
-	fiftyoneDegreesResultsIpi *results = ResultsIpiCreate(manager.get());
+	OwnedResults results = createResults(manager.get());
 	ResultsIpiFromIpAddressForProperties(
-		results,
+		results.get(),
 		ipAddress,
 		length,
 		type,
@@ -346,23 +378,22 @@ IpIntelligence::ResultsIpi *EngineIpi::process(
 		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
 		EXCEPTION_THROW;
 	}
-	return new ResultsIpi(results, manager);
+	return giveResults(results, manager);
 }
 
 Common::ResultsBase* EngineIpi::processBase(
 	Common::EvidenceBase *evidence) const {
 	EXCEPTION_CREATE;
-	fiftyoneDegreesResultsIpi *results = ResultsIpiCreate(
-		manager.get());
+	OwnedResults results = createResults(manager.get());
 	ResultsIpiFromEvidence(
-		results, 
+		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
 		exception);
 	if (exception->status != 
 		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
 		EXCEPTION_THROW;
 	}
-	return new ResultsIpi(results, manager);
+	return giveResults(results, manager);
 }
 
 vector<string> EngineIpi::buildHttpHeaderKeys(

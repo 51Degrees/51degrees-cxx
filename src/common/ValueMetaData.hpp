@@ -31,6 +31,7 @@
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Key used to store ValueMetaData in a Collection. A value name is not
 		 * unique, however it is unique within the collection of values for a
@@ -174,13 +175,13 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Get the full description of the value.
-			 * @return description string
+			 * @return description string, empty if the value has none
 			 */
 			string getDescription() const;
 
 			/**
 			 * Get the URL containing any extra information about the value.
-			 * @return URL string
+			 * @return URL string, empty if the value has none
 			 */
 			string getUrl() const;
 
@@ -200,6 +201,7 @@ namespace FiftyoneDegrees {
 			/** URL containing more information on the value */
 			string url;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 

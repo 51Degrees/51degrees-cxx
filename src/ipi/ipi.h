@@ -267,7 +267,7 @@ typedef struct fiftyone_degrees_config_ipi_t {
 /**
  * Data set structure which contains the base dataset structure. This
  * acts as a wrapper and is used in the dataset structure for IP 
- * intelligence to be compatible with some of the common-cxx
+ * intelligence to be compatible with some of the common library
  * APIs.
  */
 typedef struct fiftyone_degrees_dataset_ipi_base_t {
@@ -337,6 +337,11 @@ typedef struct fiftyone_degrees_result_ipi_t {
 												 graph evaluation */
 	fiftyoneDegreesIpAddress targetIpAddress; /**< The target IP address
 											  to find a matching range for */
+	int32_t componentIndex; /**< Index in the components list of the
+							component the result relates to, or -1 if the
+							result has not been populated */
+	const byte* keptProfile; /**< The profile of the result if it has been kept
+							 for the length of the lookup, otherwise NULL */
 } fiftyoneDegreesResultIpi;
 
 /**
@@ -345,7 +350,16 @@ typedef struct fiftyone_degrees_result_ipi_t {
 #define FIFTYONE_DEGREES_RESULTS_IPI_MEMBERS \
 	fiftyoneDegreesResultsBase b; \
 	fiftyoneDegreesCollectionItem propertyItem; \
-	fiftyoneDegreesIpiList values;
+	fiftyoneDegreesIpiList values; \
+	byte* hasValuesCache; /**< Cached outcomes of the profile walks used to \
+						  check if a property has values. Indexed by required \
+						  property index. Reset when the results are \
+						  repopulated. */ \
+	uint32_t hasValuesCacheCount; /**< Number of entries in hasValuesCache */ \
+	byte* keptProfiles; /**< Copies of profiles read through a cache, kept for \
+						the length of a lookup so that each property does not \
+						read the cache again. One slot for each result, or \
+						NULL if the profiles are not read through a cache. */
 
 FIFTYONE_DEGREES_ARRAY_TYPE(
 	fiftyoneDegreesResultIpi,
@@ -431,6 +445,17 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig;
  * reached. The concurrency of each collection must be set to the maximum
  * number of concurrent operations to optimize file reads. This is the default
  * configuration.
+ *
+ * The strings, the graphs, the profile offsets and the property types are held
+ * in memory. When the required properties name fewer properties than the data
+ * file has, the graphs of components with no required property stay on file, as
+ * do long stretches of strings that no required property reads. The memory that
+ * frees holds the values of the required properties, smallest first, the profile
+ * groups, the profiles of the components with a required property, smallest
+ * first, then a larger profile cache and part of the next component's profiles
+ * if at least half of them fit. The memory used does not rise above what naming
+ * nothing uses and the answers do not change. Anything not held reads from the
+ * file, which is slower and allocates memory.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig;
 
@@ -485,7 +510,9 @@ EXTERNAL void fiftyoneDegreesDataSetIpiRelease(fiftyoneDegreesDataSetIpi* datase
  * @param fileName the full path to a file with read permission that contains
  * the IP Intelligence data set
  * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
+ * exception occurs. See exceptions.h. Holds the status if the data set could
+ * not be initialised, for example from a missing or rejected file, and the
+ * number returned then means nothing.
  * @return the total number of bytes needed to initialise a IP Intelligence resource
  * and associated manager with the configuration provided or zero
  */

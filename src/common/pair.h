@@ -23,6 +23,10 @@
 #ifndef FIFTYONE_DEGREES_PAIR_H_INCLUDED
 #define FIFTYONE_DEGREES_PAIR_H_INCLUDED
 
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#include "ipiSymbols.h"
+#endif
+
 #include "array.h"
 #include <stddef.h>
 

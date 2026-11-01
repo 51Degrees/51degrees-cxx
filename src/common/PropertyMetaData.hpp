@@ -30,6 +30,7 @@
 
 namespace FiftyoneDegrees {
 	namespace Common {
+	FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 		/**
 		 * Meta data relating to a property populated by an engine
 		 * implementation.
@@ -135,7 +136,7 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Get the URL related to the property.
-			 * @return URL string
+			 * @return URL string, empty if the property has none
 			 */
 			string getUrl() const;
 
@@ -263,6 +264,7 @@ namespace FiftyoneDegrees {
 			properties */
 			vector<uint32_t> evidenceProperties;
 		};
+	FIFTYONE_DEGREES_COMMON_CXX_END
 	}
 }
 
