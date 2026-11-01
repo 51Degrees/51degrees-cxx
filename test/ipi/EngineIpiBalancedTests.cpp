@@ -377,12 +377,6 @@ protected:
 	vector<string> allNames;
 	int componentCount = 0;
 
-	void skipWithOneComponent() {
-		if (componentCount < 2) {
-			GTEST_SKIP() << "The data file has one component.";
-		}
-	}
-
 	size_t sizeOf(
 		fiftyoneDegreesConfigIpi config,
 		const char* required) {
@@ -561,9 +555,8 @@ TEST_F(IpiBalancedTests, CommonSetsGiveTheSameAnswersInNoMoreMemory) {
 }
 
 TEST_F(IpiBalancedTests, ProfileCacheGrowsWhenProfilesStayOnFile) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	// One property of the largest component, where the budget is plenty for a
 	// larger cache but not for the profiles.
@@ -584,9 +577,8 @@ TEST_F(IpiBalancedTests, ProfileCacheGrowsWhenProfilesStayOnFile) {
 }
 
 TEST_F(IpiBalancedTests, ProfileCacheOfTheCallerIsNotReduced) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	const char* required = "Country";
 	if (find(allNames.begin(), allNames.end(), required) == allNames.end()) {
@@ -727,9 +719,8 @@ TEST_F(IpiBalancedTests, ManyLiveResultsDoNotUseUpTheProfileCache) {
 }
 
 TEST_F(IpiBalancedTests, GraphsOfOtherComponentsStayOnFile) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	BalancedManager manager(
 		dataFilePath,
@@ -933,9 +924,8 @@ TEST_F(IpiBalancedTests, DefaultValuesReadForALookupOfNothing) {
 }
 
 TEST_F(IpiBalancedTests, PropertyThatWasNotNamedGivesWhatItGaveBefore) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	BalancedManager expected(
 		dataFilePath,
@@ -1201,11 +1191,7 @@ protected:
 	std::vector<unsigned char> data;
 	string tempFilePath;
 
-	void readSmallFile() {
-		const string path = GetFilePath(_dataFolderName, balancedAsnFileName);
-		if (path.empty()) {
-			GTEST_SKIP() << "The small data file was not found.";
-		}
+	void readSmallFile(const string& path) {
 		FILE* file = fopen(path.c_str(), "rb");
 		ASSERT_NE(nullptr, file);
 		fseek(file, 0, SEEK_END);
@@ -1288,10 +1274,11 @@ protected:
 };
 
 TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
-	ASSERT_NO_FATAL_FAILURE(readSmallFile());
-	if (IsSkipped()) {
-		return;
+	const string smallFile = GetFilePath(_dataFolderName, balancedAsnFileName);
+	if (smallFile.empty()) {
+		GTEST_SKIP() << "The small data file was not found.";
 	}
+	ASSERT_NO_FATAL_FAILURE(readSmallFile(smallFile));
 	// Point the default value of the first property at a value of the second,
 	// and make the property mandatory so that the default is used.
 	const uint64_t properties = header()->properties.startPosition;
@@ -1366,9 +1353,8 @@ TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
 }
 
 TEST_F(IpiBalancedFileTests, NothingIsAllocatedDuringALookupOfHeldData) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	BalancedManager manager(
 		dataFilePath,
@@ -1406,10 +1392,11 @@ TEST_F(IpiBalancedFileTests, NothingIsAllocatedDuringALookupOfHeldData) {
 }
 
 TEST_F(IpiBalancedFileTests, TruncatedFileFailsWhenStringsAreHeld) {
-	ASSERT_NO_FATAL_FAILURE(readSmallFile());
-	if (IsSkipped()) {
-		return;
+	const string smallFile = GetFilePath(_dataFolderName, balancedAsnFileName);
+	if (smallFile.empty()) {
+		GTEST_SKIP() << "The small data file was not found.";
 	}
+	ASSERT_NO_FATAL_FAILURE(readSmallFile(smallFile));
 	// Cut the file part way through the strings. Holding them would otherwise
 	// be the first thing to read them.
 	data.resize((size_t)header()->strings.startPosition + 1024);
