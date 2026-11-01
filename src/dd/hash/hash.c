@@ -2204,7 +2204,9 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromFile(
 	const char *fileName,
 	fiftyoneDegreesException *exception) {
 
-	if (config->usePerformanceGraph == false &&
+	// A null configuration means the balanced one, which uses a graph.
+	if (config != NULL &&
+		config->usePerformanceGraph == false &&
 		config->usePredictiveGraph == false) {
 		return INVALID_CONFIG;
 	}
@@ -2362,7 +2364,9 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromMemory(
 	long size,
 	fiftyoneDegreesException *exception) {
 
-	if (config->usePerformanceGraph == false &&
+	// A null configuration means the balanced one, which uses a graph.
+	if (config != NULL &&
+		config->usePerformanceGraph == false &&
 		config->usePredictiveGraph == false) {
 		return INVALID_CONFIG;
 	}
@@ -2413,8 +2417,9 @@ size_t fiftyoneDegreesHashSizeManagerFromMemory(
 	Free = MemoryTrackingFree;
 	FreeAligned = MemoryTrackingFreeAligned;
 
-	// Ensure that the memory used is not freed with the data set.
-	ConfigHash sizeConfig = *config;
+	// Ensure that the memory used is not freed with the data set. A null
+	// configuration means the balanced one, as it does in initDataSet.
+	ConfigHash sizeConfig = config != NULL ? *config : HashBalancedConfig;
 	sizeConfig.b.b.freeData = false;
 
 	// Initialise the manager with the tracking methods in use to determine

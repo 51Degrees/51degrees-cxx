@@ -2447,8 +2447,9 @@ size_t fiftyoneDegreesIpiSizeManagerFromMemory(
 	Free = MemoryTrackingFree;
 	FreeAligned = MemoryTrackingFreeAligned;
 
-	// Ensure that the memory used is not freed with the data set.
-	ConfigIpi sizeConfig = *config;
+	// Ensure that the memory used is not freed with the data set. A null
+	// configuration means the balanced one, as it does in initDataSet.
+	ConfigIpi sizeConfig = config != NULL ? *config : IpiBalancedConfig;
 	sizeConfig.b.freeData = false;
 
 	// Initialise the manager with the tracking methods in use to determine
