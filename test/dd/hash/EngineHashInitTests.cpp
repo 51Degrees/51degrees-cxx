@@ -28,6 +28,7 @@
 #include <cstring>
 #include <iostream>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -505,4 +506,40 @@ TEST_F(EngineHashInitTests, OpensWithEachSeparator) {
         EXPECT_NO_THROW(EngineHash(current.c_str(), &lowMemory, &properties)) <<
             current;
     }
+}
+
+/**
+ * Gets the number of properties an engine makes available.
+ */
+static int availableProperties(EngineHash &engine) {
+    std::unique_ptr<ResultsHash> results(engine.process("Mozilla/5.0"));
+    return results->getAvailableProperties();
+}
+
+/**
+ * Check null required properties mean every property for the constructors
+ * from a file and from memory, as they do for the C init functions.
+ */
+TEST_F(EngineHashInitTests, NullProperties_LoadsEveryProperty) {
+    const std::string path = findDataFile();
+    ASSERT_FALSE(path.empty()) << "No Hash data file was found.";
+    ConfigHash config;
+    RequiredPropertiesConfig every;
+    EngineHash expected(path.c_str(), &config, &every);
+    const int count = availableProperties(expected);
+    ASSERT_GT(count, 0);
+
+    EngineHash fromFile(path.c_str(), &config, nullptr);
+    EXPECT_EQ(count, availableProperties(fromFile));
+
+    std::ifstream file(path, ios::binary | ios::ate);
+    std::vector<char> data((size_t)file.tellg());
+    file.seekg(0, ios::beg);
+    ASSERT_TRUE((bool)file.read(data.data(), (std::streamsize)data.size()));
+    EngineHash fromMemory(
+        (void*)data.data(),
+        (long)data.size(),
+        &config,
+        nullptr);
+    EXPECT_EQ(count, availableProperties(fromMemory));
 }

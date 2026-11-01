@@ -22,6 +22,7 @@
     <ClCompile Include="..\..\..\test\common\CollectionConfigTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionOffsetTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionTests.cpp" />
+    <ClCompile Include="..\..\..\test\common\ComponentTests.cpp" />
     <ClCompile Include="..\..\..\test\common\EngineTests.cpp" />
     <ClCompile Include="..\..\..\test\common\EvidenceTests.cpp" />
     <ClCompile Include="..\..\..\test\common\EvidenceWithHeadersTests_MultipleHeaders.cpp" />
