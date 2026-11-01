@@ -137,6 +137,9 @@ typedef struct cursor_t {
 // root index.
 #define NO_PREVIOUS_HIGH UINT32_MAX
 
+// Returned by evaluate when no profile relates to the IP address.
+#define NO_PROFILE_INDEX UINT32_MAX
+
 // Get the bit as a bool for the byte array and bit index from the left. High
 // order bit is index 0.
 #define GET_BIT(b,i) ((((b)[(i) / 8] >> (7 - ((i) % 8))) & 1))
@@ -989,26 +992,11 @@ static void selectCompleteLowHigh(Cursor* cursor) {
 	}
 }
 
-// Follows the low entries until a leaf is found.
-static void selectCompleteLowLow(Cursor* cursor) {
-	Exception* exception = cursor->ex;
-	TRACE_LABEL(cursor, "selectCompleteLowLow");
-	while (selectLow(cursor) == false) {
-		if (EXCEPTION_FAILED) return;
-	}
-}
-
 // Moves the cursor back to the prior low entry, then follows the high entries
-// until a leaf is found. If no high entry has been taken then every entry so
-// far was low, the IP address is lower than the lowest key in the graph, and
-// the lowest leaf is used instead.
+// until a leaf is found.
 static void selectCompleteLow(Cursor* cursor) {
 	Exception* exception = cursor->ex;
 	TRACE_LABEL(cursor, "selectCompleteLow");
-	if (cursor->previousHighIndex == NO_PREVIOUS_HIGH) {
-		selectCompleteLowLow(cursor);
-		return;
-	}
 	if (cursorMoveBackLow(cursor) == false) {
 		if (EXCEPTION_FAILED) return;
 		while (selectHigh(cursor) == false) {
@@ -1061,7 +1049,7 @@ static void compareIpToSpan(Cursor* cursor) {
 }
 
 // Evaluates the cursor until a leaf is found and then returns the profile
-// index.
+// index, or NO_PROFILE_INDEX if the IP address is below the lowest key.
 static uint32_t evaluate(Cursor* cursor) {
 	Exception* exception = cursor->ex;
 	bool found = false;
@@ -1078,6 +1066,11 @@ static uint32_t evaluate(Cursor* cursor) {
 
 		switch (cursor->compareResult) {
 		case LESS_THAN_LOW:
+			// With no high entry taken every entry so far was low, so the IP
+			// address is below the lowest key in the graph.
+			if (cursor->previousHighIndex == NO_PREVIOUS_HIGH) {
+				return NO_PROFILE_INDEX;
+			}
 			selectCompleteLow(cursor);
 			if (EXCEPTION_FAILED) return 0;
 			found = true;
@@ -1155,7 +1148,7 @@ static fiftyoneDegreesIpiCgResult ipiGraphEvaluate(
 			componentId == graph->info.componentId) {
 			Cursor cursor = cursorCreate(graph, address, sb, exception);
 			const uint32_t profileIndex = evaluate(&cursor);
-			if (EXCEPTION_OKAY) {
+			if (EXCEPTION_OKAY && profileIndex != NO_PROFILE_INDEX) {
 				result = toResult(profileIndex, graph, exception);
 				if (EXCEPTION_OKAY) {
 					TRACE_RESULT(&cursor, result);
