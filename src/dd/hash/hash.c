@@ -1732,8 +1732,7 @@ static StatusCode initIndicesPropertyProfile(
 	return status;
 }
 
-// Return true if the initialization was successful otherwise false.
-static bool initComponentHeaders(
+static StatusCode initComponentHeaders(
 	DataSetHash* dataSet,
 	Exception* exception) {
 	
@@ -1745,7 +1744,7 @@ static bool initComponentHeaders(
 	dataSet->componentHeaders = (HeaderPtrs**)Malloc(headersSize);
 	if (dataSet->componentHeaders == NULL) {
 		EXCEPTION_SET(INSUFFICIENT_MEMORY);
-		return false;
+		return INSUFFICIENT_MEMORY;
 	}
 	memset(dataSet->componentHeaders, 0, headersSize);
 
@@ -1756,10 +1755,10 @@ static bool initComponentHeaders(
 			dataSet->b.b.uniqueHeaders, 
 			exception);
 		if (dataSet->componentHeaders[i] == NULL) {
-			return false;
+			return INSUFFICIENT_MEMORY;
 		}
 	}
-	return true;
+	return SUCCESS;
 }
 
 // Initialize the gethighentropyvalues check feature that prevents the GHEV
@@ -2185,7 +2184,8 @@ static StatusCode initDataSetFromFile(
 	}
 
 	// Initialise the headers for each component.
-	if (!initComponentHeaders(dataSet, exception) || EXCEPTION_FAILED) {
+	status = initComponentHeaders(dataSet, exception);
+	if (status != SUCCESS || EXCEPTION_FAILED) {
 		if (config->b.b.useTempFile == true) {
 			FileDelete(dataSet->b.b.fileName);
 		}
@@ -2341,7 +2341,8 @@ static StatusCode initDataSetFromMemory(
 	}
 
 	// Initialise the headers for each component.
-	if (!initComponentHeaders(dataSet, exception) || EXCEPTION_FAILED) {
+	status = initComponentHeaders(dataSet, exception);
+	if (status != SUCCESS || EXCEPTION_FAILED) {
 		if (config->b.b.useTempFile == true) {
 			FileDelete(dataSet->b.b.fileName);
 		}
