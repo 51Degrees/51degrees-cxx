@@ -2618,7 +2618,8 @@ void fiftyoneDegreesResultsIpiFree(fiftyoneDegreesResultsIpi* results) {
 
 /**
  * True if the IPv6 address is in ::ffff:0:0/96, which represents the IPv4
- * address in its last four bytes (RFC 4291 section 2.5.5.2).
+ * address in its last four bytes. See
+ * https://github.com/51Degrees/specifications/blob/main/ip-intelligence-specification/pipeline-elements/ip-intelligence-on-premise.md#address-forms
  */
 static bool isIpv4Mapped(const unsigned char* const ipAddress) {
 	static const byte prefix[IPV6_LENGTH - IPV4_LENGTH] =

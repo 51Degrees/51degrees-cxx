@@ -715,7 +715,10 @@ EXTERNAL void fiftyoneDegreesResultsIpiFree(
  * An IPv4-mapped IPv6 address (::ffff:a.b.c.d) is processed as its IPv4
  * address, and the result's type and target address are those of the IPv4
  * address. This applies to every way of giving an address, including strings
- * and evidence.
+ * and evidence. An IPv4-embedded address from RFC 6052, such as
+ * 64:ff9b::a.b.c.d, stays an IPv6 address, because deriving the IPv4 address
+ * from it is the job of an address translator (RFC 6052 section 1.3). See
+ * https://github.com/51Degrees/specifications/blob/main/ip-intelligence-specification/pipeline-elements/ip-intelligence-on-premise.md#address-forms
  *
  * An address below the lowest key in a graph has no profile for that graph's
  * component and no exception is set. A property of that component has no value

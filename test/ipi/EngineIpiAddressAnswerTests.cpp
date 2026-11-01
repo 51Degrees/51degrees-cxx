@@ -276,7 +276,17 @@ TEST_F(IpiAddressAnswerTests, MappedEvidenceMatchesIpv4) {
 
 // Other addresses that embed an IPv4 address are not mapped, so stay IPv6.
 TEST_F(IpiAddressAnswerTests, OtherFormsStayIpv6) {
-	expectNoProfile({ "::1.0.0.0", "::ffff:0:1.0.0.0", "1::ffff:1.0.0.0" });
+	expectNoProfile({
+		"::1.0.0.0",
+		"::ffff:0:1.0.0.0",
+		"1::ffff:1.0.0.0",
+		"64:ff9b::808:808",
+		"64:ff9b::8.8.8.8",
+		"0064:ff9b:0000:0000:0000:0000:0808:0808",
+		"64:ff9b::1.0.0.0" });
+	EXPECT_NE(rawOffsets("8.8.8.8"), rawOffsets("64:ff9b::808:808"));
+	EXPECT_NE(answerOf("1.0.0.0"), answerOf("64:ff9b::1.0.0.0"));
+	EXPECT_NE(answerOf("1.0.0.0"), answerOf("64:ff9b::100:0"));
 }
 
 class IpiMappedAddressRangeTests : public Base {};
