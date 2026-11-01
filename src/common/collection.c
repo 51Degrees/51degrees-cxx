@@ -25,6 +25,12 @@
 #include "collectionKeyTypes.h"
 #include "fiftyone.h"
 
+#ifdef _MSC_VER
+#include <io.h>
+#elif !defined(_WIN32)
+#include <unistd.h>
+#endif
+
 MAP_TYPE(Collection)
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 MAP_TYPE(CollectionConfig)
@@ -912,6 +918,56 @@ fiftyoneDegreesFileHandle* fiftyoneDegreesCollectionReadFilePosition(
 	return handle;
 }
 
+/**
+ * Reads the bytes at the position in the file with one call that leaves out
+ * the stream's buffer, rather than a seek and a read that fills the buffer.
+ * Everything else that reads a handle from the pool seeks first, so where the
+ * file is left does not matter. Only Visual Studio builds include the Windows
+ * headers, so other Windows builds use the stream.
+ */
+static StatusCode readFixed(
+	FILE *file,
+	byte *buffer,
+	uint32_t length,
+	uint64_t position) {
+#if defined(_MSC_VER)
+	OVERLAPPED overlapped;
+	DWORD bytesRead = 0;
+	memset(&overlapped, 0, sizeof(overlapped));
+	overlapped.Offset = (DWORD)position;
+	overlapped.OffsetHigh = (DWORD)(position >> 32);
+	return (ReadFile(
+		(HANDLE)_get_osfhandle(_fileno(file)),
+		buffer,
+		length,
+		&bytesRead,
+		&overlapped) && bytesRead == length) ?
+		SUCCESS : COLLECTION_FILE_READ_FAIL;
+#elif defined(_WIN32)
+	if (FileSeek(file, (FileOffset)position, SEEK_SET) != 0) {
+		return COLLECTION_FILE_SEEK_FAIL;
+	}
+	return fread(buffer, length, 1, file) == 1 ?
+		SUCCESS : COLLECTION_FILE_READ_FAIL;
+#else
+	const int descriptor = fileno(file);
+	while (length > 0) {
+		const off_t at = (off_t)position;
+		if (at < 0 || (uint64_t)at != position) {
+			return COLLECTION_FILE_SEEK_FAIL;
+		}
+		const ssize_t bytes = pread(descriptor, buffer, length, at);
+		if (bytes <= 0) {
+			return COLLECTION_FILE_READ_FAIL;
+		}
+		buffer += bytes;
+		length -= (uint32_t)bytes;
+		position += (uint64_t)bytes;
+	}
+	return SUCCESS;
+#endif
+}
+
 void* fiftyoneDegreesCollectionReadFileFixed(
 	const fiftyoneDegreesCollectionFile *file,
 	const CollectionKey *key,
@@ -931,19 +987,26 @@ void* fiftyoneDegreesCollectionReadFileFixed(
 	// If the index is outside the range of the collection then return NULL.
 	if (key->indexOrOffset.index < file->collection->count) {
 
-		// Get the handle positioned at the start of the item to be read.
-		handle = CollectionReadFilePosition(file, offset, exception);
+		// Get a handle to read the item with, checking the offset as
+		// CollectionReadFilePosition does.
+		if (offset < file->collection->size) {
+			handle = FileHandleGet(file->reader, exception);
+		}
+		else {
+			EXCEPTION_SET(COLLECTION_OFFSET_OUT_OF_RANGE);
+		}
 		if (handle != NULL && EXCEPTION_OKAY) {
 
 			// Ensure sufficient memory is allocated for the item being read.
 			if (DataMalloc(data, lengthToRead) != NULL) {
 
 				// Read the record from file to the cache node's data field.
-				if (fread(
+				const StatusCode status = readFixed(
+					handle->file,
 					data->ptr,
 					lengthToRead,
-					1,
-					handle->file) == 1) {
+					(uint64_t)file->offset + offset);
+				if (status == SUCCESS) {
 
 					// Set the data structure to indicate a successful read.
 					data->used = lengthToRead;
@@ -955,7 +1018,7 @@ void* fiftyoneDegreesCollectionReadFileFixed(
 					// status code.
 					Free(data->ptr);
 					DataReset(data);
-					EXCEPTION_SET(COLLECTION_FILE_READ_FAIL);
+					EXCEPTION_SET(status);
 				}
 			}
 			else {
