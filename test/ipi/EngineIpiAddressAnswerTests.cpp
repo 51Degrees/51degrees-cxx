@@ -106,13 +106,13 @@ protected:
 
 	// Every property, as a language reads them.
 	string propertiesOf(Ipi::ResultsIpi* results) {
-		stringstream properties;
+		stringstream reads;
 		for (const string& name : engine->getRequiredProperties()) {
 			Common::Value<string> value = results->getValueAsString(name);
-			properties << name << "=" <<
+			reads << name << "=" <<
 				(value.hasValue() ? value.getValue() : "no value") << " ";
 		}
-		return properties.str();
+		return reads.str();
 	}
 
 	string propertiesOf(const char* ipAddress) {
@@ -130,21 +130,21 @@ protected:
 			ipAddress,
 			strlen(ipAddress),
 			exception);
-		stringstream properties;
+		stringstream reads;
 		const int count = (int)((fiftyoneDegreesDataSetIpi*)results->b.dataSet)
 			->b.b.available->count;
 		for (int i = 0; i < count; i++) {
 			char values[256] = "";
 			fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
 				results, i, values, sizeof(values), "|", exception);
-			properties << i << "=" << values << " has values " <<
+			reads << i << "=" << values << " has values " <<
 				fiftyoneDegreesResultsIpiGetHasValues(results, i, exception) <<
 				" reason " << (int)fiftyoneDegreesResultsIpiGetNoValueReason(
 					results, i, exception) << " ";
 		}
 		fiftyoneDegreesResultsIpiFree(results);
 		EXCEPTION_THROW;
-		return properties.str();
+		return reads.str();
 	}
 
 	// Every property and the target address.
