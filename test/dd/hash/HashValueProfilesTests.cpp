@@ -22,25 +22,28 @@
 
 /**
  * @file HashValueProfilesTests.cpp
- * @brief Tests the index of the profiles holding each value of the required
- * properties, through fiftyoneDegreesHashGetProfileIdsForPropertyAndValue,
- * fiftyoneDegreesHashIterateProfilesForPropertyAndValue and
+ * @brief Tests the index of the profiles holding each value of the properties
+ * a caller names, through the init functions that take the names,
+ * fiftyoneDegreesHashGetProfileIdsForPropertyAndValue,
+ * fiftyoneDegreesHashIterateProfilesForPropertyAndValue,
+ * ConfigHash::setIndexedProperties and
  * EngineHash::getProfileIdsForPropertyValue.
  *
  * Every answer is compared with the profiles each value really has, found by
- * reading the values of every profile, and with a data set that has no index
- * and so reads every profile for each lookup. The tests use the Lite data
- * file, so they run in every build. The Lite file has no NativeModel or TAC,
- * so the properties of the component those belong to are checked instead,
- * and a copy of the file in which one profile holds two values of a property
- * stands in for a list. NativeModel and TAC are checked as well when an
- * Enterprise data file is present.
+ * reading the values of every profile, and with a data set that indexes
+ * nothing and so reads every profile for each lookup. The tests use the Lite
+ * data file, so they run in every build. The Lite file has no NativeModel or
+ * TAC, so other properties are indexed instead, and a copy of the file in
+ * which one profile holds two values of a property stands in for a list.
+ * NativeModel and TAC are checked as well when an Enterprise data file is
+ * present.
  */
 
 #include "../../common/pch.h"
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -59,6 +62,9 @@ typedef std::vector<uint32_t> ProfileIds;
 
 /** The ids of the profiles holding each value, by index of the value. */
 typedef std::map<uint32_t, ProfileIds> ValueProfileIds;
+
+/** Names of the properties to index, as the C functions take them. */
+typedef std::vector<const char*> Names;
 
 /** A property with the names of its values, in the order of their indexes. */
 struct PropertyValues {
@@ -102,39 +108,54 @@ public:
 	fiftyoneDegreesResourceManager* get() { return &manager; }
 };
 
-/** A copy of the configuration without the indexes. */
-fiftyoneDegreesConfigHash withoutIndex(fiftyoneDegreesConfigHash config) {
-	config.b.b.propertyValueIndex = false;
-	return config;
-}
+/** An engine that can say whether its data set has the index. */
+class IndexedEngine : public EngineHash {
+public:
+	using EngineHash::EngineHash;
+	bool hasIndex() const {
+		fiftyoneDegreesDataSetHash *dataSet =
+			fiftyoneDegreesDataSetHashGet(manager.get());
+		const bool has = dataSet->valueProfiles != nullptr;
+		fiftyoneDegreesDataSetHashRelease(dataSet);
+		return has;
+	}
+};
 
+/** Initialises the manager from the file, indexing the properties named. */
 void initFromFile(
 	Manager &manager,
 	fiftyoneDegreesConfigHash config,
 	const char *required,
-	const std::string &path) {
+	const std::string &path,
+	Names indexed = Names()) {
 	fiftyoneDegreesPropertiesRequired properties =
 		fiftyoneDegreesPropertiesDefault;
 	properties.string = required;
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	ASSERT_EQ(
 		FIFTYONE_DEGREES_STATUS_SUCCESS,
-		fiftyoneDegreesHashInitManagerFromFile(
+		fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties(
 			manager.get(),
 			&config,
 			&properties,
 			path.c_str(),
+			indexed.empty() ? nullptr : indexed.data(),
+			(int)indexed.size(),
 			exception));
 	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
 	manager.initialised = true;
 }
 
-/** Initialises the manager from memory that stays with the caller. */
+/**
+ * Initialises the manager from memory that stays with the caller, indexing
+ * the properties named.
+ */
 void initFromMemory(
 	Manager &manager,
 	fiftyoneDegreesConfigHash config,
 	const char *required,
-	std::vector<unsigned char> &data) {
+	std::vector<unsigned char> &data,
+	Names indexed = Names()) {
 	fiftyoneDegreesPropertiesRequired properties =
 		fiftyoneDegreesPropertiesDefault;
 	properties.string = required;
@@ -142,12 +163,14 @@ void initFromMemory(
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	ASSERT_EQ(
 		FIFTYONE_DEGREES_STATUS_SUCCESS,
-		fiftyoneDegreesHashInitManagerFromMemory(
+		fiftyoneDegreesHashInitManagerFromMemoryWithIndexedProperties(
 			manager.get(),
 			&config,
 			&properties,
 			data.data(),
 			(long)data.size(),
+			indexed.empty() ? nullptr : indexed.data(),
+			(int)indexed.size(),
 			exception));
 	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
 	manager.initialised = true;
@@ -250,10 +273,14 @@ PropertyValues getValues(Manager &manager, const std::string &propertyName) {
 	return found;
 }
 
-/** Gets the names of the properties of the component in the data file. */
+/**
+ * Gets the names of the properties in the data file, in the order of the
+ * properties collection, of the component or of every component when it is
+ * negative.
+ */
 std::vector<std::string> getPropertyNames(
 	Manager &manager,
-	uint8_t componentIndex) {
+	int componentIndex) {
 	std::vector<std::string> names;
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	fiftyoneDegreesDataSetHash *dataSet =
@@ -273,7 +300,7 @@ std::vector<std::string> getPropertyNames(
 			ADD_FAILURE() << "Could not read the property at " << i << ".";
 			break;
 		}
-		if (property->componentIndex == componentIndex) {
+		if (componentIndex < 0 || property->componentIndex == componentIndex) {
 			const fiftyoneDegreesString *name = fiftyoneDegreesPropertyGetName(
 				dataSet->strings,
 				property,
@@ -286,6 +313,15 @@ std::vector<std::string> getPropertyNames(
 	}
 	fiftyoneDegreesDataSetHashRelease(dataSet);
 	return names;
+}
+
+/** Points to each of the names, which must outlive the pointers. */
+Names pointTo(const std::vector<std::string> &names) {
+	Names pointers;
+	for (const std::string &name : names) {
+		pointers.push_back(name.c_str());
+	}
+	return pointers;
 }
 
 /** Gets the ids with the function that returns them. */
@@ -538,8 +574,13 @@ TEST_F(HashValueProfilesTests, OneProfile) {
 		manager,
 		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
-		path));
-	ASSERT_NE(nullptr, getIndex(manager));
+		path,
+		{ "BrowserVersion" }));
+	const fiftyoneDegreesHashValueProfiles *index = getIndex(manager);
+	ASSERT_NE(nullptr, index);
+	ASSERT_EQ(1u, index->propertiesCount);
+	EXPECT_STREQ("BrowserVersion", index->names[0]);
+	EXPECT_NE(UINT32_MAX, index->propertyIndexes[0]);
 	const ValueProfileIds found = readValueProfileIds(manager);
 	const PropertyValues values = getValues(manager, "BrowserVersion");
 	const int i = findValue(values, found, 1, false);
@@ -560,7 +601,9 @@ TEST_F(HashValueProfilesTests, SeveralProfilesInOrder) {
 		manager,
 		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
-		path));
+		path,
+		{ "ScreenPixelsWidth" }));
+	ASSERT_NE(nullptr, getIndex(manager));
 	const ValueProfileIds found = readValueProfileIds(manager);
 	const PropertyValues values = getValues(manager, "ScreenPixelsWidth");
 	const int i = findValue(values, found, 2, true);
@@ -590,10 +633,11 @@ TEST_F(HashValueProfilesTests, ValueNotFound) {
 		indexed,
 		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
-		path));
+		path,
+		{ "IsMobile" }));
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
 		scanned,
-		withoutIndex(fiftyoneDegreesHashInMemoryConfig),
+		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
 		path));
 	ASSERT_NE(nullptr, getIndex(indexed));
@@ -610,7 +654,8 @@ TEST_F(HashValueProfilesTests, ValueNotFound) {
 
 /**
  * A property that is not in the data file, or is in a different case, gives
- * no profiles, as names are matched exactly.
+ * no profiles, whether or not it was named to index, as names are matched
+ * exactly. A name the data file has no property of is kept with no property.
  */
 TEST_F(HashValueProfilesTests, PropertyNotFound) {
 	Manager indexed, scanned;
@@ -618,12 +663,21 @@ TEST_F(HashValueProfilesTests, PropertyNotFound) {
 		indexed,
 		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
-		path));
+		path,
+		{ "IsMobile", "NoSuchProperty", "ismobile" }));
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
 		scanned,
-		withoutIndex(fiftyoneDegreesHashInMemoryConfig),
+		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
 		path));
+	const fiftyoneDegreesHashValueProfiles *index = getIndex(indexed);
+	ASSERT_NE(nullptr, index);
+	ASSERT_EQ(3u, index->propertiesCount);
+	EXPECT_NE(UINT32_MAX, index->propertyIndexes[0]);
+	EXPECT_EQ(UINT32_MAX, index->propertyIndexes[1]);
+	EXPECT_EQ(UINT32_MAX, index->propertyIndexes[2]);
+	EXPECT_EQ(index->firstKeys[1], index->firstKeys[2]);
+	EXPECT_EQ(index->firstKeys[2], index->firstKeys[3]);
 	const PropertyValues values = getValues(indexed, "IsMobile");
 	ASSERT_FALSE(values.names.empty());
 	for (Manager *manager : { &indexed, &scanned }) {
@@ -634,26 +688,36 @@ TEST_F(HashValueProfilesTests, PropertyNotFound) {
 }
 
 /**
- * The index covers the required properties only. A property that is not
- * required is answered by reading every profile, with the same profiles.
+ * A property is indexed whether or not it is required. A required property
+ * that is not named is answered by reading every profile, with the same
+ * profiles.
  */
-TEST_F(HashValueProfilesTests, PropertyNotRequired) {
+TEST_F(HashValueProfilesTests, PropertiesNotRequired) {
 	Manager manager, all;
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
 		manager,
 		fiftyoneDegreesHashInMemoryConfig,
 		"IsMobile",
-		path));
+		path,
+		{ "BrowserName" }));
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
 		all,
-		withoutIndex(fiftyoneDegreesHashInMemoryConfig),
+		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
 		path));
+	{
+		fiftyoneDegreesDataSetHash *dataSet =
+			fiftyoneDegreesDataSetHashGet(manager.get());
+		EXPECT_EQ(1u, dataSet->b.b.available->count);
+		fiftyoneDegreesDataSetHashRelease(dataSet);
+	}
 	const fiftyoneDegreesHashValueProfiles *index = getIndex(manager);
 	ASSERT_NE(nullptr, index);
-	EXPECT_EQ(1u, index->propertiesCount);
+	ASSERT_EQ(1u, index->propertiesCount);
+	EXPECT_STREQ("BrowserName", index->names[0]);
+	EXPECT_NE(UINT32_MAX, index->propertyIndexes[0]);
 	const ValueProfileIds found = readValueProfileIds(all);
-	for (const char *property : { "IsMobile", "BrowserName" }) {
+	for (const char *property : { "BrowserName", "IsMobile" }) {
 		const PropertyValues values = getValues(all, property);
 		const int i = findValue(values, found, 1, true);
 		ASSERT_GE(i, 0) << "No " << property <<
@@ -662,6 +726,92 @@ TEST_F(HashValueProfilesTests, PropertyNotRequired) {
 			expectedFor(found, values.firstValueIndex + (uint32_t)i);
 		expectLookups(manager, property, values.names[i], expected);
 		expectLookups(all, property, values.names[i], expected);
+	}
+}
+
+/**
+ * The names are copied, in the order given without nulls or repeats, so the
+ * caller's strings can change once the data set is initialised.
+ */
+TEST_F(HashValueProfilesTests, NamesCopied) {
+	char width[] = "ScreenPixelsWidth";
+	char mobile[] = "IsMobile";
+	Manager manager;
+	ASSERT_NO_FATAL_FAILURE(initFromFile(
+		manager,
+		fiftyoneDegreesHashInMemoryConfig,
+		nullptr,
+		path,
+		{ width, nullptr, mobile, width, "IsMobile" }));
+	const fiftyoneDegreesHashValueProfiles *index = getIndex(manager);
+	ASSERT_NE(nullptr, index);
+	ASSERT_EQ(2u, index->propertiesCount);
+	EXPECT_NE((const char*)width, index->names[0]);
+	EXPECT_NE((const char*)mobile, index->names[1]);
+	width[0] = 'X';
+	mobile[0] = 'X';
+	EXPECT_STREQ("ScreenPixelsWidth", index->names[0]);
+	EXPECT_STREQ("IsMobile", index->names[1]);
+	const ValueProfileIds found = readValueProfileIds(manager);
+	const PropertyValues values = getValues(manager, "ScreenPixelsWidth");
+	const int i = findValue(values, found, 2, true);
+	ASSERT_GE(i, 0);
+	expectLookups(
+		manager,
+		"ScreenPixelsWidth",
+		values.names[i],
+		expectedFor(found, values.firstValueIndex + (uint32_t)i));
+}
+
+/**
+ * Nothing is indexed when no property is named, being no names, a count of
+ * none, or only nulls, from a file or from memory.
+ */
+TEST_F(HashValueProfilesTests, NothingIndexedWithoutNames) {
+	std::vector<unsigned char> data;
+	ASSERT_NO_FATAL_FAILURE(readFile(path, data));
+	const char *nulls[] = { nullptr, nullptr };
+	const char *isMobile[] = { "IsMobile" };
+	const struct {
+		const char *description;
+		const char **names;
+		int count;
+	} cases[] = {
+		{ "No names", nullptr, 0 },
+		{ "A count of none", isMobile, 0 },
+		{ "A count below none", isMobile, -1 },
+		{ "Only nulls", nulls, 2 },
+	};
+	fiftyoneDegreesConfigHash config = fiftyoneDegreesHashInMemoryConfig;
+	config.b.b.freeData = false;
+	for (const auto &c : cases) {
+		for (bool fromMemory : { false, true }) {
+			Manager manager;
+			FIFTYONE_DEGREES_EXCEPTION_CREATE;
+			const fiftyoneDegreesStatusCode status = fromMemory ?
+				fiftyoneDegreesHashInitManagerFromMemoryWithIndexedProperties(
+					manager.get(),
+					&config,
+					nullptr,
+					data.data(),
+					(long)data.size(),
+					c.names,
+					c.count,
+					exception) :
+				fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties(
+					manager.get(),
+					&config,
+					nullptr,
+					path.c_str(),
+					c.names,
+					c.count,
+					exception);
+			ASSERT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, status) <<
+				c.description;
+			manager.initialised = true;
+			EXPECT_EQ(nullptr, getIndex(manager)) << c.description <<
+				(fromMemory ? " from memory" : " from a file");
+		}
 	}
 }
 
@@ -687,10 +837,11 @@ TEST_F(HashValueProfilesTests, ListOfValues) {
 			indexed,
 			fiftyoneDegreesHashInMemoryConfig,
 			nullptr,
-			list.data));
+			list.data,
+			{ "ScreenPixelsWidth", "ScreenPixelsHeight" }));
 		ASSERT_NO_FATAL_FAILURE(initFromMemory(
 			scanned,
-			withoutIndex(fiftyoneDegreesHashInMemoryConfig),
+			fiftyoneDegreesHashInMemoryConfig,
 			nullptr,
 			list.data));
 		ASSERT_NE(nullptr, getIndex(indexed));
@@ -724,10 +875,11 @@ TEST_F(HashValueProfilesTests, ListOfValues) {
 }
 
 /**
- * A reload from memory builds the index again from the new data, rather than
- * keeping the index of the data set it replaces.
+ * A reload from memory indexes the same names again, from the new data,
+ * rather than keeping the index of the data set it replaces. A data set that
+ * indexes nothing still indexes nothing after a reload.
  */
-TEST_F(HashValueProfilesTests, ReloadFromMemoryRebuildsIndex) {
+TEST_F(HashValueProfilesTests, ReloadFromMemoryKeepsNames) {
 	std::vector<unsigned char> original;
 	ListData list;
 	ASSERT_NO_FATAL_FAILURE(readFile(path, original));
@@ -742,7 +894,8 @@ TEST_F(HashValueProfilesTests, ReloadFromMemoryRebuildsIndex) {
 			manager,
 			fiftyoneDegreesHashInMemoryConfig,
 			nullptr,
-			original));
+			original,
+			{ "ScreenPixelsWidth", "NoSuchProperty" }));
 		const PropertyValues width = getValues(manager, "ScreenPixelsWidth");
 		const std::string added =
 			width.names[list.added - width.firstValueIndex];
@@ -750,8 +903,8 @@ TEST_F(HashValueProfilesTests, ReloadFromMemoryRebuildsIndex) {
 			getIds(manager, "ScreenPixelsWidth", added),
 			list.profileId));
 
-		// Each reload replaces the data set and builds a new index, whilst
-		// the data set held here keeps its own.
+		// Each reload replaces the data set and builds a new index for the
+		// same names, whilst the data set held here keeps its own.
 		for (std::vector<unsigned char> *data : { &list.data, &original }) {
 			fiftyoneDegreesDataSetHash *before =
 				fiftyoneDegreesDataSetHashGet(manager.get());
@@ -768,8 +921,19 @@ TEST_F(HashValueProfilesTests, ReloadFromMemoryRebuildsIndex) {
 				fiftyoneDegreesDataSetHashGet(manager.get());
 			EXPECT_NE(before, after);
 			EXPECT_NE(nullptr, before->valueProfiles);
-			EXPECT_NE(nullptr, after->valueProfiles);
-			EXPECT_NE(before->valueProfiles, after->valueProfiles);
+			const fiftyoneDegreesHashValueProfiles *index =
+				after->valueProfiles;
+			EXPECT_NE(before->valueProfiles, index);
+			if (index != nullptr) {
+				EXPECT_EQ(2u, index->propertiesCount);
+				EXPECT_STREQ("ScreenPixelsWidth", index->names[0]);
+				EXPECT_STREQ("NoSuchProperty", index->names[1]);
+				EXPECT_NE(UINT32_MAX, index->propertyIndexes[0]);
+				EXPECT_EQ(UINT32_MAX, index->propertyIndexes[1]);
+			}
+			else {
+				ADD_FAILURE() << "The reload indexed nothing.";
+			}
 			fiftyoneDegreesDataSetHashRelease(after);
 			fiftyoneDegreesDataSetHashRelease(before);
 			const ValueProfileIds found = readValueProfileIds(
@@ -781,13 +945,40 @@ TEST_F(HashValueProfilesTests, ReloadFromMemoryRebuildsIndex) {
 			EXPECT_EQ(data == &list.data, contains(ids, list.profileId));
 		}
 	}
+	{
+		Manager manager;
+		ASSERT_NO_FATAL_FAILURE(initFromMemory(
+			manager,
+			fiftyoneDegreesHashInMemoryConfig,
+			nullptr,
+			original));
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		EXPECT_EQ(
+			FIFTYONE_DEGREES_STATUS_SUCCESS,
+			fiftyoneDegreesHashReloadManagerFromMemory(
+				manager.get(),
+				list.data.data(),
+				(long)list.data.size(),
+				exception));
+		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+		EXPECT_EQ(nullptr, getIndex(manager));
+	}
 }
 
-/** A reload from the data file builds the index again. */
-TEST_F(HashValueProfilesTests, ReloadFromFileRebuildsIndex) {
-	Manager manager;
+/**
+ * A reload from the original file, or from a file, indexes the same names
+ * again. A data set that indexes nothing still indexes nothing after one.
+ */
+TEST_F(HashValueProfilesTests, ReloadFromFileKeepsNames) {
+	Manager manager, none;
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
 		manager,
+		fiftyoneDegreesHashInMemoryConfig,
+		nullptr,
+		path,
+		{ "ScreenPixelsWidth" }));
+	ASSERT_NO_FATAL_FAILURE(initFromFile(
+		none,
 		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
 		path));
@@ -796,39 +987,58 @@ TEST_F(HashValueProfilesTests, ReloadFromFileRebuildsIndex) {
 	const int i = findValue(values, found, 2, true);
 	ASSERT_GE(i, 0);
 	for (int reload = 0; reload < 2; reload++) {
-		fiftyoneDegreesDataSetHash *before =
-			fiftyoneDegreesDataSetHashGet(manager.get());
-		FIFTYONE_DEGREES_EXCEPTION_CREATE;
-		EXPECT_EQ(
-			FIFTYONE_DEGREES_STATUS_SUCCESS,
-			reload == 0 ?
-			fiftyoneDegreesHashReloadManagerFromOriginalFile(
-				manager.get(),
-				exception) :
-			fiftyoneDegreesHashReloadManagerFromFile(
-				manager.get(),
-				path.c_str(),
-				exception));
-		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
-		fiftyoneDegreesDataSetHash *after =
-			fiftyoneDegreesDataSetHashGet(manager.get());
-		EXPECT_NE(before, after);
-		EXPECT_NE(nullptr, after->valueProfiles);
-		EXPECT_NE(before->valueProfiles, after->valueProfiles);
-		fiftyoneDegreesDataSetHashRelease(after);
-		fiftyoneDegreesDataSetHashRelease(before);
-		expectLookups(
-			manager,
-			"ScreenPixelsWidth",
-			values.names[i],
-			expectedFor(found, values.firstValueIndex + (uint32_t)i));
+		const char *context = reload == 0 ?
+			"From the original file" : "From a file";
+		for (Manager *m : { &manager, &none }) {
+			fiftyoneDegreesDataSetHash *before =
+				fiftyoneDegreesDataSetHashGet(m->get());
+			FIFTYONE_DEGREES_EXCEPTION_CREATE;
+			EXPECT_EQ(
+				FIFTYONE_DEGREES_STATUS_SUCCESS,
+				reload == 0 ?
+				fiftyoneDegreesHashReloadManagerFromOriginalFile(
+					m->get(),
+					exception) :
+				fiftyoneDegreesHashReloadManagerFromFile(
+					m->get(),
+					path.c_str(),
+					exception)) << context;
+			EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY) << context;
+			fiftyoneDegreesDataSetHash *after =
+				fiftyoneDegreesDataSetHashGet(m->get());
+			EXPECT_NE(before, after) << context;
+			if (m == &none) {
+				EXPECT_EQ(nullptr, after->valueProfiles) << context;
+			}
+			else if (after->valueProfiles == nullptr) {
+				ADD_FAILURE() << context << ", the reload indexed nothing.";
+			}
+			else {
+				EXPECT_NE(before->valueProfiles, after->valueProfiles) <<
+					context;
+				EXPECT_EQ(1u, after->valueProfiles->propertiesCount) <<
+					context;
+				EXPECT_STREQ(
+					"ScreenPixelsWidth",
+					after->valueProfiles->names[0]) << context;
+			}
+			fiftyoneDegreesDataSetHashRelease(after);
+			fiftyoneDegreesDataSetHashRelease(before);
+			expectLookups(
+				*m,
+				"ScreenPixelsWidth",
+				values.names[i],
+				expectedFor(found, values.firstValueIndex + (uint32_t)i),
+				context);
+		}
 	}
 }
 
 /**
  * Every performance profile gives the same profiles. The index is built when
- * propertyValueIndex is true, as the index of first values for profiles and
- * properties is, which the InMemory and HighPerformance profiles set.
+ * properties are named, whatever the performance profile and whatever
+ * propertyValueIndex, which decides only the index of first values for
+ * profiles and properties.
  */
 TEST_F(HashValueProfilesTests, EveryPerformanceProfile) {
 	ValueProfileIds found;
@@ -837,7 +1047,7 @@ TEST_F(HashValueProfilesTests, EveryPerformanceProfile) {
 		Manager reader;
 		ASSERT_NO_FATAL_FAILURE(initFromFile(
 			reader,
-			withoutIndex(fiftyoneDegreesHashInMemoryConfig),
+			fiftyoneDegreesHashInMemoryConfig,
 			nullptr,
 			path));
 		found = readValueProfileIds(reader);
@@ -849,63 +1059,77 @@ TEST_F(HashValueProfilesTests, EveryPerformanceProfile) {
 	ASSERT_GE(one, 0);
 	ASSERT_GE(several, 0);
 	for (const auto &profile : performanceProfiles) {
-		const bool presets[] = {
-			profile.config->b.b.propertyValueIndex,
-			!profile.config->b.b.propertyValueIndex };
-		for (bool index : presets) {
-			const std::string context = std::string(profile.name) +
-				(index ? " with" : " without") + " the indexes, ";
-			fiftyoneDegreesConfigHash config = *profile.config;
-			config.b.b.propertyValueIndex = index;
-			Manager manager;
-			ASSERT_NO_FATAL_FAILURE(
-				initFromFile(manager, config, nullptr, path));
-			fiftyoneDegreesDataSetHash *dataSet =
-				fiftyoneDegreesDataSetHashGet(manager.get());
-			EXPECT_EQ(index, dataSet->valueProfiles != nullptr) << context;
-			EXPECT_EQ(index, dataSet->b.b.indexPropertyProfile != nullptr) <<
-				context;
-			fiftyoneDegreesDataSetHashRelease(dataSet);
-			expectLookups(
-				manager,
-				"ScreenPixelsWidth",
-				width.names[one],
-				expectedFor(found, width.firstValueIndex + (uint32_t)one),
-				context);
-			expectLookups(
-				manager,
-				"ScreenPixelsWidth",
-				width.names[several],
-				expectedFor(
-					found,
-					width.firstValueIndex + (uint32_t)several),
-				context);
-			for (size_t i = 0; i < isMobile.names.size(); i++) {
+		for (bool valueIndex : { false, true }) {
+			for (bool named : { false, true }) {
+				const std::string context = std::string(profile.name) +
+					(valueIndex ? ", propertyValueIndex on" :
+						", propertyValueIndex off") +
+					(named ? ", properties named, " : ", none named, ");
+				fiftyoneDegreesConfigHash config = *profile.config;
+				config.b.b.propertyValueIndex = valueIndex;
+				Manager manager;
+				if (named) {
+					ASSERT_NO_FATAL_FAILURE(initFromFile(
+						manager,
+						config,
+						nullptr,
+						path,
+						{ "ScreenPixelsWidth", "IsMobile" }));
+				}
+				else {
+					// The init function that takes no names indexes nothing.
+					FIFTYONE_DEGREES_EXCEPTION_CREATE;
+					ASSERT_EQ(
+						FIFTYONE_DEGREES_STATUS_SUCCESS,
+						fiftyoneDegreesHashInitManagerFromFile(
+							manager.get(),
+							&config,
+							nullptr,
+							path.c_str(),
+							exception)) << context;
+					manager.initialised = true;
+				}
+				fiftyoneDegreesDataSetHash *dataSet =
+					fiftyoneDegreesDataSetHashGet(manager.get());
+				EXPECT_EQ(named, dataSet->valueProfiles != nullptr) <<
+					context;
+				EXPECT_EQ(
+					valueIndex,
+					dataSet->b.b.indexPropertyProfile != nullptr) << context;
+				fiftyoneDegreesDataSetHashRelease(dataSet);
+				expectLookups(
+					manager,
+					"ScreenPixelsWidth",
+					width.names[one],
+					expectedFor(found, width.firstValueIndex + (uint32_t)one),
+					context);
+				expectLookups(
+					manager,
+					"ScreenPixelsWidth",
+					width.names[several],
+					expectedFor(
+						found,
+						width.firstValueIndex + (uint32_t)several),
+					context);
+				for (size_t i = 0; i < isMobile.names.size(); i++) {
+					expectLookups(
+						manager,
+						"IsMobile",
+						isMobile.names[i],
+						expectedFor(
+							found,
+							isMobile.firstValueIndex + (uint32_t)i),
+						context);
+				}
 				expectLookups(
 					manager,
 					"IsMobile",
-					isMobile.names[i],
-					expectedFor(
-						found,
-						isMobile.firstValueIndex + (uint32_t)i),
+					"NoSuchValue",
+					ProfileIds(),
 					context);
 			}
-			expectLookups(
-				manager,
-				"IsMobile",
-				"NoSuchValue",
-				ProfileIds(),
-				context);
 		}
 	}
-	EXPECT_TRUE(fiftyoneDegreesHashInMemoryConfig.b.b.propertyValueIndex);
-	EXPECT_TRUE(
-		fiftyoneDegreesHashHighPerformanceConfig.b.b.propertyValueIndex);
-	EXPECT_FALSE(fiftyoneDegreesHashLowMemoryConfig.b.b.propertyValueIndex);
-	EXPECT_FALSE(fiftyoneDegreesHashBalancedConfig.b.b.propertyValueIndex);
-	EXPECT_FALSE(
-		fiftyoneDegreesHashBalancedTempConfig.b.b.propertyValueIndex);
-	EXPECT_FALSE(fiftyoneDegreesHashDefaultConfig.b.b.propertyValueIndex);
 }
 
 /**
@@ -914,23 +1138,36 @@ TEST_F(HashValueProfilesTests, EveryPerformanceProfile) {
  * every profile gives, and those are the profiles the value really has.
  */
 TEST_F(HashValueProfilesTests, AgreesWithReadingEveryProfile) {
+	std::vector<std::string> properties;
+	{
+		Manager reader;
+		ASSERT_NO_FATAL_FAILURE(initFromFile(
+			reader,
+			fiftyoneDegreesHashInMemoryConfig,
+			nullptr,
+			path));
+		properties = getPropertyNames(
+			reader,
+			getValues(reader, "IsMobile").componentIndex);
+	}
+	ASSERT_FALSE(properties.empty());
 	Manager indexed, scanned;
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
 		indexed,
 		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
-		path));
+		path,
+		pointTo(properties)));
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
 		scanned,
-		withoutIndex(fiftyoneDegreesHashInMemoryConfig),
+		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
 		path));
-	ASSERT_NE(nullptr, getIndex(indexed));
+	const fiftyoneDegreesHashValueProfiles *index = getIndex(indexed);
+	ASSERT_NE(nullptr, index);
+	EXPECT_EQ(properties.size(), (size_t)index->propertiesCount);
 	ASSERT_EQ(nullptr, getIndex(scanned));
 	const ValueProfileIds found = readValueProfileIds(indexed);
-	const std::vector<std::string> properties = getPropertyNames(
-		indexed,
-		getValues(indexed, "IsMobile").componentIndex);
 	size_t checked = 0, failed = 0;
 	std::string difference;
 	for (const std::string &property : properties) {
@@ -961,33 +1198,33 @@ TEST_F(HashValueProfilesTests, AgreesWithReadingEveryProfile) {
 }
 
 /**
- * For every value of every property the index gives the profiles the value
- * really has, and its arrays are as hash.h describes them.
+ * With every property in the data file named, every value gives the profiles
+ * it really has, and the arrays of the index are as hash.h describes them.
  */
 TEST_F(HashValueProfilesTests, EveryValueOfEveryProperty) {
+	std::vector<std::string> properties;
+	{
+		Manager reader;
+		ASSERT_NO_FATAL_FAILURE(initFromFile(
+			reader,
+			fiftyoneDegreesHashInMemoryConfig,
+			nullptr,
+			path));
+		properties = getPropertyNames(reader, -1);
+	}
 	Manager manager;
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
 		manager,
 		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
-		path));
+		path,
+		pointTo(properties)));
 	const fiftyoneDegreesHashValueProfiles *index = getIndex(manager);
 	ASSERT_NE(nullptr, index);
-	std::vector<std::string> required;
-	{
-		fiftyoneDegreesDataSetHash *dataSet =
-			fiftyoneDegreesDataSetHashGet(manager.get());
-		for (uint32_t i = 0; i < dataSet->b.b.available->count; i++) {
-			required.push_back(
-				&fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
-					dataSet->b.b.available,
-					(int)i)->value);
-		}
-		fiftyoneDegreesDataSetHashRelease(dataSet);
-	}
-	ASSERT_EQ(required.size(), (size_t)index->propertiesCount);
+	ASSERT_EQ(properties.size(), (size_t)index->propertiesCount);
 	EXPECT_EQ(index->keysCount, index->firstKeys[index->propertiesCount]);
 	EXPECT_EQ(index->profilesCount, index->starts[index->keysCount]);
+	EXPECT_EQ(0u, index->firstKeys[0]);
 	EXPECT_EQ(0u, index->starts[0]);
 	for (uint32_t k = 0; k < index->keysCount; k++) {
 		ASSERT_LE(index->starts[k], index->starts[k + 1]);
@@ -1002,7 +1239,10 @@ TEST_F(HashValueProfilesTests, EveryValueOfEveryProperty) {
 	size_t checked = 0, failed = 0, pairs = 0;
 	std::string difference;
 	for (uint32_t i = 0; i < index->propertiesCount; i++) {
-		const std::string &property = required[i];
+		const std::string &property = properties[i];
+		EXPECT_EQ(property, std::string(index->names[i]));
+		EXPECT_EQ(i, index->propertyIndexes[i]) <<
+			"Each property is the one at its place in the data file.";
 		const PropertyValues values = getValues(manager, property);
 		EXPECT_EQ(values.firstValueIndex, index->firstValueIndexes[i]);
 		EXPECT_EQ(
@@ -1036,12 +1276,14 @@ TEST_F(HashValueProfilesTests, ArrayTooShort) {
 		indexed,
 		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
-		path));
+		path,
+		{ "ScreenPixelsWidth" }));
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
 		scanned,
-		withoutIndex(fiftyoneDegreesHashInMemoryConfig),
+		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
 		path));
+	ASSERT_NE(nullptr, getIndex(indexed));
 	const ValueProfileIds found = readValueProfileIds(indexed);
 	const PropertyValues values = getValues(indexed, "ScreenPixelsWidth");
 	const int i = findValue(values, found, 2, true);
@@ -1068,17 +1310,21 @@ TEST_F(HashValueProfilesTests, ArrayTooShort) {
 }
 
 /**
- * The C++ engine gives the ids without the indexes, its default, and with
- * them, including after a refresh builds them again.
+ * The C++ engine indexes the properties its configuration names, from a file
+ * and from memory, and indexes them again on a refresh. It indexes none by
+ * default, even with the property value index on, and gives the same ids
+ * either way.
  */
 TEST_F(HashValueProfilesTests, EngineHashGetsProfileIds) {
 	ValueProfileIds found;
 	PropertyValues values;
+	std::vector<unsigned char> data;
+	ASSERT_NO_FATAL_FAILURE(readFile(path, data));
 	{
 		Manager reader;
 		ASSERT_NO_FATAL_FAILURE(initFromFile(
 			reader,
-			withoutIndex(fiftyoneDegreesHashInMemoryConfig),
+			fiftyoneDegreesHashInMemoryConfig,
 			nullptr,
 			path));
 		found = readValueProfileIds(reader);
@@ -1089,33 +1335,54 @@ TEST_F(HashValueProfilesTests, EngineHashGetsProfileIds) {
 	const ProfileIds expected =
 		expectedFor(found, values.firstValueIndex + (uint32_t)i);
 	RequiredPropertiesConfig properties;
-	for (bool index : { false, true }) {
-		const char *context = index ?
-			"With the indexes" : "Without the indexes";
-		ConfigHash config;
-		if (index) {
+	for (bool named : { false, true }) {
+		for (bool fromMemory : { false, true }) {
+			const std::string context = std::string(
+				named ? "ScreenPixelsWidth named" : "None named") +
+				(fromMemory ? ", from memory" : ", from a file");
+			ConfigHash config;
+			EXPECT_TRUE(config.getIndexedProperties().empty()) << context;
 			config.setMaxPerformance();
 			config.setPropertyValueIndex(true);
+			if (named) {
+				config.setIndexedProperties({ "ScreenPixelsWidth" });
+				EXPECT_EQ(
+					std::vector<std::string>({ "ScreenPixelsWidth" }),
+					config.getIndexedProperties()) << context;
+			}
+			std::unique_ptr<IndexedEngine> engine(fromMemory ?
+				new IndexedEngine(
+					data.data(),
+					(long)data.size(),
+					&config,
+					&properties) :
+				new IndexedEngine(path, &config, &properties));
+			EXPECT_EQ(named, engine->hasIndex()) << context;
+			EXPECT_EQ(
+				expected,
+				engine->getProfileIdsForPropertyValue(
+					"ScreenPixelsWidth",
+					values.names[i])) << context;
+			EXPECT_TRUE(engine->getProfileIdsForPropertyValue(
+				"ScreenPixelsWidth",
+				"NoSuchValue").empty()) << context;
+			EXPECT_TRUE(engine->getProfileIdsForPropertyValue(
+				"NoSuchProperty",
+				values.names[i]).empty()) << context;
+			if (fromMemory) {
+				engine->refreshData(data.data(), (long)data.size());
+			}
+			else {
+				engine->refreshData();
+			}
+			EXPECT_EQ(named, engine->hasIndex()) << context <<
+				", after a refresh";
+			EXPECT_EQ(
+				expected,
+				engine->getProfileIdsForPropertyValue(
+					"ScreenPixelsWidth",
+					values.names[i])) << context << ", after a refresh";
 		}
-		EXPECT_EQ(index, config.getPropertyValueIndex()) << context;
-		EngineHash engine(path, &config, &properties);
-		EXPECT_EQ(
-			expected,
-			engine.getProfileIdsForPropertyValue(
-				"ScreenPixelsWidth",
-				values.names[i])) << context;
-		EXPECT_TRUE(engine.getProfileIdsForPropertyValue(
-			"ScreenPixelsWidth",
-			"NoSuchValue").empty()) << context;
-		EXPECT_TRUE(engine.getProfileIdsForPropertyValue(
-			"NoSuchProperty",
-			values.names[i]).empty()) << context;
-		engine.refreshData();
-		EXPECT_EQ(
-			expected,
-			engine.getProfileIdsForPropertyValue(
-				"ScreenPixelsWidth",
-				values.names[i])) << context << ", after a refresh";
 	}
 }
 
@@ -1144,7 +1411,8 @@ TEST_F(HashValueProfilesTests, EnterpriseNativeModelAndTac) {
 		indexed,
 		fiftyoneDegreesHashInMemoryConfig,
 		nullptr,
-		enterprise));
+		enterprise,
+		{ "NativeModel", "TAC" }));
 	ASSERT_NO_FATAL_FAILURE(initFromFile(
 		scanned,
 		fiftyoneDegreesHashLowMemoryConfig,
