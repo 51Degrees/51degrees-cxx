@@ -74,8 +74,10 @@ function Get-Symbols([string[]] $Libraries) {
             foreach ($line in & nm -g $library 2>$null) {
                 $fields = -split $line
                 if ($fields.Count -lt 2) { continue }
-                # macOS prefixes C names with an underscore.
+                # macOS prefixes C names with an underscore. The address
+                # sanitizer adds an __odr_asan. copy of each global's name.
                 $name = $IsMacOS ? ($fields[-1] -replace '^_', '') : $fields[-1]
+                $name = $name -replace '^__odr_asan\.', ''
                 if ($fields[-2] -eq 'U') { [void]$undefined.Add($name) }
                 else { [void]$defined.Add($name) }
             }
