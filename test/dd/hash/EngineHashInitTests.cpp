@@ -404,8 +404,8 @@ TEST_F(EngineHashInitTests, Garbage_Memory_FreesCopy) {
 }
 
 /**
- * Check the copy is freed when only the exception shows the failure, as the
- * init method returns success with no data set.
+ * Check the copy is freed when the failure is one the init method finds in
+ * the exception, and so reports as the status.
  */
 TEST_F(EngineHashInitTests, ComponentMissing_Memory_FreesCopy) {
     TestMemory memory = emptyDataSet();

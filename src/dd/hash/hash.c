@@ -1401,15 +1401,15 @@ static const String* initGetPropertyString(
 			&propertyKey,
 			&propertyItem,
 			exception);
-		if (property != NULL && EXCEPTION_OKAY) {
-			name = PropertyGetName(
-				dataSet->strings,
-				property,
-				item,
-				exception);
+		if (property != NULL) {
 			if (EXCEPTION_OKAY) {
-				COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+				name = PropertyGetName(
+					dataSet->strings,
+					property,
+					item,
+					exception);
 			}
+			COLLECTION_RELEASE(dataSet->properties, &propertyItem);
 		}
 	}
 	return name;
@@ -1720,7 +1720,7 @@ static StatusCode initIndicesPropertyProfile(
 		}
 #ifndef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
 		// The exception will only be available if not disabled.
-		else {
+		else if (exception != NULL) {
 			status = exception->status;
 		}
 #endif
@@ -1776,9 +1776,7 @@ static void initGetHighEntropyValues(
 		dataSet->strings, 
 		exception);
 
-	// Clean up if an exception occurred after checking in debug mode if there
-	// was an exception.
-	assert(EXCEPTION_OKAY);
+	// Clean up if an exception occurred, such as a failed allocation.
 	if (!EXCEPTION_OKAY) {
 		if (dataSet->b.ghevHeaders != NULL) {
 			Free(dataSet->b.ghevHeaders);
@@ -1824,19 +1822,42 @@ static StatusCode checkVersion(DataSetHash *dataSet) {
 	return SUCCESS;
 }
 
-static void initDataSetPost(
+/**
+ * Gets the status for a failure, which is the exception's if it holds one. An
+ * exception holding success was not cleared before the call, which stops the
+ * init methods in the same way.
+ */
+static StatusCode getFailureStatus(
+	StatusCode status,
+	Exception *exception) {
+#ifdef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
+	(void)exception;
+#else
+	if (EXCEPTION_FAILED) {
+		return exception->status == SUCCESS ? INVALID_INPUT : exception->status;
+	}
+#endif
+	return status;
+}
+
+static StatusCode initDataSetPost(
 	DataSetHash *dataSet, 
 	Exception *exception) {
 	uint32_t i;
 
-	// Initialise the components lists
+	// Initialise the components lists. A list short of the count fails, which
+	// the status shows whether or not there is an exception to show it.
 	ComponentInitList(
 		dataSet->components,
 		&dataSet->componentsList,
 		dataSet->header.components.count,
 		exception);
-	if (EXCEPTION_FAILED) {
-		return;
+	if (EXCEPTION_FAILED ||
+		dataSet->componentsList.count < dataSet->header.components.count) {
+		return getFailureStatus(
+			dataSet->componentsList.items == NULL ?
+				INSUFFICIENT_MEMORY : CORRUPT_DATA,
+			exception);
 	}
 
 	// Initialise the components which have required properties.
@@ -1844,12 +1865,13 @@ static void initDataSetPost(
 		sizeof(bool) * dataSet->componentsList.count);
 	if (dataSet->componentsAvailable == NULL) {
 		EXCEPTION_SET(INSUFFICIENT_MEMORY);
-		return;
+		return INSUFFICIENT_MEMORY;
 	}
 
 	for (i = 0; i < dataSet->componentsList.count; i++) {
 		dataSet->componentsAvailable[i] = false;
 	}
+	return SUCCESS;
 }
 
 static StatusCode initWithMemory(
@@ -1915,9 +1937,7 @@ static StatusCode initWithMemory(
 		return POINTER_OUT_OF_BOUNDS;
 	}
 
-	initDataSetPost(dataSet, exception);
-
-	return status;
+	return initDataSetPost(dataSet, exception);
 }
 
 static StatusCode initInMemory(
@@ -2028,9 +2048,7 @@ static StatusCode readDataSetFromFile(
 
 	COLLECTION_CREATE_FILE(profileOffsets, CollectionReadFileFixed);
 
-	initDataSetPost(dataSet, exception);
-
-	return status;
+	return initDataSetPost(dataSet, exception);
 }
 
 #endif
@@ -2175,7 +2193,7 @@ static StatusCode initDataSetFromFile(
 	}
 
 	// Initialise the index for properties and profiles to values.
-	initIndicesPropertyProfile(dataSet, exception);
+	status = initIndicesPropertyProfile(dataSet, exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		if (config->b.b.useTempFile == true) {
 			FileDelete(dataSet->b.b.fileName);
@@ -2211,8 +2229,17 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromFile(
 		return INVALID_CONFIG;
 	}
 
+	// The init methods show some failures only in the exception, so they are
+	// always given one, and the status returned carries those failures.
+	Exception ownException;
+	if (exception == NULL) {
+		exception = &ownException;
+		EXCEPTION_CLEAR;
+	}
+
 	DataSetHash *dataSet = (DataSetHash*)Malloc(sizeof(DataSetHash));
 	if (dataSet == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return INSUFFICIENT_MEMORY;
 	}
 
@@ -2222,7 +2249,10 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromFile(
 		properties,
 		fileName,
 		exception);
-	if (status != SUCCESS || EXCEPTION_FAILED) {
+	if (status == SUCCESS) {
+		status = getFailureStatus(status, exception);
+	}
+	if (status != SUCCESS) {
 		// Nothing below has taken ownership of the data set, so it is freed
 		// here on every failure. Without this a failed initialisation leaks
 		// it along with the file pool's open handles.
@@ -2330,9 +2360,12 @@ static StatusCode initDataSetFromMemory(
 	// Initialise the components available to flag which components have
 	// properties which are to be returned (i.e. available properties).
 	status = initComponentsAvailable(dataSet, exception);
-	
+	if (status != SUCCESS || EXCEPTION_FAILED) {
+		return status;
+	}
+
 	// Initialise the index for properties and profiles to values.
-	initIndicesPropertyProfile(dataSet, exception);
+	status = initIndicesPropertyProfile(dataSet, exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		if (config->b.b.useTempFile == true) {
 			FileDelete(dataSet->b.b.fileName);
@@ -2369,8 +2402,17 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromMemory(
 		return INVALID_CONFIG;
 	}
 
+	// The init methods show some failures only in the exception, so they are
+	// always given one, and the status returned carries those failures.
+	Exception ownException;
+	if (exception == NULL) {
+		exception = &ownException;
+		EXCEPTION_CLEAR;
+	}
+
 	DataSetHash *dataSet = (DataSetHash*)Malloc(sizeof(DataSetHash));
 	if (dataSet == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return INSUFFICIENT_MEMORY;
 	}
 
@@ -2381,7 +2423,10 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromMemory(
 		memory,
 		size,
 		exception);
-	if (status != SUCCESS || EXCEPTION_FAILED) {
+	if (status == SUCCESS) {
+		status = getFailureStatus(status, exception);
+	}
+	if (status != SUCCESS) {
 		// The memory stays with the caller until the data set is set up, so
 		// it is not freed with what the data set allocated.
 		dataSet->b.b.memoryToFree = NULL;
