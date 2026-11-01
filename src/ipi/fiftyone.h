@@ -65,6 +65,7 @@ MAP_TYPE(WeightedValuesCollection)
 #define ResultsIpiGetHasValues fiftyoneDegreesResultsIpiGetHasValues /**< Synonym for #fiftyoneDegreesResultsIpiGetHasValues function. */
 #define ResultsIpiGetNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason /**< Synonym for #fiftyoneDegreesResultsIpiGetNoValueReason function. */
 #define ResultsIpiGetNoValueReasonMessage fiftyoneDegreesResultsIpiGetNoValueReasonMessage /**< Synonym for #fiftyoneDegreesResultsIpiGetNoValueReasonMessage function. */
+#define ResultsIpiGetRequiredPropertyIndex fiftyoneDegreesResultsIpiGetRequiredPropertyIndex /**< Synonym for #fiftyoneDegreesResultsIpiGetRequiredPropertyIndex function. */
 #define IpiInitManagerFromFile fiftyoneDegreesIpiInitManagerFromFile /**< Synonym for #fiftyoneDegreesIpiInitManagerFromFile function. */
 #define IpiInitManagerFromMemory fiftyoneDegreesIpiInitManagerFromMemory /**< Synonym for #fiftyoneDegreesIpiInitManagerFromMemory function. */
 #define DataSetIpiGet fiftyoneDegreesDataSetIpiGet /**< Synonym for #fiftyoneDegreesDataSetIpiGet function. */

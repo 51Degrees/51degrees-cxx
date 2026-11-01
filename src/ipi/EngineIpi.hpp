@@ -258,6 +258,51 @@ namespace FiftyoneDegrees {
 				int requiredPropertyIndexesCount);
 
 			/**
+			 * Processes the evidence as process(EvidenceIpi*, const int*, int)
+			 * does, but names the properties the caller will read rather than
+			 * giving their indexes. The names are found in the data set the
+			 * new results use, so the graphs evaluated always match the
+			 * results, including after a reload that moves the indexes. A name
+			 * that is not a required property selects no graph. NULL evaluates
+			 * every graph, and an empty list evaluates none.
+			 * @param evidence to process
+			 * @param propertyNames the properties the caller will read
+			 * @return a new results instance, owned by the caller
+			 */
+			ResultsIpi* process(
+				EvidenceIpi *evidence,
+				const vector<string> *propertyNames);
+
+			/**
+			 * Processes the IP address string as process(const char*,
+			 * const int*, int) does, but names the properties the caller will
+			 * read. See the evidence overload for the rules.
+			 * @param ipAddress the IP address string to process
+			 * @param propertyNames the properties the caller will read
+			 * @return a new results instance, owned by the caller
+			 */
+			ResultsIpi* process(
+				const char *ipAddress,
+				const vector<string> *propertyNames);
+
+			/**
+			 * Processes the raw IP address byte array as
+			 * process(unsigned char[], long, fiftyoneDegreesIpType,
+			 * const int*, int) does, but names the properties the caller will
+			 * read. See the evidence overload for the rules.
+			 * @param ipAddress the IP address byte array to process
+			 * @param length the size of the byte array
+			 * @param type of the IP
+			 * @param propertyNames the properties the caller will read
+			 * @return a new results instance, owned by the caller
+			 */
+			ResultsIpi *process(
+				unsigned char ipAddress[],
+				long length,
+				fiftyoneDegreesIpType type,
+				const vector<string> *propertyNames);
+
+			/**
 			 * @}
 			 * @name Common::EngineBase Implementation
 			 * @{

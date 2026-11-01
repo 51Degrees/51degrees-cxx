@@ -439,6 +439,45 @@ namespace FiftyoneDegrees {
 			 */
 			Common::Value<IpIntelligence::IpAddress> getTargetIpAddress();
 
+			/**
+			 * @}
+			 * @name Finding Properties
+			 * @{
+			 */
+
+			/**
+			 * Get the required property index of the property named, in the
+			 * data set these results came from. That is the index the methods
+			 * taking a required property index use. Found through these
+			 * results, the index always matches them, including results
+			 * created before a reload, so a caller needs no index of its own.
+			 * @param propertyName UTF-8 bytes of the property name, compared
+			 * without regard to case, which need not be followed by a null
+			 * @param length number of bytes in the name
+			 * @return the index, or -1 if the property is not a required
+			 * property of the data set these results came from
+			 */
+			int getRequiredPropertyIndex(
+				const char *propertyName,
+				size_t length) const;
+
+			/**
+			 * Get the single value of the property named as UTF-8 bytes, as
+			 * getValueAsUTF8String(int) does for the index
+			 * getRequiredPropertyIndex(const char*, size_t) finds.
+			 * @param propertyName UTF-8 bytes of the property name, compared
+			 * without regard to case, which need not be followed by a null
+			 * @param length number of bytes in the name
+			 * @return the value, or the reason there is none
+			 */
+			Common::Value<std::vector<uint8_t>> getValueAsUTF8String(
+				const char *propertyName,
+				size_t length);
+
+			/**
+			 * @}
+			 */
+
 		protected:
 			void getValuesInternal(
 				int requiredPropertyIndex,

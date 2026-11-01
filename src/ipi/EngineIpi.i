@@ -71,5 +71,16 @@ public:
         fiftyoneDegreesIpType type,
         const int *requiredPropertyIndexes,
         int requiredPropertyIndexesCount);
+    ResultsIpi* process(
+        EvidenceIpi *evidence,
+        const std::vector<std::string> *propertyNames);
+    ResultsIpi* process(
+        const char *ipAddress,
+        const std::vector<std::string> *propertyNames);
+    ResultsIpi* process(
+        unsigned char ipAddress[],
+        long length,
+        fiftyoneDegreesIpType type,
+        const std::vector<std::string> *propertyNames);
     ResultsBase* processBase(EvidenceBase *evidence);
 };
