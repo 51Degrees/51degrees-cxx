@@ -84,6 +84,20 @@ const char structuredUserAgent[] =
 const char overriddenName[] = "ScreenPixelsWidth";
 const char overriddenValue[] = "12345";
 
+/**
+ * Properties of each component, a property evidence can override, and one
+ * whose value depends on the high entropy values, for the engines that name
+ * their properties.
+ */
+const std::vector<std::string> namedProperties = {
+	"IsMobile",
+	"HardwareName",
+	"PlatformName",
+	"BrowserName",
+	"IsCrawler",
+	overriddenName,
+	"JavascriptGetHighEntropyValues" };
+
 /** Characters shown either side of the first difference between texts. */
 const size_t differenceContextCharacters = 80;
 
@@ -728,17 +742,19 @@ protected:
 			name << ", evidence freed before the first read";
 	}
 
-	/** Compares each kind of evidence with the configuration given. */
-	void compareEveryCase(ConfigHash& config) {
-		RequiredPropertiesConfig properties;
-		EngineHash engine(dataFilePath.c_str(), &config, &properties);
+	/**
+	 * Each kind of evidence, by name, using the device id and profile id the
+	 * engine gives the iPhone.
+	 */
+	static std::vector<std::pair<std::string, EvidenceList>> everyCase(
+		const EngineHash& engine) {
 		std::string deviceId, profileId;
 		{
 			std::unique_ptr<ResultsHash> first(engine.process(iPhoneUserAgent));
 			deviceId = first->getDeviceId();
 			profileId = deviceId.substr(0, deviceId.find('-'));
 		}
-		const std::vector<std::pair<std::string, EvidenceList>> cases = {
+		return {
 			{ "iPhone", { { "header.User-Agent", iPhoneUserAgent } } },
 			{ "Chrome", { { "header.User-Agent", chromeUserAgent } } },
 			{ "client hints", {
@@ -759,14 +775,68 @@ protected:
 			{ "profile override", {
 				{ "header.User-Agent", chromeUserAgent },
 				{ "query.51D_ProfileIds", profileId } } },
+			{ "profile override alone", {
+				{ "query.51D_ProfileIds", profileId } } },
 			{ "property override", {
 				{ "header.User-Agent", iPhoneUserAgent },
 				{ std::string("query.51D_") + overriddenName,
 					overriddenValue } } },
+			{ "property override alone", {
+				{ std::string("query.51D_") + overriddenName,
+					overriddenValue } } },
 			{ "unknown User-Agent", { { "header.User-Agent", "unknown" } } },
 			{ "no evidence", { } } };
-		for (const auto& c : cases) {
+	}
+
+	/**
+	 * Compares each kind of evidence with the configuration given, with the
+	 * properties named, or with none named when there are no names.
+	 */
+	void compareEveryCase(
+		ConfigHash& config,
+		const std::vector<std::string>* names = nullptr) {
+		std::unique_ptr<RequiredPropertiesConfig> properties(
+			names == nullptr ?
+				new RequiredPropertiesConfig() :
+				new RequiredPropertiesConfig(names));
+		EngineHash engine(dataFilePath.c_str(), &config, properties.get());
+		for (const auto& c : everyCase(engine)) {
 			compare(engine, c.first, c.second);
+		}
+	}
+
+	/**
+	 * Compares the values of the properties named, read in order and in
+	 * reverse from an engine created naming them, with the values an engine
+	 * created naming none gives after walking every graph, for each kind of
+	 * evidence.
+	 */
+	void compareNamedWithNoneNamed(
+		ConfigHash& config,
+		const std::vector<std::string>& names) {
+		RequiredPropertiesConfig all;
+		EngineHash noneNamed(dataFilePath.c_str(), &config, &all);
+		RequiredPropertiesConfig some(&names);
+		EngineHash named(dataFilePath.c_str(), &config, &some);
+		for (const auto& c : everyCase(noneNamed)) {
+			EvidenceDeviceDetection evidence;
+			for (const auto& pair : c.second) {
+				evidence[pair.first] = pair.second;
+			}
+			std::unique_ptr<ResultsHash> walked(noneNamed.process(&evidence));
+			walkEveryGraph(walked.get());
+			const std::string expected = readProperties(walked.get(), names);
+			for (const bool reverse : { false, true }) {
+				std::vector<std::string> order = names;
+				if (reverse) {
+					std::reverse(order.begin(), order.end());
+				}
+				std::unique_ptr<ResultsHash> results(named.process(&evidence));
+				EXPECT_EQ(std::string(), firstDifference(
+					expected,
+					readProperties(results.get(), order))) << c.first <<
+					(reverse ? ", read in reverse" : "");
+			}
 		}
 	}
 };
@@ -790,4 +860,39 @@ TEST_F(HashFirstReadTests, EveryCase_AllowUnmatched_MatchesWalkingEveryGraphFirs
 	config.setBalanced();
 	config.setAllowUnmatched(true);
 	compareEveryCase(config);
+}
+
+/**
+ * The same for an engine created naming its properties, with and without
+ * unmatched results allowed.
+ */
+TEST_F(HashFirstReadTests, EveryCase_Named_MatchesWalkingEveryGraphFirst) {
+	ConfigHash config;
+	config.setBalanced();
+	compareEveryCase(config, &namedProperties);
+	config.setAllowUnmatched(true);
+	compareEveryCase(config, &namedProperties);
+}
+
+/**
+ * An engine created naming its properties gives, for each kind of evidence,
+ * the values an engine created naming none gives, with some properties named
+ * and with every one, and with and without unmatched results allowed.
+ */
+TEST_F(HashFirstReadTests, EveryCase_Named_AnswersAsNoneNamed) {
+	ConfigHash config;
+	config.setBalanced();
+	std::vector<std::string> every;
+	{
+		RequiredPropertiesConfig properties;
+		EngineHash engine(dataFilePath.c_str(), &config, &properties);
+		std::unique_ptr<ResultsHash> results(engine.process(iPhoneUserAgent));
+		every = results->getProperties();
+	}
+	ASSERT_FALSE(every.empty());
+	for (const bool allowUnmatched : { false, true }) {
+		config.setAllowUnmatched(allowUnmatched);
+		compareNamedWithNoneNamed(config, namedProperties);
+		compareNamedWithNoneNamed(config, every);
+	}
 }

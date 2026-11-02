@@ -108,6 +108,9 @@
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadFileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiFirstReadRuleTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
