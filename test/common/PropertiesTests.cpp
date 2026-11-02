@@ -827,3 +827,44 @@ TEST_F(Properties, EachNameNotRead_FreesAll) {
 			getEvidenceProperties);
 	}
 }
+
+/**
+ * Test the same for properties that were named, whose places in the sorted
+ * list are found by name. While a name is missing the list is not sorted, so
+ * no place is found, and nothing is left allocated.
+ */
+TEST_F(Properties, EachNameNotRead_Named_FreesAll) {
+	fiftyoneDegreesPropertiesRequired required =
+		fiftyoneDegreesPropertiesDefault;
+	required.string = "Red,Yellow,Green,Blue";
+	nameCalls = 0;
+	nameFailsOn = 0;
+	properties = fiftyoneDegreesPropertiesCreate(
+		&required,
+		strings->getState(),
+		getStringFailing,
+		getEvidenceProperties);
+	ASSERT_NE(nullptr, properties);
+	const int calls = nameCalls;
+	for (int n = 1; n <= calls; n++) {
+		fiftyoneDegreesPropertiesFree(properties);
+		nameCalls = 0;
+		nameFailsOn = n;
+		properties = fiftyoneDegreesPropertiesCreate(
+			&required,
+			strings->getState(),
+			getStringFailing,
+			getEvidenceProperties);
+		if (properties == nullptr) {
+			continue;
+		}
+		bool missing = false;
+		for (uint32_t i = 0; i < properties->count; i++) {
+			missing = missing || properties->items[i].name.data.ptr == nullptr;
+		}
+		for (uint32_t i = 0; missing && i < properties->namedCount; i++) {
+			EXPECT_EQ(-1, properties->named[i].availableIndex) <<
+				"Read " << n << " failed, so name " << i << " has no place.";
+		}
+	}
+}
