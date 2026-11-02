@@ -695,7 +695,13 @@ TEST_F(HashCTests, HashResultsGetValuesOutOfRangePropertyIndex) {
 	EXCEPTION_THROW;
 	Item item;
 	DataReset(&item.data);
-	ResultsHashGetValues(results, dataSet->b.b.available->count, exception);
+	// One past the last required property index, which counts the names
+	// given, so a data file without one of them still makes it out of range.
+	ResultsHashGetValues(
+		results,
+		(int)fiftyoneDegreesPropertiesGetRequiredPropertyCount(
+			dataSet->b.b.available),
+		exception);
 	ResultsHashFree(results);
 	DataSetHashRelease(dataSet);
 
@@ -1197,7 +1203,10 @@ TEST_F(HashCTests, GraphFilter_BadIndexesAreIgnored) {
 	ResultsHash* results = ResultsHashCreate(&manager, 0);
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
 	int isMobile = getRequiredPropertyIndex(results, "IsMobile");
-	int indexes[] = { -1, isMobile, (int)dataSet->b.b.available->count, 100000 };
+	// One past the last required property index counts the names given.
+	const int pastLast = (int)fiftyoneDegreesPropertiesGetRequiredPropertyCount(
+		dataSet->b.b.available);
+	int indexes[] = { -1, isMobile, pastLast, 100000 };
 	ResultsHashFromUserAgentForProperties(
 		results, mobileUserAgent, strlen(mobileUserAgent),
 		indexes, 4, exception);
