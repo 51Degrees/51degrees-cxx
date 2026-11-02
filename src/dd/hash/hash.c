@@ -4716,10 +4716,14 @@ static uint32_t addValuesFromProfile(
 
 		// Check to see if the capacity of the list needs to increase. If it 
 		// does then free the list and initialise it with a larger capacity 
-		// before adding the values again.
+		// before adding the values again. A list that cannot be allocated is
+		// reported, as the values would otherwise be missing without a reason.
 		if (count > results->values.count) {
 			ListFree(&results->values);
-			ListInit(&results->values, count);
+			if (ListInit(&results->values, count) == NULL) {
+				EXCEPTION_SET(INSUFFICIENT_MEMORY);
+				return 0;
+			}
 			iterateValuesFromProfileForProperty(
 				dataSet,
 				profile,
