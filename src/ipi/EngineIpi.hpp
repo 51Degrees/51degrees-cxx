@@ -165,7 +165,8 @@ namespace FiftyoneDegrees {
 			 */
 
 			/**
-			 * Processes the evidence provided and returns the results.
+			 * Processes the evidence provided and returns the results. No
+			 * graph is walked until a property of its component is read.
 			 * @param evidence to process. The keys in getKeys() will be
 			 * the only ones considered by the engine.
 			 * @return a new results instance with the values for all requested
@@ -175,7 +176,8 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Processes the IP address string provided and returns the results.
-			 * This will auto detect the type of IP being used
+			 * This will auto detect the type of IP being used. No graph is
+			 * walked until a property of its component is read.
 			 * @param ipAddress the IP address string to process
 			 * @return a new results instance with the values for all requested
 			 * properties
@@ -188,7 +190,8 @@ namespace FiftyoneDegrees {
 			 * the amount of data that it need to process.
 			 * If the data is provided is smaller than the expected size for
 			 * the IP type (4 for ipv4 and 16 for ipv6) and incorrect format
-			 * exception will be thrown.
+			 * exception will be thrown. No graph is walked until a property
+			 * of its component is read.
 			 * @param ipAddress the IP address byte array to process
 			 * @param length the size of the byte array
 			 * @param type of the IP
