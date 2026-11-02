@@ -1,0 +1,457 @@
+/* *********************************************************************
+ * This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+ * Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+ * Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+ *
+ * This Original Work is licensed under the European Union Public Licence
+ * (EUPL) v.1.2 and is subject to its terms as set out below.
+ *
+ * If a copy of the EUPL was not distributed with this file, You can obtain
+ * one at https://opensource.org/licenses/EUPL-1.2.
+ *
+ * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+ * amended by the European Commission) shall be deemed incompatible for
+ * the purposes of the Work and the provisions of the compatibility
+ * clause in Article 5 of the EUPL shall not apply.
+ *
+ * If using the Work as, or as part of, a network application, by
+ * including the attribution notice(s) required under Article 5 of the EUPL
+ * in the end user terms of the application under an appropriate heading,
+ * such notice(s) shall fulfill the requirements of that article.
+ * ********************************************************************* */
+
+/**
+ * @file IpiFirstReadTests.cpp
+ * @brief Tests that the results walk a component's graph the first time one
+ * of its properties is read, rather than when they are populated. The walks
+ * are counted by wrapping the method the results call to walk a component.
+ */
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdio>
+#include <cstring>
+#include <map>
+#include <string>
+#include <vector>
+#include "Constants.hpp"
+#include "../common/Base.hpp"
+#include "../../src/ipi/EngineIpi.hpp"
+
+/** Addresses the data files hold answers for, of both versions. */
+static const char* const firstReadAddresses[] = {
+	"50.154.29.201",
+	"1.1.1.1",
+	"8.8.8.8",
+	"185.28.167.77",
+	"2001:4860:4860::8888",
+	"::ffff:50.154.29.201",
+	"0.0.0.0",
+	"255.255.255.255"
+};
+
+/** The data file committed to the data submodule, so every build has it. */
+static const char firstReadSmallFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
+
+namespace {
+
+/** The components walked, in order, by the results that count their walks. */
+std::vector<int>* walkLog = nullptr;
+
+/** The walk the results make when they are not counting. */
+fiftyoneDegreesResultsEvaluateMethod walkMethod = nullptr;
+
+/** Records the component in the log, then walks it. */
+void countWalk(
+	fiftyoneDegreesResultsBase* results,
+	unsigned char componentIndex,
+	fiftyoneDegreesException* exception) {
+	if (walkLog != nullptr) {
+		walkLog->push_back((int)componentIndex);
+	}
+	walkMethod(results, componentIndex, exception);
+}
+
+/** Makes the results record each walk in the log given. */
+void countWalks(fiftyoneDegreesResultsIpi* results, std::vector<int>& log) {
+	walkMethod = results->b.evaluate;
+	walkLog = &log;
+	results->b.evaluate = countWalk;
+}
+
+/** Populates the results for the address, failing the test on an error. */
+void populate(fiftyoneDegreesResultsIpi* results, const char* address) {
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	fiftyoneDegreesResultsIpiFromIpAddressString(
+		results,
+		address,
+		strlen(address),
+		exception);
+	FIFTYONE_DEGREES_EXCEPTION_THROW;
+}
+
+/** The values of a property with the separator, or why it has none. */
+std::string describe(
+	fiftyoneDegreesResultsIpi* results,
+	int requiredPropertyIndex) {
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	const bool hasValues = fiftyoneDegreesResultsIpiGetHasValues(
+		results,
+		requiredPropertyIndex,
+		exception);
+	FIFTYONE_DEGREES_EXCEPTION_THROW;
+	if (hasValues == false) {
+		const fiftyoneDegreesResultsNoValueReason reason =
+			fiftyoneDegreesResultsIpiGetNoValueReason(
+				results,
+				requiredPropertyIndex,
+				exception);
+		FIFTYONE_DEGREES_EXCEPTION_THROW;
+		return "no value, reason " + std::to_string((int)reason);
+	}
+	std::vector<char> buffer(16384, '\0');
+	fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
+		results,
+		requiredPropertyIndex,
+		buffer.data(),
+		buffer.size(),
+		"|",
+		exception);
+	FIFTYONE_DEGREES_EXCEPTION_THROW;
+	return std::string(
+		buffer.begin(),
+		std::find(buffer.begin(), buffer.end(), '\0'));
+}
+
+fiftyoneDegreesDataSetIpi* dataSetOf(fiftyoneDegreesResultsIpi* results) {
+	return (fiftyoneDegreesDataSetIpi*)results->b.dataSet;
+}
+
+int requiredCount(fiftyoneDegreesResultsIpi* results) {
+	return (int)dataSetOf(results)->b.b.available->count;
+}
+
+int componentOf(fiftyoneDegreesResultsIpi* results, int requiredPropertyIndex) {
+	return (int)dataSetOf(results)->b.b.available->items[
+		requiredPropertyIndex].componentIndex;
+}
+
+/** The first property on another component, or -1 if there is none. */
+int propertyOnAnotherComponent(
+	fiftyoneDegreesResultsIpi* results,
+	int componentIndex) {
+	for (int i = 0; i < requiredCount(results); i++) {
+		if (componentOf(results, i) != componentIndex) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+/** Every property's values, read in the order given. */
+std::map<int, std::string> readAll(
+	fiftyoneDegreesResultsIpi* results,
+	const std::vector<int>& order) {
+	std::map<int, std::string> values;
+	for (int index : order) {
+		values[index] = describe(results, index);
+	}
+	return values;
+}
+
+}
+
+/**
+ * Tests on a data file with several components, so that reading one
+ * component's property can be told apart from walking every graph.
+ */
+class IpiFirstReadTests : public Base {
+public:
+	void SetUp() override {
+		Base::SetUp();
+		for (int i = 0;
+			i < _IpiFileNamesLength && dataFilePath.empty();
+			i++) {
+			dataFilePath = GetFilePath(_dataFolderName, _IpiFileNames[i]);
+		}
+		if (dataFilePath.empty()) {
+			GTEST_SKIP() << "No IP Intelligence data file was found.";
+		}
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		ASSERT_EQ(
+			FIFTYONE_DEGREES_STATUS_SUCCESS,
+			fiftyoneDegreesIpiInitManagerFromFile(
+				&manager,
+				&config,
+				&properties,
+				dataFilePath.c_str(),
+				exception));
+		managerReady = true;
+	}
+
+	void TearDown() override {
+		if (managerReady) {
+			fiftyoneDegreesResourceManagerFree(&manager);
+		}
+		walkLog = nullptr;
+		walkMethod = nullptr;
+		// Released here as the memory check in the base class would otherwise
+		// count it as a leak.
+		std::string().swap(dataFilePath);
+		Base::TearDown();
+	}
+
+protected:
+	std::string dataFilePath;
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	fiftyoneDegreesResourceManager manager;
+	bool managerReady = false;
+};
+
+/**
+ * Populating the results walks no graph. A read walks the graph of the
+ * property's component once, and populating the results again makes every
+ * component wait for its first read again.
+ */
+TEST_F(IpiFirstReadTests, Read_WalksOnlyTheComponentRead) {
+	fiftyoneDegreesResultsIpi* results =
+		fiftyoneDegreesResultsIpiCreate(&manager);
+	std::vector<int> walks;
+	countWalks(results, walks);
+	populate(results, firstReadAddresses[0]);
+	EXPECT_TRUE(walks.empty()) << "Populating the results walked a graph.";
+
+	const int first = 0;
+	const int firstComponent = componentOf(results, first);
+	const int second = propertyOnAnotherComponent(results, firstComponent);
+	if (second < 0) {
+		fiftyoneDegreesResultsIpiFree(results);
+		GTEST_SKIP() << "The data file has properties on one component only.";
+	}
+	const int secondComponent = componentOf(results, second);
+
+	describe(results, first);
+	EXPECT_EQ(std::vector<int>({ firstComponent }), walks);
+	describe(results, first);
+	EXPECT_EQ(std::vector<int>({ firstComponent }), walks) <<
+		"A second read of the property walked its graph again.";
+	describe(results, second);
+	EXPECT_EQ(std::vector<int>({ firstComponent, secondComponent }), walks);
+
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	fiftyoneDegreesResultsEvaluateAll(&results->b, exception);
+	FIFTYONE_DEGREES_EXCEPTION_THROW;
+	std::vector<int> walked = walks;
+	std::sort(walked.begin(), walked.end());
+	EXPECT_EQ(walked.end(), std::unique(walked.begin(), walked.end())) <<
+		"A component was walked twice.";
+	EXPECT_EQ(
+		(size_t)dataSetOf(results)->componentsAvailableCount,
+		walks.size()) << "Not every available component was walked once.";
+	const size_t after = walks.size();
+	for (int i = 0; i < requiredCount(results); i++) {
+		describe(results, i);
+	}
+	EXPECT_EQ(after, walks.size()) <<
+		"A read after every component was walked walked a graph.";
+
+	populate(results, firstReadAddresses[1]);
+	walks.clear();
+	describe(results, first);
+	EXPECT_EQ(std::vector<int>({ firstComponent }), walks) <<
+		"Populating the results again did not make the component wait for "
+		"its first read.";
+	fiftyoneDegreesResultsIpiFree(results);
+}
+
+/**
+ * Reading every property gives what reading them after walking every graph
+ * gives, in any order.
+ */
+TEST_F(IpiFirstReadTests, ReadEverything_MatchesWalkingEveryGraphFirst) {
+	for (const char* address : firstReadAddresses) {
+		fiftyoneDegreesResultsIpi* walkedFirst =
+			fiftyoneDegreesResultsIpiCreate(&manager);
+		fiftyoneDegreesResultsIpi* forward =
+			fiftyoneDegreesResultsIpiCreate(&manager);
+		fiftyoneDegreesResultsIpi* backward =
+			fiftyoneDegreesResultsIpiCreate(&manager);
+		populate(walkedFirst, address);
+		populate(forward, address);
+		populate(backward, address);
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		fiftyoneDegreesResultsEvaluateAll(&walkedFirst->b, exception);
+		FIFTYONE_DEGREES_EXCEPTION_THROW;
+		std::vector<int> order;
+		for (int i = 0; i < requiredCount(forward); i++) {
+			order.push_back(i);
+		}
+		const std::map<int, std::string> expected =
+			readAll(walkedFirst, order);
+		EXPECT_EQ(expected, readAll(forward, order)) << address;
+		std::reverse(order.begin(), order.end());
+		EXPECT_EQ(expected, readAll(backward, order)) << address;
+		fiftyoneDegreesResultsIpiFree(walkedFirst);
+		fiftyoneDegreesResultsIpiFree(forward);
+		fiftyoneDegreesResultsIpiFree(backward);
+	}
+}
+
+/**
+ * Tests on the small data file in the data submodule, whose first required
+ * property is renamed in a copy so that a reload moves every other property.
+ */
+class IpiFirstReadReloadTests : public Base {
+public:
+	void SetUp() override {
+		Base::SetUp();
+		const std::string path =
+			GetFilePath(_dataFolderName, firstReadSmallFileName);
+		if (path.empty()) {
+			GTEST_SKIP() << "The file '" << firstReadSmallFileName <<
+				"' was not found. Run 'git submodule update --init' to "
+				"fetch it.";
+		}
+		FILE* file = fopen(path.c_str(), "rb");
+		ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";
+		fseek(file, 0, SEEK_END);
+		good.resize((size_t)ftell(file));
+		rewind(file);
+		const size_t bytes = fread(good.data(), 1, good.size(), file);
+		fclose(file);
+		ASSERT_EQ(good.size(), bytes) << "Could not read '" << path << "'.";
+		ASSERT_NO_FATAL_FAILURE(renameFirstProperty());
+	}
+
+	void TearDown() override {
+		// Released here as the memory check in the base class would otherwise
+		// count them as leaks.
+		std::vector<unsigned char>().swap(good);
+		std::vector<unsigned char>().swap(renamed);
+		walkLog = nullptr;
+		walkMethod = nullptr;
+		Base::TearDown();
+	}
+
+protected:
+	std::vector<unsigned char> good;
+	std::vector<unsigned char> renamed;
+
+	/**
+	 * Copies the data file with the first required property renamed. The name
+	 * is changed in place, so the layout of the file is the same, and it
+	 * sorts after every other name, so the reload drops the property and
+	 * moves every other one down by one.
+	 */
+	void renameFirstProperty() {
+		fiftyoneDegreesResourceManager manager;
+		fiftyoneDegreesPropertiesRequired properties =
+			fiftyoneDegreesPropertiesDefault;
+		fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiInMemoryConfig;
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		ASSERT_EQ(
+			FIFTYONE_DEGREES_STATUS_SUCCESS,
+			fiftyoneDegreesIpiInitManagerFromMemory(
+				&manager,
+				&config,
+				&properties,
+				good.data(),
+				(fiftyoneDegreesFileOffset)good.size(),
+				exception));
+		fiftyoneDegreesDataSetIpi* dataSet =
+			fiftyoneDegreesDataSetIpiGet(&manager);
+		const fiftyoneDegreesPropertyAvailable* first =
+			&dataSet->b.b.available->items[0];
+		const char firstCharacter = (&((const fiftyoneDegreesString*)
+			first->name.data.ptr)->value)[0];
+		fiftyoneDegreesCollectionItem item;
+		fiftyoneDegreesDataReset(&item.data);
+		const fiftyoneDegreesProperty* property = fiftyoneDegreesPropertyGet(
+			dataSet->properties,
+			first->propertyIndex,
+			&item,
+			exception);
+		const bool found =
+			property != nullptr && FIFTYONE_DEGREES_EXCEPTION_OKAY;
+		// The first character of a stored string follows its size.
+		const size_t position = found ?
+			(size_t)dataSet->header.strings.startPosition +
+				property->nameOffset + sizeof(uint16_t) :
+			0;
+		if (found) {
+			FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->properties, &item);
+		}
+		fiftyoneDegreesDataSetIpiRelease(dataSet);
+		fiftyoneDegreesResourceManagerFree(&manager);
+		ASSERT_TRUE(found) << "The first required property was not read.";
+		ASSERT_LT(position, good.size());
+		ASSERT_EQ(firstCharacter, (char)good[position]) <<
+			"The name of the first property is not where the header and the "
+			"property say it is.";
+		renamed = good;
+		// Sorts after every letter, and no property name has it.
+		renamed[position] = '~';
+	}
+};
+
+/**
+ * Results populated before a reload walk their graphs at the first read
+ * after it, against the data set they hold, and so read what they would
+ * have read before the reload, where the reloaded data set would not.
+ */
+TEST_F(IpiFirstReadReloadTests, ReadAfterReload_WalksTheDataSetTheResultsHold) {
+	fiftyoneDegreesResourceManager manager;
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiInMemoryConfig;
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	ASSERT_EQ(
+		FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesIpiInitManagerFromMemory(
+			&manager,
+			&config,
+			&properties,
+			good.data(),
+			(fiftyoneDegreesFileOffset)good.size(),
+			exception));
+
+	fiftyoneDegreesResultsIpi* expected =
+		fiftyoneDegreesResultsIpiCreate(&manager);
+	fiftyoneDegreesResultsIpi* held =
+		fiftyoneDegreesResultsIpiCreate(&manager);
+	std::vector<int> walks;
+	countWalks(held, walks);
+	populate(expected, firstReadAddresses[1]);
+	populate(held, firstReadAddresses[1]);
+	fiftyoneDegreesResultsEvaluateAll(&expected->b, exception);
+	FIFTYONE_DEGREES_EXCEPTION_THROW;
+	std::vector<int> order;
+	for (int i = 0; i < requiredCount(expected); i++) {
+		order.push_back(i);
+	}
+	const std::map<int, std::string> before = readAll(expected, order);
+	fiftyoneDegreesResultsIpiFree(expected);
+
+	EXPECT_EQ(
+		FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesIpiReloadManagerFromMemory(
+			&manager,
+			renamed.data(),
+			(fiftyoneDegreesFileOffset)renamed.size(),
+			exception));
+	EXPECT_TRUE(walks.empty()) << "The held results walked before a read.";
+
+	EXPECT_EQ(before, readAll(held, order));
+	EXPECT_FALSE(walks.empty()) << "The read after the reload walked nothing.";
+
+	fiftyoneDegreesResultsIpi* reloaded =
+		fiftyoneDegreesResultsIpiCreate(&manager);
+	populate(reloaded, firstReadAddresses[1]);
+	EXPECT_EQ((int)order.size() - 1, requiredCount(reloaded)) <<
+		"The reload must drop the renamed property.";
+	fiftyoneDegreesResultsIpiFree(reloaded);
+	fiftyoneDegreesResultsIpiFree(held);
+	fiftyoneDegreesResourceManagerFree(&manager);
+}
