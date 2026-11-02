@@ -579,7 +579,7 @@ protected:
 		ASSERT_NO_FATAL_FAILURE(init(m, properties, config, copyPath));
 		fiftyoneDegreesDataSetHash* dataSet =
 			fiftyoneDegreesDataSetHashGet(&m.manager);
-		const uint64_t cut = std::min(
+		const uint64_t cut = (std::min)(
 			(uint64_t)dataSet->header.rootNodes.startPosition,
 			(uint64_t)dataSet->header.nodes.startPosition);
 		fiftyoneDegreesDataSetHashRelease(dataSet);
@@ -597,11 +597,12 @@ protected:
 	/**
 	 * Makes each allocation of creating the results, populating them and
 	 * reading every position fail in turn. Each failure must be reported, by
-	 * returning no results or setting the exception, or every answer must be
-	 * the one given with no allocation failing, as when the memory was for a
-	 * cache the results can do without. Nothing may crash, and nothing may be
-	 * left allocated. Once a failure is reported the results are freed, as a
-	 * component whose walk failed reads as having no profile.
+	 * returning no results, setting the exception or, for an override value
+	 * that could not be copied, the status of the override values, or every
+	 * answer must be the one given with no allocation failing. Nothing may
+	 * crash, and nothing may be left allocated. Once a failure is reported
+	 * the results are freed, as a component whose walk failed reads as
+	 * having no profile.
 	 */
 	void expectEveryAllocationFailureReported(
 		fiftyoneDegreesPropertiesRequired properties) {
@@ -637,7 +638,9 @@ protected:
 					results,
 					evidence.array,
 					exception);
-				reported = FIFTYONE_DEGREES_EXCEPTION_FAILED;
+				reported = FIFTYONE_DEGREES_EXCEPTION_FAILED ||
+					results->b.b.overrides->status !=
+						FIFTYONE_DEGREES_STATUS_SUCCESS;
 				FIFTYONE_DEGREES_EXCEPTION_CLEAR;
 				for (int i = 0;
 					reported == false && i < positionCount(results);

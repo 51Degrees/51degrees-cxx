@@ -85,9 +85,11 @@ const char overriddenName[] = "ScreenPixelsWidth";
 const char overriddenValue[] = "12345";
 
 /**
- * Properties of each component, a property evidence can override, and one
- * whose value depends on the high entropy values, for the engines that name
- * their properties.
+ * Properties of each component, a property evidence can override with the
+ * property whose name starts with its name and whose JavaScript measures it,
+ * as evidence overrides a property only when that property is named too, and
+ * one whose value depends on the high entropy values, for the engines that
+ * name their properties.
  */
 const std::vector<std::string> namedProperties = {
 	"IsMobile",
@@ -96,6 +98,7 @@ const std::vector<std::string> namedProperties = {
 	"BrowserName",
 	"IsCrawler",
 	overriddenName,
+	std::string(overriddenName) + "Javascript",
 	"JavascriptGetHighEntropyValues" };
 
 /** Characters shown either side of the first difference between texts. */
