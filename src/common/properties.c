@@ -133,7 +133,10 @@ static bool resultsContain(
 static void addRequiredProperty(
 	PropertiesAvailable *available,
 	uint32_t propertyIndex) {
-	if (resultsContain(available, propertyIndex) == false) {
+	// A name read can fail while the properties are counted and work in this
+	// pass, so the list is never filled past what was counted.
+	if (available->count < available->capacity &&
+		resultsContain(available, propertyIndex) == false) {
 		available->items[available->count++].propertyIndex = propertyIndex;
 	}
 }
