@@ -57,19 +57,5 @@ public:
         unsigned char ipAddress[],
         long length,
         fiftyoneDegreesIpType type);
-    ResultsIpi* process(
-        EvidenceIpi *evidence,
-        const int *requiredPropertyIndexes,
-        int requiredPropertyIndexesCount);
-    ResultsIpi* process(
-        const char *ipAddress,
-        const int *requiredPropertyIndexes,
-        int requiredPropertyIndexesCount);
-    ResultsIpi* process(
-        unsigned char ipAddress[],
-        long length,
-        fiftyoneDegreesIpType type,
-        const int *requiredPropertyIndexes,
-        int requiredPropertyIndexesCount);
     ResultsBase* processBase(EvidenceBase *evidence);
 };

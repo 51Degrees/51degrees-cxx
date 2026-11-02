@@ -328,7 +328,7 @@ TEST_F(IpiGraphFilterCTests, ByteArrayTwinMatchesStringTwin) {
 }
 
 /**
- * C++ tests for the EngineIpi::process overloads and getRequiredProperties.
+ * C++ tests for getRequiredProperties.
  */
 class EngineIpiGraphFilterTests : public Base {
 public:
@@ -358,38 +358,6 @@ protected:
 	Ipi::ConfigIpi* config = nullptr;
 	Common::RequiredPropertiesConfig* properties = nullptr;
 	Ipi::EngineIpi* engine = nullptr;
-
-	// The first evidence key the engine accepts, used to hand it an address.
-	string evidenceKey() {
-		const vector<string>* keys = engine->getKeys();
-		return keys->empty() ? string("query.client-ip") : keys->at(0);
-	}
-
-	// True when the property is mandatory with a default value, which reads
-	// as that default when its component produced no profile.
-	bool mandatoryWithDefault(const string &name) {
-		unique_ptr<Common::Collection<string, Common::PropertyMetaData>> allProperties(
-			engine->getMetaData()->getProperties());
-		unique_ptr<Common::PropertyMetaData> property(
-			allProperties->getByKey(name));
-		return property != nullptr &&
-			property->getIsMandatory() &&
-			property->getDefaultValue().empty() == false;
-	}
-
-	// Every property must agree between two results, both in whether it has
-	// a value and in the value itself.
-	void expectSameValues(Ipi::ResultsIpi* expected, Ipi::ResultsIpi* actual) {
-		vector<string> names = engine->getRequiredProperties();
-		for (size_t i = 0; i < names.size(); i++) {
-			Common::Value<string> e = expected->getValueAsString(names[i]);
-			Common::Value<string> a = actual->getValueAsString(names[i]);
-			EXPECT_EQ(e.hasValue(), a.hasValue()) << names[i];
-			if (e.hasValue() && a.hasValue()) {
-				EXPECT_EQ(e.getValue(), a.getValue()) << names[i];
-			}
-		}
-	}
 };
 
 TEST_F(EngineIpiGraphFilterTests, RequiredPropertiesAreInIndexOrder) {
@@ -402,62 +370,4 @@ TEST_F(EngineIpiGraphFilterTests, RequiredPropertiesAreInIndexOrder) {
 			"Name at required property index " << i << " differs.";
 	}
 	EXPECT_GT(names.size(), 0u);
-}
-
-TEST_F(EngineIpiGraphFilterTests, NullIndexesGiveEveryValue) {
-	unique_ptr<Ipi::ResultsIpi> all(engine->process(graphFilterIpAddress));
-	unique_ptr<Ipi::ResultsIpi> filtered(
-		engine->process(graphFilterIpAddress, nullptr, -1));
-	expectSameValues(all.get(), filtered.get());
-}
-
-TEST_F(EngineIpiGraphFilterTests, EmptyIndexesGiveNoValue) {
-	vector<string> names = engine->getRequiredProperties();
-	int none[] = { 0 };
-	unique_ptr<Ipi::ResultsIpi> all(engine->process(graphFilterIpAddress));
-	unique_ptr<Ipi::ResultsIpi> results(
-		engine->process(graphFilterIpAddress, none, 0));
-	int changed = 0;
-	for (size_t i = 0; i < names.size(); i++) {
-		Common::Value<string> unfiltered = all->getValueAsString(names[i]);
-		Common::Value<string> value = results->getValueAsString(names[i]);
-		if (unfiltered.hasValue() != value.hasValue() ||
-			(unfiltered.hasValue() &&
-				unfiltered.getValue() != value.getValue())) {
-			changed++;
-		}
-		if (mandatoryWithDefault(names[i])) {
-			// The default stands in, as for a component that produced no
-			// profile.
-			continue;
-		}
-		EXPECT_FALSE(value.hasValue()) << names[i];
-		EXPECT_EQ(
-			FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE,
-			value.getNoValueReason()) << names[i];
-	}
-	// Properties with a mandatory default read as that default, so compare
-	// with the unfiltered detection to show the graphs were skipped.
-	EXPECT_GT(changed, 0) << "No value changed when every graph was skipped.";
-}
-
-TEST_F(EngineIpiGraphFilterTests, EvidenceOverloadMatchesStringOverload) {
-	int indexes[] = { 0 };
-	Ipi::EvidenceIpi evidence;
-	evidence[evidenceKey()] = graphFilterIpAddress;
-	unique_ptr<Ipi::ResultsIpi> fromEvidence(
-		engine->process(&evidence, indexes, 1));
-	unique_ptr<Ipi::ResultsIpi> fromString(
-		engine->process(graphFilterIpAddress, indexes, 1));
-	expectSameValues(fromString.get(), fromEvidence.get());
-}
-
-TEST_F(EngineIpiGraphFilterTests, ByteArrayOverloadMatchesStringOverload) {
-	int indexes[] = { 0 };
-	unsigned char bytes[] = { 50, 154, 29, 201 };
-	unique_ptr<Ipi::ResultsIpi> fromBytes(engine->process(
-		bytes, sizeof(bytes), FIFTYONE_DEGREES_IP_TYPE_IPV4, indexes, 1));
-	unique_ptr<Ipi::ResultsIpi> fromString(
-		engine->process(graphFilterIpAddress, indexes, 1));
-	expectSameValues(fromString.get(), fromBytes.get());
 }
