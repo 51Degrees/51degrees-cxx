@@ -729,6 +729,10 @@ EXTERNAL void fiftyoneDegreesResultsIpiFree(
  * component and no exception is set. A property of that component has no value
  * with the reason #FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE, unless
  * it is mandatory with a default value, in which case it reads as that default.
+ *
+ * Populating the results walks no graph. The graph of each component is walked
+ * the first time one of its properties is read, against the data set the
+ * results hold, as #fiftyoneDegreesResultsIpiGetValues describes.
  * @param results preallocated results structure to populate
  * @param ipAddress byte array to process
  * @param ipAddressLength of the IP address byte array
@@ -746,6 +750,10 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddress(
 /**
  * Process a single IP Address and populate the IP range offset in the results
  * structure.
+ *
+ * Populating the results walks no graph. The graph of each component is walked
+ * the first time one of its properties is read, against the data set the
+ * results hold, as #fiftyoneDegreesResultsIpiGetValues describes.
  * @param results preallocated results structure to populate
  * @param ipAddress string to process
  * @param ipAddressLength of the ipAddress string
@@ -761,6 +769,10 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddressString(
 /**
  * Processes the evidence value pairs in the evidence collection and
  * populates the result in the results structure.
+ *
+ * Populating the results walks no graph. The graph of each component is walked
+ * the first time one of its properties is read, against the data set the
+ * results hold, as #fiftyoneDegreesResultsIpiGetValues describes.
  * @param results preallocated results structure to populate containing a
  *                pointer to an initialised resource manager
  * @param evidence to process containing parsed or unparsed values
@@ -775,9 +787,9 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromEvidence(
 /**
  * Processes the IP address exactly as #fiftyoneDegreesResultsIpiFromIpAddress,
  * but evaluates only the graphs needed by the required properties whose
- * indexes are supplied. It is meant for a service that knows, for every
- * request, which properties it will read. Other callers should use
- * #fiftyoneDegreesResultsIpiFromIpAddress.
+ * indexes are supplied, each the first time one of its properties is read. It
+ * is meant for a service that knows, for every request, which properties it
+ * will read. Other callers should use #fiftyoneDegreesResultsIpiFromIpAddress.
  *
  * The result shape is unchanged, one item per available component in
  * component order. A component whose graph was not evaluated keeps a null
@@ -863,6 +875,11 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromEvidenceForProperties(
 /**
  * Gets whether or not the results provided contain valid values for the
  * property index provided.
+ *
+ * The first read of a property of a component walks the component's graph for
+ * the results. If the walk fails the exception is set, and the component is
+ * not walked again until the results are next populated, so later reads of
+ * its properties read as if it had no profile for the address.
  * @param results pointer to the results to check
  * @param requiredPropertyIndex index in the required properties of the
  * property to check for values of
@@ -879,6 +896,11 @@ EXTERNAL bool fiftyoneDegreesResultsIpiGetHasValues(
 /**
  * Gets the reason why a results does not contain valid values for a given
  * property. 
+ *
+ * The first read of a property of a component walks the component's graph for
+ * the results. If the walk fails the exception is set, and the component is
+ * not walked again until the results are next populated, so later reads of
+ * its properties read as if it had no profile for the address.
  * @param results pointer to the results to check
  * @param requiredPropertyIndex index in the required properties of the
  * property to check for values of
@@ -906,6 +928,11 @@ EXTERNAL const char* fiftyoneDegreesResultsIpiGetNoValueReasonMessage(
  * the caller to release the collection item returned. The 
  * fiftyoneDegreesResultsIpiGetValueString method should be used to get
  * the string representation of the value.
+ *
+ * The first read of a property of a component walks the component's graph for
+ * the results. If the walk fails the exception is set, and the component is
+ * not walked again until the results are next populated, so later reads of
+ * its properties read as if it had no profile for the address.
  * @param results pointer to the results structure to release
  * @param requiredPropertyIndex
  * @param exception pointer to an exception data structure to be used if an
@@ -919,6 +946,11 @@ EXTERNAL const fiftyoneDegreesProfilePercentage* fiftyoneDegreesResultsIpiGetVal
 
 /**
  * Adds to builder the values associated in the results for the property name.
+ *
+ * The first read of a property of a component walks the component's graph for
+ * the results. If the walk fails the exception is set, and the component is
+ * not walked again until the results are next populated, so later reads of
+ * its properties read as if it had no profile for the address.
  * @param results pointer to the results structure to release
  * @param propertyName name of the property to be used with the values
  * @param builder string builder to fill with values
@@ -935,6 +967,11 @@ EXTERNAL void fiftyoneDegreesResultsIpiAddValuesString(
 
 /**
  * Sets the buffer the values associated in the results for the property name.
+ *
+ * The first read of a property of a component walks the component's graph for
+ * the results. If the walk fails the exception is set, and the component is
+ * not walked again until the results are next populated, so later reads of
+ * its properties read as if it had no profile for the address.
  * @param results pointer to the results structure to release
  * @param propertyName name of the property to be used with the values
  * @param buffer character buffer allocated by the caller
@@ -955,6 +992,11 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesString(
 
 /**
  * Sets the buffer the values associated in the results for the property name.
+ *
+ * The first read of a property of a component walks the component's graph for
+ * the results. If the walk fails the exception is set, and the component is
+ * not walked again until the results are next populated, so later reads of
+ * its properties read as if it had no profile for the address.
  * @param results pointer to the results structure to release
  * @param requiredPropertyIndex required property index of for the values
  * @param buffer character buffer allocated by the caller

@@ -2533,6 +2533,33 @@ static void resultsIpiResetHasValuesCache(ResultsIpi* const results) {
 	}
 }
 
+/**
+ * Walks the graph of the component for the result that holds it, against the
+ * data set the results hold. Called the first time a property of the
+ * component is read.
+ */
+static void resultsIpiEvaluate(
+	fiftyoneDegreesResultsBase* base,
+	byte componentIndex,
+	Exception* exception) {
+	ResultsIpi* const results =
+		(ResultsIpi*)((byte*)base - offsetof(ResultsIpi, b));
+	const DataSetIpi* const dataSet = (DataSetIpi*)results->b.dataSet;
+	const Component* const component = COMPONENT(dataSet, componentIndex);
+	if (component == NULL) {
+		return;
+	}
+	for (uint32_t i = 0; i < results->count; i++) {
+		if (results->items[i].componentIndex == (int32_t)componentIndex) {
+			setResultFromIpAddress(
+				&results->items[i],
+				dataSet,
+				component->componentId,
+				exception);
+		}
+	}
+}
+
 fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 	fiftyoneDegreesResourceManager* manager) {
 	ResultsIpi* results;
@@ -2550,8 +2577,10 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 
 	if (results != NULL) {
 
-		// Initialise the results.
+		// Initialise the results, which walk each component's graph when
+		// one of its properties is first read.
 		fiftyoneDegreesResultsInit(&results->b, (void*)(&dataSet->b));
+		results->b.evaluate = resultsIpiEvaluate;
 
 		// Reset the property and values list ready for first use sized for
 		// a single value to be returned.
@@ -2631,12 +2660,11 @@ static bool isIpv4Mapped(const unsigned char* const ipAddress) {
 	return memcmp(ipAddress, prefix, sizeof(prefix)) == 0;
 }
 
-static bool addResultsFromIpAddressNoChecks(
+static void addResultsFromIpAddressNoChecks(
 	ResultsIpi* results,
 	const unsigned char* ipAddress,
 	fiftyoneDegreesIpType type,
-	uint32_t componentMask,
-	fiftyoneDegreesException* exception) {
+	uint32_t componentMask) {
 	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
 	// Every lookup comes through here, so an IPv4-mapped address takes the
 	// answers of its IPv4 address however it was given.
@@ -2677,21 +2705,13 @@ static bool addResultsFromIpAddressNoChecks(
 			memcpy(nextResult->targetIpAddress.value, ipAddress, IPV6_LENGTH);
 		}
 
-		// Only evaluate the graph for a component the caller will read. The
-		// result slot is kept so the positional mapping to components is
-		// unchanged, and the slot reads as a null profile.
+		// The graph is walked the first time a property of the component is
+		// read. A component the caller will not read is not marked, so its
+		// slot reads as a null profile.
 		if (COMPONENT_MASK_ENABLED(componentMask, componentIndex)) {
-			setResultFromIpAddress(
-				nextResult,
-				dataSet,
-				component->componentId,
-				exception);
-			if (EXCEPTION_FAILED) {
-				return false;
-			}
+			ResultsPendingSet(&results->b, (byte)componentIndex);
 		}
 	}
-	return true;
 }
 
 void fiftyoneDegreesResultsIpiFromIpAddressForProperties(
@@ -2716,6 +2736,7 @@ void fiftyoneDegreesResultsIpiFromIpAddressForProperties(
 	// Reset the results data before iterating the evidence.
 	results->count = 0;
 	resultsIpiResetHasValuesCache(results);
+	ResultsPendingClear(&results->b);
 
 	addResultsFromIpAddressNoChecks(
 		results,
@@ -2724,8 +2745,7 @@ void fiftyoneDegreesResultsIpiFromIpAddressForProperties(
 		PropertiesGetComponentMask(
 			((DataSetIpi*)results->b.dataSet)->b.b.available,
 			requiredPropertyIndexes,
-			requiredPropertyIndexesCount),
-		exception);
+			requiredPropertyIndexesCount));
 }
 
 void fiftyoneDegreesResultsIpiFromIpAddress(
@@ -2840,8 +2860,7 @@ static bool setResultsFromEvidence(
 				results,
 				ipAddress.value,
 				ipAddress.type,
-				masked->componentMask,
-				exception);
+				masked->componentMask);
 		}
 	}
 
@@ -2894,6 +2913,7 @@ void fiftyoneDegreesResultsIpiFromEvidenceForProperties(
 		// Reset the results data before iterating the evidence.
 		results->count = 0;
 		resultsIpiResetHasValuesCache(results);
+		ResultsPendingClear(&results->b);
 
 		fiftyoneDegreesIterateHeadersWithEvidence(
 			results,
@@ -3330,6 +3350,9 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 				results->propertyItem.collection = dataSet->properties;
 			}
 
+			// The first read of a property of the component walks its graph.
+			ResultsEvaluate(&results->b, property->componentIndex, exception);
+
 			// Only the result for the component that owns the property can
 			// hold values for it. Profiles only carry values for properties
 			// of their own component, so the results for other components
@@ -3345,7 +3368,8 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 				}
 			}
 
-			if (results->values.count == 0 &&
+			if (EXCEPTION_OKAY &&
+				results->values.count == 0 &&
 				property->defaultValueIndex != UINT32_MAX &&
 				property->isMandatory) {
 				// There are no values, but the default value from the property
@@ -3513,6 +3537,9 @@ static bool resultsGetHasValidPropertyValueOffset(
 			exception);
 
 		if (property != NULL && EXCEPTION_OKAY) {
+			// The first read of a property of the component walks its graph.
+			ResultsEvaluate(&results->b, property->componentIndex, exception);
+
 			// Only the result for the component that owns the property can
 			// hold values for it. Profiles only carry values for properties
 			// of their own component, so the results for other components

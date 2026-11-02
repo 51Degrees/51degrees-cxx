@@ -47,7 +47,8 @@ static const uint32_t graphFilterNullOffset = UINT32_MAX;
  * so every component in the file is available, and the tests reason about
  * result slots, one per available component in component order. The C types
  * are fully qualified because the C++ classes of the same short names are in
- * scope.
+ * scope. A graph is walked when a property of its component is first read,
+ * so each detection walks every pending graph before the slots are read.
  *
  * A property that is mandatory with a default value reads as that default
  * when its component produced no profile, exactly as for an unmatched
@@ -180,6 +181,8 @@ protected:
 			count,
 			exception);
 		EXCEPTION_THROW;
+		fiftyoneDegreesResultsEvaluateAll(&results->b, exception);
+		EXCEPTION_THROW;
 	}
 
 	void expectNullProfile(fiftyoneDegreesResultsIpi* results, int index) {
@@ -203,6 +206,8 @@ TEST_F(IpiGraphFilterCTests, NullIndexesMatchesUnfilteredDetection) {
 		fiftyoneDegreesResultsIpiCreate(&manager);
 	fiftyoneDegreesResultsIpiFromIpAddressString(
 		all, graphFilterIpAddress, strlen(graphFilterIpAddress), exception);
+	EXCEPTION_THROW;
+	fiftyoneDegreesResultsEvaluateAll(&all->b, exception);
 	EXCEPTION_THROW;
 	detectString(filtered, NULL, -1);
 	ASSERT_EQ(all->count, filtered->count);
@@ -309,6 +314,8 @@ TEST_F(IpiGraphFilterCTests, ByteArrayTwinMatchesStringTwin) {
 		indexes,
 		1,
 		exception);
+	EXCEPTION_THROW;
+	fiftyoneDegreesResultsEvaluateAll(&fromBytes->b, exception);
 	EXCEPTION_THROW;
 	ASSERT_EQ(fromString->count, fromBytes->count);
 	for (uint32_t i = 0; i < fromString->count; i++) {
