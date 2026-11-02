@@ -419,7 +419,9 @@ protected:
 
 	void SetUp() override {
 		HashPositionsTests::SetUp();
-		if (IsSkipped()) {
+		// The set up above skips only when the small file is missing, which is
+		// checked here as the Visual Studio googletest has no IsSkipped.
+		if (smallPath.empty() || HasFatalFailure()) {
 			return;
 		}
 		largePath = GetFilePath(_dataFolderName, largeFileName);
