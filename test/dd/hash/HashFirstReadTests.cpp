@@ -353,7 +353,9 @@ bool isOverridable(fiftyoneDegreesResultsHash* results, int position) {
 
 /**
  * Tests through the C API on the first Hash data file found, with every
- * property available.
+ * property available. A skip in SetUp does not stop the test with the Visual
+ * Studio googletest, so each test first checks that SetUp created the
+ * manager.
  */
 class HashFirstReadCTests : public Base {
 public:
@@ -449,6 +451,9 @@ protected:
  * walks that component.
  */
 TEST_F(HashFirstReadCTests, Read_WalksOnlyTheComponentRead) {
+	if (managerReady == false) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	fiftyoneDegreesResultsHash* results = create();
 	std::vector<int> walks;
 	countWalks(results, walks);
@@ -491,6 +496,9 @@ TEST_F(HashFirstReadCTests, Read_WalksOnlyTheComponentRead) {
  * override, as it does when every graph is walked first.
  */
 TEST_F(HashFirstReadCTests, Override_ReadsWithoutWalking) {
+	if (managerReady == false) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	fiftyoneDegreesResultsHash* results = create();
 	const int overridden = positionOf(results, overriddenName);
 	if (overridden < 0 || isOverridable(results, overridden) == false) {
@@ -553,6 +561,9 @@ TEST_F(HashFirstReadCTests, Override_ReadsWithoutWalking) {
  * reading every property walks nothing.
  */
 TEST_F(HashFirstReadCTests, DeviceId_LeavesNothingToWalk) {
+	if (managerReady == false) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	fiftyoneDegreesResultsHash* first = create();
 	populate(first, evidenceOf({
 		{ FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
@@ -586,6 +597,9 @@ TEST_F(HashFirstReadCTests, DeviceId_LeavesNothingToWalk) {
  * they need of it, including the headers special evidence becomes.
  */
 TEST_F(HashFirstReadCTests, Evidence_FreedBeforeTheFirstRead) {
+	if (managerReady == false) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	const std::vector<std::vector<std::pair<
 		fiftyoneDegreesEvidencePrefix,
 		std::pair<const char*, const char*>>>> cases = {
@@ -636,6 +650,9 @@ TEST_F(HashFirstReadCTests, Evidence_FreedBeforeTheFirstRead) {
  * the enterprise data files have.
  */
 TEST_F(HashFirstReadCTests, ProfileOverride_SurvivesWalkingEveryGraph) {
+	if (managerReady == false) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	fiftyoneDegreesResultsHash* first = create();
 	populate(first, evidenceOf({
 		{ FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
@@ -700,7 +717,9 @@ TEST_F(HashFirstReadCTests, ProfileOverride_SurvivesWalkingEveryGraph) {
 /**
  * Tests through the C++ classes, comparing everything the results give when
  * read in several orders with what they give when every graph is walked
- * first, for each kind of evidence, with and without unmatched results.
+ * first, for each kind of evidence, with and without unmatched results. A
+ * skip in SetUp does not stop the test with the Visual Studio googletest, so
+ * each test first checks that SetUp found a data file.
  */
 class HashFirstReadTests : public Base {
 public:
@@ -873,6 +892,9 @@ protected:
  * first, for each kind of evidence.
  */
 TEST_F(HashFirstReadTests, EveryCase_MatchesWalkingEveryGraphFirst) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	ConfigHash config;
 	config.setBalanced();
 	compareEveryCase(config);
@@ -883,6 +905,9 @@ TEST_F(HashFirstReadTests, EveryCase_MatchesWalkingEveryGraphFirst) {
  * takes its default profile.
  */
 TEST_F(HashFirstReadTests, EveryCase_AllowUnmatched_MatchesWalkingEveryGraphFirst) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	ConfigHash config;
 	config.setBalanced();
 	config.setAllowUnmatched(true);
@@ -894,6 +919,9 @@ TEST_F(HashFirstReadTests, EveryCase_AllowUnmatched_MatchesWalkingEveryGraphFirs
  * unmatched results allowed.
  */
 TEST_F(HashFirstReadTests, EveryCase_Named_MatchesWalkingEveryGraphFirst) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	ConfigHash config;
 	config.setBalanced();
 	compareEveryCase(config, &namedProperties);
@@ -907,6 +935,9 @@ TEST_F(HashFirstReadTests, EveryCase_Named_MatchesWalkingEveryGraphFirst) {
  * and with every one, and with and without unmatched results allowed.
  */
 TEST_F(HashFirstReadTests, EveryCase_Named_AnswersAsNoneNamed) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	ConfigHash config;
 	config.setBalanced();
 	std::vector<std::string> every;

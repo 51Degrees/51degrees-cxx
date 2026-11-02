@@ -332,7 +332,9 @@ Evidence userAgent(const char* value) {
 
 /**
  * Tests through the C API on the first Hash data file found, and through the
- * C++ classes, whose results the tests read as a friend of the class.
+ * C++ classes, whose results the tests read as a friend of the class. A skip
+ * in SetUp does not stop the test with the Visual Studio googletest, so each
+ * test first checks that SetUp found a data file.
  */
 class HashFirstReadRuleTests : public Base {
 public:
@@ -753,6 +755,9 @@ protected:
  * kind of evidence.
  */
 TEST_F(HashFirstReadRuleTests, NoneNamed_ProcessWalksNoGraph) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	Manager m;
 	ASSERT_NO_FATAL_FAILURE(init(m, fiftyoneDegreesPropertiesDefault));
 	const std::vector<Evidence> kinds = [] {
@@ -796,6 +801,9 @@ TEST_F(HashFirstReadRuleTests, NoneNamed_ProcessWalksNoGraph) {
  * only a hardware property walks the hardware component's graph alone.
  */
 TEST_F(HashFirstReadRuleTests, Named_String_ProcessWalksOnlyTheNamedComponents) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	for (const std::string& names : {
 		std::string(hardwareProperty),
 		std::string(hardwareProperty) + "," + browserProperty }) {
@@ -829,6 +837,9 @@ TEST_F(HashFirstReadRuleTests, Named_String_ProcessWalksOnlyTheNamedComponents) 
  * The same with the properties named in the C properties array.
  */
 TEST_F(HashFirstReadRuleTests, Named_Array_ProcessWalksOnlyTheNamedComponents) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	const char* names[] = { hardwareProperty };
 	fiftyoneDegreesPropertiesRequired properties =
 		fiftyoneDegreesPropertiesDefault;
@@ -859,6 +870,9 @@ TEST_F(HashFirstReadRuleTests, Named_Array_ProcessWalksOnlyTheNamedComponents) {
  * engine's process walks no graph.
  */
 TEST_F(HashFirstReadRuleTests, Builder_ProcessWalksOnlyTheNamedComponents) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	ConfigHash config;
 	config.setBalanced();
 	{
@@ -891,6 +905,9 @@ TEST_F(HashFirstReadRuleTests, Builder_ProcessWalksOnlyTheNamedComponents) {
  * walks a graph, by name or by position.
  */
 TEST_F(HashFirstReadRuleTests, Named_ReadsWalkNothing) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	const std::string names = onePropertyOfEachComponent();
 	Manager m;
 	ASSERT_NO_FATAL_FAILURE(init(m, named(names.c_str())));
@@ -926,6 +943,9 @@ TEST_F(HashFirstReadRuleTests, Named_ReadsWalkNothing) {
  * that component.
  */
 TEST_F(HashFirstReadRuleTests, NoneNamed_ReadWalksOnlyItsComponent) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	Manager m;
 	ASSERT_NO_FATAL_FAILURE(init(m, fiftyoneDegreesPropertiesDefault));
 	fiftyoneDegreesResultsHash* results =
@@ -959,6 +979,9 @@ TEST_F(HashFirstReadRuleTests, NoneNamed_ReadWalksOnlyItsComponent) {
  * they need while they are populated and so keep no copy of the evidence.
  */
 TEST_F(HashFirstReadRuleTests, Named_PopulatingAllocatesNothing) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	const std::string names = onePropertyOfEachComponent();
 	// Made before the manager and the evidence, so that it outlasts them.
 	Tracking tracking;
@@ -998,6 +1021,9 @@ TEST_F(HashFirstReadRuleTests, Named_PopulatingAllocatesNothing) {
  * results, which reports it as before first reads.
  */
 TEST_F(HashFirstReadRuleTests, Named_GraphCannotBeRead_ProcessReportsIt) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	const std::string names = onePropertyOfEachComponent();
 	Manager m;
 	ASSERT_NO_FATAL_FAILURE(initWithGraphsCut(m, named(names.c_str())));
@@ -1019,6 +1045,9 @@ TEST_F(HashFirstReadRuleTests, Named_GraphCannotBeRead_ProcessReportsIt) {
  * walked again for the results, so later reads find no profile.
  */
 TEST_F(HashFirstReadRuleTests, NoneNamed_GraphCannotBeRead_FirstReadReportsIt) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	Manager m;
 	ASSERT_NO_FATAL_FAILURE(
 		initWithGraphsCut(m, fiftyoneDegreesPropertiesDefault));
@@ -1058,6 +1087,9 @@ TEST_F(HashFirstReadRuleTests, NoneNamed_GraphCannotBeRead_FirstReadReportsIt) {
  * reading the results failing in turn is reported and leaves nothing.
  */
 TEST_F(HashFirstReadRuleTests, Named_EveryAllocationFails_IsReported) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	const std::string names = onePropertyOfEachComponent() + "," +
 		overriddenName;
 	expectEveryAllocationFailureReported(named(names.c_str()));
@@ -1068,6 +1100,9 @@ TEST_F(HashFirstReadRuleTests, Named_EveryAllocationFails_IsReported) {
  * the evidence and the first reads walk the graphs.
  */
 TEST_F(HashFirstReadRuleTests, NoneNamed_EveryAllocationFails_IsReported) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	expectEveryAllocationFailureReported(fiftyoneDegreesPropertiesDefault);
 }
 
@@ -1077,6 +1112,9 @@ TEST_F(HashFirstReadRuleTests, NoneNamed_EveryAllocationFails_IsReported) {
  * case, with and without unmatched results.
  */
 TEST_F(HashFirstReadRuleTests, EvidenceForNoComponent_WalksNoGraph) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	std::string deviceId, profileId;
 	{
 		Manager all;
@@ -1154,6 +1192,9 @@ TEST_F(HashFirstReadRuleTests, EvidenceForNoComponent_WalksNoGraph) {
  * position, with properties named and with none, and walks no graph.
  */
 TEST_F(HashFirstReadRuleTests, UnavailableProperty_ReadsAsMissing) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	for (const bool withNames : { false, true }) {
 		Manager m;
 		ASSERT_NO_FATAL_FAILURE(init(
@@ -1201,6 +1242,9 @@ TEST_F(HashFirstReadRuleTests, UnavailableProperty_ReadsAsMissing) {
  * would have before the reload, which the reloaded data set does not.
  */
 TEST_F(HashFirstReadRuleTests, Reload_ReadAfterReload_AnswersFromTheHeldDataSet) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	ASSERT_NO_FATAL_FAILURE(renameFirstProperty());
 	for (const bool withNames : { false, true }) {
 		const std::string names = renamedName + "," + hardwareProperty;
@@ -1241,6 +1285,9 @@ TEST_F(HashFirstReadRuleTests, Reload_ReadAfterReload_AnswersFromTheHeldDataSet)
  * use the reloaded data set.
  */
 TEST_F(HashFirstReadRuleTests, Reload_ReusedResults_KeepTheirDataSet) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	ASSERT_NO_FATAL_FAILURE(renameFirstProperty());
 	for (const bool withNames : { false, true }) {
 		const std::string names = renamedName + "," + hardwareProperty;
@@ -1280,6 +1327,9 @@ TEST_F(HashFirstReadRuleTests, Reload_ReusedResults_KeepTheirDataSet) {
  * has, without failing.
  */
 TEST_F(HashFirstReadRuleTests, Reload_NamedPropertyMissing_ProcessSkipsIt) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	ASSERT_NO_FATAL_FAILURE(renameFirstProperty());
 	const std::string names = renamedName + "," + hardwareProperty;
 	Manager m;
@@ -1317,6 +1367,9 @@ TEST_F(HashFirstReadRuleTests, Reload_NamedPropertyMissing_ProcessSkipsIt) {
  * neither fail a read nor crash, with no properties named.
  */
 TEST_F(HashFirstReadRuleTests, NoneNamed_ReloadWhileReading_IsSafe) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	expectReloadsWhileReadingSafe(fiftyoneDegreesPropertiesDefault);
 }
 
@@ -1324,5 +1377,8 @@ TEST_F(HashFirstReadRuleTests, NoneNamed_ReloadWhileReading_IsSafe) {
  * The same with properties named.
  */
 TEST_F(HashFirstReadRuleTests, Named_ReloadWhileReading_IsSafe) {
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	expectReloadsWhileReadingSafe(named(hardwareProperty));
 }
