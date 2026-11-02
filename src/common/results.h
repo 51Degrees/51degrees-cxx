@@ -57,6 +57,14 @@
  * made from all of them or the items of the results read directly, needs
  * #fiftyoneDegreesResultsEvaluateAll first.
  *
+ * ## Threads
+ *
+ * A results structure is used by one thread at a time, because reading a
+ * value writes into the results, and the first read of a component's
+ * property can walk the component's graph. Different results can be used on
+ * different threads at once, and the resource manager they come from can be
+ * shared, unless the library is compiled with FIFTYONE_DEGREES_NO_THREADING.
+ *
  * @{
  */
 
@@ -129,7 +137,8 @@ typedef void (*fiftyoneDegreesResultsEvaluateMethod)(
 #define FIFTYONE_DEGREES_RESULTS_PENDING_WORDS 8
 
 /**
- * Base results structure which any processing results should extend.
+ * Base results structure which any processing results should extend. It is
+ * used by one thread at a time, as the Threads section above describes.
  */
 typedef struct fiftyone_degrees_results_base_t {
 	void *dataSet; /**< Pointer to the data set associated with the results */

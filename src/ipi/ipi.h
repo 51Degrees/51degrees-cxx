@@ -368,6 +368,12 @@ FIFTYONE_DEGREES_ARRAY_TYPE(
 /**
  * Array of Ipi results used to easily access and track the size of the
  * array.
+ *
+ * The results are used by one thread at a time, because reading a value
+ * writes into the results and the first read of a component walks its graph.
+ * Different results can be used on different threads at once, and the
+ * resource manager can be shared, unless the library is compiled with
+ * FIFTYONE_DEGREES_NO_THREADING.
  */
 typedef fiftyoneDegreesResultIpiArray fiftyoneDegreesResultsIpi;
 
