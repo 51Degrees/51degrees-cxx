@@ -74,10 +74,23 @@ void SignalWait(Signal *signal) {
  */
 
 void fiftyoneDegreesMutexCreate(fiftyoneDegreesMutex *mutex) {
+#ifdef __GLIBC__
+	// An adaptive mutex spins briefly before it sleeps. That suits the short
+	// sections the caches lock, as a thread that sleeps has to be woken.
+	pthread_mutexattr_t attributes;
+	pthread_mutexattr_init(&attributes);
+	pthread_mutexattr_settype(&attributes, PTHREAD_MUTEX_ADAPTIVE_NP);
+#ifdef _DEBUG
+	int result =
+#endif
+	pthread_mutex_init(mutex, &attributes);
+	pthread_mutexattr_destroy(&attributes);
+#else
 #ifdef _DEBUG
 	int result =
 #endif
 	pthread_mutex_init(mutex, NULL);
+#endif
 	assert(result == 0);
 }
 
