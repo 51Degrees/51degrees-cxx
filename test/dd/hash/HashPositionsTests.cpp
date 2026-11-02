@@ -463,6 +463,11 @@ protected:
  * file lacks reads as invalid there, and comes back with the TAC file.
  */
 TEST_F(HashPositionsReloadTests, Named_LargeThenSmallThenLarge) {
+	// A skip in SetUp does not stop the test with the Visual Studio
+	// googletest, and the names are only set once SetUp has finished.
+	if (names.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	const Lookups onLarge = freshByName(largePath, names);
 	const Lookups onSmall = freshByName(smallPath, names);
 	for (const auto &lookup : onSmall) {
@@ -493,6 +498,11 @@ TEST_F(HashPositionsReloadTests, Named_LargeThenSmallThenLarge) {
  * does, while an index reads nothing.
  */
 TEST_F(HashPositionsReloadTests, NothingNamed_SmallThenLarge) {
+	// A skip in SetUp does not stop the test with the Visual Studio
+	// googletest, and the names are only set once SetUp has finished.
+	if (names.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
 	const std::vector<std::string> largeNames = fileNames(largePath);
 	Lookups expected;
 	{
