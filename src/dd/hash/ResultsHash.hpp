@@ -29,6 +29,7 @@
 
 
 class EngineHashTests;
+class HashFirstReadTests;
 
 namespace FiftyoneDegrees {
 	namespace DeviceDetection {
@@ -69,6 +70,7 @@ namespace FiftyoneDegrees {
 			 */
 			class ResultsHash : public ResultsDeviceDetection {
 				friend class ::EngineHashTests;
+				friend class ::HashFirstReadTests;
                 friend class ResultsHashSerializer;
 			public:
 				/**
