@@ -32,9 +32,8 @@
  * answers no component, properties that are not available, and reloads.
  *
  * A walk sets the value it walked in the result it walks into, so a result
- * whose target value is set has been walked. That shows the walks in builds
- * where populating the results walks the graphs itself, without the walk
- * method the results call for a first read.
+ * whose target value is set has been walked, whether or not the walk went
+ * through the method the results call to walk a component.
  */
 
 #include <algorithm>
