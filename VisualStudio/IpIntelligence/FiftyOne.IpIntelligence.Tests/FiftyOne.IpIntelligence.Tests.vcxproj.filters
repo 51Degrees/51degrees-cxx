@@ -66,6 +66,9 @@
     <ClCompile Include="..\..\..\test\ipi\ExamplePerformanceLegacyTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiLoadFailureTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\test\common\Base.hpp">

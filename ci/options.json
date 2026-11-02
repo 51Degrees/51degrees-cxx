@@ -45,7 +45,7 @@
     "Configuration": "Debug",
     "Arch": "x64",
     "BuildMethod": "cmake",
-    "Products": ["common"]
+    "Products": ["common", "ipi"]
   },
   {
     "Image": "windows-latest",

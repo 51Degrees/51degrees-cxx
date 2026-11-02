@@ -104,7 +104,7 @@ item->handle = NULL; \
 item->collection = NULL;
 #define GET_EXCEPTION_SET(s) \
 GET_CLEAR_ITEM \
-if (exception->status == NOT_SET) { \
+if (EXCEPTION_OKAY) { \
 	EXCEPTION_SET(s); \
 }
 #else
@@ -407,6 +407,9 @@ static void loaderCache(
 				// Set the number of used bytes to match the loaded item.
 				data->used = item.data.used;
 			}
+		}
+		else if (item.data.used > 0) {
+			EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		}
 
 		// Release the item from the source collection.

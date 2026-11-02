@@ -37,7 +37,7 @@ EngineHash::EngineHash(
 	StatusCode status = HashInitManagerFromFile(
 		manager.get(),
 		config->getConfig(),
-		properties->getConfig(),
+		properties ? properties->getConfig() : nullptr,
 		fileName,
 		exception);
 	if (status != SUCCESS) {
@@ -70,7 +70,7 @@ EngineHash::EngineHash(
 	StatusCode status = HashInitManagerFromMemory(
 		manager.get(),
 		config->getConfig(),
-		properties->getConfig(),
+		properties ? properties->getConfig() : nullptr,
 		dataCopy,
 		(size_t)length,
 		exception);

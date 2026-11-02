@@ -90,3 +90,59 @@ TEST_F(MemoryLeak, MemoryLeakFreed) {
 	}
 #endif
 }
+
+/**
+ * Test class whose set up method returns before taking the memory checkpoint,
+ * as one that finds nothing to test with can.
+ */
+class MemoryLeakNoCheckpoint : public Base {
+protected:
+	void SetUp() override {
+	}
+};
+
+/**
+ * Test that a test which never took the checkpoint passes the memory check,
+ * rather than being compared with a checkpoint it does not have.
+ */
+TEST_F(MemoryLeakNoCheckpoint, NoCheckpoint_Passes) {
+}
+
+// The googletest of the Visual Studio projects has no skip.
+#ifdef GTEST_SKIP_
+
+/**
+ * Test class whose tests skip themselves after the memory checkpoint.
+ */
+class MemoryLeakSkip : public Base {
+};
+
+/**
+ * Test that a test which skips itself after the checkpoint passes the memory
+ * check, where googletest holds its record of the skip on the heap.
+ */
+TEST_F(MemoryLeakSkip, SkippedAfterCheckpoint_Passes) {
+	GTEST_SKIP() << "Skipped so that the memory check must pass the test.";
+}
+
+/**
+ * Test class that skips each test in its set up method, before the memory
+ * checkpoint.
+ */
+class MemoryLeakSkipInSetUp : public Base {
+protected:
+	void SetUp() override {
+		GTEST_SKIP() << "Skipped before the checkpoint, so that the memory "
+			"check must pass the test.";
+	}
+};
+
+/**
+ * Test that a test which skips itself before the checkpoint passes the memory
+ * check.
+ */
+TEST_F(MemoryLeakSkipInSetUp, SkippedBeforeCheckpoint_Passes) {
+	FAIL() << "The test ran after its set up method skipped it.";
+}
+
+#endif

@@ -548,3 +548,141 @@ TEST_F(HeadersTests, PseudoHeadersSpecialCases) {
     EXPECT_EQ(&headers->items[0], headers->items[4].segmentHeaders->items[0]);
     EXPECT_EQ(headers->items[0].pseudoHeaders->items[2], &headers->items[4]);
 }
+
+// ----------------------------------------------------------------------
+// Check that each allocation failing in turn while headers with pseudo headers
+// are created is reported, and that nothing is left allocated, including when
+// the headers are trimmed to the memory they need
+// ----------------------------------------------------------------------
+
+/** The allocations made so far by countingMalloc. */
+static int mallocCalls = 0;
+
+/** The allocation that fails, counting from one, or zero for none. */
+static int mallocFailsOn = 0;
+
+static void* FIFTYONE_DEGREES_CALL_CONV countingMalloc(size_t size) {
+	return ++mallocCalls == mallocFailsOn ?
+		nullptr : fiftyoneDegreesMemoryTrackingMalloc(size);
+}
+
+/**
+ * Creates headers from the strings with the allocation failing, freeing any
+ * that were created.
+ */
+static Headers* createWithFailure(
+	StringCollection &strings,
+	int failsOn,
+	fiftyoneDegreesException *exception) {
+	mallocCalls = 0;
+	mallocFailsOn = failsOn;
+	fiftyoneDegreesMalloc = countingMalloc;
+	Headers *created = fiftyoneDegreesHeadersCreate(
+		false,
+		strings.getState(),
+		getHeaderUniqueId,
+		exception);
+	fiftyoneDegreesMalloc = fiftyoneDegreesMemoryTrackingMalloc;
+	return created;
+}
+
+TEST_F(HeadersTests, PseudoHeaders_EachAllocationFails_FreesAll) {
+	fiftyoneDegreesSetUpMemoryTracking();
+	{
+		StringCollection strings(
+			testHeaders_PseudoHeaders,
+			sizeof(testHeaders_PseudoHeaders) / sizeof(const char*));
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		Headers *created = createWithFailure(strings, 0, exception);
+		const int calls = mallocCalls;
+		ASSERT_NE(nullptr, created);
+		fiftyoneDegreesHeadersFree(created);
+		for (int n = 1; n <= calls; n++) {
+			FIFTYONE_DEGREES_EXCEPTION_CLEAR;
+			const size_t allocated =
+				fiftyoneDegreesMemoryTrackingGetAllocated();
+			created = createWithFailure(strings, n, exception);
+			EXPECT_EQ(nullptr, created) <<
+				"Allocation " << n << " of " << calls;
+			EXPECT_EQ(
+				FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY,
+				exception->status) << "Allocation " << n << " of " << calls;
+			if (created != nullptr) {
+				fiftyoneDegreesHeadersFree(created);
+			}
+			EXPECT_EQ(allocated, fiftyoneDegreesMemoryTrackingGetAllocated()) <<
+				"Allocation " << n << " of " << calls;
+		}
+	}
+	EXPECT_EQ((size_t)0, fiftyoneDegreesUnsetMemoryTracking());
+}
+
+// ----------------------------------------------------------------------
+// Check that a header name that cannot be read, on any read, is reported and
+// leaves nothing allocated
+// ----------------------------------------------------------------------
+
+/** The reads of a name made so far by getHeaderFailing. */
+static int getCalls = 0;
+
+/** The read that gives no name, counting from one, or zero for none. */
+static int getFailsOn = 0;
+
+/**
+ * Gets a header as getHeaderUniqueId does, but with no name on the chosen
+ * read, as a data set gives when the name cannot be read.
+ */
+static long getHeaderFailing(
+	void *state,
+	uint32_t index,
+	fiftyoneDegreesCollectionItem *item) {
+	const long id = getHeaderUniqueId(state, index, item);
+	if (id >= 0 && ++getCalls == getFailsOn) {
+		fiftyoneDegreesDataReset(&item->data);
+		item->collection = nullptr;
+		item->handle = nullptr;
+	}
+	return id;
+}
+
+TEST_F(HeadersTests, PseudoHeaders_EachNameNotRead_IsReported) {
+	fiftyoneDegreesSetUpMemoryTracking();
+	{
+		StringCollection strings(
+			testHeaders_PseudoHeaders,
+			sizeof(testHeaders_PseudoHeaders) / sizeof(const char*));
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		getCalls = 0;
+		getFailsOn = 0;
+		Headers *created = fiftyoneDegreesHeadersCreate(
+			false,
+			strings.getState(),
+			getHeaderFailing,
+			exception);
+		const int calls = getCalls;
+		ASSERT_NE(nullptr, created);
+		fiftyoneDegreesHeadersFree(created);
+		for (int n = 1; n <= calls; n++) {
+			for (const bool withException : { true, false }) {
+				FIFTYONE_DEGREES_EXCEPTION_CLEAR;
+				getCalls = 0;
+				getFailsOn = n;
+				created = fiftyoneDegreesHeadersCreate(
+					false,
+					strings.getState(),
+					getHeaderFailing,
+					withException ? exception : nullptr);
+				EXPECT_EQ(nullptr, created) << "Read " << n << " of " << calls;
+				if (withException) {
+					EXPECT_EQ(
+						FIFTYONE_DEGREES_STATUS_COLLECTION_FAILURE,
+						exception->status) << "Read " << n << " of " << calls;
+				}
+				if (created != nullptr) {
+					fiftyoneDegreesHeadersFree(created);
+				}
+			}
+		}
+	}
+	EXPECT_EQ((size_t)0, fiftyoneDegreesUnsetMemoryTracking());
+}

@@ -24,6 +24,9 @@
     <ClCompile Include="..\..\..\test\common\CollectionTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\common\ComponentTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\common\EngineTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

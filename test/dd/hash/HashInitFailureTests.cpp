@@ -212,9 +212,9 @@ TEST_F(HashInitFailureTests, SizeFromFile_NoException_RestoresAllocators) {
 }
 
 /**
- * Test that the size method from a file does not free a manager when only the
- * exception shows the failure, as the init method returns success with no
- * manager set up.
+ * Test that the size method from a file reports a failure the init method
+ * finds in the exception, which it returns as the status with no manager set
+ * up.
  */
 TEST_F(HashInitFailureTests, SizeFromFile_ComponentMissing_ReportsOutOfRange) {
 	TestMemory memory = emptyDataSet();

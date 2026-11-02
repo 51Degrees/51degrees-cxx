@@ -359,10 +359,10 @@ fiftyoneDegreesCache* fiftyoneDegreesCacheCreate(
 		// Initialise the linked lists and binary tree.
 		cacheInit(cache);
 	}
-	// Check the cache if in debug mode.
-	assert(cache != NULL);
+	// Check the cache if in debug mode. It is null if it could not be
+	// allocated, which the caller handles.
 #ifdef FIFTYONE_DEGREES_CACHE_VALIDATE
-	assert(cacheValidate(cache));
+	assert(cache == NULL || cacheValidate(cache));
 #endif
 
 	return cache;

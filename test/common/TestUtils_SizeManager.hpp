@@ -91,7 +91,7 @@ private:
  * So a test that frees an unset manager hangs every time, rather than
  * hanging, crashing or passing depending on what the stack held.
  */
-TESTUTILS_NO_INLINE static void fillStackWithZeroedHandles() {
+TESTUTILS_NO_INLINE inline void fillStackWithZeroedHandles() {
 	static void *zeroed[32] = { nullptr };
 	void * volatile filled[StackFillPointers];
 	for (size_t i = 0; i < StackFillPointers; i++) {

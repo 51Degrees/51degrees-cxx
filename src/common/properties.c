@@ -375,6 +375,14 @@ static void initRequiredProperties(
 	// Set the names for each of the properties.
 	setPropertyNames(source, available);
 
+	// A name that could not be read is left missing for the caller to report,
+	// as the names cannot then be compared or used to find evidence.
+	for (i = 0; i < available->count; i++) {
+		if (available->items[i].name.data.ptr == NULL) {
+			return;
+		}
+	}
+
 	// Set the evidence properties for each of the properties.
 	setEvidenceProperties(source, available);
 
