@@ -34,6 +34,8 @@
  */
 
 #include <algorithm>
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <map>
 #include <memory>
@@ -43,6 +45,7 @@
 #include "../../common/Base.hpp"
 #include "../../../src/dd/hash/EngineHash.hpp"
 #include "../../../src/dd/hash/hash.h"
+#include "../../../src/dd/hash/ResultsHashSerializer.hpp"
 
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::DeviceDetection;
@@ -355,6 +358,54 @@ TEST_F(HashPositionsTests, Cxx_NothingNamedRefusesIndexes) {
 		EXPECT_EQ(std::string(), results->getPropertyName((int)i)) << i;
 	}
 	EXPECT_GT(found, 0) << "No property had a value by name.";
+}
+
+/** Starting value of the fingerprint, from the 64 bit FNV-1a hash. */
+static const uint64_t jsonFingerprintOffsetBasis = 14695981039346656037ULL;
+
+/** Multiplier of the fingerprint, from the 64 bit FNV-1a hash. */
+static const uint64_t jsonFingerprintPrime = 1099511628211ULL;
+
+/** A fingerprint of the text, so that runs can be compared from their logs. */
+static uint64_t jsonFingerprint(const std::string &text) {
+	uint64_t hash = jsonFingerprintOffsetBasis;
+	for (const char c : text) {
+		hash ^= (unsigned char)c;
+		hash *= jsonFingerprintPrime;
+	}
+	return hash;
+}
+
+/**
+ * The JSON of every property is the same whatever the order of the names
+ * given, and with a name the data does not have, as it is written from the
+ * data set's own list of its properties. The fingerprint of each JSON is
+ * written out, so that the JSON of different builds can be compared.
+ */
+TEST_F(HashPositionsTests, Json_DoesNotDependOnTheOrderOfTheNames) {
+	const std::vector<std::string> given = callerNames();
+	ConfigHash config;
+	config.setLowMemory();
+	RequiredPropertiesConfig sortedProperties(&smallNames);
+	RequiredPropertiesConfig givenProperties(&given);
+	EngineHash sortedEngine(smallPath.c_str(), &config, &sortedProperties);
+	EngineHash givenEngine(smallPath.c_str(), &config, &givenProperties);
+	ResultsHashSerializer serializer;
+	for (const char *userAgent : positionUserAgents) {
+		std::unique_ptr<ResultsHash> sorted(sortedEngine.process(userAgent));
+		std::unique_ptr<ResultsHash> inGivenOrder(
+			givenEngine.process(userAgent));
+		const std::string expected = serializer.allValuesJson(sorted.get());
+		EXPECT_FALSE(expected.empty()) << userAgent;
+		EXPECT_EQ(expected, serializer.allValuesJson(inGivenOrder.get())) <<
+			userAgent;
+		std::printf(
+			"JSON of %s, %u characters, fingerprint %016llx\n",
+			userAgent,
+			(unsigned int)expected.size(),
+			(unsigned long long)jsonFingerprint(expected));
+		std::fflush(stdout);
+	}
 }
 
 /**
