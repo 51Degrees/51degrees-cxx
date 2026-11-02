@@ -412,7 +412,11 @@ static void sortRequiredProperties(
 		comparePropertyNamesAscending);
 }
 
-static void initRequiredProperties(
+/**
+ * Sets the names and evidence of the properties, and sorts them by name.
+ * Returns false when a name could not be read, leaving the list unsorted.
+ */
+static bool initRequiredProperties(
 	propertiesSource *source,
 	PropertiesAvailable *available) {
 	uint32_t i;
@@ -425,7 +429,7 @@ static void initRequiredProperties(
 	// as the names cannot then be compared or used to find evidence.
 	for (i = 0; i < available->count; i++) {
 		if (available->items[i].name.data.ptr == NULL) {
-			return;
+			return false;
 		}
 	}
 
@@ -445,6 +449,7 @@ static void initRequiredProperties(
 				string->size - 1);
 		}
 	}
+	return true;
 }
 
 static int comparePropertyNamesAscendingSearch(const void *a, const void *b) {
@@ -566,9 +571,12 @@ fiftyoneDegreesPropertiesAvailable* fiftyoneDegreesPropertiesCreate(
 	available->namedCount = namedCount;
 
 	// Set the property name strings, sort the list by name, and then record
-	// where each name given is in the sorted list.
-	initRequiredProperties(&source, available);
-	setRequiredPropertyIndexes(available);
+	// where each name given is in the sorted list. A name that could not be
+	// read leaves the list unsorted for the caller to report, so no place is
+	// recorded from it.
+	if (initRequiredProperties(&source, available)) {
+		setRequiredPropertyIndexes(available);
+	}
 
 	return available;
 }
