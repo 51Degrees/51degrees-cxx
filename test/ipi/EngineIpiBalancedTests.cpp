@@ -914,15 +914,18 @@ TEST_F(IpiBalancedTests, DefaultValuesReadForALookupOfNothing) {
 		fiftyoneDegreesResultsIpiCreate(&actual.manager);
 	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
 		actualResults->b.dataSet)->b.b.available->count;
-	const int none = 0;
 	const string address = balancedAddresses()[0];
 	EXCEPTION_CREATE;
-	fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
-		expectedResults, address.c_str(), address.size(), &none, 0, exception);
+	fiftyoneDegreesResultsIpiFromIpAddressString(
+		expectedResults, address.c_str(), address.size(), exception);
 	EXCEPTION_THROW;
-	fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
-		actualResults, address.c_str(), address.size(), &none, 0, exception);
+	fiftyoneDegreesResultsIpiFromIpAddressString(
+		actualResults, address.c_str(), address.size(), exception);
 	EXCEPTION_THROW;
+	// No graph is walked, so every property reads as for an address with no
+	// profile.
+	fiftyoneDegreesResultsPendingClear(&expectedResults->b);
+	fiftyoneDegreesResultsPendingClear(&actualResults->b);
 	for (int i = 0; i < count; i++) {
 		EXPECT_EQ(
 			balancedAnswer(expectedResults, i, buffer),
@@ -1337,25 +1340,24 @@ TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
 			fiftyoneDegreesResultsIpiCreate(&expected.manager);
 		fiftyoneDegreesResultsIpi* actualResults =
 			fiftyoneDegreesResultsIpiCreate(&actual.manager);
-		const int none = 0;
 		const string address = balancedAddresses()[0];
 		EXCEPTION_CREATE;
-		fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
+		fiftyoneDegreesResultsIpiFromIpAddressString(
 			expectedResults,
 			address.c_str(),
 			address.size(),
-			&none,
-			0,
 			exception);
 		EXCEPTION_THROW;
-		fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
+		fiftyoneDegreesResultsIpiFromIpAddressString(
 			actualResults,
 			address.c_str(),
 			address.size(),
-			&none,
-			0,
 			exception);
 		EXCEPTION_THROW;
+		// No graph is walked, so the property reads as for an address with no
+		// profile.
+		fiftyoneDegreesResultsPendingClear(&expectedResults->b);
+		fiftyoneDegreesResultsPendingClear(&actualResults->b);
 		const string answer = balancedAnswer(actualResults, 0, buffer);
 		EXPECT_EQ(
 			"1", answer.substr(0, 1)) << "The default value was not found.";
