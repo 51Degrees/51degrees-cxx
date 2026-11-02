@@ -675,6 +675,12 @@ fiftyoneDegreesCollectionHeader fiftyoneDegreesCollectionHeaderFromMemory(
 	uint32_t elementSize,
 	bool isCount) {
 	CollectionHeader header;
+	if (reader->current + sizeof(uint32_t) > reader->lastByte) {
+		// There is no header left to read, so there is no collection.
+		header.startPosition = 0;
+		header.length = header.count = 0;
+		return header;
+	}
 	if (isCount) {
 		// The next integer is the count of items in the data structure.
 		header.count = *(uint32_t*)reader->current;
@@ -813,6 +819,27 @@ fiftyoneDegreesCollectionHeader fiftyoneDegreesCollectionHeaderFromFile(
 	return header;
 }
 
+/**
+ * True if the file holds every byte of the collection the header describes.
+ * The position in the file is left unchanged.
+ */
+static bool isInFile(
+	FILE *file,
+	const CollectionHeader *header
+	COLLECTION_SHIFT_PARAM) {
+	const FileOffset position = FileTell(file);
+	if (position < 0 || FileSeek(file, 0, SEEK_END) != 0) {
+		return false;
+	}
+	const FileOffset length = FileTell(file);
+	if (FileSeek(file, position, SEEK_SET) != 0 || length < 0) {
+		return false;
+	}
+	return (uint64_t)header->startPosition +
+		(uint64_t)COLLECTION_UNITS_TO_BYTES(offsetShift, header->length) <=
+		(uint64_t)length;
+}
+
 static fiftyoneDegreesCollection* collectionCreateFromFile(
 	FILE *file,
 	fiftyoneDegreesFilePool *reader,
@@ -820,6 +847,12 @@ static fiftyoneDegreesCollection* collectionCreateFromFile(
 	fiftyoneDegreesCollectionHeader header,
 	fiftyoneDegreesCollectionFileRead read
 	COLLECTION_SHIFT_PARAM) {
+
+	// A collection kept on file is not read until an item is fetched, so one
+	// the file is too short to hold fails here, whatever the configuration.
+	if (isInFile(file, &header COLLECTION_SHIFT_ARG(offsetShift)) == false) {
+		return NULL;
+	}
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 	if (!config->loaded) {

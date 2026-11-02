@@ -926,6 +926,11 @@ static StatusCode initWithMemory(
 		dataSet->graphs,
 		reader,
 		exception);
+	if (dataSet->graphsArray == NULL) {
+		// Graphs the memory is too short to hold leave the position short of
+		// the end, so their failure is returned first.
+		return getFailureStatus(CORRUPT_DATA, exception);
+	}
 
 	/* Check that the current pointer equals the last byte */
 	if (reader->lastByte != reader->current) {
@@ -2107,6 +2112,9 @@ static StatusCode readDataSetFromFile(
 			// but the configuration for each individual graph.
 			dataSet->config.graph,
 			exception);
+		if (dataSet->graphsArray == NULL) {
+			return getFailureStatus(CORRUPT_DATA, exception);
+		}
 	}
 
 	return initDataSetPost(dataSet, exception);

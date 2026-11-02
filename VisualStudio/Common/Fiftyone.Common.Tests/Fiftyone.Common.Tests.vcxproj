@@ -20,6 +20,7 @@
     <ClCompile Include="..\..\..\test\common\Base.cpp" />
     <ClCompile Include="..\..\..\test\common\CacheTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionConfigTests.cpp" />
+    <ClCompile Include="..\..\..\test\common\CollectionExtentTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionOffsetTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionTests.cpp" />
     <ClCompile Include="..\..\..\test\common\ComponentTests.cpp" />
