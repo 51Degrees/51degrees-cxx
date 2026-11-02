@@ -44,6 +44,11 @@
  * reduces lookup time compared with requesting properties from multiple components. If you
  * don't specify any properties, then all properties are returned.
  *
+ * The command line can choose one configuration, its required properties,
+ * whether each lookup reads nothing, the weighted values or the text of every
+ * required property, and how many times the evidence is processed. Run with
+ * --help to list the options.
+ *
  * This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-cxx/blob/main/examples/ipi/C/IpIntelligence/Performance.c).
  *
  * @include{doc} example-require-datafile-ipi.txt
@@ -84,13 +89,52 @@ static int exitCode = 0;
 typedef struct performanceConfig_t {
 	// Base configuration
 	ConfigIpi *config;
-	// True if all properties should be initialized and fetched
-	bool allProperties;
+	// The required properties, or NULL for every property
+	const char *properties;
 } performanceConfig;
 
 /**
+ * What each lookup reads once the result has been found.
+ */
+typedef enum {
+	READ_NONE, // Nothing, so only the result is found
+	READ_VALUES, // The weighted values of every required property
+	READ_TEXT // The text of every required property, as other languages read it
+} readMode;
+
+static const char* readModeNames[] = { "none", "values", "text" };
+
+// Bytes of text each thread can hold for one property. A larger value is
+// still converted in full, and only the bytes that fit are written.
+#define TEXT_BUFFER_BYTES (1024 * 1024)
+
+/**
+ * Choices the command line can make. The defaults are what the performance
+ * tests measure.
+ */
+typedef struct performanceSettings_t {
+	// The configuration to run, or NULL for every entry in performanceConfigs
+	ConfigIpi *config;
+	// The required properties when a configuration is chosen, or NULL for all
+	const char *properties;
+	// What each lookup reads
+	readMode read;
+	// Number of times each thread processes its evidence when timed
+	int passes;
+	// True to keep the concurrency of the configuration rather than setting
+	// it to the number of threads
+	bool presetConcurrency;
+	// Cache sizes to use, such as "values=50000,profiles=100000", where
+	// "memory" in place of a size holds the collection in memory
+	const char *caches;
+} performanceSettings;
+
+static performanceSettings settings = {
+	NULL, NULL, READ_VALUES, 1, false, NULL };
+
+/**
  * Dataset configurations to run benchmarking against. Only InMemory is used
- * in default performance example.
+ * in default performance example, and --profile runs another in its place.
  * 
  * The compiler directive FIFTYONE_DEGREES_MEMORY_ONLY (which is not part of 
  * configuration) to compile out considerations for file based operation and 
@@ -103,8 +147,8 @@ typedef struct performanceConfig_t {
  * LowMemory - all data loaded from data file when needed. Slow.
  */
 performanceConfig performanceConfigs[] = {
-	{ &IpiInMemoryConfig, false },
-	{ &IpiInMemoryConfig, true },
+	{ &IpiInMemoryConfig, "RegisteredName" },
+	{ &IpiInMemoryConfig, NULL },
 };
 
 /**
@@ -148,6 +192,8 @@ typedef struct threadState_t {
 	unsigned long long checkSum;
 	// Number of ip intelligence iterations.
 	unsigned long long iterations;
+	// Number of times to process the evidence.
+	int passes;
 } threadState;
 
 /**
@@ -321,26 +367,21 @@ static void storeEvidence(KeyValuePair* pairs, uint16_t size, void* state) {
 }
 
 /**
- * Run IP address lookups using the evidence on a single thread.
- * @param state pointer to the thread state
+ * Finds the result for each item of the thread's evidence and reads what the
+ * settings ask for.
+ * @param thisState the thread state
+ * @param results used to find and read the results
+ * @param evidence working copy of the evidence for the thread
+ * @param text buffer for text, or NULL when text is not read
  */
-void runPerformanceThread(void* state) {
+static void runPass(
+	threadState *thisState,
+	ResultsIpi *results,
+	EvidenceKeyValuePairArray *evidence,
+	char *text) {
 	EXCEPTION_CREATE;
 	String* value;
-	threadState *thisState = (threadState*)state;
-
-	// Create an instance of results to access the returned values.
-	ResultsIpi *results = ResultsIpiCreate(&thisState->mainState->manager);
-
-	// Reference to the dataset.
 	DataSetIpi* dataSet = (DataSetIpi*)results->b.dataSet;
-
-	// Thread specific evidence instance.
-	EvidenceKeyValuePairArray* evidence = EvidenceCreate(
-		thisState->mainState->maxEvidence);
-	for (uint32_t i = 0; i < evidence->capacity; i++) {
-		evidence->items[i].header = NULL;
-	}
 
 	// Execute the performance test moving through the linked list.
 	evidenceNode* node = thisState->evidenceFirst;
@@ -366,10 +407,28 @@ void runPerformanceThread(void* state) {
 		// Update the total number of lookups performed by the thread.
 		thisState->iterations += results->count;
 
+		// With nothing to read, the number of results is the checksum.
+		if (settings.read == READ_NONE) {
+			thisState->checkSum += results->count;
+			continue;
+		}
+
 		// Get the all properties from the results if this is part of the
 		// performance evaluation.
 		for (uint32_t j = 0; j < dataSet->b.b.available->count; j++) {
-			if (ResultsIpiGetValues(
+			if (text != NULL) {
+				// Increase the checksum with the length of the text.
+				thisState->checkSum +=
+					ResultsIpiGetValuesStringByRequiredPropertyIndex(
+						results,
+						(int)j,
+						text,
+						TEXT_BUFFER_BYTES,
+						"|",
+						exception);
+				EXCEPTION_THROW;
+			}
+			else if (ResultsIpiGetValues(
 				results,
 				j,
 				exception) != NULL && EXCEPTION_OKAY) {
@@ -382,7 +441,43 @@ void runPerformanceThread(void* state) {
 			}
 		}
 	}
+}
 
+/**
+ * Run IP address lookups using the evidence on a single thread.
+ * @param state pointer to the thread state
+ */
+void runPerformanceThread(void* state) {
+	EXCEPTION_CREATE;
+	threadState *thisState = (threadState*)state;
+
+	// Create an instance of results to access the returned values.
+	ResultsIpi *results = ResultsIpiCreate(&thisState->mainState->manager);
+
+	// Thread specific evidence instance.
+	EvidenceKeyValuePairArray* evidence = EvidenceCreate(
+		thisState->mainState->maxEvidence);
+	for (uint32_t i = 0; i < evidence->capacity; i++) {
+		evidence->items[i].header = NULL;
+	}
+
+	// Text is read into a buffer for each thread, as other languages do.
+	char* text = NULL;
+	if (settings.read == READ_TEXT) {
+		text = (char*)Malloc(TEXT_BUFFER_BYTES);
+		if (text == NULL) {
+			EXCEPTION_SET(INSUFFICIENT_MEMORY);
+			EXCEPTION_THROW;
+		}
+	}
+
+	for (int pass = 0; pass < thisState->passes; pass++) {
+		runPass(thisState, results, evidence, text);
+	}
+
+	if (text != NULL) {
+		Free(text);
+	}
 	EvidenceFree(evidence);
 	ResultsIpiFree(results);
 
@@ -393,14 +488,16 @@ void runPerformanceThread(void* state) {
 /**
  * Execute IP address lookups on specified number of threads.
  * @param state continaing the dataset to use
+ * @param passes number of times each thread processes its evidence
  * @return elapsed millis
  */
-double runTests(performanceState *state) {
+double runTests(performanceState *state, int passes) {
 
 	// Reset the checksums for all the thread states before running the tests.
 	for (int i = 0; i < state->numberOfThreads; i++) {
 		state->threadStates[i].checkSum = 0;
 		state->threadStates[i].iterations = 0;
+		state->threadStates[i].passes = passes;
 	}
 
 	int thread;
@@ -447,10 +544,11 @@ void doReport(performanceState *state) {
 	}
 
 	// output the results from the benchmark to the console
-	double millisPerTest = state->elapsedMilliSeconds / (double)state->evidenceCount;
+	const int lookups = state->evidenceCount * settings.passes;
+	double millisPerTest = state->elapsedMilliSeconds / (double)lookups;
 	fprintf(state->output,
 		"%d lookups, Average ms per lookup: %f, Lookups per second: %.0lf\n",
-		state->evidenceCount,
+		lookups,
 		millisPerTest,
 		round(1000.0 / millisPerTest));
 	fprintf(state->output,
@@ -473,6 +571,84 @@ void doReport(performanceState *state) {
 }
 
 /**
+ * Gets the configuration of the collection with the name given.
+ * @param config the configuration of the data set
+ * @param name of the collection, which need not be null terminated
+ * @param length of the name
+ * @return the configuration, or NULL if there is no such collection
+ */
+static fiftyoneDegreesCollectionConfig* getCollectionConfig(
+	ConfigIpi *config,
+	const char *name,
+	size_t length) {
+	const struct {
+		const char *name;
+		fiftyoneDegreesCollectionConfig *config;
+	} items[] = {
+		{ "strings", &config->strings },
+		{ "components", &config->components },
+		{ "maps", &config->maps },
+		{ "properties", &config->properties },
+		{ "values", &config->values },
+		{ "profiles", &config->profiles },
+		{ "graphs", &config->graphs },
+		{ "profileGroups", &config->profileGroups },
+		{ "profileOffsets", &config->profileOffsets },
+		{ "propertyTypes", &config->propertyTypes },
+		{ "graph", &config->graph } };
+	for (size_t i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
+		if (strlen(items[i].name) == length &&
+			strncmp(items[i].name, name, length) == 0) {
+			return items[i].config;
+		}
+	}
+	return NULL;
+}
+
+/**
+ * Sets the caches named in a list such as "values=50000,profiles=memory". A
+ * size gives the collection a cache of that many entries, and "memory" holds
+ * the collection in memory.
+ * @param config the configuration to change
+ * @param caches the list, or NULL to change nothing
+ * @return false if the list cannot be used
+ */
+static bool applyCaches(ConfigIpi *config, const char *caches) {
+	const char *next = caches;
+	while (next != NULL && *next != '\0') {
+		const char *equals = strchr(next, '=');
+		if (equals == NULL) {
+			return false;
+		}
+		fiftyoneDegreesCollectionConfig *collection = getCollectionConfig(
+			config,
+			next,
+			(size_t)(equals - next));
+		if (collection == NULL) {
+			return false;
+		}
+		const char *value = equals + 1;
+		if (strncmp(value, "memory", 6) == 0) {
+			collection->loaded = true;
+		}
+		else {
+			char *end;
+			const unsigned long capacity = strtoul(value, &end, 10);
+			if (end == value) {
+				return false;
+			}
+			collection->loaded = false;
+			collection->capacity = (uint32_t)capacity;
+		}
+		next = strchr(value, ',');
+		if (next != NULL) {
+			next++;
+		}
+	}
+	return true;
+}
+
+/**
  * Set up and execute a benchmark test.
  * @param state overall performance state
  * @param config the configuration to use for this benchmark
@@ -484,28 +660,43 @@ void executeBenchmark(
 	ConfigIpi dataSetConfig = *config.config;
 
 	// Output the name of the stock configuration before changing parameters.
-	fprintf(state->output, 
+	fprintf(state->output,
 		"Benchmarking with profile: %s AllProperties: %s\n",
 		fiftyoneDegreesExampleGetConfigName(dataSetConfig),
-		config.allProperties ? "True" : "False");
+		config.properties == NULL ? "True" : "False");
+	fprintf(state->output,
+		"Read: %s, Passes: %d, Concurrency: %s, Caches: %s\n",
+		readModeNames[settings.read],
+		settings.passes,
+		settings.presetConcurrency ? "preset" : "threads",
+		settings.caches == NULL ? "preset" : settings.caches);
 
 	EXCEPTION_CREATE;
 
 	PropertiesRequired properties = PropertiesDefault;
-	if (config.allProperties == false) {
-		properties.string = "RegisteredName";
+	if (config.properties != NULL) {
+		properties.string = config.properties;
 	}
 
-	dataSetConfig.strings.concurrency = state->numberOfThreads;
-	dataSetConfig.components.concurrency = state->numberOfThreads;
-	dataSetConfig.maps.concurrency = state->numberOfThreads;
-	dataSetConfig.properties.concurrency = state->numberOfThreads;
-	dataSetConfig.values.concurrency = state->numberOfThreads;
-	dataSetConfig.profiles.concurrency = state->numberOfThreads;
-	dataSetConfig.graph.concurrency = state->numberOfThreads;
-	dataSetConfig.graphs.concurrency = state->numberOfThreads;
-	dataSetConfig.profileGroups.concurrency = state->numberOfThreads;
-	dataSetConfig.profileOffsets.concurrency = state->numberOfThreads;
+	if (settings.presetConcurrency == false) {
+		dataSetConfig.strings.concurrency = state->numberOfThreads;
+		dataSetConfig.components.concurrency = state->numberOfThreads;
+		dataSetConfig.maps.concurrency = state->numberOfThreads;
+		dataSetConfig.properties.concurrency = state->numberOfThreads;
+		dataSetConfig.values.concurrency = state->numberOfThreads;
+		dataSetConfig.profiles.concurrency = state->numberOfThreads;
+		dataSetConfig.graph.concurrency = state->numberOfThreads;
+		dataSetConfig.graphs.concurrency = state->numberOfThreads;
+		dataSetConfig.profileGroups.concurrency = state->numberOfThreads;
+		dataSetConfig.profileOffsets.concurrency = state->numberOfThreads;
+		dataSetConfig.propertyTypes.concurrency = state->numberOfThreads;
+	}
+	if (applyCaches(&dataSetConfig, settings.caches) == false) {
+		fprintf(state->output, "The caches '%s' are not valid\n",
+			settings.caches);
+		exitCode = 1;
+		return;
+	}
 
 	state->threads = (FIFTYONE_DEGREES_THREAD*)
 		Malloc(sizeof(FIFTYONE_DEGREES_THREAD) * state->numberOfThreads);
@@ -546,11 +737,12 @@ void executeBenchmark(
 	// skip it there and only warm up the standard build, whose caches benefit.
 	if (!CollectionGetIsMemoryOnly()) {
 		fprintf(state->output, "Warming up\n");
-		runTests(state);
+		runTests(state, 1);
 	}
 
 	fprintf(state->output, "Running\n");
-	state->elapsedMilliSeconds = runTests(state);
+	fflush(state->output);
+	state->elapsedMilliSeconds = runTests(state, settings.passes);
 	fprintf(state->output,
 		"Finished - Execution time was %lf ms\n",
 		state->elapsedMilliSeconds);
@@ -693,21 +885,29 @@ void fiftyoneDegreesIpiPerformance(
 		fprintf(state.resultsOutput, "{");
 	}
 
-	// Run the selected benchmarks using the evidence now in memory.
-	for (int i = 0;
-		i < (int)(sizeof(performanceConfigs) / sizeof(performanceConfig));
-		i++) {
+	// The configuration chosen on the command line replaces the list.
+	performanceConfig chosen = { settings.config, settings.properties };
+	performanceConfig *configs = performanceConfigs;
+	int configsCount =
+		(int)(sizeof(performanceConfigs) / sizeof(performanceConfig));
+	if (settings.config != NULL) {
+		configs = &chosen;
+		configsCount = 1;
+	}
 
-		performanceConfig config = performanceConfigs[i];
+	// Run the selected benchmarks using the evidence now in memory.
+	for (int i = 0; i < configsCount; i++) {
+
+		performanceConfig config = configs[i];
 
 		if (CollectionGetIsMemoryOnly() == false ||
 			config.config->b.allInMemory == true) {
-			
+
 			if (state.resultsOutput != NULL) {
 				fprintf(state.resultsOutput, "%s\n\"%s%s\": {\n",
 					i > 0 ? "," : "",
 					fiftyoneDegreesExampleGetConfigName(*(config.config)),
-					config.allProperties ? "_All" : "");
+					config.properties == NULL ? "_All" : "");
 			}
 
 			executeBenchmark(&state, config);
@@ -760,6 +960,18 @@ void fiftyoneDegreesExampleCPerformanceRun(ExampleParameters* params) {
 #define JSON_OPTION_SHORT "-j"
 #define ITERATIONS_OPTION "--iterations"
 #define ITERATIONS_OPTION_SHORT "-i"
+#define PROFILE_OPTION "--profile"
+#define PROFILE_OPTION_SHORT "-p"
+#define PROPERTIES_OPTION "--properties"
+#define PROPERTIES_OPTION_SHORT "-r"
+#define READ_OPTION "--read"
+#define READ_OPTION_SHORT "-e"
+#define PASSES_OPTION "--passes"
+#define PASSES_OPTION_SHORT "-n"
+#define PRESET_CONCURRENCY_OPTION "--preset-concurrency"
+#define PRESET_CONCURRENCY_OPTION_SHORT "-c"
+#define CACHES_OPTION "--caches"
+#define CACHES_OPTION_SHORT "-k"
 #define HELP_OPTION "--help"
 #define HELP_OPTION_SHORT "-h"
 #define OPTION_PADDING(o) ((int)(30 - strlen(o)))
@@ -775,7 +987,59 @@ void printHelp() {
 	OPTION_MESSAGE("Number of threads to run in parallel", THREAD_OPTION, THREAD_OPTION_SHORT);
 	OPTION_MESSAGE("Number of iterations", ITERATIONS_OPTION, ITERATIONS_OPTION_SHORT);
 	OPTION_MESSAGE("Path to a file to output JSON format results to", JSON_OPTION, JSON_OPTION_SHORT);
+	OPTION_MESSAGE("One configuration to run, such as Balanced",
+		PROFILE_OPTION, PROFILE_OPTION_SHORT);
+	OPTION_MESSAGE("Its required properties, or all for every property",
+		PROPERTIES_OPTION, PROPERTIES_OPTION_SHORT);
+	OPTION_MESSAGE("What each lookup reads, which is none, values or text",
+		READ_OPTION, READ_OPTION_SHORT);
+	OPTION_MESSAGE("Times each thread processes its evidence when timed",
+		PASSES_OPTION, PASSES_OPTION_SHORT);
+	OPTION_MESSAGE("Keep the configuration's concurrency",
+		PRESET_CONCURRENCY_OPTION, PRESET_CONCURRENCY_OPTION_SHORT);
+	OPTION_MESSAGE("Caches, such as values=50000,profileGroups=memory",
+		CACHES_OPTION, CACHES_OPTION_SHORT);
 	OPTION_MESSAGE("Print this help", HELP_OPTION, HELP_OPTION_SHORT);
+}
+
+/**
+ * Gets the configuration with the name given.
+ * @param name of the configuration, such as Balanced
+ * @return the configuration, or NULL if there is none of that name
+ */
+static ConfigIpi* getConfigByName(const char *name) {
+	const struct {
+		const char *name;
+		ConfigIpi *config;
+	} configs[] = {
+		{ "InMemory", &IpiInMemoryConfig },
+		{ "HighPerformance", &IpiHighPerformanceConfig },
+		{ "LowMemory", &IpiLowMemoryConfig },
+		{ "Balanced", &IpiBalancedConfig },
+		{ "BalancedTemp", &IpiBalancedTempConfig } };
+	for (size_t i = 0; i < sizeof(configs) / sizeof(configs[0]); i++) {
+		if (strcmp(configs[i].name, name) == 0) {
+			return configs[i].config;
+		}
+	}
+	return NULL;
+}
+
+/**
+ * Gets the read mode with the name given.
+ * @param name of the read mode, such as text
+ * @param read set to the read mode found
+ * @return false if there is no read mode of that name
+ */
+static bool getReadModeByName(const char *name, readMode *read) {
+	const int count = (int)(sizeof(readModeNames) / sizeof(readModeNames[0]));
+	for (int i = 0; i < count; i++) {
+		if (strcmp(readModeNames[i], name) == 0) {
+			*read = (readMode)i;
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -823,6 +1087,48 @@ int main(int argc, char* argv[]) {
 			strcmp(argv[i], ITERATIONS_OPTION_SHORT) == 0) {
 			// Set the iterations per thread
 			iterations = atoi(argv[i + 1]);
+		}
+		else if (strcmp(argv[i], PROFILE_OPTION) == 0 ||
+			strcmp(argv[i], PROFILE_OPTION_SHORT) == 0) {
+			// Set the one configuration to run
+			settings.config = getConfigByName(argv[i + 1]);
+			if (settings.config == NULL) {
+				printf("The profile '%s' is not recognized.\n", argv[i + 1]);
+				return 1;
+			}
+		}
+		else if (strcmp(argv[i], PROPERTIES_OPTION) == 0 ||
+			strcmp(argv[i], PROPERTIES_OPTION_SHORT) == 0) {
+			// Set the required properties, where all names nothing
+			settings.properties =
+				strcmp(argv[i + 1], "all") == 0 ? NULL : argv[i + 1];
+		}
+		else if (strcmp(argv[i], READ_OPTION) == 0 ||
+			strcmp(argv[i], READ_OPTION_SHORT) == 0) {
+			// Set what each lookup reads
+			if (getReadModeByName(argv[i + 1], &settings.read) == false) {
+				printf("The read '%s' is not recognized.\n", argv[i + 1]);
+				return 1;
+			}
+		}
+		else if (strcmp(argv[i], PASSES_OPTION) == 0 ||
+			strcmp(argv[i], PASSES_OPTION_SHORT) == 0) {
+			// Set the number of timed passes over the evidence
+			settings.passes = atoi(argv[i + 1]);
+			if (settings.passes < 1) {
+				printf("The passes must be at least 1.\n");
+				return 1;
+			}
+		}
+		else if (strcmp(argv[i], PRESET_CONCURRENCY_OPTION) == 0 ||
+			strcmp(argv[i], PRESET_CONCURRENCY_OPTION_SHORT) == 0) {
+			// Keep the concurrency of the configuration
+			settings.presetConcurrency = true;
+		}
+		else if (strcmp(argv[i], CACHES_OPTION) == 0 ||
+			strcmp(argv[i], CACHES_OPTION_SHORT) == 0) {
+			// Set the caches to use
+			settings.caches = argv[i + 1];
 		}
 		else if (strcmp(argv[i], HELP_OPTION) == 0 ||
 			strcmp(argv[i], HELP_OPTION_SHORT) == 0) {
