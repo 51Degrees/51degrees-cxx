@@ -418,8 +418,9 @@ static void hashResultReset(const DataSetHash *dataSet, ResultHash *result) {
 	result->method = FIFTYONE_DEGREES_HASH_MATCH_METHOD_NONE;
 	result->iterations = 0;
 	result->matchedNodes = 0;
+	result->componentIndex = UINT8_MAX;
 	for (i = 0; i < dataSet->componentsList.count; i++) {
-		
+
 		// Overridden profiles have to be set explicitly.
 		result->profileIsOverriden[i] = false;
 
@@ -3290,8 +3291,12 @@ static ResultHash* hashResultSet(
 static ResultHash* getComponentResult(
 	ResultsHash* results,
 	byte componentIndex) {
-	const byte item = results->componentItems[componentIndex];
-	return item < results->count ? &results->items[item] : NULL;
+	for (uint32_t i = 0; i < results->count; i++) {
+		if (results->items[i].componentIndex == componentIndex) {
+			return &results->items[i];
+		}
+	}
+	return NULL;
 }
 
 static void completeResult(
@@ -3630,8 +3635,9 @@ static void overrideProfileId(void *state, const uint32_t profileId) {
 	detectionComponentState* s = (detectionComponentState*)state;
 	Exception* exception = s->exception;
 	ResultsHash *results = (ResultsHash*)s->results;
-	if (profileId > 0) {
-		addProfileById(results, profileId, true, exception);
+	if (profileId > 0 &&
+		addProfileById(results, profileId, true, exception)) {
+		results->profileIdsOverridden = true;
 	}
 }
 
@@ -3890,7 +3896,13 @@ static void resultsHashFromEvidence_handleComponentEvidence(
 		i < FIFTYONE_DEGREES_ORDER_OF_PRECEDENCE_SIZE;
 		i++) {
 
-		// If evidence was found and processed for the component headers then 
+		// No header can be found for a prefix no pair has.
+		if ((state->results->evidencePrefixes &
+			prefixOrderOfPrecedence[i]) == 0) {
+			continue;
+		}
+
+		// If evidence was found and processed for the component headers then
 		// return.
 		if (EvidenceIterateForHeaders(
 			state->evidence,
@@ -3976,14 +3988,74 @@ static bool hasComponentEvidenceCallback(
 	return true;
 }
 
+// True if no pair before the one at the index has the same header and is one
+// the prefix finds, so that a walk looking for the header with the prefix
+// finds the pair at the index.
+static bool isFirstPairForHeader(
+	EvidenceKeyValuePairArray* evidence,
+	uint32_t index,
+	int prefix) {
+	for (uint32_t i = 0; i < index; i++) {
+		EvidenceKeyValuePair* earlier = &evidence->items[i];
+		if (earlier->header == evidence->items[index].header &&
+			(earlier->prefix & prefix) == earlier->prefix) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// True if a walk of the component would try one of the copied pairs as it is,
+// which is when the pair's header is one of the component's headers from the
+// data set, a walk's prefix finds the pair first for that header, and the
+// value fits the memory the walk uses. Every pair a walk finds by name has its
+// header set, as the header of each pair is set before the evidence is
+// copied. Headers made of several others are not looked for here.
+static bool hasHeaderEvidence(ResultsHash* results, byte componentIndex) {
+	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
+	EvidenceKeyValuePairArray* evidence = results->evidence;
+	HeaderPtrs* headers = dataSet->componentHeaders[componentIndex];
+	for (uint32_t i = 0; i < evidence->count; i++) {
+		EvidenceKeyValuePair* pair = &evidence->items[i];
+		if (pair->header == NULL ||
+			pair->header->isDataSet == false ||
+			(results->b.bufferPseudo != NULL &&
+				pair->parsedLength >= (size_t)results->b.bufferPseudoLength)) {
+			continue;
+		}
+		bool first = false;
+		for (int p = 0; p < FIFTYONE_DEGREES_ORDER_OF_PRECEDENCE_SIZE; p++) {
+			const int prefix = prefixOrderOfPrecedence[p];
+			if ((pair->prefix & prefix) == pair->prefix &&
+				isFirstPairForHeader(evidence, i, prefix)) {
+				first = true;
+			}
+		}
+		if (first) {
+			for (uint32_t h = 0; h < headers->count; h++) {
+				if (headers->items[h] == pair->header) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 // True if the evidence the results hold gives the component a result, which
-// is when its walk would try at least one header.
+// is when its walk would try at least one header. The pairs are looked at
+// first, which answers for any evidence holding one of the component's
+// headers as it is, and otherwise the walk's own pass over the headers
+// answers, which also assembles the headers made of several others.
 static bool hasComponentEvidence(ResultsHash* results, byte componentIndex) {
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
-	bool found = false;
+	bool found = hasHeaderEvidence(results, componentIndex);
 	for (int i = 0;
 		i < FIFTYONE_DEGREES_ORDER_OF_PRECEDENCE_SIZE && found == false;
 		i++) {
+		if ((results->evidencePrefixes & prefixOrderOfPrecedence[i]) == 0) {
+			continue;
+		}
 		EvidenceIterateForHeaders(
 			results->evidence,
 			prefixOrderOfPrecedence[i],
@@ -4000,7 +4072,8 @@ static bool hasComponentEvidence(ResultsHash* results, byte componentIndex) {
 // its headers, in component order, and marks the component to be walked on
 // its first read. The results then have the same number of results, in the
 // same order, as walking every component in order gives, whatever is read
-// first.
+// first. Each result taken is as resultsHashReset left it, as nothing changes
+// a result after the count until the count includes it.
 static void resultsHashFromEvidence_takeResults(
 	detectionComponentState* state) {
 	ResultsHash* results = state->results;
@@ -4008,8 +4081,7 @@ static void resultsHashFromEvidence_takeResults(
 		if (state->dataSet->componentsAvailable[i] == true &&
 			results->count < results->capacity &&
 			hasComponentEvidence(results, (byte)i)) {
-			results->componentItems[i] = (byte)results->count;
-			hashResultReset(state->dataSet, &results->items[results->count++]);
+			results->items[results->count++].componentIndex = (byte)i;
 			ResultsPendingSet(&results->b.b, (byte)i);
 		}
 	}
@@ -4058,26 +4130,25 @@ static void resultsHashFromEvidence_copyEvidence(
 			textBytes += evidenceTextBytes(&array->items[i]);
 		}
 	}
-	if (results->evidence == NULL || results->evidence->capacity < pairs) {
-		EvidenceFree(results->evidence);
-		results->evidence = EvidenceCreate(pairs);
+	const size_t bytes = sizeof(EvidenceKeyValuePairArray) +
+		sizeof(EvidenceKeyValuePair) * pairs +
+		textBytes;
+	if (results->evidenceBytes < bytes) {
+		Free(results->evidence);
+		results->evidence = (EvidenceKeyValuePairArray*)Malloc(bytes);
 		if (results->evidence == NULL) {
+			results->evidenceBytes = 0;
 			EXCEPTION_SET(INSUFFICIENT_MEMORY);
 			return;
 		}
+		results->evidenceBytes = bytes;
 	}
-	if (results->evidenceTextLength < textBytes) {
-		Free(results->evidenceText);
-		results->evidenceText = (char*)Malloc(textBytes);
-		if (results->evidenceText == NULL) {
-			results->evidenceTextLength = 0;
-			EXCEPTION_SET(INSUFFICIENT_MEMORY);
-			return;
-		}
-		results->evidenceTextLength = textBytes;
-	}
-	char* next = results->evidenceText;
+	results->evidence->items = (EvidenceKeyValuePair*)(results->evidence + 1);
+	results->evidence->capacity = pairs;
 	results->evidence->count = 0;
+	results->evidence->next = NULL;
+	results->evidence->prev = NULL;
+	char* next = (char*)(results->evidence->items + pairs);
 	for (array = state->evidence; array != NULL; array = array->next) {
 		for (i = 0; i < array->count; i++) {
 			EvidenceKeyValuePair* from = &array->items[i];
@@ -4107,6 +4178,13 @@ static void resultsHashFromEvidence_copyEvidence(
 					from->parsedLength);
 			}
 			to->parsedLength = from->parsedLength;
+			for (int p = 0;
+				p < FIFTYONE_DEGREES_ORDER_OF_PRECEDENCE_SIZE;
+				p++) {
+				if ((to->prefix & prefixOrderOfPrecedence[p]) == to->prefix) {
+					results->evidencePrefixes |= prefixOrderOfPrecedence[p];
+				}
+			}
 		}
 	}
 }
@@ -4118,22 +4196,20 @@ static void resultsHashReset(ResultsHash* results) {
 	}
 	results->count = 0;
 	ResultsPendingClear(&results->b.b);
-	memset(
-		results->componentItems,
-		UINT8_MAX,
-		dataSet->componentsList.count);
 	if (results->evidence != NULL) {
 		results->evidence->count = 0;
 	}
+	results->evidencePrefixes = 0;
+	results->profileIdsOverridden = false;
 }
 
 /**
  * Walks the graph of the component, against the evidence the results copied,
  * into the result the component took when the results were populated. Then,
  * as populating the results does once every graph has been walked, applies
- * the profile overrides again and gives the component its default profile if
- * unmatched results are allowed. Called the first time a property of the
- * component is read.
+ * the profile overrides again if the evidence overrode a profile, and gives
+ * the component its default profile if unmatched results are allowed. Called
+ * the first time a property of the component is read.
  */
 static void resultsHashEvaluate(
 	fiftyoneDegreesResultsBase* base,
@@ -4158,9 +4234,11 @@ static void resultsHashEvaluate(
 		return;
 	}
 	if (dataSet->config.b.processSpecialEvidence) {
-		OverrideProfileIds(results->evidence, &state, overrideProfileId);
-		if (EXCEPTION_FAILED) {
-			return;
+		if (results->profileIdsOverridden) {
+			OverrideProfileIds(results->evidence, &state, overrideProfileId);
+			if (EXCEPTION_FAILED) {
+				return;
+			}
 		}
 		if (dataSet->config.b.allowUnmatched == true) {
 			resultsHashFromEvidence_SetMissingComponentDefaultProfile(
@@ -4381,12 +4459,8 @@ void fiftyoneDegreesResultsHashFree(
 			GraphTraceFree(results->items[i].trace);
 		}
 	}
-	EvidenceFree(results->evidence);
-	if (results->evidenceText != NULL) {
-		Free(results->evidenceText);
-	}
-	if (results->componentItems != NULL) {
-		Free(results->componentItems);
+	if (results->evidence != NULL) {
+		Free(results->evidence);
 	}
 	ResultsDeviceDetectionFree(&results->b);
 	DataSetRelease((DataSetBase*)results->b.b.dataSet);
@@ -4443,10 +4517,9 @@ fiftyoneDegreesResultsHash* fiftyoneDegreesResultsHashCreate(
 			overridesCapacity);
 		results->b.b.evaluate = resultsHashEvaluate;
 		results->evidence = NULL;
-		results->evidenceText = NULL;
-		results->evidenceTextLength = 0;
-		results->componentItems = (byte*)Malloc(
-			dataSet->componentsList.count);
+		results->evidenceBytes = 0;
+		results->evidencePrefixes = 0;
+		results->profileIdsOverridden = false;
 
 		// Set the memory for matched User-Agents and route, or make the
 		// pointer NULL.
@@ -4476,10 +4549,6 @@ fiftyoneDegreesResultsHash* fiftyoneDegreesResultsHashCreate(
 		// Set the default profile offsets and override flags. Set the count to
 		// capacity to ensure all the result instances are reset.
 		results->count = results->capacity;
-		if (results->componentItems == NULL) {
-			fiftyoneDegreesResultsHashFree(results);
-			return NULL;
-		}
 		resultsHashReset(results);
 	}
 	else {

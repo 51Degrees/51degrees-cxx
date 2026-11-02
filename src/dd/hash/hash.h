@@ -322,6 +322,9 @@ typedef struct fiftyone_degrees_result_hash_t {
 	int32_t drift; /**< The maximum drift for a matched substring from the
 				   character position where it was expected to be found */
 	int32_t matchedNodes; /**< The number of hashes matched in the User-Agent */
+	byte componentIndex; /**< Index of the component the result was taken for
+						 when the results were populated, or UINT8_MAX if
+						 none */
     fiftyoneDegreesGraphTraceNode* trace; /**< The graph trace constructed
                                           during processing if the option was
                                           enabled (and the executable was
@@ -343,13 +346,18 @@ typedef struct fiftyone_degrees_result_hash_t {
 														evidence the results
 														were populated from,
 														kept for the walks on
-														first reads */ \
-	char *evidenceText; /**< Memory holding the keys and values of the copied
-						evidence */ \
-	size_t evidenceTextLength; /**< Number of bytes in evidenceText */ \
-	byte *componentItems; /**< For each component, the index of the result its
-						  walk sets, or UINT8_MAX if its evidence gives it
-						  none */
+														first reads. Its pairs
+														and the text of their
+														keys and values follow
+														the array in the same
+														memory */ \
+	size_t evidenceBytes; /**< Number of bytes allocated for evidence */ \
+	int evidencePrefixes; /**< The walks' prefixes that some pair of the
+						  copied evidence has, so that a walk can skip the
+						  others */ \
+	bool profileIdsOverridden; /**< True if the evidence overrode the profile
+							   of a component, so that a walk applies the
+							   overrides again */
 
 FIFTYONE_DEGREES_ARRAY_TYPE(
 	fiftyoneDegreesResultHash,
