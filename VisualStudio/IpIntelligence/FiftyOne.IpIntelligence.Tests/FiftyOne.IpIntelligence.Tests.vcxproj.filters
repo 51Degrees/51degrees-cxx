@@ -99,6 +99,12 @@
     <ClCompile Include="..\..\..\test\ipi\MemLeakReloadFromFileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiPositionsTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiPropertyNamesTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadFileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

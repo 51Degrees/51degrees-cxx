@@ -26,6 +26,9 @@
 /* Array of valid property name separators */
 static char separators[] = FIFTYONE_DEGREES_PROPERTIES_SEPARATORS;
 
+/* The longest name kept, as the size of a string includes its terminator */
+#define MAX_NAME_LENGTH (UINT16_MAX - 1)
+
 PropertiesRequired PropertiesDefault = {
 	NULL, // No array of properties
 	0, // No required properties
@@ -43,6 +46,22 @@ typedef struct properties_source_t {
 } propertiesSource;
 
 typedef void(*matchedPropertyMethod)(PropertiesAvailable*, uint32_t);
+
+/* Called with each name in a list of names */
+typedef void(*nameMethod)(void *state, const char *name, size_t length);
+
+/* Used to count the names given and the bytes their copies need */
+typedef struct names_size_t {
+	uint32_t count;
+	size_t bytes;
+} namesSize;
+
+/* Used to copy the names given */
+typedef struct names_copy_t {
+	PropertyNamed *named;
+	uint32_t count;
+	byte *next;
+} namesCopy;
 
 static size_t getMemorySize(uint32_t count) {
 	return sizeof(PropertiesAvailable) + (sizeof(PropertyAvailable) * count);
@@ -67,6 +86,8 @@ static PropertiesAvailable* initRequiredPropertiesMemory(uint32_t count) {
 		available->count = 0;
 		available->capacity = count;
 		available->allComponentsRequired = false;
+		available->namedCount = 0;
+		available->named = NULL;
 		available->items = (PropertyAvailable*)(available + 1);
 		for (i = 0; i < available->capacity; i++) {
 			// Initialize the evidence properties to prevent them from being
@@ -77,6 +98,8 @@ static PropertiesAvailable* initRequiredPropertiesMemory(uint32_t count) {
 			// Initialize the component index. The engine sets the real value
 			// once it knows which component each property belongs to.
 			available->items[i].componentIndex = 0;
+			// Set once the list is sorted.
+			available->items[i].requiredPropertyIndex = -1;
 		}
 	}
 	return available;
@@ -110,7 +133,10 @@ static bool resultsContain(
 static void addRequiredProperty(
 	PropertiesAvailable *available,
 	uint32_t propertyIndex) {
-	if (resultsContain(available, propertyIndex) == false) {
+	// A name read can fail while the properties are counted and work in this
+	// pass, so the list is never filled past what was counted.
+	if (available->count < available->capacity &&
+		resultsContain(available, propertyIndex) == false) {
 		available->items[available->count++].propertyIndex = propertyIndex;
 	}
 }
@@ -139,156 +165,179 @@ static int getPropertyIndex(
 	return -1;
 }
 
-static void iteratePropertiesFromExisting(
+/**
+ * Calls the method with each name in the separated list. A name is a run of
+ * characters that are not separators, so a run of separators separates two
+ * names and the names are numbered as the caller sees them.
+ */
+static void iterateNamesInString(
+	const char *string,
+	void *state,
+	nameMethod method) {
+	const char *name = NULL;
+	const char *current;
+	for (current = string; ; current++) {
+		if (*current != '\0' && strchr(separators, *current) == NULL) {
+			if (name == NULL) {
+				name = current;
+			}
+		}
+		else {
+			if (name != NULL) {
+				method(state, name, (size_t)(current - name));
+				name = NULL;
+			}
+			if (*current == '\0') {
+				break;
+			}
+		}
+	}
+}
+
+static void addNameSize(void *state, const char *name, size_t length) {
+	namesSize *size = (namesSize*)state;
+	(void)name;
+	size->count++;
+	size->bytes += sizeof(uint16_t) +
+		(length > MAX_NAME_LENGTH ? MAX_NAME_LENGTH : length) + 1;
+}
+
+/**
+ * Copies the name into the block of names in the layout of a string from a
+ * data set, so it can be returned where such a string is.
+ */
+static void addNameCopy(void *state, const char *name, size_t length) {
+	namesCopy *copy = (namesCopy*)state;
+	String *string = (String*)copy->next;
+	if (length > MAX_NAME_LENGTH) {
+		length = MAX_NAME_LENGTH;
+	}
+	string->size = (uint16_t)(length + 1);
+	memcpy(&string->value, name, length);
+	(&string->value)[length] = '\0';
+	copy->named[copy->count].availableIndex = -1;
+	copy->named[copy->count].name = string;
+	copy->count++;
+	copy->next += sizeof(uint16_t) + length + 1;
+}
+
+/**
+ * Allocates one block for the names given and their copies. A list that
+ * names nothing still has a block, as it is not the same as naming no list.
+ */
+static PropertyNamed* createNamed(namesSize *size, namesCopy *copy) {
+	const uint32_t slots = size->count == 0 ? 1 : size->count;
+	PropertyNamed *named = (PropertyNamed*)Malloc(
+		sizeof(PropertyNamed) * slots + size->bytes);
+	if (named != NULL) {
+		copy->named = named;
+		copy->count = 0;
+		copy->next = (byte*)(named + slots);
+	}
+	return named;
+}
+
+static PropertyNamed* copyNamesFromString(
+	const char *string,
+	uint32_t *count) {
+	namesSize size = { 0, 0 };
+	namesCopy copy;
+	iterateNamesInString(string, &size, addNameSize);
+	PropertyNamed *named = createNamed(&size, &copy);
+	if (named != NULL) {
+		iterateNamesInString(string, &copy, addNameCopy);
+		*count = copy.count;
+	}
+	return named;
+}
+
+static PropertyNamed* copyNamesFromArray(
+	const char **array,
+	int arrayCount,
+	uint32_t *count) {
+	int i;
+	namesSize size = { 0, 0 };
+	namesCopy copy;
+	for (i = 0; i < arrayCount; i++) {
+		const char *name = array[i] == NULL ? "" : array[i];
+		addNameSize(&size, name, strlen(name));
+	}
+	PropertyNamed *named = createNamed(&size, &copy);
+	if (named != NULL) {
+		for (i = 0; i < arrayCount; i++) {
+			const char *name = array[i] == NULL ? "" : array[i];
+			addNameCopy(&copy, name, strlen(name));
+		}
+		*count = copy.count;
+	}
+	return named;
+}
+
+static PropertyNamed* copyNamesFromNamed(
+	const PropertyNamed *existing,
+	uint32_t existingCount,
+	uint32_t *count) {
+	uint32_t i;
+	namesSize size = { 0, 0 };
+	namesCopy copy;
+	for (i = 0; i < existingCount; i++) {
+		addNameSize(
+			&size,
+			&existing[i].name->value,
+			(size_t)existing[i].name->size - 1);
+	}
+	PropertyNamed *named = createNamed(&size, &copy);
+	if (named != NULL) {
+		for (i = 0; i < existingCount; i++) {
+			addNameCopy(
+				&copy,
+				&existing[i].name->value,
+				(size_t)existing[i].name->size - 1);
+		}
+		*count = copy.count;
+	}
+	return named;
+}
+
+static void iteratePropertiesFromNamed(
 	propertiesSource *source,
 	PropertiesAvailable *available,
-	PropertiesAvailable *existing,
+	const PropertyNamed *named,
+	uint32_t namedCount,
 	matchedPropertyMethod match) {
 	uint32_t i;
-	String *propertyName;
 	int propertyIndex;
-	for (i = 0; i < existing->count; i++) {
-		propertyName = (String*)existing->items[i].name.data.ptr;
-		if (propertyName != NULL) {
-			propertyIndex = getPropertyIndex(
-				source,
-				&propertyName->value,
-				propertyName->size - 1);
-			if (propertyIndex >= 0) {
-				match(available, propertyIndex);
-			}
-		}
-	}
-}
-
-static void iteratePropertiesFromString(
-	propertiesSource *source,
-	PropertiesAvailable *available,
-	const char* properties,
-	matchedPropertyMethod match) {
-	int propertyIndex;
-	char *property = (char*)properties;
-	const char *end = properties - 1;
-	do {
-		end++;
-		if (strchr(separators, *end) != NULL) {
-			// If the property name is one that is valid in the data set then
-			// use the callback matchedProperty to provide the index.
-			propertyIndex = getPropertyIndex(
-				source,
-				property,
-				(int)(end - property));
-			if (propertyIndex >= 0) {
-				match(available, propertyIndex);
-			}
-			property = (char*)end + 1;
-		}
-	} while (*end != '\0');
-}
-
-static void iteratePropertiesFromArray(
-	propertiesSource *source,
-	PropertiesAvailable *available,
-	const char** properties,
-	int count,
-	matchedPropertyMethod match) {
-	int i, propertyIndex;
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < namedCount; i++) {
 		propertyIndex = getPropertyIndex(
 			source,
-			properties[i],
-			(int)strlen(properties[i]));
+			&named[i].name->value,
+			(int)named[i].name->size - 1);
 		if (propertyIndex >= 0) {
-			match(available, propertyIndex);
+			match(available, (uint32_t)propertyIndex);
 		}
 	}
 }
 
-static uint32_t countPropertiesFromString(
+static PropertiesAvailable* initSpecificPropertiesFromNamed(
 	propertiesSource *source,
-	const char *properties) {
+	const PropertyNamed *named,
+	uint32_t namedCount) {
 	PropertiesAvailable counter;
 	counter.count = 0;
-	iteratePropertiesFromString(
+	iteratePropertiesFromNamed(
 		source,
 		&counter,
-		properties,
+		named,
+		namedCount,
 		increaseRequiredPropertiesCount);
-	return counter.count;
-}
-
-static uint32_t countPropertiesFromArray(
-	propertiesSource *source,
-	const char **properties,
-	int count) {
-	PropertiesAvailable counter;
-	counter.count = 0;
-	iteratePropertiesFromArray(
-		source,
-		&counter,
-		properties,
-		count,
-		increaseRequiredPropertiesCount);
-	return counter.count;
-}
-
-static uint32_t countPropertiesFromExisting(
-	propertiesSource *source,
-	PropertiesAvailable *properties) {
-	PropertiesAvailable counter;
-	counter.count = 0;
-	iteratePropertiesFromExisting(
-		source,
-		&counter,
-		properties,
-		increaseRequiredPropertiesCount);
-	return counter.count;
-}
-
-static PropertiesAvailable* initRequiredPropertiesFromString(
-	propertiesSource *source,
-	const char* properties) {
-	PropertiesAvailable *available;
-	uint32_t count = countPropertiesFromString(source, properties);
-	available = initRequiredPropertiesMemory(count);
+	PropertiesAvailable *available = initRequiredPropertiesMemory(
+		counter.count);
 	if (available != NULL) {
-		iteratePropertiesFromString(
+		iteratePropertiesFromNamed(
 			source,
 			available,
-			properties,
-			addRequiredProperty);
-	}
-	return available;
-}
-
-static PropertiesAvailable* initSpecificPropertiesFromExisting(
-	propertiesSource *source,
-	PropertiesAvailable *properties) {
-	uint32_t count = countPropertiesFromExisting(source, properties);
-	PropertiesAvailable *available = initRequiredPropertiesMemory(count);
-	if (available != NULL) {
-		available->allComponentsRequired = properties->allComponentsRequired;
-		iteratePropertiesFromExisting(
-			source,
-			available,
-			properties,
-			addRequiredProperty);
-	}
-	return available;
-}
-
-static PropertiesAvailable* initSpecificPropertiesFromArray(
-	propertiesSource *source,
-	const char** properties,
-	int propertyCount) {
-	uint32_t count = countPropertiesFromArray(source, properties, propertyCount);
-	PropertiesAvailable *available = initRequiredPropertiesMemory(count);
-	if (available != NULL) {
-		iteratePropertiesFromArray(
-			source,
-			available,
-			properties,
-			propertyCount,
+			named,
+			namedCount,
 			addRequiredProperty);
 	}
 	return available;
@@ -366,7 +415,11 @@ static void sortRequiredProperties(
 		comparePropertyNamesAscending);
 }
 
-static void initRequiredProperties(
+/**
+ * Sets the names and evidence of the properties, and sorts them by name.
+ * Returns false when a name could not be read, leaving the list unsorted.
+ */
+static bool initRequiredProperties(
 	propertiesSource *source,
 	PropertiesAvailable *available) {
 	uint32_t i;
@@ -379,7 +432,7 @@ static void initRequiredProperties(
 	// as the names cannot then be compared or used to find evidence.
 	for (i = 0; i < available->count; i++) {
 		if (available->items[i].name.data.ptr == NULL) {
-			return;
+			return false;
 		}
 	}
 
@@ -399,12 +452,56 @@ static void initRequiredProperties(
 				string->size - 1);
 		}
 	}
+	return true;
 }
 
 static int comparePropertyNamesAscendingSearch(const void *a, const void *b) {
 	char *as = (char*)a;
 	char *bs = &((String*)((PropertyAvailable*)b)->name.data.ptr)->value;
 	return StringCompare(as, bs);
+}
+
+static PropertyAvailable* findAvailable(
+	PropertiesAvailable *available,
+	const char *propertyName) {
+	if (available == NULL || propertyName == NULL) {
+		return NULL;
+	}
+	return (PropertyAvailable*)bsearch(
+		propertyName,
+		available->items,
+		available->count,
+		sizeof(PropertyAvailable),
+		comparePropertyNamesAscendingSearch);
+}
+
+/**
+ * Sets the required property index of each available property, which is the
+ * place of its name among the names given, and the available index of each
+ * name given. Without names, each property's index is its own place.
+ */
+static void setRequiredPropertyIndexes(PropertiesAvailable *available) {
+	uint32_t i;
+	PropertyAvailable *found;
+	if (available->named == NULL) {
+		for (i = 0; i < available->count; i++) {
+			available->items[i].requiredPropertyIndex = (int32_t)i;
+		}
+		return;
+	}
+	for (i = 0; i < available->namedCount; i++) {
+		found = findAvailable(available, &available->named[i].name->value);
+		if (found == NULL) {
+			available->named[i].availableIndex = -1;
+		}
+		else {
+			available->named[i].availableIndex =
+				(int32_t)(found - available->items);
+			if (found->requiredPropertyIndex < 0) {
+				found->requiredPropertyIndex = (int32_t)i;
+			}
+		}
+	}
 }
 
 fiftyoneDegreesPropertiesAvailable* fiftyoneDegreesPropertiesCreate(
@@ -417,41 +514,71 @@ fiftyoneDegreesPropertiesAvailable* fiftyoneDegreesPropertiesCreate(
 	source.getName = getPropertyMethod;
 	source.getEvidence = getEvidencePropertiesMethod;
 	PropertiesAvailable *available = NULL;
+	PropertyNamed *named = NULL;
+	uint32_t namedCount = 0;
+	bool allComponentsRequired = false;
+
+	// Copy the names the caller gave. Existing properties give the names they
+	// were created with, so a reload starts again from the caller's names.
 	if (properties != NULL) {
 		if (properties->existing != NULL) {
-			// Use an existing list of properties.
-			available = initSpecificPropertiesFromExisting(
-				&source,
-				properties->existing);
+			allComponentsRequired =
+				properties->existing->allComponentsRequired;
+			if (properties->existing->named != NULL) {
+				named = copyNamesFromNamed(
+					properties->existing->named,
+					properties->existing->namedCount,
+					&namedCount);
+				if (named == NULL) {
+					return NULL;
+				}
+			}
 		}
 		else if (properties->array != NULL && properties->count > 0) {
-			// Set the required properties from the array.
-			available = initSpecificPropertiesFromArray(
-				&source,
+			named = copyNamesFromArray(
 				properties->array,
-				properties->count);
+				properties->count,
+				&namedCount);
+			if (named == NULL) {
+				return NULL;
+			}
 		}
 		else if (properties->string != NULL &&
 			strlen(properties->string) > 0) {
-			// Set the required properties from the comma separated string.
-			available = initRequiredPropertiesFromString(
-				&source,
-				properties->string);
+			named = copyNamesFromString(properties->string, &namedCount);
+			if (named == NULL) {
+				return NULL;
+			}
 		}
-		else {
-			// Set all the properties as required properties.
-			available = initAllProperties(&source);
-		}
+	}
+
+	if (named != NULL) {
+		// Set the required properties from the names given.
+		available = initSpecificPropertiesFromNamed(
+			&source,
+			named,
+			namedCount);
 	}
 	else {
 		// Set all the properties as required properties.
 		available = initAllProperties(&source);
 	}
+	if (available == NULL) {
+		if (named != NULL) {
+			Free(named);
+		}
+		return NULL;
+	}
+	available->allComponentsRequired = allComponentsRequired;
+	available->named = named;
+	available->namedCount = namedCount;
 
-	// Set the require property name strings to match the require property
-	// index.
-	if (available != NULL) {
-		initRequiredProperties(&source, available);
+	// Set the property name strings, sort the list by name, and then record
+	// where each name given is in the sorted list. A name that could not be
+	// read leaves the list unsorted for the caller to report, so no place is
+	// recorded from it.
+	if (initRequiredProperties(&source, available)) {
+		setRequiredPropertyIndexes(available);
 	}
 
 	return available;
@@ -460,54 +587,44 @@ fiftyoneDegreesPropertiesAvailable* fiftyoneDegreesPropertiesCreate(
 int fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
 	fiftyoneDegreesPropertiesAvailable *available,
 	int requiredPropertyIndex) {
-	if (requiredPropertyIndex >= 0 &&
-		requiredPropertyIndex < (int)available->count) {
-		return available->items[requiredPropertyIndex].propertyIndex;
-	}
-	return -1;
+	return PropertiesGetPropertyIndexFromAvailableIndex(
+		available,
+		PropertiesGetAvailableIndex(available, requiredPropertyIndex));
 }
 
 int fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 	fiftyoneDegreesPropertiesAvailable *available,
 	const char *propertyName) {
-	int requiredPropertyIndex;
-	PropertyAvailable *found = (PropertyAvailable*)
-		bsearch(
-			propertyName,
-			available->items,
-			available->count,
-			sizeof(PropertyAvailable),
-			comparePropertyNamesAscendingSearch);
-	if (found == NULL) {
-		requiredPropertyIndex = -1;
-	}
-	else {
-		requiredPropertyIndex = (int)(found - available->items);
-		assert(requiredPropertyIndex >= 0);
-		assert(requiredPropertyIndex < (int)available->count);
-	}
-	return requiredPropertyIndex;
+	const PropertyAvailable *found = findAvailable(available, propertyName);
+	return found == NULL ? -1 : (int)found->requiredPropertyIndex;
 }
 
 int fiftyoneDegreesPropertiesGetPropertyIndexFromName(
 	fiftyoneDegreesPropertiesAvailable *available,
 	const char *propertyName) {
-	int requiredPropertyIndex =
-		PropertiesGetRequiredPropertyIndexFromName(
-			available,
-			propertyName);
-	if (requiredPropertyIndex >= 0) {
-		return PropertiesGetPropertyIndexFromRequiredIndex(
-			available,
-			requiredPropertyIndex);
-	}
-	return -1;
+	const PropertyAvailable *found = findAvailable(available, propertyName);
+	return found == NULL ? -1 : (int)found->propertyIndex;
 }
 
 fiftyoneDegreesString* fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
 	fiftyoneDegreesPropertiesAvailable *available,
 	int requiredPropertyIndex) {
-	return (String*)available->items[requiredPropertyIndex].name.data.ptr;
+	int availableIndex;
+	if (available == NULL || requiredPropertyIndex < 0) {
+		return NULL;
+	}
+	if (available->named != NULL) {
+		if ((uint32_t)requiredPropertyIndex >= available->namedCount) {
+			return NULL;
+		}
+		availableIndex = available->named[requiredPropertyIndex].availableIndex;
+		return availableIndex >= 0 ?
+			(String*)available->items[availableIndex].name.data.ptr :
+			(String*)available->named[requiredPropertyIndex].name;
+	}
+	return (uint32_t)requiredPropertyIndex < available->count ?
+		(String*)available->items[requiredPropertyIndex].name.data.ptr :
+		NULL;
 }
 
 bool fiftyoneDegreesPropertiesIsSetHeaderAvailable(
@@ -535,6 +652,9 @@ void fiftyoneDegreesPropertiesFree(
 				Free(available->items[i].evidenceProperties);
 			}
 		}
+		if (available->named != NULL) {
+			Free(available->named);
+		}
 		Free(available);
 	}
 }
@@ -545,14 +665,14 @@ uint32_t fiftyoneDegreesPropertiesGetComponentMask(
 	int requiredPropertyIndexesCount) {
 	uint32_t mask = 0;
 	int i;
-	int count;
 	if (requiredPropertyIndexes == NULL || requiredPropertyIndexesCount < 0) {
 		return FIFTYONE_DEGREES_COMPONENT_MASK_ALL;
 	}
-	count = available == NULL ? 0 : (int)available->count;
 	for (i = 0; i < requiredPropertyIndexesCount; i++) {
-		int index = requiredPropertyIndexes[i];
-		if (index >= 0 && index < count) {
+		int index = PropertiesGetAvailableIndex(
+			available,
+			requiredPropertyIndexes[i]);
+		if (index >= 0) {
 			byte componentIndex = available->items[index].componentIndex;
 			if (componentIndex < FIFTYONE_DEGREES_COMPONENT_MASK_BITS) {
 				mask |= 1u << componentIndex;

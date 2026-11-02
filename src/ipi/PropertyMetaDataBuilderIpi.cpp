@@ -96,7 +96,7 @@ vector<uint32_t> PropertyMetaDataBuilderIpi::getEvidenceProperties(
 		&item,
 		exception);
 	EXCEPTION_THROW;
-	index = PropertiesGetRequiredPropertyIndexFromName(
+	index = PropertiesGetAvailableIndexFromName(
 		dataSet->b.b.available,
 		&name->value);
 	COLLECTION_RELEASE(dataSet->strings, &item);

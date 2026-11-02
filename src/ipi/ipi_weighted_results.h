@@ -129,7 +129,10 @@ typedef struct fiftyone_degrees_weighted_values_collection_t {
  * not walked again until the results are next populated, so later reads of
  * its properties read as if it had no profile for the address.
  * @param results Pointer to the IP Intelligence results
- * @param requiredPropertyIndexes Array of required property indexes to extract
+ * @param requiredPropertyIndexes Array of required property indexes to extract,
+ * each the index of a property in the names given when the data set was
+ * created, as #fiftyoneDegreesResultsIpiGetValues takes. An index with no
+ * property in the data set gives no values. NULL extracts every index
  * @param requiredPropertyIndexesLength Number of indexes in the requiredPropertyIndexes array
  * @param tempData Temporary data structure for string conversion operations
  * @param exception Pointer to an exception structure for error handling

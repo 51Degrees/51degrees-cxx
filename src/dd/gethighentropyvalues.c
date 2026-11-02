@@ -258,10 +258,10 @@ void fiftyoneDegreesGhevDeviceDetectionInit(
 
     // If the GHEV property is not an available property then there is no need
     // for this functionality and the data structure can be set to null.
-    dataSet->ghevRequiredPropertyIndex = PropertiesGetRequiredPropertyIndexFromName(
+    dataSet->ghevAvailableIndex = PropertiesGetAvailableIndexFromName(
         dataSet->b.available,
         TARGET_PROPERTY_NAME);
-    if (dataSet->ghevRequiredPropertyIndex < 0) {
+    if (dataSet->ghevAvailableIndex < 0) {
         return;
     }
 
@@ -342,6 +342,6 @@ void fiftyoneDegreesGhevDeviceDetectionOverride(
     (void)exception; // to suppress C4100 warning
     OverridesAdd(
         results->overrides,
-        dataSet->ghevRequiredPropertyIndex,
+        dataSet->ghevAvailableIndex,
         "");
 }

@@ -49,8 +49,8 @@ namespace FiftyoneDegrees {
 		 * referenced to return associated values and metrics.
 		 *
 		 * The key used to get the value for a property can be either the
-		 * name of the property, or the index of the property in the
-		 * required properties structure.
+		 * name of the property, or its required property index, as
+		 * ResultsBase describes.
 		 *
 		 * The first read of a property of a component walks the component's
 		 * graph, against the data set the results hold. A walk that fails
@@ -147,7 +147,9 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all weighted boolean representations of the 
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return a vector of weighted boolean values for the property
 			 */
 			Common::Value<vector<WeightedValue<bool>>>
@@ -168,7 +170,9 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all weighted string representations of the
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return a vector of weighted string values for the property
 			 */
 			Common::Value<vector<WeightedValue<std::vector<uint8_t>>>>
@@ -200,7 +204,9 @@ namespace FiftyoneDegrees {
 			 * Get a single string representations of the
 			 * value associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return a vector of weighted string values for the property
 			 */
 			Common::Value<std::vector<uint8_t>>
@@ -254,7 +260,9 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all weighted string representations of the 
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return a vector of weighted string values for the property
 			 */
 			Common::Value<vector<WeightedValue<string>>>
@@ -303,7 +311,9 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all weighted string representations of the
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @param decimalPlaces precision (places after decimal dot)
 			 * @return a vector of weighted string values for the property
 			 */
@@ -348,7 +358,9 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all weighted integer representations of the 
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return a vector of weighted integer values for the property
 			 */
 			Common::Value<vector<WeightedValue<int>>>
@@ -391,7 +403,9 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all weighted double representations of the 
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return a vector of weighted double values for the property
 			 */
 			Common::Value<vector<WeightedValue<double>>>
@@ -431,8 +445,9 @@ namespace FiftyoneDegrees {
 			 * Get an IpAddress instance representation of the value associated 
 			 * with the required property index. If the index is not valid
 			 * then hasValue returns false with NoValueReason and its message.
-			 * @param requiredPropertyIndex index in the required
-			 * properties list
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return an IpAddress representation of the value for the property
 			 */
 			Common::Value<IpIntelligence::IpAddress> getValueAsIpAddress(
@@ -501,6 +516,28 @@ namespace FiftyoneDegrees {
 					uint32_t rawWeighting,
 					fiftyoneDegreesException *exception)>& onEachValue,
 				const std::function<void()>& onAfterValues);
+
+			/**
+			 * The reads behind the public methods, as ResultsBase describes.
+			 */
+			Common::Value<vector<WeightedValue<bool>>>
+				valuesAsWeightedBoolListAt(int requiredPropertyIndex);
+			Common::Value<vector<WeightedValue<std::vector<uint8_t>>>>
+				valuesAsWeightedUTF8StringListAt(int requiredPropertyIndex);
+			Common::Value<std::vector<uint8_t>>
+				valueAsUTF8StringAt(int requiredPropertyIndex);
+			Common::Value<vector<WeightedValue<string>>>
+				valuesAsWeightedStringListAt(int requiredPropertyIndex);
+			Common::Value<vector<WeightedValue<string>>>
+				valuesAsWeightedWKTStringListAt(
+					int requiredPropertyIndex,
+					::byte decimalPlaces);
+			Common::Value<vector<WeightedValue<int>>>
+				valuesAsWeightedIntegerListAt(int requiredPropertyIndex);
+			Common::Value<vector<WeightedValue<double>>>
+				valuesAsWeightedDoubleListAt(int requiredPropertyIndex);
+			Common::Value<IpIntelligence::IpAddress>
+				valueAsIpAddressAt(int requiredPropertyIndex);
 
 			fiftyoneDegreesResultsIpi *results;
 		};

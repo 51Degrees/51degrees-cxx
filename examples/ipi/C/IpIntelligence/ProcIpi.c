@@ -40,7 +40,9 @@ static void buildString(
 	int i;
 	const char* property;
 	DataSetIpi* dataSet = (DataSetIpi*)results->b.dataSet;
-	for (i = 0; i < (int)dataSet->b.b.available->count; i++) {
+	for (i = 0;
+		i < (int)PropertiesGetRequiredPropertyCount(dataSet->b.b.available);
+		i++) {
 		property = STRING( // name is string
 			PropertiesGetNameFromRequiredIndex(
 				dataSet->b.b.available,

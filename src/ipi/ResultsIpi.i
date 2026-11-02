@@ -106,6 +106,14 @@ public:
 };
 
 %extend ResultsIpi {
+    // Copies the UTF-8 value into the buffer when it fits, and returns the
+    // length the value needs, or -1 when there is no value. This method is
+    // for callers that want the fastest read, so it takes only a position,
+    // and no version of it takes a property name, as getValueAsUTF8String
+    // already reads by name. The position is the index of the property in
+    // the names the engine was created with, which a reload does not change.
+    // An engine that named no properties has no positions, so there is no
+    // value.
     int copyValueAsUTF8String(
         int requiredPropertyIndex,
         unsigned char copy[],

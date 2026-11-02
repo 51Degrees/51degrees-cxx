@@ -390,8 +390,8 @@ protected:
 	static std::string engineLookup(EngineIpi *engine) {
 		std::unique_ptr<ResultsIpi> results(engine->process(lookupAddress));
 		std::string values;
-		for (int i = 0; i < results->getAvailableProperties(); i++) {
-			auto value = results->getValuesAsWeightedStringList(i);
+		for (const std::string &name : results->getProperties()) {
+			auto value = results->getValuesAsWeightedStringList(name);
 			if (value.hasValue()) {
 				for (const auto &weighted : value.getValue()) {
 					values.append(weighted.getValue()).append("|");

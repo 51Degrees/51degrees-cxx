@@ -801,8 +801,10 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromEvidence(
  * not walked again until the results are next populated, so later reads of
  * its properties read as if it had no profile for the address.
  * @param results pointer to the results to check
- * @param requiredPropertyIndex index in the required properties of the
- * property to check for values of
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return true if there are valid values in the results for the property index
@@ -822,8 +824,10 @@ EXTERNAL bool fiftyoneDegreesResultsIpiGetHasValues(
  * not walked again until the results are next populated, so later reads of
  * its properties read as if it had no profile for the address.
  * @param results pointer to the results to check
- * @param requiredPropertyIndex index in the required properties of the
- * property to check for values of
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return enum indicating why a valid value cannot be returned by the results
@@ -854,7 +858,10 @@ EXTERNAL const char* fiftyoneDegreesResultsIpiGetNoValueReasonMessage(
  * not walked again until the results are next populated, so later reads of
  * its properties read as if it had no profile for the address.
  * @param results pointer to the results structure to release
- * @param requiredPropertyIndex
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return a pointer to the first value item 
@@ -918,7 +925,10 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesString(
  * not walked again until the results are next populated, so later reads of
  * its properties read as if it had no profile for the address.
  * @param results pointer to the results structure to release
- * @param requiredPropertyIndex required property index of for the values
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param buffer character buffer allocated by the caller
  * @param bufferLength of the character buffer
  * @param separator string to be used to separate multiple values if available

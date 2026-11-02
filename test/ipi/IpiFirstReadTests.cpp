@@ -136,6 +136,17 @@ int requiredCount(fiftyoneDegreesResultsIpi* results) {
 	return (int)dataSetOf(results)->b.b.available->count;
 }
 
+/** The name of the property at the index, in the data set the results hold. */
+std::string nameOf(
+	fiftyoneDegreesResultsIpi* results,
+	int requiredPropertyIndex) {
+	const fiftyoneDegreesString* name =
+		fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
+			dataSetOf(results)->b.b.available,
+			requiredPropertyIndex);
+	return name == nullptr ? std::string() : std::string(&name->value);
+}
+
 int componentOf(fiftyoneDegreesResultsIpi* results, int requiredPropertyIndex) {
 	return (int)dataSetOf(results)->b.b.available->items[
 		requiredPropertyIndex].componentIndex;
@@ -347,8 +358,8 @@ protected:
 	/**
 	 * Copies the data file with the first required property renamed. The name
 	 * is changed in place, so the layout of the file is the same, and it
-	 * sorts after every other name, so the reload drops the property and
-	 * moves every other one down by one.
+	 * sorts after every other name, so the reload moves every other property
+	 * down by one.
 	 */
 	void renameFirstProperty() {
 		fiftyoneDegreesResourceManager manager;
@@ -454,8 +465,9 @@ TEST_F(IpiFirstReadReloadTests, ReadAfterReload_WalksTheDataSetTheResultsHold) {
 	fiftyoneDegreesResultsIpi* reloaded =
 		fiftyoneDegreesResultsIpiCreate(&manager);
 	populate(reloaded, firstReadAddresses[1]);
-	EXPECT_EQ((int)order.size() - 1, requiredCount(reloaded)) <<
-		"The reload must drop the renamed property.";
+	EXPECT_EQ(nameOf(held, 1), nameOf(reloaded, 0)) <<
+		"The reload must move every property after the renamed one down by "
+		"one.";
 	fiftyoneDegreesResultsIpiFree(reloaded);
 	fiftyoneDegreesResultsIpiFree(held);
 	fiftyoneDegreesResourceManagerFree(&manager);

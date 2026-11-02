@@ -218,9 +218,10 @@ static void printPropertyValueFromResults2(ResultsIpi *results) {
 					collection.items[i];
 				const int requiredPropertyIndex =
 					nextHeader->requiredPropertyIndex;
-				const String * const propNameRaw = (const String *)(
-					dataSet->b.b.available->items[requiredPropertyIndex]
-					.name.data.ptr);
+				const String * const propNameRaw =
+					PropertiesGetNameFromRequiredIndex(
+						dataSet->b.b.available,
+						requiredPropertyIndex);
 				const char * const propName = &propNameRaw->value;
 				const double weight =
 					(float)(nextHeader->rawWeighting) / (float)(UINT16_MAX);

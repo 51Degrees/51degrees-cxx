@@ -58,8 +58,8 @@ typedef struct fiftyone_degrees_dataset_device_detection_t {
 											    present to prevent the 
 											    gethighentropyvalues javascript 
 											    from being returned */
-	int ghevRequiredPropertyIndex; /**< Required property index for 
-						   		   JavascriptGetHighEntropyValues */
+	int ghevAvailableIndex; /**< Available index of the
+							JavascriptGetHighEntropyValues property */
 } fiftyoneDegreesDataSetDeviceDetection;
 
 /**

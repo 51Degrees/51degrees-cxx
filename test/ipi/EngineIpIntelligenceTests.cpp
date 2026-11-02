@@ -300,14 +300,14 @@ void EngineIpIntelligenceTests::validateName(
 
 void EngineIpIntelligenceTests::validateQuick(ResultsBase *results) {
 	ResultsIpi* resultsIpi = (ResultsIpi*)results;
-	for (int i = 0; i < results->getAvailableProperties(); i++) {
+	for (const string &name : results->getProperties()) {
 		vector<string> values;
-		Common::Value<vector<string>> value = results->getValues(i);
+		Common::Value<vector<string>> value = results->getValues(name);
 		if (value.hasValue()) {
 			EXPECT_NO_THROW(values = *value) << "Should not throw "
-			"exception for property '" << results->getPropertyName(i) << "'";
+			"exception for property '" << name << "'";
 			vector<WeightedValue<string>> weightedStrings = 
-				resultsIpi->getValuesAsWeightedStringList(i).getValue();
+				resultsIpi->getValuesAsWeightedStringList(name).getValue();
 
 			float curWeight = 0.0f;
 			for (vector<WeightedValue<string>>::iterator iter = weightedStrings.begin();
@@ -315,7 +315,7 @@ void EngineIpIntelligenceTests::validateQuick(ResultsBase *results) {
 				iter++) {
 				if (iter != weightedStrings.begin()) {
 					EXPECT_TRUE(curWeight >= iter->getWeight()) << "Weights of returned results "
-						"are not in the descending order: " << results->getPropertyName(i);
+						"are not in the descending order: " << name;
 				}
 				curWeight = iter->getWeight();
 			}
@@ -776,13 +776,13 @@ void EngineIpIntelligenceTests::multiThreadRandom(uint16_t concurrency) {
  		"The data set was not reloaded.";
  	EXPECT_EQ(a->getAvailableProperties(), b->getAvailableProperties()) <<
  		"Number of properties available does not match.";
- 	for (size_t i = 0; i < a->getProperties().size(); i++) {
-		Common::Value<vector<string>> av = a->getValues((int)i);
-		Common::Value<vector<string>> bv = b->getValues((int)i);
+ 	for (const string &name : a->getProperties()) {
+		Common::Value<vector<string>> av = a->getValues(name);
+		Common::Value<vector<string>> bv = b->getValues(name);
 		if (av.hasValue()) {
 			EXPECT_TRUE(bv.hasValue()) << "Expected both has values.";
-			vector<string> avs = *a->getValues((int)i);
- 			vector<string> bvs = *b->getValues((int)i);
+			vector<string> avs = *a->getValues(name);
+ 			vector<string> bvs = *b->getValues(name);
  			EXPECT_EQ(avs.size(), bvs.size()) << "Expected same number of values.";
  			for (size_t v = 0; v < avs.size(); v++) {
  				EXPECT_STREQ(avs[v].c_str(), bvs[v].c_str()) <<

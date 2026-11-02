@@ -415,7 +415,9 @@ static void runPass(
 
 		// Get the all properties from the results if this is part of the
 		// performance evaluation.
-		for (uint32_t j = 0; j < dataSet->b.b.available->count; j++) {
+		for (uint32_t j = 0;
+			j < PropertiesGetRequiredPropertyCount(dataSet->b.b.available);
+			j++) {
 			if (text != NULL) {
 				// Increase the checksum with the length of the text.
 				thisState->checkSum +=
@@ -727,7 +729,8 @@ void executeBenchmark(
 
 	// Check data file
 	DataSetIpi* dataset = DataSetIpiGet(&state->manager);
-	state->availableProperties = dataset->b.b.available->count;
+	state->availableProperties = PropertiesGetRequiredPropertyCount(
+		dataset->b.b.available);
 	fiftyoneDegreesExampleCheckDataFile(dataset);
 	DataSetIpiRelease(dataset);
 

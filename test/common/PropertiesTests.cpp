@@ -204,13 +204,10 @@ TEST_F(Properties, OneMissingProperty) {
 }
 
 /**
- * Check that passing a string list of required properties works as expected.
- * Yellow and Black are both in the list of properties and required properties 
- * so should have index values.
- * Since they are sorted alphabetically, Black should have index 0 and Yellow 
- * index 1.
+ * Check that the required property index of each property named in a string
+ * is its place in the string, not its place in the sorted list.
  */
-TEST_F(Properties, StringTwoPropertiesOrdered) {
+TEST_F(Properties, StringTwoPropertiesInCallerOrder) {
 	fiftyoneDegreesPropertiesRequired required;
 	required.string = "Yellow,Black";
 	required.array = NULL;
@@ -219,43 +216,43 @@ TEST_F(Properties, StringTwoPropertiesOrdered) {
 	CreateProperties(&required);
 	EXPECT_EQ(0, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 		this->properties,
-		"Black"));
+		"Yellow"));
 	EXPECT_EQ(1, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 		this->properties,
-		"Yellow"));
+		"Black"));
 }
 
 /**
- * Check that passing a string list of required properties works as expected.
- * Function should still work for other properties if there is a property
- * corrupted by a space.
+ * Check that a string with names the data does not have, and with spaces and
+ * separators around the names, gives each name its place among the names.
+ * A run of separators separates two names, so it counts as one.
  */
-TEST_F(Properties, StringTwoPropertiesOrderedSpace) {
+TEST_F(Properties, StringPropertiesInCallerOrderWithSpaces) {
 	fiftyoneDegreesPropertiesRequired required;
 	required.string = "Cyan,Yellow, Black ,Blue|";
 	required.array = NULL;
 	required.count = 0;
 	required.existing = NULL;
 	CreateProperties(&required);
-	EXPECT_EQ(0, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
+	EXPECT_EQ(-1, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 		this->properties,
-		"Black"));
+		"Cyan"));
 	EXPECT_EQ(1, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 		this->properties,
-		"Blue"));
+		"Yellow"));
 	EXPECT_EQ(2, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 		this->properties,
-		"Yellow"));
+		"Black"));
+	EXPECT_EQ(3, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
+		this->properties,
+		"Blue"));
 }
 
 /**
- * Check that passing an array of strings of required properties works as expected.
- * Yellow and Black are both in the list of properties and required properties 
- * so should have index values.
- * Since they are sorted alphabetically, Black should have index 0 and Yellow 
- * index 1.
+ * Check that the required property index of each property named in an array
+ * is its place in the array, not its place in the sorted list.
  */
-TEST_F(Properties, ArrayTwoPropertiesOrdered) {
+TEST_F(Properties, ArrayTwoPropertiesInCallerOrder) {
 	const char* tests[] = { "Yellow", "Black" };
 	fiftyoneDegreesPropertiesRequired required;
 	required.string = NULL;
@@ -265,10 +262,10 @@ TEST_F(Properties, ArrayTwoPropertiesOrdered) {
 	CreateProperties(&required);
 	EXPECT_EQ(0, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 		this->properties,
-		"Black"));
+		"Yellow"));
 	EXPECT_EQ(1, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 		this->properties,
-		"Yellow"));
+		"Black"));
 }
 
 /**
@@ -524,18 +521,19 @@ TEST_F(Properties, ComponentMaskEmptyEnablesNothing) {
 TEST_F(Properties, ComponentMaskSetsOneBitPerComponent) {
 	CreateFourProperties();
 	// Sorted order is Blue, Green, Red, Yellow. Give them components
-	// 1, 3, 1 and 0 so two properties share a component.
+	// 1, 3, 1 and 0 so two properties share a component. The indexes the
+	// mask takes are places in the names given, Red, Yellow, Green and Blue.
 	properties->items[0].componentIndex = 1;
 	properties->items[1].componentIndex = 3;
 	properties->items[2].componentIndex = 1;
 	properties->items[3].componentIndex = 0;
-	int blueAndGreen[] = { 0, 1 };
+	int blueAndGreen[] = { 3, 2 };
 	EXPECT_EQ(0xAu,
 		fiftyoneDegreesPropertiesGetComponentMask(properties, blueAndGreen, 2));
-	int yellow[] = { 3 };
+	int yellow[] = { 1 };
 	EXPECT_EQ(0x1u,
 		fiftyoneDegreesPropertiesGetComponentMask(properties, yellow, 1));
-	int blueAndRed[] = { 0, 2 };
+	int blueAndRed[] = { 3, 0 };
 	EXPECT_EQ(0x2u,
 		fiftyoneDegreesPropertiesGetComponentMask(properties, blueAndRed, 2)) <<
 		"Two properties on one component set one bit.";
@@ -543,16 +541,18 @@ TEST_F(Properties, ComponentMaskSetsOneBitPerComponent) {
 
 TEST_F(Properties, ComponentMaskIgnoresBadIndexes) {
 	CreateFourProperties();
+	// Blue, the first in sorted order and the fourth name given.
 	properties->items[0].componentIndex = 2;
-	int indexes[] = { -1, 0, (int)properties->count, 100000 };
+	int indexes[] = { -1, 3, (int)properties->count, 100000 };
 	EXPECT_EQ(0x4u,
 		fiftyoneDegreesPropertiesGetComponentMask(properties, indexes, 4));
 }
 
 TEST_F(Properties, ComponentMaskCannotAddressComponent32) {
 	CreateFourProperties();
+	// Blue, the first in sorted order and the fourth name given.
 	properties->items[0].componentIndex = 32;
-	int indexes[] = { 0 };
+	int indexes[] = { 3 };
 	EXPECT_EQ(0u,
 		fiftyoneDegreesPropertiesGetComponentMask(properties, indexes, 1));
 	// Beyond the mask a component is always enabled, so the caller still
@@ -564,6 +564,215 @@ TEST_F(Properties, ComponentMaskCannotAddressComponent32) {
 	EXPECT_FALSE(FIFTYONE_DEGREES_COMPONENT_MASK_ENABLED(0u, 0));
 	EXPECT_TRUE(FIFTYONE_DEGREES_COMPONENT_MASK_ENABLED(1u << 5, 5));
 	EXPECT_FALSE(FIFTYONE_DEGREES_COMPONENT_MASK_ENABLED(1u << 5, 4));
+}
+
+/**
+ * Positions tests. A position is the place of a property in the names the
+ * caller gave, which is what every read by position takes, so it does not
+ * depend on the data loaded. When no names are given it is the place of the
+ * property in the sorted list.
+ */
+
+/** The names above with one more, which the names above do not have. */
+static const char* moreValues[] = {
+	"Red",
+	"Yellow",
+	"Green",
+	"Blue",
+	"Brown",
+	"Black",
+	"White",
+	"Yellowjs",
+	"SetHeaderBrowserAccept-CH",
+	"Cyan"
+};
+
+static int positionOf(
+	fiftyoneDegreesPropertiesAvailable *available,
+	const char *name) {
+	return fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
+		available,
+		name);
+}
+
+static const char* nameAt(
+	fiftyoneDegreesPropertiesAvailable *available,
+	int position) {
+	const fiftyoneDegreesString *name =
+		fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
+			available,
+			position);
+	return name == nullptr ? nullptr : &name->value;
+}
+
+/**
+ * A name the data does not have keeps its place, so the names after it keep
+ * theirs. Its name is the one given, and it has no property in the data.
+ */
+TEST_F(Properties, Positions_MissingNameKeepsItsPlace) {
+	fiftyoneDegreesPropertiesRequired required =
+		fiftyoneDegreesPropertiesDefault;
+	required.string = "Beige,Yellow,Red";
+	CreateProperties(&required);
+	ASSERT_EQ(2, positionOf(properties, "Red"));
+	EXPECT_EQ(1, positionOf(properties, "Yellow"));
+	EXPECT_EQ(-1, positionOf(properties, "Beige"));
+	EXPECT_EQ(2u, properties->count);
+	EXPECT_STREQ("Beige", nameAt(properties, 0));
+	EXPECT_STREQ("Yellow", nameAt(properties, 1));
+	EXPECT_STREQ("Red", nameAt(properties, 2));
+	EXPECT_EQ(nullptr, nameAt(properties, 3));
+	EXPECT_EQ(nullptr, nameAt(properties, -1));
+	EXPECT_EQ(-1, fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
+		properties,
+		0));
+	EXPECT_EQ(1, fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
+		properties,
+		1));
+	EXPECT_EQ(0, fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
+		properties,
+		2));
+	EXPECT_EQ(-1, fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
+		properties,
+		3));
+}
+
+/**
+ * A name given twice has both places, and a lookup by name gives the first.
+ * The list of available properties holds the property once.
+ */
+TEST_F(Properties, Positions_RepeatedNameHasEachPlace) {
+	const char* names[] = { "Yellow", "yellow", "Black" };
+	fiftyoneDegreesPropertiesRequired required =
+		fiftyoneDegreesPropertiesDefault;
+	required.array = names;
+	required.count = sizeof(names) / sizeof(const char*);
+	CreateProperties(&required);
+	ASSERT_EQ(0, positionOf(properties, "Yellow"));
+	EXPECT_EQ(0, positionOf(properties, "yellow"));
+	EXPECT_EQ(2, positionOf(properties, "Black"));
+	EXPECT_EQ(2u, properties->count);
+	EXPECT_STREQ("Yellow", nameAt(properties, 0));
+	EXPECT_STREQ("Yellow", nameAt(properties, 1));
+	EXPECT_STREQ("Black", nameAt(properties, 2));
+	EXPECT_EQ(1, fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
+		properties,
+		1));
+}
+
+/**
+ * A list created from an existing one, as a reload creates it, starts again
+ * from the names the caller gave. A property the first data did not have is
+ * available once the new data has it, at the place the caller gave it.
+ */
+TEST_F(Properties, Positions_ExistingStartsAgainFromTheNamesGiven) {
+	fiftyoneDegreesPropertiesRequired required =
+		fiftyoneDegreesPropertiesDefault;
+	required.string = "Cyan,Yellow";
+	CreateProperties(&required);
+	ASSERT_EQ(1, positionOf(properties, "Yellow"));
+	EXPECT_EQ(-1, positionOf(properties, "Cyan"));
+
+	StringCollection more(moreValues, count + 1);
+	fiftyoneDegreesPropertiesRequired reload =
+		fiftyoneDegreesPropertiesDefault;
+	reload.existing = properties;
+	fiftyoneDegreesPropertiesAvailable *reloaded =
+		fiftyoneDegreesPropertiesCreate(
+			&reload,
+			more.getState(),
+			getStringValue,
+			getEvidenceProperties);
+	ASSERT_NE(nullptr, reloaded);
+	EXPECT_EQ(2u, reloaded->count);
+	EXPECT_EQ(0, positionOf(reloaded, "Cyan"));
+	EXPECT_EQ(1, positionOf(reloaded, "Yellow"));
+	EXPECT_STREQ("Cyan", nameAt(reloaded, 0));
+	EXPECT_EQ(9, fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
+		reloaded,
+		0));
+
+	// And the other way, back to data without the property.
+	reload.existing = reloaded;
+	fiftyoneDegreesPropertiesAvailable *again =
+		fiftyoneDegreesPropertiesCreate(
+			&reload,
+			strings->getState(),
+			getStringValue,
+			getEvidenceProperties);
+	ASSERT_NE(nullptr, again);
+	EXPECT_EQ(1u, again->count);
+	EXPECT_EQ(-1, positionOf(again, "Cyan"));
+	EXPECT_EQ(1, positionOf(again, "Yellow"));
+	EXPECT_STREQ("Cyan", nameAt(again, 0));
+	fiftyoneDegreesPropertiesFree(again);
+	fiftyoneDegreesPropertiesFree(reloaded);
+}
+
+/**
+ * Creating from an existing list keeps the order the caller gave.
+ */
+TEST_F(Properties, Positions_ExistingKeepsTheCallersOrder) {
+	fiftyoneDegreesPropertiesRequired required =
+		fiftyoneDegreesPropertiesDefault;
+	required.string = "Yellow,Black";
+	CreateProperties(&required);
+	ASSERT_EQ(0, positionOf(properties, "Yellow"));
+	fiftyoneDegreesPropertiesRequired reload =
+		fiftyoneDegreesPropertiesDefault;
+	reload.existing = properties;
+	fiftyoneDegreesPropertiesAvailable *reloaded =
+		fiftyoneDegreesPropertiesCreate(
+			&reload,
+			strings->getState(),
+			getStringValue,
+			getEvidenceProperties);
+	ASSERT_NE(nullptr, reloaded);
+	EXPECT_EQ(0, positionOf(reloaded, "Yellow"));
+	EXPECT_EQ(1, positionOf(reloaded, "Black"));
+	fiftyoneDegreesPropertiesFree(reloaded);
+}
+
+/**
+ * With no names given every property is available, and a position is the
+ * place of the property in the sorted list.
+ */
+TEST_F(Properties, Positions_NoNamesGivenAreTheSortedPlaces) {
+	CreateProperties(NULL);
+	ASSERT_EQ((uint32_t)count, properties->count);
+	for (uint32_t i = 0; i < properties->count; i++) {
+		const char *name = FIFTYONE_DEGREES_STRING(
+			properties->items[i].name.data.ptr);
+		EXPECT_EQ((int)i, positionOf(properties, name)) << name;
+		EXPECT_STREQ(name, nameAt(properties, (int)i));
+		EXPECT_EQ(
+			(int)properties->items[i].propertyIndex,
+			fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
+				properties,
+				(int)i)) << name;
+	}
+}
+
+/**
+ * A list created from an existing list that names nothing has every
+ * property of the new data, not only those the old data had.
+ */
+TEST_F(Properties, Positions_ExistingWithNoNamesHasEveryProperty) {
+	CreateProperties(NULL);
+	StringCollection more(moreValues, count + 1);
+	fiftyoneDegreesPropertiesRequired reload =
+		fiftyoneDegreesPropertiesDefault;
+	reload.existing = properties;
+	fiftyoneDegreesPropertiesAvailable *reloaded =
+		fiftyoneDegreesPropertiesCreate(
+			&reload,
+			more.getState(),
+			getStringValue,
+			getEvidenceProperties);
+	ASSERT_NE(nullptr, reloaded);
+	EXPECT_EQ((uint32_t)count + 1, reloaded->count);
+	EXPECT_GE(positionOf(reloaded, "Cyan"), 0);
+	fiftyoneDegreesPropertiesFree(reloaded);
 }
 
 /** The reads of a name made so far by getStringFailing. */
@@ -616,5 +825,46 @@ TEST_F(Properties, EachNameNotRead_FreesAll) {
 			strings->getState(),
 			getStringFailing,
 			getEvidenceProperties);
+	}
+}
+
+/**
+ * Test the same for properties that were named, whose places in the sorted
+ * list are found by name. While a name is missing the list is not sorted, so
+ * no place is found, and nothing is left allocated.
+ */
+TEST_F(Properties, EachNameNotRead_Named_FreesAll) {
+	fiftyoneDegreesPropertiesRequired required =
+		fiftyoneDegreesPropertiesDefault;
+	required.string = "Red,Yellow,Green,Blue";
+	nameCalls = 0;
+	nameFailsOn = 0;
+	properties = fiftyoneDegreesPropertiesCreate(
+		&required,
+		strings->getState(),
+		getStringFailing,
+		getEvidenceProperties);
+	ASSERT_NE(nullptr, properties);
+	const int calls = nameCalls;
+	for (int n = 1; n <= calls; n++) {
+		fiftyoneDegreesPropertiesFree(properties);
+		nameCalls = 0;
+		nameFailsOn = n;
+		properties = fiftyoneDegreesPropertiesCreate(
+			&required,
+			strings->getState(),
+			getStringFailing,
+			getEvidenceProperties);
+		if (properties == nullptr) {
+			continue;
+		}
+		bool missing = false;
+		for (uint32_t i = 0; i < properties->count; i++) {
+			missing = missing || properties->items[i].name.data.ptr == nullptr;
+		}
+		for (uint32_t i = 0; missing && i < properties->namedCount; i++) {
+			EXPECT_EQ(-1, properties->named[i].availableIndex) <<
+				"Read " << n << " failed, so name " << i << " has no place.";
+		}
 	}
 }

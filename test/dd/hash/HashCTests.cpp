@@ -1148,8 +1148,12 @@ TEST_F(HashCTests, GraphFilter_OnePropertyWalksOnlyItsComponent) {
 	ASSERT_GE(isMobile, 0);
 	ASSERT_GE(browserName, 0);
 	ASSERT_NE(
-		dataSet->b.b.available->items[isMobile].componentIndex,
-		dataSet->b.b.available->items[browserName].componentIndex) <<
+		dataSet->b.b.available->items[PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			isMobile)].componentIndex,
+		dataSet->b.b.available->items[PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			browserName)].componentIndex) <<
 		"The test needs two properties from different components.";
 	int indexes[] = { isMobile };
 	ResultsHashFromUserAgentForProperties(
@@ -1257,9 +1261,13 @@ TEST_F(HashCTests, GraphFilter_SkippedComponentGetsNoDefaultProfile) {
 	int isMobile = getRequiredPropertyIndex(results, "IsMobile");
 	int browserName = getRequiredPropertyIndex(results, "BrowserName");
 	unsigned char isMobileComponent =
-		dataSet->b.b.available->items[isMobile].componentIndex;
+		dataSet->b.b.available->items[PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			isMobile)].componentIndex;
 	unsigned char browserComponent =
-		dataSet->b.b.available->items[browserName].componentIndex;
+		dataSet->b.b.available->items[PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			browserName)].componentIndex;
 	int indexes[] = { isMobile };
 	// A User-Agent that matches nothing, so the evaluated component falls
 	// back to its default profile while the skipped one must not.
