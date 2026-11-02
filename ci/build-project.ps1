@@ -26,14 +26,14 @@ function OnOff([bool]$value) { $value ? 'ON' : 'OFF' }
 if ($BuildMethod -eq "cmake") {
 
     # One configure builds every product in the entry. The large data file
-    # copy of the common tests runs on x64 only. The shared script selects
+    # copy of the common tests runs on 64 bit only. The shared script selects
     # 32 bit on Windows, and Linux needs the CMake option.
     $extraArgs = @(
         "-D32bit=$(OnOff ($IsLinux -and $Arch -eq 'x86'))"
         "-DFIFTYONE_BUILD_DEVICE_DETECTION=$(OnOff ($Products -contains 'dd'))"
         "-DFIFTYONE_BUILD_IP_INTELLIGENCE=$(OnOff ($Products -contains 'ipi'))"
         "-DFIFTYONE_COMMON_CXX_BUILD_TESTING=$(OnOff ($Products -contains 'common'))"
-        "-DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=$(OnOff ($Arch -eq 'x64'))"
+        "-DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=$(OnOff ($Arch -in 'x64', 'arm64'))"
         "-DFIFTYONE_IPI_SYMBOLS=$(OnOff $IpiSymbols)"
         "-DFIFTYONE_CXX_BOTH_PRODUCTS=$(OnOff $CxxBothProducts)"
         "-DWITH_ASAN=$(OnOff $Asan)"
@@ -48,7 +48,7 @@ if ($BuildMethod -eq "cmake") {
 
     # CMake builds both copies of common in these cases.
     if ($IpiSymbols -and ($Products -contains 'ipi' -or
-        ($Products -contains 'common' -and $Arch -eq 'x64'))) {
+        ($Products -contains 'common' -and $Arch -in 'x64', 'arm64'))) {
         & $PSScriptRoot/check-common-symbols.ps1 -BuildPath "$RepoName/build" `
             -Cxx:$CxxBothProducts
     }
