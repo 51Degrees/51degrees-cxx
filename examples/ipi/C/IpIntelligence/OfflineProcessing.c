@@ -75,10 +75,11 @@ fiftyoneDegreesResultsIpi* results =
 CSV format ('|' separated because some properties contain commas)
 ```
 fprintf(fout, "IP Address");
-for (i = 0; i < dataSet->b.b.available->count; i++) {
+for (i = 0; i < PropertiesGetRequiredPropertyCount(dataSet->b.b.available); i++) {
 	fprintf(fout, ",\"%s\"",
-		&((fiftyoneDegreesString*)
-			dataSet->b.b.available->items[i].name.data.ptr)->value);
+		&PropertiesGetNameFromRequiredIndex(
+			dataSet->b.b.available,
+			(int)i)->value);
 }
 fprintf(fout, "\n");
 ```
@@ -196,7 +197,9 @@ static void process(const char* ipAddress, void* state) {
 	fprintf(offline->output, "\"%s\"", ipAddress);
 
 	// Write all the available properties.
-	for (i = 0; i < dataSet->b.b.available->count; i++) {
+	for (i = 0;
+		i < PropertiesGetRequiredPropertyCount(dataSet->b.b.available);
+		i++) {
 		if (ResultsIpiGetValues(
 			offline->results,
 			i,
@@ -245,9 +248,13 @@ void run(
 
 	// Print CSV headers to output file.
 	fprintf(state.output, "\"IP Address\"");
-	for (i = 0; i < dataSet->b.b.available->count; i++) {
+	for (i = 0;
+		i < PropertiesGetRequiredPropertyCount(dataSet->b.b.available);
+		i++) {
 		fprintf(state.output, "|\"%s\"",
-			&((String*)dataSet->b.b.available->items[i].name.data.ptr)->value);
+			&PropertiesGetNameFromRequiredIndex(
+				dataSet->b.b.available,
+				(int)i)->value);
 	}
 	fprintf(state.output, "\n");
 

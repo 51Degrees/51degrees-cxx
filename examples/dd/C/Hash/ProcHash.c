@@ -41,7 +41,9 @@ static void buildString(
 	const char *property, *value;
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 	long long remainingCapacity = outputLength;
-	for (i = 0; i < (int)dataSet->b.b.available->count; i++) {
+	for (i = 0;
+		i < (int)PropertiesGetRequiredPropertyCount(dataSet->b.b.available);
+		i++) {
 		property = STRING(
 			PropertiesGetNameFromRequiredIndex(
 				dataSet->b.b.available,

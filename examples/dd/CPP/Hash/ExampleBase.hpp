@@ -201,13 +201,10 @@ namespace FiftyoneDegrees {
 				static unsigned long getHashCode(
 					DeviceDetection::Hash::ResultsHash* results) {
 					unsigned long hashCode = 0;
-					uint32_t requiredPropertyIndex;
 					Common::Value<string> value;
 
-					for (requiredPropertyIndex = 0;
-						requiredPropertyIndex < (uint32_t)results->getAvailableProperties();
-						requiredPropertyIndex++) {
-						value = results->getValueAsString(requiredPropertyIndex);
+					for (const string &name : results->getProperties()) {
+						value = results->getValueAsString(name);
 						if (value.hasValue()) {
 							hashCode ^= generateHash(
 								(unsigned char*)(value.getValue().c_str()));

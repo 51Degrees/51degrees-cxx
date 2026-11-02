@@ -163,7 +163,8 @@ static unsigned long getHashCode(ResultsHash *results) {
 	const char *valueName;
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 	for (requiredPropertyIndex = 0;
-		requiredPropertyIndex < dataSet->b.b.available->count;
+		requiredPropertyIndex < PropertiesGetRequiredPropertyCount(
+			dataSet->b.b.available);
 		requiredPropertyIndex++) {
 		EXCEPTION_CLEAR;
 		if (ResultsHashGetHasValues(
