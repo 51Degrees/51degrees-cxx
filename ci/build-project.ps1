@@ -9,7 +9,8 @@ param(
     [bool]$CxxBothProducts,
     [bool]$ExceptionsDisabled,
     # Builds the libraries, examples and tools without the tests.
-    [bool]$BuildOnly
+    [bool]$BuildOnly,
+    [bool]$Asan
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
@@ -35,6 +36,7 @@ if ($BuildMethod -eq "cmake") {
         "-DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=$(OnOff ($Arch -eq 'x64'))"
         "-DFIFTYONE_IPI_SYMBOLS=$(OnOff $IpiSymbols)"
         "-DFIFTYONE_CXX_BOTH_PRODUCTS=$(OnOff $CxxBothProducts)"
+        "-DWITH_ASAN=$(OnOff $Asan)"
     )
     # The tests read the exception that ExceptionsDisabled removes, so the
     # entry that turns it on is BuildOnly as well.
