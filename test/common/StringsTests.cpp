@@ -23,7 +23,12 @@
 #include "../../src/common/fiftyone.h"
 #include "../../src/common/string.h"
 #include "Base.hpp"
+#include "DoubleText.hpp"
 #include "limits.h"
+#include <cmath>
+#include <iomanip>
+#include <random>
+#include <sstream>
 
 constexpr size_t bufferSize = 512;
 
@@ -296,6 +301,121 @@ TEST_F(Strings, StringBuilder_AddDouble) {
         StringBuilderComplete(builder);
         EXPECT_STREQ(builder->ptr, "42.127000000000002");
     }
+}
+
+/**
+ * The most decimal places the comparisons use, which is two more than the
+ * most written from the scaled integer.
+ */
+static const uint8_t doubleTextComparedPlaces = 8;
+
+/**
+ * Compares the text of values with the text worked out one decimal place at a
+ * time, for every number of places to doubleTextComparedPlaces, and reports
+ * the first few that differ.
+ */
+class DoubleTextComparison {
+public:
+    void check(const double value) {
+        for (uint8_t places = 0; places <= doubleTextComparedPlaces; places++) {
+            const std::string expected = doubleTextByPlace(value, places);
+            const std::string actual = doubleText(value, places);
+            checked++;
+            if (expected != actual && failures++ < 10) {
+                std::ostringstream message;
+                message << std::setprecision(17) << value << " with " <<
+                    (int)places << " places gave '" << actual <<
+                    "' rather than '" << expected << "'";
+                ADD_FAILURE() << message.str();
+            }
+        }
+    }
+    uint64_t checked = 0;
+    uint64_t failures = 0;
+};
+
+TEST_F(Strings, StringBuilder_AddDouble_EveryAngleIsUnchanged) {
+    // The coordinates of a reduced polygon, and azimuths and declinations,
+    // are a short scaled to 180 or 90 degrees.
+    DoubleTextComparison comparison;
+    for (int i = INT16_MIN; i <= INT16_MAX; i++) {
+        const int16_t stored = (int16_t)i;
+        comparison.check((stored * 180.0) / INT16_MAX);
+        comparison.check((stored * 90.0) / INT16_MAX);
+    }
+    EXPECT_EQ(0u, comparison.failures) << "of " << comparison.checked;
+}
+
+TEST_F(Strings, StringBuilder_AddDouble_WeightingsAreUnchanged) {
+    // A weighting is the product of two weights of up to 65535, as a share of
+    // the largest product.
+    DoubleTextComparison comparison;
+    const double most = (double)FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT;
+    for (uint32_t weight = 0; weight <= 65535; weight++) {
+        comparison.check((double)(weight * 65535u) / most);
+    }
+    std::mt19937 generator(65535);
+    std::uniform_int_distribution<uint32_t> weights(0, 65535);
+    for (int i = 0; i < 100000; i++) {
+        comparison.check(
+            (double)(weights(generator) * weights(generator)) / most);
+    }
+    EXPECT_EQ(0u, comparison.failures) << "of " << comparison.checked;
+}
+
+TEST_F(Strings, StringBuilder_AddDouble_EdgeValuesAreUnchanged) {
+    // Negative values, zero, very small and very large values, and values on
+    // or next to where a place rounds up.
+    const double values[] = {
+        0.0, -0.0, 1.0, -1.0, 0.1, -0.1, 0.5, -0.5, 1.5, -1.5, 2.5, -2.5,
+        0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95,
+        0.0625, -0.0625, 0.125, -0.125, 0.375, 0.0005, -0.0005, 0.0015,
+        0.9995, -0.9995, 9.9995, -9.9995, 99.9995, 0.99995, 0.999995,
+        0.9999995, 0.9999999, -0.9999999, 0.0000005, -0.0000005, 0.0000004,
+        1.0 / 3, -1.0 / 3, 2.0 / 3, -2.0 / 3, 123.456, -123.456, 739.997,
+        42.127, -101.00039674062319, -101.9999, 5.0999999999999996,
+        179.9995, -179.9995, 89.9995, -89.9995, 180.0, -180.0, 90.0,
+        1e-300, -1e-300, 4.9406564584124654e-324, -4.9406564584124654e-324,
+        2.2250738585072014e-308, 1e-7, 1e-6, 1e-5, 1e9, -1e9, 1e9 + 0.5,
+        1e9 + 0.0005, 2147483000.0005, -2147483000.0005, 2147483646.0,
+        -2147483646.0, 2147483646.5, -2147483646.5, 2147483646.9999995,
+        2147483647.0, -2147483647.0, 2147483647.25, -2147483647.25 };
+    DoubleTextComparison comparison;
+    for (const double value : values) {
+        comparison.check(value);
+        comparison.check(std::nextafter(value, 0.0));
+        comparison.check(std::nextafter(value, value < 0 ? -1e10 : 1e10));
+    }
+    // Every half of the last place, which is where a place rounds up.
+    for (uint32_t places = 1; places <= 6; places++) {
+        const double scale = std::pow(10.0, places);
+        for (int half = -2001; half <= 2001; half += 2) {
+            const double value = half / (2 * scale);
+            comparison.check(value);
+            comparison.check(std::nextafter(value, 0.0));
+            comparison.check(std::nextafter(value, value < 0 ? -1.0 : 1.0));
+            comparison.check(value + 7);
+            comparison.check(value - 1234);
+        }
+    }
+    EXPECT_EQ(0u, comparison.failures) << "of " << comparison.checked;
+}
+
+TEST_F(Strings, StringBuilder_AddDouble_RandomValuesAreUnchanged) {
+    DoubleTextComparison comparison;
+    std::mt19937_64 generator(20261101);
+    std::uniform_real_distribution<double> units(-1.0, 1.0);
+    std::uniform_real_distribution<double> angles(-180.0, 180.0);
+    std::uniform_real_distribution<double> wide(-2.1e9, 2.1e9);
+    std::uniform_real_distribution<double> exponents(-12.0, 9.0);
+    for (int i = 0; i < 20000; i++) {
+        comparison.check(units(generator));
+        comparison.check(angles(generator));
+        comparison.check(wide(generator));
+        comparison.check(
+            std::pow(10.0, exponents(generator)) * (i % 2 == 0 ? 1 : -1));
+    }
+    EXPECT_EQ(0u, comparison.failures) << "of " << comparison.checked;
 }
 
 static const char stringValueString[] = "\x12\x0some-string-value";

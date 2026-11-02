@@ -28,12 +28,14 @@
     <ClCompile Include="..\..\..\test\ipi\ExampleProcTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromFileTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromMemoryTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiDoubleTextTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\MemLeakReloadFromFileTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiLoadFailureTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiShortFileTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\test\common\Base.hpp" />
+    <ClInclude Include="..\..\..\test\common\DoubleText.hpp" />
     <ClInclude Include="..\..\..\test\common\EngineTests.hpp" />
     <ClInclude Include="..\..\..\test\common\ExampleTests.hpp" />
     <ClInclude Include="..\..\..\test\common\pch.h" />
