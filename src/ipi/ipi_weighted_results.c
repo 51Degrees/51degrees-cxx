@@ -660,21 +660,27 @@ static void PropValuesChunkInit(
     Exception * const exception) {
 
     const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
-    const uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+    const int propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
         dataSet->b.b.available,
         chunk->requiredPropertyIndex);
+
+    // A required property index the data set has no property for gives no
+    // values, as a name the data set does not have does.
+    if (propertyIndex < 0) {
+        return;
+    }
 
     // We should not have any undefined data type in the data file
     // If there is, the data file is not good to use so terminates.
     const PropertyValueType valueType = PropertyGetValueType(
-        dataSet->properties, propertyIndex, exception);
+        dataSet->properties, (uint32_t)propertyIndex, exception);
     if (EXCEPTION_FAILED) {
         return;
     }
 
     const PropertyValueType storedValueType = PropertyGetStoredTypeByIndex(
         dataSet->propertyTypes,
-        propertyIndex,
+        (uint32_t)propertyIndex,
         exception);
     if (EXCEPTION_FAILED) {
         return;
@@ -835,7 +841,8 @@ WeightedValuesCollection fiftyoneDegreesResultsIpiGetValuesCollection(
             values.items[i].requiredPropertyIndex = requiredPropertyIndexes[i];
         }
     } else {
-        const uint32_t propsCount = dataSet->b.b.available->count;
+        const uint32_t propsCount = PropertiesGetRequiredPropertyCount(
+            dataSet->b.b.available);
         PropValuesInit(&values, propsCount);
         for (uint32_t i = 0; i < propsCount; i++) {
             values.items[i].requiredPropertyIndex = (int)i;

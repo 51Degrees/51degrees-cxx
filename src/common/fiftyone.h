@@ -170,6 +170,7 @@ MAP_TYPE(OverrideValueArray)
 MAP_TYPE(EvidenceKeyValuePair)
 MAP_TYPE(EvidenceKeyValuePairArray)
 MAP_TYPE(PropertyAvailable)
+MAP_TYPE(PropertyNamed)
 MAP_TYPE(PropertyValueType)
 MAP_TYPE(PropertiesAvailable)
 MAP_TYPE(EvidencePropertyIndex)
@@ -322,6 +323,10 @@ MAP_TYPE(WeightedItemList)
 #define EvidenceAddString fiftyoneDegreesEvidenceAddString /**< Synonym for #fiftyoneDegreesEvidenceAddString function. */
 #define PropertiesGetRequiredPropertyIndexFromName fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName /**< Synonym for #fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName function. */
 #define PropertiesGetNameFromRequiredIndex fiftyoneDegreesPropertiesGetNameFromRequiredIndex /**< Synonym for #fiftyoneDegreesPropertiesGetNameFromRequiredIndex function. */
+#define PropertiesGetRequiredPropertyCount fiftyoneDegreesPropertiesGetRequiredPropertyCount /**< Synonym for #fiftyoneDegreesPropertiesGetRequiredPropertyCount function. */
+#define PropertiesGetAvailableIndex fiftyoneDegreesPropertiesGetAvailableIndex /**< Synonym for #fiftyoneDegreesPropertiesGetAvailableIndex function. */
+#define PropertiesGetAvailableIndexFromName fiftyoneDegreesPropertiesGetAvailableIndexFromName /**< Synonym for #fiftyoneDegreesPropertiesGetAvailableIndexFromName function. */
+#define PropertiesGetPropertyIndexFromAvailableIndex fiftyoneDegreesPropertiesGetPropertyIndexFromAvailableIndex /**< Synonym for #fiftyoneDegreesPropertiesGetPropertyIndexFromAvailableIndex function. */
 #define PropertiesGetComponentMask fiftyoneDegreesPropertiesGetComponentMask /**< Synonym for #fiftyoneDegreesPropertiesGetComponentMask function. */
 #define PropertiesIsSetHeaderAvailable fiftyoneDegreesPropertiesIsSetHeaderAvailable /**< Synonym for #fiftyoneDegreesPropertiesIsSetHeaderAvailable */
 #define CollectionHeaderFromFile fiftyoneDegreesCollectionHeaderFromFile /**< Synonym for #fiftyoneDegreesCollectionHeaderFromFile function. */

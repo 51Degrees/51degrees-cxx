@@ -637,7 +637,11 @@ TEST_F(DeviceIdEngineTests, onlyDeviceIdSurvivesRefresh) {
     RequiredPropertiesConfig required("DeviceId");
     createEngine(&config, &required);
     ASSERT_TRUE(getEngine() != nullptr);
-    EXPECT_TRUE(getEngine()->getRequiredProperties().empty());
+    // The name keeps its place, though the data file has no property of
+    // that name.
+    EXPECT_EQ(
+        vector<string>({ "DeviceId" }),
+        getEngine()->getRequiredProperties());
 
     const string before = getDeviceId();
     EXPECT_EQ(string::npos, ("-" + before + "-").find("-0-")) << before;

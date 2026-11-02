@@ -3023,9 +3023,10 @@ static void resultsHashFromEvidence_extractOverrides(
 			// Get the property index so that the type of the property that 
 			// performs the override can be checked before it is removed
 			// from the result.
-			const int propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
-				state->dataSet->b.b.available,
-				overridingPropertyIndex);
+			const int propertyIndex =
+				PropertiesGetPropertyIndexFromAvailableIndex(
+					state->dataSet->b.b.available,
+					overridingPropertyIndex);
 			if (PropertyGetValueType(
 				state->dataSet->properties,
 				propertyIndex,
@@ -3763,9 +3764,14 @@ static Item* getValuesFromResult(
 	return results->values.items;
 }
 
-static StringBuilder* getValuesStringByRequiredPropertyIndex(
+static Item* resultsHashGetValues(
+	ResultsHash *results,
+	int availableIndex,
+	Exception *exception);
+
+static StringBuilder* getValuesStringByAvailableIndex(
 	fiftyoneDegreesResultsHash* results,
-	const int requiredPropertyIndex,
+	const int availableIndex,
 	StringBuilder *builder,
 	char* const separator,
 	size_t const separatorLen,
@@ -3774,9 +3780,9 @@ static StringBuilder* getValuesStringByRequiredPropertyIndex(
 	uint32_t i = 0;
 
 	// Set the results structure to the value items for the property.
-	if (ResultsHashGetValues(
+	if (resultsHashGetValues(
 		results,
-		requiredPropertyIndex,
+		availableIndex,
 		exception) != NULL && EXCEPTION_OKAY) {
 
 		// Loop through the values adding them to the string buffer.
@@ -3804,6 +3810,26 @@ static StringBuilder* getValuesStringByRequiredPropertyIndex(
 	return builder;
 }
 
+static size_t getValuesStringForAvailableIndex(
+	fiftyoneDegreesResultsHash* results,
+	const int availableIndex,
+	char* const buffer,
+	size_t const length,
+	char* const separator,
+	fiftyoneDegreesException *exception) {
+	StringBuilder builder = { buffer, length };
+	StringBuilderInit(&builder);
+	getValuesStringByAvailableIndex(
+		results,
+		availableIndex,
+		&builder,
+		separator,
+		(size_t const)strlen(separator),
+		exception);
+	StringBuilderComplete(&builder);
+	return builder.added;
+}
+
 size_t fiftyoneDegreesResultsHashGetValuesStringByRequiredPropertyIndex(
 	fiftyoneDegreesResultsHash* results,
 	const int requiredPropertyIndex,
@@ -3811,17 +3837,16 @@ size_t fiftyoneDegreesResultsHashGetValuesStringByRequiredPropertyIndex(
 	size_t const length,
 	char* const separator,
 	fiftyoneDegreesException *exception) {
-	StringBuilder builder = { buffer, length };
-	StringBuilderInit(&builder);
-	getValuesStringByRequiredPropertyIndex(
-		results, 
-		requiredPropertyIndex, 
-		&builder,
-		separator, 
-		(size_t const)strlen(separator), 
-		exception);	
-	StringBuilderComplete(&builder);
-	return builder.added;
+	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
+	return getValuesStringForAvailableIndex(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		buffer,
+		length,
+		separator,
+		exception);
 }
 
 size_t fiftyoneDegreesResultsHashGetValuesStringAllProperties(
@@ -3834,14 +3859,23 @@ size_t fiftyoneDegreesResultsHashGetValuesStringAllProperties(
 	StringBuilderInit(&builder);
 	size_t const separatorLen = strlen(separator);
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
-	for (uint32_t i = 0; i < dataSet->b.b.available->count; i++) {
-		getValuesStringByRequiredPropertyIndex(
-			results,
-			i,
-			&builder,
-			separator,
-			separatorLen,
-			exception);
+	const uint32_t count = PropertiesGetRequiredPropertyCount(
+		dataSet->b.b.available);
+	for (uint32_t i = 0; i < count; i++) {
+		// One line for each required property index, empty for a property
+		// the data set does not have.
+		const int availableIndex = PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			(int)i);
+		if (availableIndex >= 0) {
+			getValuesStringByAvailableIndex(
+				results,
+				availableIndex,
+				&builder,
+				separator,
+				separatorLen,
+				exception);
+		}
 		StringBuilderAddChar(&builder, '\r');
 	}
 	StringBuilderComplete(&builder);
@@ -3858,17 +3892,16 @@ size_t fiftyoneDegreesResultsHashGetValuesString(
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 	size_t charactersAdded = 0;
 
-	// Get the required property index for the property name.
-	const int requiredPropertyIndex =
-		PropertiesGetRequiredPropertyIndexFromName(
-			dataSet->b.b.available,
-			propertyName);
-	if (requiredPropertyIndex >= 0) {
-		
+	// Get the available index for the property name.
+	const int availableIndex = PropertiesGetAvailableIndexFromName(
+		dataSet->b.b.available,
+		propertyName);
+	if (availableIndex >= 0) {
+
 		// Add the values into the buffer returning the number required.
-		charactersAdded = ResultsHashGetValuesStringByRequiredPropertyIndex(
+		charactersAdded = getValuesStringForAvailableIndex(
 			results,
-			requiredPropertyIndex,
+			availableIndex,
 			buffer,
 			length,
 			separator,
@@ -3922,51 +3955,56 @@ ResultHash* getResultForPropertyIndex(
 }
 
 
+// Gets the result holding the profile for the property at the available
+// index, which is the index of the property in the available properties.
 ResultHash* getResultForRequiredPropertyIndex(
 	ResultsHash* results,
-	int requiredPropertyIndex,
+	int availableIndex,
 	Exception *exception) {
 	DataSetHash *dataSet;
 	ResultHash *result = NULL;
 
 	dataSet = (DataSetHash*)results->b.b.dataSet;
 
-	// Work out the property index from the required property index.
-	uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	// Work out the property index from the available index.
+	const int propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
-	if (requiredPropertyIndex >= 0 &&
-		requiredPropertyIndex < (int)dataSet->b.b.available->count) {
-		result = getResultForPropertyIndex(results, propertyIndex, exception);
+	if (propertyIndex >= 0) {
+		result = getResultForPropertyIndex(
+			results,
+			(uint32_t)propertyIndex,
+			exception);
 	}
 	return result;
 }
 
-bool fiftyoneDegreesResultsHashGetHasValues(
-	fiftyoneDegreesResultsHash* results,
-	int requiredPropertyIndex,
-	fiftyoneDegreesException *exception) {
+static bool resultsHashGetHasValues(
+	ResultsHash* results,
+	int availableIndex,
+	Exception *exception) {
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 	// Ensure any previous uses of the results to get values are released.
 	resultsHashRelease(results);
 
-	if (requiredPropertyIndex < 0 ||
-		requiredPropertyIndex >= (int)dataSet->b.b.available->count) {
+	if (availableIndex < 0 ||
+		availableIndex >= (int)dataSet->b.b.available->count) {
 		// The property index is not valid.
 		return false;
 	}
 	if (OverrideHasValueForRequiredPropertyIndex(
 		results->b.overrides,
-		requiredPropertyIndex)) {
+		availableIndex)) {
 		// There is an override value for the property.
 		return true;
 	}
 
-	// Work out the property index from the required property index.
-	uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	// Work out the property index from the available index.
+	uint32_t propertyIndex =
+		(uint32_t)PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	// Set the property that will be available in the results structure. 
 	// This may also be needed to work out which of a selection of results 
@@ -4003,16 +4041,29 @@ bool fiftyoneDegreesResultsHashGetHasValues(
 	return true;
 }
 
-fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsHashGetNoValueReason(
-	fiftyoneDegreesResultsHash *results,
+bool fiftyoneDegreesResultsHashGetHasValues(
+	fiftyoneDegreesResultsHash* results,
 	int requiredPropertyIndex,
 	fiftyoneDegreesException *exception) {
+	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
+	return resultsHashGetHasValues(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
+}
+
+static fiftyoneDegreesResultsNoValueReason resultsHashGetNoValueReason(
+	ResultsHash *results,
+	int availableIndex,
+	Exception *exception) {
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 	// Ensure any previous uses of the results to get values are released.
 	resultsHashRelease(results);
 
-	if (requiredPropertyIndex < 0 ||
-		requiredPropertyIndex >= (int)dataSet->b.b.available->count) {
+	if (availableIndex < 0 ||
+		availableIndex >= (int)dataSet->b.b.available->count) {
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY;
 	}
 
@@ -4022,13 +4073,14 @@ fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsHashGetNoValueReason(
 
 	ResultHash *result = getResultForRequiredPropertyIndex(
 		results,
-		requiredPropertyIndex,
+		availableIndex,
 		exception);
 
-	// Work out the property index from the required property index.
-	uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	// Work out the property index from the available index.
+	uint32_t propertyIndex =
+		(uint32_t)PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	// Set the property that will be available in the results structure. 
 	// This may also be needed to work out which of a selection of results 
@@ -4061,6 +4113,19 @@ fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsHashGetNoValueReason(
 	return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
 }
 
+fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsHashGetNoValueReason(
+	fiftyoneDegreesResultsHash *results,
+	int requiredPropertyIndex,
+	fiftyoneDegreesException *exception) {
+	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
+	return resultsHashGetNoValueReason(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
+}
+
 const char* fiftyoneDegreesResultsHashGetNoValueReasonMessage(
 	fiftyoneDegreesResultsNoValueReason reason) {
 	switch (reason) {
@@ -4089,10 +4154,10 @@ const char* fiftyoneDegreesResultsHashGetNoValueReasonMessage(
 	}
 }
 
-fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
-	fiftyoneDegreesResultsHash* results,
-	int requiredPropertyIndex,
-	fiftyoneDegreesException *exception) {
+static Item* resultsHashGetValues(
+	ResultsHash *results,
+	int availableIndex,
+	Exception *exception) {
 	ResultHash *result;
 	Property *property;
 	DataSetHash *dataSet;
@@ -4102,16 +4167,17 @@ fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
 	resultsHashRelease(results);
 
 	// Check the overrides first.
-	firstValue = getValuesFromOverrides(results, requiredPropertyIndex);
+	firstValue = getValuesFromOverrides(results, availableIndex);
 
 	if (firstValue == NULL) {
 
 		dataSet = (DataSetHash*)results->b.b.dataSet;
 
-		// Work out the property index from the required property index.
-		uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+		// Work out the property index from the available index.
+		uint32_t propertyIndex =
+			(uint32_t)PropertiesGetPropertyIndexFromAvailableIndex(
 			dataSet->b.b.available,
-			requiredPropertyIndex);
+			availableIndex);
 
 		if (((int32_t)propertyIndex) < 0) {
 			EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
@@ -4146,7 +4212,7 @@ fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
 							results,
 							result,
 							property,
-							requiredPropertyIndex,
+							availableIndex,
 							exception);
 					}
 				}
@@ -4161,6 +4227,19 @@ fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
 		}
 	}
 	return firstValue;
+}
+
+fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
+	fiftyoneDegreesResultsHash* results,
+	int requiredPropertyIndex,
+	fiftyoneDegreesException *exception) {
+	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
+	return resultsHashGetValues(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
 }
 
 uint32_t fiftyoneDegreesHashIterateProfilesForPropertyAndValue(
@@ -4373,7 +4452,7 @@ size_t fiftyoneDegreesResultsHashGetValuesJson(
 	// For each of the available properties and values.
 	for (uint32_t i = 0; i < dataSet->b.b.available->count; i++) {
 		// Get the data set property index.
-		propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+		propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 			dataSet->b.b.available, 
 			i);
 		if (propertyIndex >= 0) {
@@ -4382,7 +4461,7 @@ size_t fiftyoneDegreesResultsHashGetValuesJson(
             // A non-NULL return is not enough: when the matched profile has
             // no values for the property it returns the list's items with a
             // count of zero, so the count must be checked too.
-            if (ResultsHashGetValues(results, i, exception) != NULL &&
+            if (resultsHashGetValues(results, (int)i, exception) != NULL &&
                 EXCEPTION_OKAY &&
                 results->values.count > 0) {
                 // Get the property.

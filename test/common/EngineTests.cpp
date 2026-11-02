@@ -345,10 +345,10 @@ void EngineTests::validate(ResultsBase *results) {
 }
 
 void EngineTests::validateQuick(ResultsBase *results) {
-	for (int i = 0; i < results->getAvailableProperties(); i++) {
+	for (const string &name : results->getProperties()) {
 		vector<string> values;
-		EXPECT_NO_THROW(values = *results->getValues(i)) << "Should not throw "
-			"exception for property '" << results->getPropertyName(i) << "'";
+		EXPECT_NO_THROW(values = *results->getValues(name)) << "Should not "
+			"throw exception for property '" << name << "'";
 	}
 }
 

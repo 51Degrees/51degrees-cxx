@@ -225,7 +225,6 @@ public:
 		verifyMatchForLowerPrecedence();
 	}
 	void verifyNoMatchedNodes() {
-		int i;
 		vector<string>::iterator it;
 
 		// Disable unmatched-result defaults BEFORE detection. The unified
@@ -266,8 +265,8 @@ public:
 			results->results->items[r].matchedNodes = 0;
 		}
 
-		for (i = 0; i < (int)results->available->count; i++) {
-			Value<string> value = results->getValueAsString(i);
+		for (const string &name : results->getProperties()) {
+			Value<string> value = results->getValueAsString(name);
 			ASSERT_FALSE(value.hasValue()) <<
 				L"The result should not contain a value as there were no "
 				L"matched nodes.";

@@ -75,10 +75,9 @@ protected:
 TEST_F(EngineHashGraphFilterTests, RequiredPropertiesAreInIndexOrder) {
 	vector<string> names = engine->getRequiredProperties();
 	unique_ptr<ResultsHash> results(engine->process(graphFilterUserAgent));
-	vector<string> fromResults = results->getProperties();
-	ASSERT_EQ(fromResults.size(), names.size());
+	ASSERT_EQ((size_t)results->getAvailableProperties(), names.size());
 	for (size_t i = 0; i < names.size(); i++) {
-		EXPECT_EQ(fromResults[i], names[i]) <<
+		EXPECT_EQ(results->getPropertyName((int)i), names[i]) <<
 			"Name at required property index " << i << " differs.";
 	}
 	EXPECT_TRUE(results->containsProperty("IsMobile"));

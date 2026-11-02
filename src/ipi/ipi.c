@@ -2002,7 +2002,8 @@ static bool heldIsWanted(
 	}
 	const uint32_t count = dataSet->header.properties.count;
 	if (properties->existing != NULL) {
-		return properties->existing->count < count;
+		return properties->existing->named != NULL &&
+			properties->existing->namedCount < count;
 	}
 	if (properties->array != NULL && properties->count > 0) {
 		return (uint32_t)properties->count < count;
@@ -3295,10 +3296,10 @@ static WeightedItem* getValuesFromResult(
 	return results->values.items;
 }
 
-const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
-	fiftyoneDegreesResultsIpi* const results,
-	int const requiredPropertyIndex,
-	fiftyoneDegreesException* const exception) {
+static const WeightedItem* resultsIpiGetValues(
+	ResultsIpi* const results,
+	int const availableIndex,
+	Exception* const exception) {
 	Property* property;
 	DataSetIpi* dataSet;
 	const WeightedItem* firstValue = NULL;
@@ -3308,10 +3309,10 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 
 	dataSet = (DataSetIpi*)results->b.dataSet;
 
-	// Work out the property index from the required property index.
-	const uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	// Work out the property index from the available index.
+	const int propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	if (propertyIndex >= 0) {
 		// Set the property that will be available in the results structure. 
@@ -3319,7 +3320,7 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 		// are used to obtain the values.
 		property = PropertyGet(
 			dataSet->properties,
-			propertyIndex,
+			(uint32_t)propertyIndex,
 			&results->propertyItem,
 			exception);
 
@@ -3365,6 +3366,19 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 		WeightedItemListRelease(&results->values);
 	}
 	return firstValue;
+}
+
+const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
+	fiftyoneDegreesResultsIpi* const results,
+	int const requiredPropertyIndex,
+	fiftyoneDegreesException* const exception) {
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	return resultsIpiGetValues(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
 }
 
 static bool visitProfilePropertyValue(
@@ -3480,7 +3494,7 @@ static bool resultHasValidPropertyValueOffset(
 
 static bool resultsGetHasValidPropertyValueOffset(
 	fiftyoneDegreesResultsIpi* const results,
-	const int requiredPropertyIndex,
+	const int availableIndex,
 	fiftyoneDegreesException* const exception) {
 	bool hasValidOffset = false;
 	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
@@ -3488,19 +3502,19 @@ static bool resultsGetHasValidPropertyValueOffset(
 	// Return the outcome of a previous walk over the same results for the
 	// property if one was recorded.
 	const bool canUseCache = results->hasValuesCache != NULL &&
-		requiredPropertyIndex >= 0 &&
-		(uint32_t)requiredPropertyIndex < results->hasValuesCacheCount;
+		availableIndex >= 0 &&
+		(uint32_t)availableIndex < results->hasValuesCacheCount;
 	if (canUseCache) {
-		const byte cached = results->hasValuesCache[requiredPropertyIndex];
+		const byte cached = results->hasValuesCache[availableIndex];
 		if (cached != IPI_HAS_VALUES_UNKNOWN) {
 			return cached == IPI_HAS_VALUES_TRUE;
 		}
 	}
 
-	// Work out the property index from the required property index.
-	const int32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	// Work out the property index from the available index.
+	const int32_t propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	if (propertyIndex >= 0) {
 		// Set the property that will be available in the results structure.
@@ -3534,7 +3548,7 @@ static bool resultsGetHasValidPropertyValueOffset(
 			// no value reason calls for the same property and results do
 			// not need to repeat it.
 			if (EXCEPTION_OKAY && canUseCache) {
-				results->hasValuesCache[requiredPropertyIndex] =
+				results->hasValuesCache[availableIndex] =
 					hasValidOffset ?
 					IPI_HAS_VALUES_TRUE : IPI_HAS_VALUES_FALSE;
 			}
@@ -3543,16 +3557,16 @@ static bool resultsGetHasValidPropertyValueOffset(
 	return hasValidOffset;
 }
 
-bool fiftyoneDegreesResultsIpiGetHasValues(
-	fiftyoneDegreesResultsIpi* results,
-	int requiredPropertyIndex,
-	fiftyoneDegreesException* exception) {
+static bool resultsIpiGetHasValues(
+	ResultsIpi* results,
+	int availableIndex,
+	Exception* exception) {
 	const DataSetIpi *dataSet = (DataSetIpi*)results->b.dataSet;
 	// Ensure any previous uses of the results to get values are released.
 	resultsIpiRelease(results);
 
-	if (requiredPropertyIndex < 0 ||
-		requiredPropertyIndex >= (int)dataSet->b.b.available->count) {
+	if (availableIndex < 0 ||
+		availableIndex >= (int)dataSet->b.b.available->count) {
 		// The property index is not valid.
 		return false;
 	}
@@ -3565,7 +3579,7 @@ bool fiftyoneDegreesResultsIpiGetHasValues(
 	// outcome of a previous walk for the property is used if available.
 	const bool hasValidOffset = resultsGetHasValidPropertyValueOffset(
 		results,
-		requiredPropertyIndex,
+		availableIndex,
 		exception);
 	if (EXCEPTION_FAILED) {
 		return false;
@@ -3573,14 +3587,14 @@ bool fiftyoneDegreesResultsIpiGetHasValues(
 	if (hasValidOffset) {
 		return true;
 	}
-	const uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	const int propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	if (propertyIndex >= 0) {
 		Property *property = PropertyGet(
 			dataSet->properties,
-			propertyIndex,
+			(uint32_t)propertyIndex,
 			&results->propertyItem,
 			exception);
 		if (property != NULL && EXCEPTION_OKAY) {
@@ -3596,16 +3610,29 @@ bool fiftyoneDegreesResultsIpiGetHasValues(
 	return false;
 }
 
-fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason(
+bool fiftyoneDegreesResultsIpiGetHasValues(
 	fiftyoneDegreesResultsIpi* results,
 	int requiredPropertyIndex,
 	fiftyoneDegreesException* exception) {
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	return resultsIpiGetHasValues(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
+}
+
+static fiftyoneDegreesResultsNoValueReason resultsIpiGetNoValueReason(
+	ResultsIpi* results,
+	int availableIndex,
+	Exception* exception) {
 	const DataSetIpi *dataSet = (DataSetIpi*)results->b.dataSet;
 	// Ensure any previous uses of the results to get values are released.
 	resultsIpiRelease(results);
 
-	if (requiredPropertyIndex < 0 ||
-		requiredPropertyIndex >= (int)dataSet->b.b.available->count) {
+	if (availableIndex < 0 ||
+		availableIndex >= (int)dataSet->b.b.available->count) {
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY;
 	}
 
@@ -3617,7 +3644,7 @@ fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason(
 	// outcome of a previous walk for the property is used if available.
 	const bool hasValidOffset = resultsGetHasValidPropertyValueOffset(
 		results,
-		requiredPropertyIndex,
+		availableIndex,
 		exception);
 	if (EXCEPTION_FAILED) {
 		return false;
@@ -3630,6 +3657,19 @@ fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason(
 	}
 
 	return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
+}
+
+fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason(
+	fiftyoneDegreesResultsIpi* results,
+	int requiredPropertyIndex,
+	fiftyoneDegreesException* exception) {
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	return resultsIpiGetNoValueReason(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
 }
 
 const char* fiftyoneDegreesResultsIpiGetNoValueReasonMessage(
@@ -3695,7 +3735,7 @@ static void pushValues(
 
 static void fiftyoneDegreesResultsIpiGetValuesStringInternal(
 	fiftyoneDegreesResultsIpi* results,
-	int requiredPropertyIndex,
+	int availableIndex,
 	StringBuilder * const builder,
 	const char* separator,
 	fiftyoneDegreesException* exception) {
@@ -3704,9 +3744,9 @@ static void fiftyoneDegreesResultsIpiGetValuesStringInternal(
 	Property *property;
 	const DataSetIpi *dataSet = (DataSetIpi *)results->b.dataSet;
 
-	const int propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	const int propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	if (propertyIndex >= 0) {
 		PropertyValueType const storedValueType = PropertyGetStoredTypeByIndex(
@@ -3727,10 +3767,10 @@ static void fiftyoneDegreesResultsIpiGetValuesStringInternal(
 			&propertyItem,
 			exception);
 		if (property != NULL && EXCEPTION_OKAY) {
-			if (requiredPropertyIndex >= 0) {
-				weightedItem = fiftyoneDegreesResultsIpiGetValues(
+			if (availableIndex >= 0) {
+				weightedItem = resultsIpiGetValues(
 					results,
-					requiredPropertyIndex,
+					availableIndex,
 					exception);
 				if (weightedItem != NULL && EXCEPTION_OKAY) {
 					pushValues(
@@ -3755,14 +3795,14 @@ void fiftyoneDegreesResultsIpiAddValuesString(
 	const char* separator,
 	fiftyoneDegreesException* exception) {
 	const DataSetIpi * const dataSet = (DataSetIpi *)results->b.dataSet;
-	const int requiredPropertyIndex = PropertiesGetRequiredPropertyIndexFromName(
+	const int availableIndex = PropertiesGetAvailableIndexFromName(
 		dataSet->b.b.available,
 		propertyName);
 
-	if (requiredPropertyIndex >= 0) {
+	if (availableIndex >= 0) {
 		fiftyoneDegreesResultsIpiGetValuesStringInternal(
 			results,
-			requiredPropertyIndex,
+			availableIndex,
 			builder,
 			separator,
 			exception);
@@ -3800,12 +3840,15 @@ size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
 	const char* separator,
 	fiftyoneDegreesException* exception) {
 
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
 	StringBuilder builder = { buffer, bufferLength };
 	StringBuilderInit(&builder);
 
 	fiftyoneDegreesResultsIpiGetValuesStringInternal(
 		results,
-		requiredPropertyIndex,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
 		&builder,
 		separator,
 		exception);

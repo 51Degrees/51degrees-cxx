@@ -153,7 +153,9 @@ vector<string> EngineBase::getRequiredProperties() const {
 	if (dataSet != nullptr) {
 		PropertiesAvailable *available = dataSet->available;
 		if (available != nullptr) {
-			for (uint32_t i = 0; i < available->count; i++) {
+			const uint32_t count = PropertiesGetRequiredPropertyCount(
+				available);
+			for (uint32_t i = 0; i < count; i++) {
 				const char *name = STRING(PropertiesGetNameFromRequiredIndex(
 					available,
 					(int)i));

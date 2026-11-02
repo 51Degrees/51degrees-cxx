@@ -438,9 +438,9 @@ void EngineDeviceDetectionTests::compareResults(
 		"The data set was not reloaded.";
 	EXPECT_EQ(a->getAvailableProperties(), b->getAvailableProperties()) <<
 		"Number of properties available does not match";
-	for (size_t i = 0; i < a->getProperties().size(); i++) {
-		vector<string> av = *a->getValues((int)i);
-		vector<string> bv = *b->getValues((int)i);
+	for (const string &name : a->getProperties()) {
+		vector<string> av = *a->getValues(name);
+		vector<string> bv = *b->getValues(name);
 		EXPECT_EQ(av.size(), bv.size()) << "Expected same number of values";
 		for (size_t v = 0; v < av.size(); v++) {
 			EXPECT_STREQ(av[v].c_str(), bv[v].c_str()) <<
