@@ -30,7 +30,7 @@ same for every product in this repository, and are described in the
 
 ## Memory and the required properties
 
-The Balanced configuration (`fiftyoneDegreesIpiBalancedConfig`, or `setBalanced()` in C++) holds the strings, the graphs, the profile offsets and the property types in memory, and reads values and profiles through caches. The C API uses it when no configuration is given.
+The Balanced configuration (`fiftyoneDegreesIpiBalancedConfig`, or `setBalanced()` in C++) holds the strings, the graphs, the profile offsets and the property types in memory, and reads values and profiles through caches of 50,000 values and 10,000 profiles. The C API uses it when no configuration is given.
 
 Naming the required properties is all it takes to get more from it. There is no other setting. When fewer properties are named than the data file has, the parts of the file they do not read stay on file:
 
