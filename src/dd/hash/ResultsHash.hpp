@@ -48,9 +48,9 @@ namespace FiftyoneDegrees {
 			 * required properties structure.
 			 *
 			 * A component's graph is walked the first time one of its
-			 * properties is read. The match metrics, the device id and the
-			 * User-Agents describe every component, so reading one of them
-			 * walks every graph not yet walked.
+			 * properties is read. The match metrics, the device ids, the
+			 * traces and the matched User-Agents describe every component, so
+			 * reading one of them walks every graph not yet walked.
 			 *
 			 * A results instance is used by one thread at a time, because
 			 * reading a value writes into the results, and the first read of
