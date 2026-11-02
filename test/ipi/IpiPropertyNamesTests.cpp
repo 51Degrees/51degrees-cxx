@@ -22,15 +22,16 @@
 
 /**
  * @file IpiPropertyNamesTests.cpp
- * @brief Tests finding a property by name through the results, which is how
- * a language reads a value without keeping indexes of its own. Each reload
+ * @brief Tests reading properties by name through the results, which is how
+ * a language reads a value without keeping positions of its own. Each reload
  * route runs in every performance profile.
  *
  * The data file reloaded has its first required property renamed. The reload
- * drops that property, as its name is no longer in the file, and the index of
- * every other property moves down by one. An index kept from before the
- * reload then reads the property after it, and the tests check that finding
- * the property through the results reads the right one.
+ * drops that property, as its name is no longer in the file, and the position
+ * of every other property, its required property index, moves down by one. A
+ * position kept from before the reload then reads the property after it, and
+ * the tests check that reading by name through the results reads the right
+ * one.
  */
 
 #include "../common/Base.hpp"
@@ -84,9 +85,9 @@ void configure(ConfigIpi &config, const Profile profile) {
 /** The values of properties, keyed by property name. */
 typedef std::map<std::string, std::string> Values;
 
-/** The text of a property's values with their weights, or why it has none. */
-std::string describe(ResultsIpi *results, const int requiredPropertyIndex) {
-	auto value = results->getValuesAsWeightedStringList(requiredPropertyIndex);
+/** The text of a list of weighted values, or why there is none. */
+template <typename T>
+std::string describe(const T &value) {
 	if (value.hasValue() == false) {
 		return "no value, reason " +
 			std::to_string((int)value.getNoValueReason());
@@ -101,30 +102,36 @@ std::string describe(ResultsIpi *results, const int requiredPropertyIndex) {
 	return text;
 }
 
-/** Finds a property through the results, as a language reads a value. */
-int findIndex(ResultsIpi *results, const std::string &name) {
-	return results->getRequiredPropertyIndex(name.c_str(), name.size());
+/** The value of the property at the position given. */
+std::string describeAt(ResultsIpi *results, const int requiredPropertyIndex) {
+	return describe(
+		results->getValuesAsWeightedStringList(requiredPropertyIndex));
 }
 
-/** The values of the properties named, each found through the results. */
+/** The value of the property named, read by name through the results. */
+std::string describeByName(ResultsIpi *results, const std::string &name) {
+	return describe(results->getValuesAsWeightedStringList(name));
+}
+
+/** The values of the properties named, each read by name. */
 Values readByName(ResultsIpi *results, const std::vector<std::string> &names) {
 	Values values;
 	for (const std::string &name : names) {
-		values[name] = describe(results, findIndex(results, name));
+		values[name] = describeByName(results, name);
 	}
 	return values;
 }
 
 /**
- * The values of the properties named, read at the index each has in the list
- * given, as a language that keeps its own map of indexes reads them.
+ * The values of the properties named, read at the position each has in the
+ * list given, as a language that keeps its own map of positions reads them.
  */
-Values readAtIndexesOf(
+Values readAtPositionsOf(
 	ResultsIpi *results,
 	const std::vector<std::string> &names) {
 	Values values;
 	for (size_t i = 0; i < names.size(); i++) {
-		values[names[i]] = describe(results, (int)i);
+		values[names[i]] = describeAt(results, (int)i);
 	}
 	return values;
 }
@@ -311,9 +318,9 @@ protected:
 	}
 
 	/**
-	 * A reload that moves the indexes. Each property found through the new
-	 * results reads the value it read before the reload, where the index kept
-	 * from before the reload reads another property.
+	 * A reload that moves the positions. Each property read by name through
+	 * the new results reads the value it read before the reload, where the
+	 * position kept from before the reload reads another property.
 	 */
 	void expectReloadFindsMovedProperties(
 		const Route route,
@@ -338,25 +345,23 @@ protected:
 		ASSERT_EQ(before.size() - 1, after.size()) <<
 			"The reload must drop the renamed property.";
 		std::unique_ptr<ResultsIpi> results(engine.process(namesAddress));
-		EXPECT_EQ(-1, findIndex(results.get(), renamedName));
-		for (size_t i = 0; i < after.size(); i++) {
-			EXPECT_EQ((int)i, findIndex(results.get(), after[i])) << after[i];
-		}
+		EXPECT_FALSE(results->containsProperty(renamedName));
+		EXPECT_EQ(after, results->getProperties());
 		EXPECT_EQ(
 			countDifferences(expected, readByName(results.get(), after), after),
 			0);
 		EXPECT_GT(
 			countDifferences(
 				expected,
-				readAtIndexesOf(results.get(), before),
+				readAtPositionsOf(results.get(), before),
 				after),
-			0) << "No index kept from before the reload reads another "
-			"property, so the reload did not move the indexes.";
+			0) << "No position kept from before the reload reads another "
+			"property, so the reload did not move the positions.";
 	}
 
 	/**
-	 * A reload that fails keeps the data set in use, and so its indexes. Each
-	 * property is found where it was and reads the value it read before.
+	 * A reload that fails keeps the data set in use, and so its positions.
+	 * Each property is where it was and reads the value it read before.
 	 */
 	void expectFailedReloadKeepsIndexes(
 		const Route route,
@@ -367,13 +372,10 @@ protected:
 		EngineIpi engine(masterPath.c_str(), &config, &properties);
 		const std::vector<std::string> names = engine.getRequiredProperties();
 		Values expected;
-		std::vector<int> indexes;
 		{
 			std::unique_ptr<ResultsIpi> results(engine.process(namesAddress));
 			expected = readByName(results.get(), names);
-			for (const std::string &name : names) {
-				indexes.push_back(findIndex(results.get(), name));
-			}
+			EXPECT_EQ(expected, readAtPositionsOf(results.get(), names));
 		}
 		expectSomeValues(expected);
 
@@ -387,16 +389,16 @@ protected:
 
 		EXPECT_EQ(names, engine.getRequiredProperties());
 		std::unique_ptr<ResultsIpi> results(engine.process(namesAddress));
-		for (size_t i = 0; i < names.size(); i++) {
-			EXPECT_EQ(indexes[i], findIndex(results.get(), names[i])) << names[i];
-		}
+		EXPECT_EQ(names, results->getProperties());
 		EXPECT_EQ(expected, readByName(results.get(), names));
+		EXPECT_EQ(expected, readAtPositionsOf(results.get(), names));
 	}
 
 	/**
 	 * Results created before a reload keep the data set they came from, so a
-	 * property found through them reads the value it read before the reload.
-	 * The indexes of the data set the reload loaded read other properties.
+	 * property read by name through them reads the value it read before the
+	 * reload. The positions of the data set the reload loaded read other
+	 * properties.
 	 */
 	void expectResultsFromBeforeReloadFindProperties(
 		const Route route,
@@ -415,21 +417,23 @@ protected:
 		const std::vector<std::string> after = engine.getRequiredProperties();
 		ASSERT_EQ(before.size() - 1, after.size()) <<
 			"The reload must drop the renamed property.";
+		EXPECT_EQ(before, held->getProperties());
 		EXPECT_EQ(expected, readByName(held.get(), before));
 		EXPECT_GT(
 			countDifferences(
 				expected,
-				readAtIndexesOf(held.get(), after),
+				readAtPositionsOf(held.get(), after),
 				after),
-			0) << "No index of the reloaded data set reads another property "
+			0) << "No position of the reloaded data set reads another property "
 			"of the results from before the reload, so the reload did not move "
-			"the indexes.";
+			"the positions.";
 	}
 
 	/**
-	 * A graph filter given names evaluates the graph of the property named in
-	 * the data set the results use, before and after a reload that moves its
-	 * index.
+	 * The graph filter evaluates a property's graph when it is given the
+	 * property's position in the data set in use. A position taken after a
+	 * reload that moves the property selects the graph, and the position
+	 * kept from before the reload does not.
 	 */
 	void expectFilterFindsNamedProperty(
 		const Route route,
@@ -440,29 +444,36 @@ protected:
 		EngineIpi engine(masterPath.c_str(), &config, &properties);
 		const std::vector<std::string> before = engine.getRequiredProperties();
 		ASSERT_GE(before.size(), (size_t)2);
-		// The reload keeps this property and moves its index from 1 to 0.
-		const std::vector<std::string> named = { before[1] };
+		// The reload keeps this property and moves it from position 1 to 0.
+		const std::string name = before[1];
+		const int kept[] = { 1 };
 		std::string expected;
 		{
 			std::unique_ptr<ResultsIpi> all(engine.process(namesAddress));
-			expected = describe(all.get(), findIndex(all.get(), named[0]));
+			expected = describeByName(all.get(), name);
 			std::unique_ptr<ResultsIpi> filtered(
-				engine.process(namesAddress, &named));
-			EXPECT_EQ(
-				expected,
-				describe(filtered.get(), findIndex(filtered.get(), named[0])));
+				engine.process(namesAddress, kept, 1));
+			EXPECT_EQ(expected, describeByName(filtered.get(), name));
 		}
 		EXPECT_EQ(std::string::npos, expected.rfind("no value", 0)) <<
 			"The property has no value, so filtering for it shows nothing.";
 
 		reload(engine, route, renamed);
 
+		const std::vector<std::string> after = engine.getRequiredProperties();
+		ASSERT_FALSE(after.empty());
+		ASSERT_EQ(name, after[0]);
+		const int current[] = { 0 };
 		std::unique_ptr<ResultsIpi> filtered(
-			engine.process(namesAddress, &named));
-		EXPECT_EQ(0, findIndex(filtered.get(), named[0]));
-		EXPECT_EQ(
-			expected,
-			describe(filtered.get(), findIndex(filtered.get(), named[0])));
+			engine.process(namesAddress, current, 1));
+		EXPECT_EQ(expected, describeByName(filtered.get(), name));
+		// Past the end of the reloaded data set's properties, the position
+		// kept from before the reload selects no graph.
+		if ((size_t)kept[0] >= after.size()) {
+			std::unique_ptr<ResultsIpi> stale(
+				engine.process(namesAddress, kept, 1));
+			EXPECT_NE(expected, describeByName(stale.get(), name));
+		}
 	}
 };
 
@@ -496,8 +507,8 @@ IPI_NAMES_PROFILE_TESTS(BalancedTemp)
 IPI_NAMES_PROFILE_TESTS(Default)
 
 /**
- * Every required property is found at its own index, whatever the case of the
- * name, and only by its whole name.
+ * Every required property is read by name at its own position, whatever the
+ * case of the name, and only by its whole name.
  */
 TEST_F(IpiPropertyNamesTests, Find_EveryName) {
 	ConfigIpi config;
@@ -505,6 +516,7 @@ TEST_F(IpiPropertyNamesTests, Find_EveryName) {
 	EngineIpi engine(masterPath.c_str(), &config, &properties);
 	const std::vector<std::string> names = engine.getRequiredProperties();
 	std::unique_ptr<ResultsIpi> results(engine.process(namesAddress));
+	EXPECT_EQ(names, results->getProperties());
 	for (size_t i = 0; i < names.size(); i++) {
 		std::string upper = names[i];
 		std::string lower = names[i];
@@ -514,67 +526,17 @@ TEST_F(IpiPropertyNamesTests, Find_EveryName) {
 		for (char &c : lower) {
 			c = (char)tolower((unsigned char)c);
 		}
-		EXPECT_EQ((int)i, findIndex(results.get(), names[i])) << names[i];
-		EXPECT_EQ((int)i, findIndex(results.get(), upper)) << upper;
-		EXPECT_EQ((int)i, findIndex(results.get(), lower)) << lower;
-		EXPECT_EQ(-1, findIndex(results.get(), names[i] + "X")) << names[i];
-		EXPECT_EQ(-1, findIndex(results.get(), names[i].substr(
+		const std::string expected = describeAt(results.get(), (int)i);
+		EXPECT_TRUE(results->containsProperty(names[i])) << names[i];
+		EXPECT_TRUE(results->containsProperty(upper)) << upper;
+		EXPECT_TRUE(results->containsProperty(lower)) << lower;
+		EXPECT_EQ(expected, describeByName(results.get(), names[i])) <<
+			names[i];
+		EXPECT_EQ(expected, describeByName(results.get(), upper)) << upper;
+		EXPECT_EQ(expected, describeByName(results.get(), lower)) << lower;
+		EXPECT_FALSE(results->containsProperty(names[i] + "X")) << names[i];
+		EXPECT_FALSE(results->containsProperty(names[i].substr(
 			0,
 			names[i].size() - 1))) << names[i];
 	}
-}
-
-/**
- * The name is the bytes given, so it needs no null at its end, and nothing
- * is found for no name.
- */
-TEST_F(IpiPropertyNamesTests, Find_TakesTheBytesGiven) {
-	ConfigIpi config;
-	RequiredPropertiesConfig properties;
-	EngineIpi engine(masterPath.c_str(), &config, &properties);
-	const std::vector<std::string> names = engine.getRequiredProperties();
-	ASSERT_FALSE(names.empty());
-	std::unique_ptr<ResultsIpi> results(engine.process(namesAddress));
-	const std::string followed = names[0] + "|more";
-	EXPECT_EQ(0, results->getRequiredPropertyIndex(
-		followed.data(),
-		names[0].size()));
-	EXPECT_EQ(-1, results->getRequiredPropertyIndex(followed.data(), 0));
-	EXPECT_EQ(-1, results->getRequiredPropertyIndex(nullptr, 3));
-	EXPECT_EQ(-1, fiftyoneDegreesResultsIpiGetRequiredPropertyIndex(
-		nullptr,
-		names[0].c_str(),
-		names[0].size()));
-}
-
-/**
- * No names evaluates every graph, an empty list evaluates none, and a name
- * that is not a required property evaluates none.
- */
-TEST_F(IpiPropertyNamesTests, Filter_NamesSelectGraphs) {
-	ConfigIpi config;
-	RequiredPropertiesConfig properties;
-	EngineIpi engine(masterPath.c_str(), &config, &properties);
-	const std::vector<std::string> names = engine.getRequiredProperties();
-	std::unique_ptr<ResultsIpi> all(engine.process(namesAddress));
-	const Values expected = readByName(all.get(), names);
-	expectSomeValues(expected);
-	std::unique_ptr<ResultsIpi> unnamed(engine.process(
-		namesAddress,
-		(const std::vector<std::string>*)nullptr));
-	EXPECT_EQ(expected, readByName(unnamed.get(), names));
-
-	const std::vector<std::string> none;
-	const std::vector<std::string> unknown = { "NotAProperty" };
-	std::unique_ptr<ResultsIpi> empty(engine.process(namesAddress, &none));
-	std::unique_ptr<ResultsIpi> missing(engine.process(namesAddress, &unknown));
-	const int indexes[] = { 0 };
-	std::unique_ptr<ResultsIpi> noIndexes(
-		engine.process(namesAddress, indexes, 0));
-	EXPECT_EQ(
-		readByName(noIndexes.get(), names),
-		readByName(empty.get(), names));
-	EXPECT_EQ(
-		readByName(noIndexes.get(), names),
-		readByName(missing.get(), names));
 }
