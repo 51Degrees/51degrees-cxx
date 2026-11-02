@@ -687,46 +687,6 @@ EXTERNAL void fiftyoneDegreesResultsHashFromUserAgent(
 	fiftyoneDegreesException *exception);
 
 /**
- * Processes the evidence exactly as #fiftyoneDegreesResultsHashFromEvidence.
- * The indexes choose nothing, as each graph is walked the first time a
- * property of its component is read, so use
- * #fiftyoneDegreesResultsHashFromEvidence instead.
- * @param results preallocated results structure to populate
- * @param evidence to process containing parsed or unparsed values
- * @param requiredPropertyIndexes not used
- * @param requiredPropertyIndexesCount not used
- * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
- */
-EXTERNAL void fiftyoneDegreesResultsHashFromEvidenceForProperties(
-	fiftyoneDegreesResultsHash *results,
-	fiftyoneDegreesEvidenceKeyValuePairArray *evidence,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
-	fiftyoneDegreesException *exception);
-
-/**
- * Processes the User-Agent exactly as #fiftyoneDegreesResultsHashFromUserAgent.
- * The indexes choose nothing, as each graph is walked the first time a
- * property of its component is read, so use
- * #fiftyoneDegreesResultsHashFromUserAgent instead.
- * @param results preallocated results structure to populate
- * @param userAgent string to process
- * @param userAgentLength of the User-Agent string
- * @param requiredPropertyIndexes not used
- * @param requiredPropertyIndexesCount not used
- * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
- */
-EXTERNAL void fiftyoneDegreesResultsHashFromUserAgentForProperties(
-	fiftyoneDegreesResultsHash *results,
-	const char* userAgent,
-	size_t userAgentLength,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
-	fiftyoneDegreesException *exception);
-
-/**
  * Process a single Device Id and populate the device offsets in the results
  * structure. Any component still to be walked from an earlier population of
  * the results is walked first, so the device id's profiles replace what the

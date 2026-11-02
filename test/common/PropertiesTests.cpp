@@ -491,79 +491,14 @@ TEST_F(Properties, EvidenceProperties_IsSetHeaderRequired) {
 }
 
 /**
- * Component mask tests. The mask is built from required property indexes
- * using the componentIndex recorded on each available property, which the
- * fixture sets by hand because it has no data set to read them from.
+ * The component index of each available property is zero until an engine
+ * sets it.
  */
 TEST_F(Properties, ComponentIndexDefaultsToZero) {
 	CreateFourProperties();
 	for (uint32_t i = 0; i < properties->count; i++) {
 		EXPECT_EQ(0, properties->items[i].componentIndex);
 	}
-}
-
-TEST_F(Properties, ComponentMaskNullOrNegativeEnablesEverything) {
-	CreateFourProperties();
-	int one[] = { 0 };
-	EXPECT_EQ(FIFTYONE_DEGREES_COMPONENT_MASK_ALL,
-		fiftyoneDegreesPropertiesGetComponentMask(properties, NULL, 0));
-	EXPECT_EQ(FIFTYONE_DEGREES_COMPONENT_MASK_ALL,
-		fiftyoneDegreesPropertiesGetComponentMask(properties, one, -1));
-}
-
-TEST_F(Properties, ComponentMaskEmptyEnablesNothing) {
-	CreateFourProperties();
-	int none[] = { 0 };
-	EXPECT_EQ(0u,
-		fiftyoneDegreesPropertiesGetComponentMask(properties, none, 0));
-}
-
-TEST_F(Properties, ComponentMaskSetsOneBitPerComponent) {
-	CreateFourProperties();
-	// Sorted order is Blue, Green, Red, Yellow. Give them components
-	// 1, 3, 1 and 0 so two properties share a component. The indexes the
-	// mask takes are places in the names given, Red, Yellow, Green and Blue.
-	properties->items[0].componentIndex = 1;
-	properties->items[1].componentIndex = 3;
-	properties->items[2].componentIndex = 1;
-	properties->items[3].componentIndex = 0;
-	int blueAndGreen[] = { 3, 2 };
-	EXPECT_EQ(0xAu,
-		fiftyoneDegreesPropertiesGetComponentMask(properties, blueAndGreen, 2));
-	int yellow[] = { 1 };
-	EXPECT_EQ(0x1u,
-		fiftyoneDegreesPropertiesGetComponentMask(properties, yellow, 1));
-	int blueAndRed[] = { 3, 0 };
-	EXPECT_EQ(0x2u,
-		fiftyoneDegreesPropertiesGetComponentMask(properties, blueAndRed, 2)) <<
-		"Two properties on one component set one bit.";
-}
-
-TEST_F(Properties, ComponentMaskIgnoresBadIndexes) {
-	CreateFourProperties();
-	// Blue, the first in sorted order and the fourth name given.
-	properties->items[0].componentIndex = 2;
-	int indexes[] = { -1, 3, (int)properties->count, 100000 };
-	EXPECT_EQ(0x4u,
-		fiftyoneDegreesPropertiesGetComponentMask(properties, indexes, 4));
-}
-
-TEST_F(Properties, ComponentMaskCannotAddressComponent32) {
-	CreateFourProperties();
-	// Blue, the first in sorted order and the fourth name given.
-	properties->items[0].componentIndex = 32;
-	int indexes[] = { 3 };
-	EXPECT_EQ(0u,
-		fiftyoneDegreesPropertiesGetComponentMask(properties, indexes, 1));
-	// Beyond the mask a component is always enabled, so the caller still
-	// gets a correct result for a data set with more than 32 components.
-	// A runtime value, because a constant 32 would make the compiler warn about
-	// the shift the short circuit never reaches.
-	uint32_t beyond = properties->items[0].componentIndex;
-	EXPECT_TRUE(FIFTYONE_DEGREES_COMPONENT_MASK_ENABLED(0u, beyond));
-	EXPECT_FALSE(FIFTYONE_DEGREES_COMPONENT_MASK_ENABLED(0u, 0));
-	EXPECT_TRUE(FIFTYONE_DEGREES_COMPONENT_MASK_ENABLED(1u << 5, 5));
-	EXPECT_FALSE(FIFTYONE_DEGREES_COMPONENT_MASK_ENABLED(1u << 5, 4));
 }
 
 /**

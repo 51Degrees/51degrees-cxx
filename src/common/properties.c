@@ -658,26 +658,3 @@ void fiftyoneDegreesPropertiesFree(
 		Free(available);
 	}
 }
-
-uint32_t fiftyoneDegreesPropertiesGetComponentMask(
-	fiftyoneDegreesPropertiesAvailable *available,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount) {
-	uint32_t mask = 0;
-	int i;
-	if (requiredPropertyIndexes == NULL || requiredPropertyIndexesCount < 0) {
-		return FIFTYONE_DEGREES_COMPONENT_MASK_ALL;
-	}
-	for (i = 0; i < requiredPropertyIndexesCount; i++) {
-		int index = PropertiesGetAvailableIndex(
-			available,
-			requiredPropertyIndexes[i]);
-		if (index >= 0) {
-			byte componentIndex = available->items[index].componentIndex;
-			if (componentIndex < FIFTYONE_DEGREES_COMPONENT_MASK_BITS) {
-				mask |= 1u << componentIndex;
-			}
-		}
-	}
-	return mask;
-}

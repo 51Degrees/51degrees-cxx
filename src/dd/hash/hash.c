@@ -2026,8 +2026,8 @@ static StatusCode initComponentsAvailable(
 			return COLLECTION_FAILURE;
 		}
 		dataSet->componentsAvailable[property->componentIndex] = true;
-		// Record the component so required property indexes can be turned
-		// into a component mask without reading the property again.
+		// Record the component, so that it is known without reading the
+		// property again.
 		dataSet->b.b.available->items[i].componentIndex =
 			property->componentIndex;
 		COLLECTION_RELEASE(dataSet->properties, &item);
@@ -4172,11 +4172,9 @@ static void resultsHashEvaluate(
 	}
 }
 
-void fiftyoneDegreesResultsHashFromEvidenceForProperties(
+void fiftyoneDegreesResultsHashFromEvidence(
 	fiftyoneDegreesResultsHash *results,
 	fiftyoneDegreesEvidenceKeyValuePairArray *evidence,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
 	fiftyoneDegreesException *exception) {
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
 
@@ -4185,11 +4183,6 @@ void fiftyoneDegreesResultsHashFromEvidenceForProperties(
 		EXCEPTION_SET(NULL_POINTER);
 		return;
 	}
-
-	// A graph is walked when a property of its component is first read, so
-	// the positions given choose nothing.
-	(void)requiredPropertyIndexes;
-	(void)requiredPropertyIndexesCount;
 
 	// Initialise the state.
 	detectionComponentState state = {
@@ -4269,35 +4262,19 @@ void fiftyoneDegreesResultsHashFromEvidenceForProperties(
 	} while (false); // once
 }
 
-void fiftyoneDegreesResultsHashFromEvidence(
-	fiftyoneDegreesResultsHash *results,
-	fiftyoneDegreesEvidenceKeyValuePairArray *evidence,
-	fiftyoneDegreesException *exception) {
-	fiftyoneDegreesResultsHashFromEvidenceForProperties(
-		results,
-		evidence,
-		NULL,
-		-1,
-		exception);
-}
-
-void fiftyoneDegreesResultsHashFromUserAgentForProperties(
+void fiftyoneDegreesResultsHashFromUserAgent(
 	fiftyoneDegreesResultsHash *results,
 	const char* userAgent,
 	size_t userAgentLength,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
 	fiftyoneDegreesException *exception) {
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 
 	// Wrap the User-Agent in a single-pair evidence array keyed on the data
-	// set's User-Agent header and delegate to the evidence-driven detection,
-	// which is now the single detection implementation. A User-Agent processed
-	// here therefore yields exactly the same results (one item per available
-	// component) as the same User-Agent passed through ResultsHashFromEvidence.
-	// The evidence pair aliases the caller's string (parsedValue == item.value
-	// for a header prefix, no copy), so the lifetime contract is unchanged: the
-	// caller must keep userAgent alive while the results are in use.
+	// set's User-Agent header and pass it to the evidence-driven detection, so
+	// a User-Agent processed here yields exactly the same results (one item
+	// per available component) as the same User-Agent passed through
+	// ResultsHashFromEvidence. The pair refers to the caller's string, which
+	// the results copy, so the caller can free it once this returns.
 	//
 	// The array and its single item are built on the stack to avoid a heap
 	// allocation on this hot, UA-only detection path. EvidenceAddPair fills the
@@ -4325,12 +4302,7 @@ void fiftyoneDegreesResultsHashFromUserAgentForProperties(
 		FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
 		uaPair);
 
-	fiftyoneDegreesResultsHashFromEvidenceForProperties(
-		results,
-		&evidence,
-		requiredPropertyIndexes,
-		requiredPropertyIndexesCount,
-		exception);
+	fiftyoneDegreesResultsHashFromEvidence(results, &evidence, exception);
 
 	// Guard the stack-allocation contract: if a future change makes the
 	// engine add pairs beyond the capacity of 1, EvidenceAddPair would heap
@@ -4338,20 +4310,6 @@ void fiftyoneDegreesResultsHashFromUserAgentForProperties(
 	// would walk prev back to this stack block). Debug builds only; assert
 	// compiles out under NDEBUG (release).
 	assert(evidence.next == NULL);
-}
-
-void fiftyoneDegreesResultsHashFromUserAgent(
-	fiftyoneDegreesResultsHash *results,
-	const char* userAgent,
-	size_t userAgentLength,
-	fiftyoneDegreesException *exception) {
-	fiftyoneDegreesResultsHashFromUserAgentForProperties(
-		results,
-		userAgent,
-		userAgentLength,
-		NULL,
-		-1,
-		exception);
 }
 
 // Adds the profile associated with the string version of the profile id 

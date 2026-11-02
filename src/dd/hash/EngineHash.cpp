@@ -302,16 +302,6 @@ static DeviceDetection::Hash::ResultsHash* giveResults(
 	return given;
 }
 
-DeviceDetection::Hash::ResultsHash* EngineHash::process(
-	DeviceDetection::EvidenceDeviceDetection *evidence) const {
-	return process(evidence, nullptr, -1);
-}
-
-DeviceDetection::Hash::ResultsHash* EngineHash::process(
-	const char *userAgent) const {
-	return process(userAgent, nullptr, -1);
-}
-
 // A set of results is created for each call rather than taken from a pool made
 // at startup. A pool would avoid these allocations, but it would change when
 // results are freed in every language, a reload would have to replace pooled
@@ -319,17 +309,13 @@ DeviceDetection::Hash::ResultsHash* EngineHash::process(
 // values to the next. That complexity is why a pool is not used, although it
 // might be looked at in future.
 DeviceDetection::Hash::ResultsHash* EngineHash::process(
-	DeviceDetection::EvidenceDeviceDetection *evidence,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount) const {
+	DeviceDetection::EvidenceDeviceDetection *evidence) const {
 	EXCEPTION_CREATE;
 
 	OwnedResults results = createResults(manager.get(), overridesEnabled);
-	ResultsHashFromEvidenceForProperties(
+	ResultsHashFromEvidence(
 		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
-		requiredPropertyIndexes,
-		requiredPropertyIndexesCount,
 		exception);
 	EXCEPTION_THROW;
 
@@ -337,20 +323,16 @@ DeviceDetection::Hash::ResultsHash* EngineHash::process(
 }
 
 DeviceDetection::Hash::ResultsHash* EngineHash::process(
-	const char *userAgent,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount) const {
+	const char *userAgent) const {
 	EXCEPTION_CREATE;
 
 	// A User-Agent on its own carries no values to override, so the results
 	// need no list of override values.
 	OwnedResults results = createResults(manager.get(), 0);
-	ResultsHashFromUserAgentForProperties(
+	ResultsHashFromUserAgent(
 		results.get(),
 		userAgent,
 		userAgent == nullptr ? 0 : strlen(userAgent),
-		requiredPropertyIndexes,
-		requiredPropertyIndexesCount,
 		exception);
 	EXCEPTION_THROW;
 	return giveResults(results, manager);
