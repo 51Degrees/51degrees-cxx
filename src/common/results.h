@@ -57,6 +57,15 @@
  * made from all of them or the items of the results read directly, needs
  * #fiftyoneDegreesResultsEvaluateAll first.
  *
+ * ## Overrides
+ *
+ * Results can hold values from the evidence that override the values of
+ * properties. A read looks for one with
+ * #fiftyoneDegreesResultsGetOverrideValues before it walks the property's
+ * component, so a property with an override value is read without walking
+ * the graph, and a component whose properties are only read from overrides
+ * is never walked.
+ *
  * ## Threads
  *
  * A results structure is used by one thread at a time, because reading a
@@ -151,11 +160,16 @@ typedef struct fiftyone_degrees_results_base_t {
 															  whose graph is
 															  still to be
 															  walked */
+	fiftyoneDegreesOverrideValueArray *overrides; /**< Values from the
+												  evidence that override the
+												  values of properties, or
+												  NULL if the results hold
+												  none */
 } fiftyoneDegreesResultsBase;
 
 /**
  * Initialise a set of results by setting the data set they are associated with.
- * No component is pending and no walk is set.
+ * No component is pending, no walk is set and no override values are held.
  * @param results pointer to the results to initialise
  * @param dataSet pointer to the data set which will be using the results
  * @return pointer to the initialised results
@@ -249,6 +263,43 @@ FIFTYONE_DEGREES_RESULTS_INLINE void fiftyoneDegreesResultsEvaluateAll(
 			}
 		}
 	}
+}
+
+/**
+ * Returns true if the results hold an override value for the property, so
+ * that a read can answer without walking the property's component.
+ * @param results pointer to the results to check
+ * @param availableIndex index of the property in the available properties
+ * @return true if there is an override value for the property
+ */
+FIFTYONE_DEGREES_RESULTS_INLINE bool fiftyoneDegreesResultsHasOverrideValue(
+	fiftyoneDegreesResultsBase *results,
+	uint32_t availableIndex) {
+	return results->overrides != NULL &&
+		fiftyoneDegreesOverrideHasValueForRequiredPropertyIndex(
+			results->overrides,
+			availableIndex);
+}
+
+/**
+ * Adds the override values the results hold for the property to the list.
+ * Each read calls this before #fiftyoneDegreesResultsEvaluate, so a property
+ * with an override value is read without walking its component.
+ * @param results pointer to the results to get the values from
+ * @param availableIndex index of the property in the available properties
+ * @param values list to add the values to
+ * @return the number of values added, which is zero if there is no override
+ * value for the property
+ */
+FIFTYONE_DEGREES_RESULTS_INLINE uint32_t fiftyoneDegreesResultsGetOverrideValues(
+	fiftyoneDegreesResultsBase *results,
+	uint32_t availableIndex,
+	fiftyoneDegreesList *values) {
+	return results->overrides == NULL ? 0 :
+		fiftyoneDegreesOverrideValuesAdd(
+			results->overrides,
+			availableIndex,
+			values);
 }
 
 /**

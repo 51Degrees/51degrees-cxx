@@ -29,5 +29,6 @@ fiftyoneDegreesResultsBase* fiftyoneDegreesResultsInit(
 	results->dataSet = dataSet;
 	results->evaluate = NULL;
 	ResultsPendingClear(results);
+	results->overrides = NULL;
 	return results;
 }

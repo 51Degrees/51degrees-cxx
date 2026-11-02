@@ -71,9 +71,8 @@ typedef struct fiftyone_degrees_result_user_agent_t {
  * the base results.
  */
 typedef struct fiftyone_degrees_results_device_detection_t {
-	fiftyoneDegreesResultsBase b; /**< Base results */
-	fiftyoneDegreesOverrideValueArray *overrides; /**< Any value overrides in
-												  the results */
+	fiftyoneDegreesResultsBase b; /**< Base results, which hold the override
+								   values */
 	char* bufferPseudo; /**< Working memory used for pseudo headers, allocated
 						when the results are created and not grown during
 						detection. A pseudo header that does not fit is

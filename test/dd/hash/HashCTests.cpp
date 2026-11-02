@@ -965,20 +965,20 @@ TEST_F(HashCOverridesTests, OverrideListIsSizedFromTheDataSet) {
 	ResultsHash* results = ResultsHashCreate(&manager, 1);
 	ResultsHashFromEvidence(results, evidence, exception);
 	EXCEPTION_THROW;
-	EXPECT_EQ(overridableCount, results->b.overrides->capacity) <<
+	EXPECT_EQ(overridableCount, results->b.b.overrides->capacity) <<
 		"The list should hold one item for each property the data set lets "
 		"evidence override, whatever the request carries.\n";
 
 	// A caller asking for more than the data set needs gets what it asked
 	// for.
 	ResultsHash* larger = ResultsHashCreate(&manager, overridableCount + 10);
-	EXPECT_EQ(overridableCount + 10, larger->b.overrides->capacity) <<
+	EXPECT_EQ(overridableCount + 10, larger->b.b.overrides->capacity) <<
 		"A caller asking for a longer list should still get one.\n";
 
 	// A caller asking for no overrides still gets none, which is how
 	// overrides are turned off.
 	ResultsHash* none = ResultsHashCreate(&manager, 0);
-	EXPECT_EQ(0, none->b.overrides->capacity) <<
+	EXPECT_EQ(0, none->b.b.overrides->capacity) <<
 		"A capacity of zero should still turn overrides off.\n";
 
 	ResultsHashFree(results);
@@ -1070,7 +1070,7 @@ TEST_F(HashCOverridesTests, EveryValueTheEvidenceCarriesIsApplied) {
 	ResultsHashFromEvidence(results, evidence, exception);
 	EXCEPTION_THROW;
 
-	EXPECT_GE(results->b.overrides->count, (uint32_t)names.size()) <<
+	EXPECT_GE(results->b.b.overrides->count, (uint32_t)names.size()) <<
 		"Every value the evidence carries should be held, along with the "
 		"empty value for any JavaScript property measuring one of them.\n";
 	char buffer[50] = "";

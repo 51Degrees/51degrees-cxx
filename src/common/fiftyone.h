@@ -352,6 +352,8 @@ MAP_TYPE(WeightedItemList)
 #define ResultsPendingSet fiftyoneDegreesResultsPendingSet /**< Synonym for #fiftyoneDegreesResultsPendingSet function. */
 #define ResultsEvaluate fiftyoneDegreesResultsEvaluate /**< Synonym for #fiftyoneDegreesResultsEvaluate function. */
 #define ResultsEvaluateAll fiftyoneDegreesResultsEvaluateAll /**< Synonym for #fiftyoneDegreesResultsEvaluateAll function. */
+#define ResultsHasOverrideValue fiftyoneDegreesResultsHasOverrideValue /**< Synonym for #fiftyoneDegreesResultsHasOverrideValue function. */
+#define ResultsGetOverrideValues fiftyoneDegreesResultsGetOverrideValues /**< Synonym for #fiftyoneDegreesResultsGetOverrideValues function. */
 #define PropertiesGetPropertyIndexFromRequiredIndex fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex /**< Synonym for #fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex function. */
 #define DataSetRelease fiftyoneDegreesDataSetRelease /**< Synonym for #fiftyoneDegreesDataSetRelease function. */
 #define DataSetReset fiftyoneDegreesDataSetReset /**< Synonym for #fiftyoneDegreesDataSetReset function. */

@@ -3724,13 +3724,13 @@ static void resultsHashFromEvidence_extractOverrides(
 	// Extract any property value overrides from the evidence.
 	OverridesExtractFromEvidence(
 		state->dataSet->b.b.overridable,
-		state->results->b.overrides,
+		state->results->b.b.overrides,
 		state->evidence);
 
 	// If a value has been overridden, override the property which
 	// calculates its override with an empty string to ensure that an
 	// infinite loop of overrides can't occur.
-	const int overridesCount = state->results->b.overrides->count;
+	const int overridesCount = state->results->b.b.overrides->count;
 	for (int overrideIndex = 0;
 		overrideIndex < overridesCount && EXCEPTION_OKAY;
 		++overrideIndex)
@@ -3738,7 +3738,7 @@ static void resultsHashFromEvidence_extractOverrides(
 		const int overridingPropertyIndex =
 			OverridesGetOverridingRequiredPropertyIndex(
 				state->dataSet->b.b.available,
-				state->results->b.overrides->items[overrideIndex]
+				state->results->b.b.overrides->items[overrideIndex]
 				.requiredPropertyIndex);
 
 		if (overridingPropertyIndex >= 0) {
@@ -3756,7 +3756,7 @@ static void resultsHashFromEvidence_extractOverrides(
 				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT &&
 				EXCEPTION_OKAY) {
 				OverridesAdd(
-					state->results->b.overrides,
+					state->results->b.b.overrides,
 					overridingPropertyIndex,
 					"");
 			}
@@ -4041,7 +4041,7 @@ void fiftyoneDegreesResultsHashFromEvidenceForProperties(
 		// override the JavascriptGetHighEntropyValues value to an empty value
 		// to ensure unneeded JavaScript isn't returned.
 		if (dataSet->config.b.processSpecialEvidence &&
-			results->b.overrides->capacity > 0 &&
+			results->b.b.overrides->capacity > 0 &&
 			GhevDeviceDetectionAllPresent(
 				&dataSet->b,
 				evidence,
@@ -4455,11 +4455,11 @@ static uint32_t addValuesFromResult(
 
 static Item* getValuesFromOverrides(
 	ResultsHash *results,
-	uint32_t requiredPropertyIndex) {
+	uint32_t availableIndex) {
 	Item *value = NULL;
-	if (OverrideValuesAdd(
-			results->b.overrides,
-			requiredPropertyIndex,
+	if (ResultsGetOverrideValues(
+			&results->b.b,
+			availableIndex,
 			&results->values) > 0) {
 		value = results->values.items;
 	}
@@ -4715,9 +4715,7 @@ static bool resultsHashGetHasValues(
 		// The property index is not valid.
 		return false;
 	}
-	if (OverrideHasValueForRequiredPropertyIndex(
-		results->b.overrides,
-		availableIndex)) {
+	if (ResultsHasOverrideValue(&results->b.b, (uint32_t)availableIndex)) {
 		// There is an override value for the property.
 		return true;
 	}
