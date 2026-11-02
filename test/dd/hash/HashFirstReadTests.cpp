@@ -747,6 +747,9 @@ protected:
 				{ "header.Sec-CH-UA-Mobile", "?0" },
 				{ "header.Sec-CH-UA-Platform", "\"Windows\"" },
 				{ "header.Sec-CH-UA-Platform-Version", "\"14.0.0\"" } } },
+			{ "browser client hint only", {
+				{ "header.Sec-CH-UA",
+					"\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\"" } } },
 			{ "high entropy values", {
 				{ "query.51D_gethighentropyvalues", highEntropyValues } } },
 			{ "structured User-Agent", {

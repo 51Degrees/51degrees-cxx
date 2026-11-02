@@ -126,10 +126,17 @@ DeviceDetection::Hash::ResultsHash::getNoValueReasonInternal(
 	return reason;
 }
 
+void DeviceDetection::Hash::ResultsHash::evaluateAll() const {
+	EXCEPTION_CREATE;
+	ResultsEvaluateAll(&results->b.b, exception);
+	EXCEPTION_THROW;
+}
+
 string DeviceDetection::Hash::ResultsHash::getDeviceId(
 	uint32_t resultIndex) const {
 	EXCEPTION_CREATE;
 	char deviceId[50] = "";
+	evaluateAll();
 	if (resultIndex < results->count) {
 		HashGetDeviceIdFromResult(
 			(DataSetHash*)results->b.b.dataSet,
@@ -158,6 +165,7 @@ int DeviceDetection::Hash::ResultsHash::getIterations() const {
 	uint32_t i;
 	int iterations = 0;
 	if (results != NULL) {
+		evaluateAll();
 		for (i = 0; i < results->count; i++) {
 			iterations += results->items[i].iterations;
 		}
@@ -169,6 +177,7 @@ int DeviceDetection::Hash::ResultsHash::getMatchedNodes() const {
 	uint32_t i;
 	int matchedNodes = 0;
 	if (results != NULL) {
+		evaluateAll();
 		for (i = 0; i < results->count; i++) {
 			matchedNodes += results->items[i].matchedNodes;
 		}
@@ -177,6 +186,7 @@ int DeviceDetection::Hash::ResultsHash::getMatchedNodes() const {
 }
 
 int DeviceDetection::Hash::ResultsHash::getDrift(uint32_t resultIndex) const {
+	evaluateAll();
 	return results->items[resultIndex].drift;
 }
 
@@ -184,6 +194,7 @@ int DeviceDetection::Hash::ResultsHash::getDrift() const {
 	uint32_t i;
 	int drift = 0;
 	if (results != NULL) {
+		evaluateAll();
 		for (i = 0; i < results->count; i++) {
 			drift += results->items[i].drift;
 		}
@@ -193,6 +204,7 @@ int DeviceDetection::Hash::ResultsHash::getDrift() const {
 
 int DeviceDetection::Hash::ResultsHash::getDifference(
 	uint32_t resultIndex) const {
+	evaluateAll();
 	return results->items[resultIndex].difference;
 }
 
@@ -206,6 +218,7 @@ int DeviceDetection::Hash::ResultsHash::getDifference() const {
 }
 
 int DeviceDetection::Hash::ResultsHash::getMethod(uint32_t resultIndex) const {
+	evaluateAll();
 	if (resultIndex < results->count) {
 		return results->items[resultIndex].method;
 	}
@@ -230,6 +243,7 @@ string DeviceDetection::Hash::ResultsHash::getTrace(uint32_t resultIndex) const 
 	string trace;
 	char *traceStr;
 	int length;
+	evaluateAll();
 	if (resultIndex < results->count) {
 		if (results->items[resultIndex].trace != nullptr) {
 			length = GraphTraceGet(
@@ -267,6 +281,7 @@ int DeviceDetection::Hash::ResultsHash::getUserAgents() const {
 string DeviceDetection::Hash::ResultsHash::getUserAgent(
 	int resultIndex) const {
 	string userAgent;
+	evaluateAll();
 	if (resultIndex >= 0 && (uint32_t)resultIndex < results->count) {
 		if (results->items[resultIndex].b.matchedUserAgent != NULL) {
 			userAgent.assign(results->items[resultIndex].b.matchedUserAgent);

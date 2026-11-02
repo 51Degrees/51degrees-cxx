@@ -259,6 +259,14 @@ public:
 		std::unique_ptr<ResultsHash> const results(
 			engine->process(mobileUserAgent));
 
+		// Walk every graph, so that no read walks one after the items are
+		// changed below.
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		fiftyoneDegreesResultsEvaluateAll(
+			&results->results->b.b,
+			exception);
+		FIFTYONE_DEGREES_EXCEPTION_THROW;
+
 		// Force a whole-result miss: a User-Agent yields one result item per
 		// available component, so clear matchedNodes on every item.
 		for (uint32_t r = 0; r < results->results->count; r++) {

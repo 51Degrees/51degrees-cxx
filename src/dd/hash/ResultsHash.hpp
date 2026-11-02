@@ -47,8 +47,14 @@ namespace FiftyoneDegrees {
 			 * name of the property, or the index of the property in the
 			 * required properties structure.
 			 *
+			 * A component's graph is walked the first time one of its
+			 * properties is read. The match metrics, the device id and the
+			 * User-Agents describe every component, so reading one of them
+			 * walks every graph not yet walked.
+			 *
 			 * A results instance is used by one thread at a time, because
-			 * reading a value writes into the results. Different results
+			 * reading a value writes into the results, and the first read of
+			 * a component's property walks its graph. Different results
 			 * instances can be used on different threads at once, and the
 			 * engine that created them can be shared, when
 			 * EngineBase::getIsThreadSafe is true.
@@ -221,6 +227,12 @@ namespace FiftyoneDegrees {
 					int requiredPropertyIndex);
 
 			private:
+				/**
+				 * Walks every graph not yet walked, for the readers of the
+				 * result items.
+				 */
+				void evaluateAll() const;
+
 				fiftyoneDegreesResultsHash *results;
 
 				/**
