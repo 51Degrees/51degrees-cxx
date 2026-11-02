@@ -4548,10 +4548,26 @@ fiftyoneDegreesResultsHash* fiftyoneDegreesResultsHashCreate(
 		results->evidenceBytes = 0;
 		results->evidencePrefixes = 0;
 		results->profileIdsOverridden = false;
+		DataReset(&results->propertyItem.data);
+		ListReset(&results->values);
+
+		// Clear every pointer before anything is allocated for it, so that
+		// the results can be freed whichever allocation fails.
+		for (i = 0; i < results->capacity; i++) {
+			results->items[i].b.matchedUserAgent = NULL;
+			results->items[i].profileOffsets = NULL;
+			results->items[i].profileIsOverriden = NULL;
+			results->items[i].trace = NULL;
+		}
+		bool allocated =
+			results->b.b.overrides != NULL &&
+			results->b.bufferPseudo != NULL &&
+			(results->b.bufferTransform != NULL ||
+				results->b.bufferTransformLength == 0);
 
 		// Set the memory for matched User-Agents and route, or make the
 		// pointer NULL.
-		for (i = 0; i < results->capacity; i++) {
+		for (i = 0; allocated && i < results->capacity; i++) {
 			ResultsUserAgentInit(&dataSet->config.b, &results->items[i].b);
 
 			// Allocate memory for the profile offsets.
@@ -4564,15 +4580,27 @@ fiftyoneDegreesResultsHash* fiftyoneDegreesResultsHashCreate(
 			if (dataSet->config.traceRoute == true) {
 				results->items[i].trace = GraphTraceCreate("Hash Result %d", i);
 			}
-			else {
-				results->items[i].trace = NULL;
-			}
+			allocated =
+				(results->items[i].b.matchedUserAgent != NULL ||
+					dataSet->config.b.updateMatchedUserAgent == false) &&
+				results->items[i].profileOffsets != NULL &&
+				results->items[i].profileIsOverriden != NULL &&
+				(results->items[i].trace != NULL ||
+					dataSet->config.traceRoute == false);
 		}
 
-		// Reset the property and values list ready for first use sized for 
-		// a single value to be returned.
-		ListInit(&results->values, 1);
-		DataReset(&results->propertyItem.data);
+		// Reset the values list ready for first use sized for a single value
+		// to be returned.
+		if (allocated) {
+			allocated = ListInit(&results->values, 1) != NULL;
+		}
+
+		// Results that lack any of their memory are freed, and none are
+		// returned.
+		if (allocated == false) {
+			fiftyoneDegreesResultsHashFree(results);
+			return NULL;
+		}
 
 		// Set the default profile offsets and override flags. Set the count to
 		// capacity to ensure all the result instances are reset.

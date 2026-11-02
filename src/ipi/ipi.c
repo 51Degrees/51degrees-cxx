@@ -2730,15 +2730,21 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 		results->b.evaluate = resultsIpiEvaluate;
 
 		// Reset the property and values list ready for first use sized for
-		// a single value to be returned.
-		WeightedItemListInit(&results->values, 1, FIFTYONE_DEGREES_WEIGHTED_ITEM_LIST_DEFAULT_LOAD_FACTOR);
+		// a single value to be returned. Results without the memory for the
+		// list are freed, and none are returned.
+		results->hasValuesCache = NULL;
+		results->hasValuesCacheCount = 0;
+		results->keptProfiles = NULL;
 		DataReset(&results->propertyItem.data);
+		WeightedItemListInit(&results->values, 1, FIFTYONE_DEGREES_WEIGHTED_ITEM_LIST_DEFAULT_LOAD_FACTOR);
+		if (results->values.items == NULL) {
+			fiftyoneDegreesResultsIpiFree(results);
+			return NULL;
+		}
 
 		// Allocate the cache used to avoid repeating the profile walks
 		// which check whether a property has values for the current
 		// results. If the allocation fails the cache is not used.
-		results->hasValuesCache = NULL;
-		results->hasValuesCacheCount = 0;
 		if (dataSet->b.b.available != NULL &&
 			dataSet->b.b.available->count > 0) {
 			results->hasValuesCache = (byte*)Malloc(
@@ -2755,7 +2761,6 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 		// a copy because a cache entry held between calls could leave a shard
 		// of the cache with no entry to give. If this allocation fails each
 		// property reads the cache.
-		results->keptProfiles = NULL;
 		if (dataSet->config.profiles.loaded == false &&
 			dataSet->config.profiles.capacity > 0 &&
 			results->capacity > 0) {
