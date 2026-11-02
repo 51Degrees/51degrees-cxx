@@ -1042,6 +1042,16 @@ TEST_F(IpiBalancedTests, NamesThatMatchNothingFailAsBefore) {
 			exception));
 }
 
+TEST_F(IpiBalancedTests, PresetCachesFiftyThousandValues) {
+	const fiftyoneDegreesConfigIpi* presets[] = {
+		&fiftyoneDegreesIpiBalancedConfig,
+		&fiftyoneDegreesIpiDefaultConfig,
+		&fiftyoneDegreesIpiBalancedTempConfig };
+	for (const fiftyoneDegreesConfigIpi* preset : presets) {
+		EXPECT_EQ(50000u, preset->values.capacity);
+	}
+}
+
 TEST_F(IpiBalancedTests, EngineMetaDataMatches) {
 	Common::RequiredPropertiesConfig properties(oneComponent);
 	Ipi::ConfigIpi expectedConfig;
