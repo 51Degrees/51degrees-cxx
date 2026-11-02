@@ -139,9 +139,9 @@
   },
   {
     "Image": "macos-latest",
-    "Name": "Mac_x64_Debug",
+    "Name": "Mac_arm64_Debug",
     "Configuration": "Debug",
-    "Arch": "x64",
+    "Arch": "arm64",
     "Products": ["common", "dd"]
   }
 ]
