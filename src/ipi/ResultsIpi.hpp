@@ -34,6 +34,7 @@
 
 class EngineIpIntelligenceTests;
 class IpiFirstReadJsonTests;
+class IpiFirstReadRuleTests;
 
 namespace FiftyoneDegrees {
 	namespace IpIntelligence {
@@ -52,16 +53,20 @@ namespace FiftyoneDegrees {
 		 * name of the property, or its required property index, as
 		 * ResultsBase describes.
 		 *
-		 * The first read of a property of a component walks the component's
-		 * graph, against the data set the results hold. A walk that fails
-		 * throws from that read and is not repeated, so later reads of the
-		 * component's properties read as if it had no profile.
+		 * An engine created naming its properties walks the graph of each
+		 * component a named property belongs to as it processes the
+		 * evidence, and a walk that fails throws from the process call.
+		 * Otherwise the first read of a property of a component walks the
+		 * component's graph, against the data set the results hold. A walk
+		 * that fails throws from that read and is not repeated, so later
+		 * reads of the component's properties read as if it had no profile.
 		 *
 		 * A results instance is used by one thread at a time, because
-		 * reading a value writes into the results and the first read of a
-		 * component walks its graph. Different results instances can be
-		 * used on different threads at once, and the engine that created
-		 * them can be shared, when EngineBase::getIsThreadSafe is true.
+		 * reading a value writes into the results and, when no properties
+		 * were named, the first read of a component walks its graph.
+		 * Different results instances can be used on different threads at
+		 * once, and the engine that created them can be shared, when
+		 * EngineBase::getIsThreadSafe is true.
 		 *
 		 * Results instances should only be created by an Engine.
 		 *
@@ -85,6 +90,7 @@ namespace FiftyoneDegrees {
 		class ResultsIpi : public ResultsBase {
 			friend class ::EngineIpIntelligenceTests;
 			friend class ::IpiFirstReadJsonTests;
+			friend class ::IpiFirstReadRuleTests;
 		public:
 			/**
 			 * @name Constructors and Destructors

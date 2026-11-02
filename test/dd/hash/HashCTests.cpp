@@ -322,6 +322,11 @@ TEST_F(HashCTests, NoValueReasonForNullProfileComponentIsNullProfile) {
 	ASSERT_GT(results->count, 0u) <<
 		"A User-Agent should produce at least one result.\n";
 
+	// Walk every graph, so that no read walks one after the profiles are set
+	// below.
+	ResultsEvaluateAll(&results->b.b, exception);
+	EXCEPTION_THROW;
+
 	// Force the null-profile state: no result item carries a profile for any
 	// component, as happens for a component the evidence does not resolve. The
 	// engine marks an absent profile with UINT32_MAX (its internal
@@ -424,12 +429,15 @@ TEST_F(HashCTests, GraphTraceGetTests) {
 	ResultsHash* resultsUserAgents = ResultsHashCreate(&manager, 0);
 
 	EXCEPTION_CREATE;
-	// Obtain results from user agent
+	// Obtain results from user agent, walking every graph so that the traces
+	// are written.
 	ResultsHashFromUserAgent(
 		resultsUserAgents,
 		mobileUserAgent,
 		strlen(mobileUserAgent),
 		exception);
+	EXCEPTION_THROW;
+	ResultsEvaluateAll(&resultsUserAgents->b.b, exception);
 	EXCEPTION_THROW;
 
 	// Test if GraphTraceGet returns potentially written number
@@ -971,20 +979,20 @@ TEST_F(HashCOverridesTests, OverrideListIsSizedFromTheDataSet) {
 	ResultsHash* results = ResultsHashCreate(&manager, 1);
 	ResultsHashFromEvidence(results, evidence, exception);
 	EXCEPTION_THROW;
-	EXPECT_EQ(overridableCount, results->b.overrides->capacity) <<
+	EXPECT_EQ(overridableCount, results->b.b.overrides->capacity) <<
 		"The list should hold one item for each property the data set lets "
 		"evidence override, whatever the request carries.\n";
 
 	// A caller asking for more than the data set needs gets what it asked
 	// for.
 	ResultsHash* larger = ResultsHashCreate(&manager, overridableCount + 10);
-	EXPECT_EQ(overridableCount + 10, larger->b.overrides->capacity) <<
+	EXPECT_EQ(overridableCount + 10, larger->b.b.overrides->capacity) <<
 		"A caller asking for a longer list should still get one.\n";
 
 	// A caller asking for no overrides still gets none, which is how
 	// overrides are turned off.
 	ResultsHash* none = ResultsHashCreate(&manager, 0);
-	EXPECT_EQ(0, none->b.overrides->capacity) <<
+	EXPECT_EQ(0, none->b.b.overrides->capacity) <<
 		"A capacity of zero should still turn overrides off.\n";
 
 	ResultsHashFree(results);
@@ -1076,7 +1084,7 @@ TEST_F(HashCOverridesTests, EveryValueTheEvidenceCarriesIsApplied) {
 	ResultsHashFromEvidence(results, evidence, exception);
 	EXCEPTION_THROW;
 
-	EXPECT_GE(results->b.overrides->count, (uint32_t)names.size()) <<
+	EXPECT_GE(results->b.b.overrides->count, (uint32_t)names.size()) <<
 		"Every value the evidence carries should be held, along with the "
 		"empty value for any JavaScript property measuring one of them.\n";
 	char buffer[50] = "";
@@ -1093,213 +1101,6 @@ TEST_F(HashCOverridesTests, EveryValueTheEvidenceCarriesIsApplied) {
 
 	ResultsHashFree(results);
 	EvidenceFree(evidence);
-}
-
-
-// ---------------------------------------------------------------------------
-// Graph filter. The ...ForProperties twins take the required property indexes
-// the caller will read and walk only the graphs those properties depend on.
-// ---------------------------------------------------------------------------
-
-static bool graphFilterHasValue(ResultsHash* results, const char* name) {
-	EXCEPTION_CREATE;
-	int index = getRequiredPropertyIndex(results, name);
-	bool has = ResultsHashGetHasValues(results, index, exception);
-	EXCEPTION_THROW;
-	return has;
-}
-
-static fiftyoneDegreesResultsNoValueReason graphFilterNoValueReason(
-	ResultsHash* results,
-	const char* name) {
-	EXCEPTION_CREATE;
-	int index = getRequiredPropertyIndex(results, name);
-	fiftyoneDegreesResultsNoValueReason reason =
-		ResultsHashGetNoValueReason(results, index, exception);
-	EXCEPTION_THROW;
-	return reason;
-}
-
-TEST_F(HashCTests, GraphFilter_NullIndexesMatchesUnfilteredDetection) {
-	EXCEPTION_CREATE;
-	ResultsHash* all = ResultsHashCreate(&manager, 0);
-	ResultsHash* filtered = ResultsHashCreate(&manager, 0);
-	ResultsHashFromUserAgent(
-		all, mobileUserAgent, strlen(mobileUserAgent), exception);
-	EXCEPTION_THROW;
-	ResultsHashFromUserAgentForProperties(
-		filtered, mobileUserAgent, strlen(mobileUserAgent),
-		NULL, -1, exception);
-	EXCEPTION_THROW;
-	DataSetHash* dataSet = (DataSetHash*)all->b.b.dataSet;
-	ASSERT_EQ(all->count, filtered->count);
-	for (uint32_t i = 0; i < all->count; i++) {
-		for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
-			EXPECT_EQ(
-				all->items[i].profileOffsets[c],
-				filtered->items[i].profileOffsets[c]) <<
-				"Result " << i << " component " << c;
-		}
-	}
-	ResultsHashFree(all);
-	ResultsHashFree(filtered);
-}
-
-TEST_F(HashCTests, GraphFilter_OnePropertyWalksOnlyItsComponent) {
-	EXCEPTION_CREATE;
-	ResultsHash* results = ResultsHashCreate(&manager, 0);
-	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
-	int isMobile = getRequiredPropertyIndex(results, "IsMobile");
-	int browserName = getRequiredPropertyIndex(results, "BrowserName");
-	ASSERT_GE(isMobile, 0);
-	ASSERT_GE(browserName, 0);
-	ASSERT_NE(
-		dataSet->b.b.available->items[PropertiesGetAvailableIndex(
-			dataSet->b.b.available,
-			isMobile)].componentIndex,
-		dataSet->b.b.available->items[PropertiesGetAvailableIndex(
-			dataSet->b.b.available,
-			browserName)].componentIndex) <<
-		"The test needs two properties from different components.";
-	int indexes[] = { isMobile };
-	ResultsHashFromUserAgentForProperties(
-		results, mobileUserAgent, strlen(mobileUserAgent),
-		indexes, 1, exception);
-	EXCEPTION_THROW;
-	EXPECT_EQ(dataSet->componentsAvailableCount, results->count) <<
-		"The result shape must not change when graphs are skipped.";
-	EXPECT_TRUE(graphFilterHasValue(results, "IsMobile"));
-	EXPECT_FALSE(graphFilterHasValue(results, "BrowserName"));
-	EXPECT_EQ(
-		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE,
-		graphFilterNoValueReason(results, "BrowserName"));
-	ResultsHashFree(results);
-}
-
-TEST_F(HashCTests, GraphFilter_EmptyIndexesWalksNoGraph) {
-	EXCEPTION_CREATE;
-	ResultsHash* results = ResultsHashCreate(&manager, 0);
-	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
-	int none[] = { 0 };
-	ResultsHashFromUserAgentForProperties(
-		results, mobileUserAgent, strlen(mobileUserAgent),
-		none, 0, exception);
-	EXCEPTION_THROW;
-	EXPECT_EQ(dataSet->componentsAvailableCount, results->count);
-	EXPECT_FALSE(graphFilterHasValue(results, "IsMobile"));
-	EXPECT_FALSE(graphFilterHasValue(results, "BrowserName"));
-	EXPECT_EQ(
-		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE,
-		graphFilterNoValueReason(results, "IsMobile"));
-	for (uint32_t i = 0; i < results->count; i++) {
-		EXPECT_EQ(0, results->items[i].iterations) <<
-			"No graph should have been walked for result " << i;
-	}
-	ResultsHashFree(results);
-}
-
-TEST_F(HashCTests, GraphFilter_BadIndexesAreIgnored) {
-	EXCEPTION_CREATE;
-	ResultsHash* results = ResultsHashCreate(&manager, 0);
-	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
-	int isMobile = getRequiredPropertyIndex(results, "IsMobile");
-	// One past the last required property index counts the names given.
-	const int pastLast = (int)fiftyoneDegreesPropertiesGetRequiredPropertyCount(
-		dataSet->b.b.available);
-	int indexes[] = { -1, isMobile, pastLast, 100000 };
-	ResultsHashFromUserAgentForProperties(
-		results, mobileUserAgent, strlen(mobileUserAgent),
-		indexes, 4, exception);
-	EXCEPTION_THROW;
-	EXPECT_TRUE(graphFilterHasValue(results, "IsMobile"));
-	EXPECT_FALSE(graphFilterHasValue(results, "BrowserName"));
-	ResultsHashFree(results);
-}
-
-TEST_F(HashCTests, GraphFilter_EvidenceTwinMatchesUserAgentTwin) {
-	EXCEPTION_CREATE;
-	ResultsHash* fromUa = ResultsHashCreate(&manager, 0);
-	ResultsHash* fromEvidence = ResultsHashCreate(&manager, 0);
-	int isMobile = getRequiredPropertyIndex(fromUa, "IsMobile");
-	int indexes[] = { isMobile };
-	EvidenceKeyValuePairArray* evidence = EvidenceCreate(1);
-	EvidenceAddString(
-		evidence,
-		FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
-		"User-Agent",
-		mobileUserAgent);
-	ResultsHashFromUserAgentForProperties(
-		fromUa, mobileUserAgent, strlen(mobileUserAgent),
-		indexes, 1, exception);
-	EXCEPTION_THROW;
-	ResultsHashFromEvidenceForProperties(
-		fromEvidence, evidence, indexes, 1, exception);
-	EXCEPTION_THROW;
-	DataSetHash* dataSet = (DataSetHash*)fromUa->b.b.dataSet;
-	ASSERT_EQ(fromUa->count, fromEvidence->count);
-	for (uint32_t i = 0; i < fromUa->count; i++) {
-		for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
-			EXPECT_EQ(
-				fromUa->items[i].profileOffsets[c],
-				fromEvidence->items[i].profileOffsets[c]);
-		}
-	}
-	ResultsHashFree(fromUa);
-	ResultsHashFree(fromEvidence);
-	EvidenceFree(evidence);
-}
-
-TEST_F(HashCTests, GraphFilter_SkippedComponentGetsNoDefaultProfile) {
-	// A second manager with allowUnmatched on, since the fixture's is off.
-	EXCEPTION_CREATE;
-	ResourceManager unmatchedManager;
-	ConfigHash unmatchedConfig = HashDefaultConfig;
-	unmatchedConfig.b.allowUnmatched = true;
-	PropertiesRequired unmatchedProperties = PropertiesDefault;
-	unmatchedProperties.string = commonProperties;
-	HashInitManagerFromFile(
-		&unmatchedManager,
-		&unmatchedConfig,
-		&unmatchedProperties,
-		dataFilePath.c_str(),
-		exception);
-	EXCEPTION_THROW;
-
-	ResultsHash* results = ResultsHashCreate(&unmatchedManager, 0);
-	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
-	int isMobile = getRequiredPropertyIndex(results, "IsMobile");
-	int browserName = getRequiredPropertyIndex(results, "BrowserName");
-	unsigned char isMobileComponent =
-		dataSet->b.b.available->items[PropertiesGetAvailableIndex(
-			dataSet->b.b.available,
-			isMobile)].componentIndex;
-	unsigned char browserComponent =
-		dataSet->b.b.available->items[PropertiesGetAvailableIndex(
-			dataSet->b.b.available,
-			browserName)].componentIndex;
-	int indexes[] = { isMobile };
-	// A User-Agent that matches nothing, so the evaluated component falls
-	// back to its default profile while the skipped one must not.
-	const char* junk = "no such device";
-	ResultsHashFromUserAgentForProperties(
-		results, junk, strlen(junk), indexes, 1, exception);
-	EXCEPTION_THROW;
-	bool evaluatedHasProfile = false;
-	bool skippedHasProfile = false;
-	for (uint32_t i = 0; i < results->count; i++) {
-		if (results->items[i].profileOffsets[isMobileComponent] != UINT32_MAX) {
-			evaluatedHasProfile = true;
-		}
-		if (results->items[i].profileOffsets[browserComponent] != UINT32_MAX) {
-			skippedHasProfile = true;
-		}
-	}
-	EXPECT_TRUE(evaluatedHasProfile) <<
-		"allowUnmatched must still give the evaluated component a default.";
-	EXPECT_FALSE(skippedHasProfile) <<
-		"A skipped component must not receive a default profile.";
-	ResultsHashFree(results);
-	ResourceManagerFree(&unmatchedManager);
 }
 
 /*
@@ -1534,6 +1335,8 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdResolvesEveryComponentProfile) {
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 	ResultsHashFromUserAgent(
 		results, mobileUserAgent, strlen(mobileUserAgent), exception);
+	EXCEPTION_THROW;
+	ResultsEvaluateAll(&results->b.b, exception);
 	EXCEPTION_THROW;
 
 	const uint32_t nullProfileOffset = UINT32_MAX;

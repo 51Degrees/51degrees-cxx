@@ -341,7 +341,7 @@ void fiftyoneDegreesGhevDeviceDetectionOverride(
 	fiftyoneDegreesException *exception) {
     (void)exception; // to suppress C4100 warning
     OverridesAdd(
-        results->overrides,
+        results->b.overrides,
         dataSet->ghevAvailableIndex,
         "");
 }

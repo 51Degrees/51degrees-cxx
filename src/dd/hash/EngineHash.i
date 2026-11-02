@@ -53,14 +53,6 @@ public:
 	void refreshData(unsigned char data[], long length);
 	ResultsHash* process(EvidenceDeviceDetection *evidence);
 	ResultsHash* process(const char *userAgent);
-	ResultsHash* process(
-		EvidenceDeviceDetection *evidence,
-		const int *requiredPropertyIndexes,
-		int requiredPropertyIndexesCount);
-	ResultsHash* process(
-		const char *userAgent,
-		const int *requiredPropertyIndexes,
-		int requiredPropertyIndexesCount);
 	std::vector<uint32_t> getProfileIdsForPropertyValue(
 		const std::string &propertyName,
 		const std::string &valueName);

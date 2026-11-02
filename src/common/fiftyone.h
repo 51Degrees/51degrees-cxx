@@ -328,7 +328,6 @@ MAP_TYPE(WeightedItemList)
 #define PropertiesGetAvailableIndex fiftyoneDegreesPropertiesGetAvailableIndex /**< Synonym for #fiftyoneDegreesPropertiesGetAvailableIndex function. */
 #define PropertiesGetAvailableIndexFromName fiftyoneDegreesPropertiesGetAvailableIndexFromName /**< Synonym for #fiftyoneDegreesPropertiesGetAvailableIndexFromName function. */
 #define PropertiesGetPropertyIndexFromAvailableIndex fiftyoneDegreesPropertiesGetPropertyIndexFromAvailableIndex /**< Synonym for #fiftyoneDegreesPropertiesGetPropertyIndexFromAvailableIndex function. */
-#define PropertiesGetComponentMask fiftyoneDegreesPropertiesGetComponentMask /**< Synonym for #fiftyoneDegreesPropertiesGetComponentMask function. */
 #define PropertiesIsSetHeaderAvailable fiftyoneDegreesPropertiesIsSetHeaderAvailable /**< Synonym for #fiftyoneDegreesPropertiesIsSetHeaderAvailable */
 #define CollectionHeaderFromFile fiftyoneDegreesCollectionHeaderFromFile /**< Synonym for #fiftyoneDegreesCollectionHeaderFromFile function. */
 #define CollectionCreateFromFile fiftyoneDegreesCollectionCreateFromFile /**< Synonym for #fiftyoneDegreesCollectionCreateFromFile function. */
@@ -350,8 +349,11 @@ MAP_TYPE(WeightedItemList)
 #define ResourceManagerInit fiftyoneDegreesResourceManagerInit /**< Synonym for #fiftyoneDegreesResourceManagerInit function. */
 #define ResultsPendingClear fiftyoneDegreesResultsPendingClear /**< Synonym for #fiftyoneDegreesResultsPendingClear function. */
 #define ResultsPendingSet fiftyoneDegreesResultsPendingSet /**< Synonym for #fiftyoneDegreesResultsPendingSet function. */
+#define ResultsWalkWhenPopulated fiftyoneDegreesResultsWalkWhenPopulated /**< Synonym for #fiftyoneDegreesResultsWalkWhenPopulated function. */
 #define ResultsEvaluate fiftyoneDegreesResultsEvaluate /**< Synonym for #fiftyoneDegreesResultsEvaluate function. */
 #define ResultsEvaluateAll fiftyoneDegreesResultsEvaluateAll /**< Synonym for #fiftyoneDegreesResultsEvaluateAll function. */
+#define ResultsHasOverrideValue fiftyoneDegreesResultsHasOverrideValue /**< Synonym for #fiftyoneDegreesResultsHasOverrideValue function. */
+#define ResultsGetOverrideValues fiftyoneDegreesResultsGetOverrideValues /**< Synonym for #fiftyoneDegreesResultsGetOverrideValues function. */
 #define PropertiesGetPropertyIndexFromRequiredIndex fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex /**< Synonym for #fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex function. */
 #define DataSetRelease fiftyoneDegreesDataSetRelease /**< Synonym for #fiftyoneDegreesDataSetRelease function. */
 #define DataSetReset fiftyoneDegreesDataSetReset /**< Synonym for #fiftyoneDegreesDataSetReset function. */
@@ -444,9 +446,6 @@ MAP_TYPE(WeightedItemList)
 #define EXCEPTION_THROW FIFTYONE_DEGREES_EXCEPTION_THROW /**< Synonym for #FIFTYONE_DEGREES_EXCEPTION_THROW macro. */
 #define EXCEPTION_CHECK FIFTYONE_DEGREES_EXCEPTION_CHECK /**< Synonym for #FIFTYONE_DEGREES_EXCEPTION_CHECK macro. */
 #define STRING FIFTYONE_DEGREES_STRING /**< Synonym for #FIFTYONE_DEGREES_STRING macro. */
-#define COMPONENT_MASK_ALL FIFTYONE_DEGREES_COMPONENT_MASK_ALL /**< Synonym for #FIFTYONE_DEGREES_COMPONENT_MASK_ALL macro. */
-#define COMPONENT_MASK_BITS FIFTYONE_DEGREES_COMPONENT_MASK_BITS /**< Synonym for #FIFTYONE_DEGREES_COMPONENT_MASK_BITS macro. */
-#define COMPONENT_MASK_ENABLED FIFTYONE_DEGREES_COMPONENT_MASK_ENABLED /**< Synonym for #FIFTYONE_DEGREES_COMPONENT_MASK_ENABLED macro. */
 #define COLLECTION_RELEASE FIFTYONE_DEGREES_COLLECTION_RELEASE /**< Synonym for #FIFTYONE_DEGREES_COLLECTION_RELEASE macro. */
 #define FILE_MAX_PATH FIFTYONE_DEGREES_FILE_MAX_PATH /**< Synonym for #FIFTYONE_DEGREES_FILE_MAX_PATH macro. */
 #define THREAD_CREATE FIFTYONE_DEGREES_THREAD_CREATE /**< Synonym for #FIFTYONE_DEGREES_THREAD_CREATE macro. */

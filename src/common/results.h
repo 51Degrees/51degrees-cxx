@@ -48,22 +48,37 @@
  *
  * ## First read
  *
- * Populating the results walks no graph. Each component the results answer
- * for is marked pending, and the first read of one of its properties walks
- * the component's graph against the data set the results hold. A component
- * is walked at most once each time the results are populated, so a walk that
- * fails is not repeated, and the component's properties then read as if it
- * had no profile. Anything that depends on every component, such as a value
- * made from all of them or the items of the results read directly, needs
- * #fiftyoneDegreesResultsEvaluateAll first.
+ * When the caller named the properties the data set was created with,
+ * populating the results walks the graph of each component they answer for,
+ * as #fiftyoneDegreesResultsWalkWhenPopulated decides, and the call that
+ * populates them reports a walk that fails. Otherwise populating the results
+ * walks no graph. Each component the results answer for is marked pending,
+ * and the first read of one of its properties walks the component's graph
+ * against the data set the results hold. A component is walked at most once
+ * each time the results are populated, so a walk that fails is not repeated,
+ * and the component's properties then read as if it had no profile. Anything
+ * that depends on every component, such as a value made from all of them or
+ * the items of the results read directly, needs
+ * #fiftyoneDegreesResultsEvaluateAll first, which walks nothing when the
+ * results walked every graph as they were populated.
+ *
+ * ## Overrides
+ *
+ * Results can hold values from the evidence that override the values of
+ * properties. A read looks for one with
+ * #fiftyoneDegreesResultsGetOverrideValues before it walks the property's
+ * component, so a property with an override value is read without walking
+ * the graph, and a component whose properties are only read from overrides
+ * is never walked.
  *
  * ## Threads
  *
  * A results structure is used by one thread at a time, because reading a
- * value writes into the results, and the first read of a component's
- * property can walk the component's graph. Different results can be used on
- * different threads at once, and the resource manager they come from can be
- * shared, unless the library is compiled with FIFTYONE_DEGREES_NO_THREADING.
+ * value writes into the results, and when no properties were named the first
+ * read of a component's property walks the component's graph. Different
+ * results can be used on different threads at once, and the resource manager
+ * they come from can be shared, unless the library is compiled with
+ * FIFTYONE_DEGREES_NO_THREADING.
  *
  * @{
  */
@@ -151,11 +166,16 @@ typedef struct fiftyone_degrees_results_base_t {
 															  whose graph is
 															  still to be
 															  walked */
+	fiftyoneDegreesOverrideValueArray *overrides; /**< Values from the
+												  evidence that override the
+												  values of properties, or
+												  NULL if the results hold
+												  none */
 } fiftyoneDegreesResultsBase;
 
 /**
  * Initialise a set of results by setting the data set they are associated with.
- * No component is pending and no walk is set.
+ * No component is pending, no walk is set and no override values are held.
  * @param results pointer to the results to initialise
  * @param dataSet pointer to the data set which will be using the results
  * @return pointer to the initialised results
@@ -196,6 +216,20 @@ FIFTYONE_DEGREES_RESULTS_INLINE void fiftyoneDegreesResultsPendingSet(
 	byte componentIndex) {
 	results->pending[componentIndex >> 5] |=
 		(uint32_t)1 << (componentIndex & 31);
+}
+
+/**
+ * Returns true if populating the results walks the graph of each component
+ * they answer for, rather than leaving each walk to the first read of one of
+ * the component's properties. That is when the caller named the properties
+ * the data set was created with, as every graph the results need is then
+ * known before anything is read.
+ * @param dataSet pointer to the data set the results are populated from
+ * @return true if populating the results walks the graphs
+ */
+FIFTYONE_DEGREES_RESULTS_INLINE bool fiftyoneDegreesResultsWalkWhenPopulated(
+	const fiftyoneDegreesDataSetBase *dataSet) {
+	return dataSet->available != NULL && dataSet->available->named != NULL;
 }
 
 /**
@@ -249,6 +283,43 @@ FIFTYONE_DEGREES_RESULTS_INLINE void fiftyoneDegreesResultsEvaluateAll(
 			}
 		}
 	}
+}
+
+/**
+ * Returns true if the results hold an override value for the property, so
+ * that a read can answer without walking the property's component.
+ * @param results pointer to the results to check
+ * @param availableIndex index of the property in the available properties
+ * @return true if there is an override value for the property
+ */
+FIFTYONE_DEGREES_RESULTS_INLINE bool fiftyoneDegreesResultsHasOverrideValue(
+	fiftyoneDegreesResultsBase *results,
+	uint32_t availableIndex) {
+	return results->overrides != NULL &&
+		fiftyoneDegreesOverrideHasValueForRequiredPropertyIndex(
+			results->overrides,
+			availableIndex);
+}
+
+/**
+ * Adds the override values the results hold for the property to the list.
+ * Each read calls this before #fiftyoneDegreesResultsEvaluate, so a property
+ * with an override value is read without walking its component.
+ * @param results pointer to the results to get the values from
+ * @param availableIndex index of the property in the available properties
+ * @param values list to add the values to
+ * @return the number of values added, which is zero if there is no override
+ * value for the property
+ */
+FIFTYONE_DEGREES_RESULTS_INLINE uint32_t fiftyoneDegreesResultsGetOverrideValues(
+	fiftyoneDegreesResultsBase *results,
+	uint32_t availableIndex,
+	fiftyoneDegreesList *values) {
+	return results->overrides == NULL ? 0 :
+		fiftyoneDegreesOverrideValuesAdd(
+			results->overrides,
+			availableIndex,
+			values);
 }
 
 /**

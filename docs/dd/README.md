@@ -91,13 +91,38 @@ The C examples create a set of results up front and use it for each detection.
 `EngineHash::process` in the C++ API creates a new set of results for each call,
 so there the memory is allocated once for each call, at the same fixed size.
 
+# Reading values
+
+When the properties were named, in C through the required properties and in
+C++ through the properties the engine is created with, populating a set of
+results walks the graph of each component a named property belongs to, and
+no other, so no read walks a graph and the results keep no copy of the
+evidence.
+
+When no properties were named, populating a set of results walks no graph.
+The results keep a copy of the evidence, and the graph of a component is
+walked the first time one of its properties is read, so a program that reads
+the properties of one component walks one graph. The copy is held in memory
+the results own, which grows to fit the largest evidence they are populated
+from.
+
+Either way the values are the same whatever is read first, and the evidence
+can be freed once the results are populated.
+
+The match metrics, such as the iterations and the drift, and the device id
+are worked out from every component, so reading them walks every graph not yet
+walked. The C++ API does this itself. A C caller that reads the result items
+directly calls `fiftyoneDegreesResultsEvaluateAll` first.
+
 # Threads
 
 A set of results is used by one thread at a time, because reading a value
-writes into the results. A program that detects on several threads uses a set
-of results for each thread. The resource manager, or in C++ the engine, can be
-shared by every thread, unless the library is built with the `NoThreading`
-option described in the [common library README](../../src/common/README.md#nothreading).
+writes into the results and, when no properties were named, the first read of
+a property of a component walks the component's graph. A program that detects
+on several threads uses a set of results for each thread. The resource
+manager, or in C++ the engine, can be shared by every thread, unless the
+library is built with the `NoThreading` option described in the
+[common library README](../../src/common/README.md#nothreading).
 
 # Examples
 

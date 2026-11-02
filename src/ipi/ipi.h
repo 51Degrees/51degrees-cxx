@@ -372,7 +372,8 @@ FIFTYONE_DEGREES_ARRAY_TYPE(
  * array.
  *
  * The results are used by one thread at a time, because reading a value
- * writes into the results and the first read of a component walks its graph.
+ * writes into the results and, when no properties were named, the first read
+ * of a component walks its graph.
  * Different results can be used on different threads at once, and the
  * resource manager can be shared, unless the library is compiled with
  * FIFTYONE_DEGREES_NO_THREADING.
@@ -738,9 +739,12 @@ EXTERNAL void fiftyoneDegreesResultsIpiFree(
  * with the reason #FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE, unless
  * it is mandatory with a default value, in which case it reads as that default.
  *
- * Populating the results walks no graph. The graph of each component is walked
- * the first time one of its properties is read, against the data set the
- * results hold, as #fiftyoneDegreesResultsIpiGetValues describes.
+ * When the caller named the properties the data set was created with, the
+ * graph of each component a named property belongs to is walked here, and a
+ * walk that fails sets the exception. Otherwise populating the results walks
+ * no graph, and the graph of each component is walked the first time one of
+ * its properties is read, against the data set the results hold, as
+ * #fiftyoneDegreesResultsIpiGetValues describes.
  * @param results preallocated results structure to populate
  * @param ipAddress byte array to process
  * @param ipAddressLength of the IP address byte array
@@ -759,9 +763,12 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddress(
  * Process a single IP Address and populate the IP range offset in the results
  * structure.
  *
- * Populating the results walks no graph. The graph of each component is walked
- * the first time one of its properties is read, against the data set the
- * results hold, as #fiftyoneDegreesResultsIpiGetValues describes.
+ * When the caller named the properties the data set was created with, the
+ * graph of each component a named property belongs to is walked here, and a
+ * walk that fails sets the exception. Otherwise populating the results walks
+ * no graph, and the graph of each component is walked the first time one of
+ * its properties is read, against the data set the results hold, as
+ * #fiftyoneDegreesResultsIpiGetValues describes.
  * @param results preallocated results structure to populate
  * @param ipAddress string to process
  * @param ipAddressLength of the ipAddress string
@@ -778,9 +785,12 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddressString(
  * Processes the evidence value pairs in the evidence collection and
  * populates the result in the results structure.
  *
- * Populating the results walks no graph. The graph of each component is walked
- * the first time one of its properties is read, against the data set the
- * results hold, as #fiftyoneDegreesResultsIpiGetValues describes.
+ * When the caller named the properties the data set was created with, the
+ * graph of each component a named property belongs to is walked here, and a
+ * walk that fails sets the exception. Otherwise populating the results walks
+ * no graph, and the graph of each component is walked the first time one of
+ * its properties is read, against the data set the results hold, as
+ * #fiftyoneDegreesResultsIpiGetValues describes.
  * @param results preallocated results structure to populate containing a
  *                pointer to an initialised resource manager
  * @param evidence to process containing parsed or unparsed values
@@ -796,10 +806,11 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromEvidence(
  * Gets whether or not the results provided contain valid values for the
  * property index provided.
  *
- * The first read of a property of a component walks the component's graph for
- * the results. If the walk fails the exception is set, and the component is
- * not walked again until the results are next populated, so later reads of
- * its properties read as if it had no profile for the address.
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results to check
  * @param requiredPropertyIndex index of the property in the names given
  * when the data set was created, which a reload does not change. With no
@@ -819,10 +830,11 @@ EXTERNAL bool fiftyoneDegreesResultsIpiGetHasValues(
  * Gets the reason why a results does not contain valid values for a given
  * property. 
  *
- * The first read of a property of a component walks the component's graph for
- * the results. If the walk fails the exception is set, and the component is
- * not walked again until the results are next populated, so later reads of
- * its properties read as if it had no profile for the address.
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results to check
  * @param requiredPropertyIndex index of the property in the names given
  * when the data set was created, which a reload does not change. With no
@@ -853,10 +865,11 @@ EXTERNAL const char* fiftyoneDegreesResultsIpiGetNoValueReasonMessage(
  * fiftyoneDegreesResultsIpiGetValueString method should be used to get
  * the string representation of the value.
  *
- * The first read of a property of a component walks the component's graph for
- * the results. If the walk fails the exception is set, and the component is
- * not walked again until the results are next populated, so later reads of
- * its properties read as if it had no profile for the address.
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results structure to release
  * @param requiredPropertyIndex index of the property in the names given
  * when the data set was created, which a reload does not change. With no
@@ -874,10 +887,11 @@ EXTERNAL const fiftyoneDegreesProfilePercentage* fiftyoneDegreesResultsIpiGetVal
 /**
  * Adds to builder the values associated in the results for the property name.
  *
- * The first read of a property of a component walks the component's graph for
- * the results. If the walk fails the exception is set, and the component is
- * not walked again until the results are next populated, so later reads of
- * its properties read as if it had no profile for the address.
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results structure to release
  * @param propertyName name of the property to be used with the values
  * @param builder string builder to fill with values
@@ -895,10 +909,11 @@ EXTERNAL void fiftyoneDegreesResultsIpiAddValuesString(
 /**
  * Sets the buffer the values associated in the results for the property name.
  *
- * The first read of a property of a component walks the component's graph for
- * the results. If the walk fails the exception is set, and the component is
- * not walked again until the results are next populated, so later reads of
- * its properties read as if it had no profile for the address.
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results structure to release
  * @param propertyName name of the property to be used with the values
  * @param buffer character buffer allocated by the caller
@@ -920,10 +935,11 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesString(
 /**
  * Sets the buffer the values associated in the results for the property name.
  *
- * The first read of a property of a component walks the component's graph for
- * the results. If the walk fails the exception is set, and the component is
- * not walked again until the results are next populated, so later reads of
- * its properties read as if it had no profile for the address.
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results structure to release
  * @param requiredPropertyIndex index of the property in the names given
  * when the data set was created, which a reload does not change. With no

@@ -56,6 +56,8 @@
     <ClCompile Include="..\..\..\test\dd\hash\GraphDataFileTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\GraphNodeTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashCTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashFirstReadTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashFirstReadRuleTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashPositionsTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashValueProfilesTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashMemLeakReloadFromFileTests.cpp" />

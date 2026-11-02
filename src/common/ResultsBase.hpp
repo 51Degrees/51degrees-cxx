@@ -60,11 +60,13 @@ namespace FiftyoneDegrees {
 		 * by name.
 		 *
 		 * A results instance is used by one thread at a time, because
-		 * reading a value writes into the results, and the first read of a
-		 * component's property can walk the component's graph. Different
-		 * results instances can be used on different threads at once, and
-		 * the engine that created them can be shared, when
-		 * EngineBase::getIsThreadSafe is true.
+		 * reading a value writes into the results. An engine created naming
+		 * its properties walks every graph the results need as it processes
+		 * the evidence, and otherwise the first read of a component's
+		 * property walks the component's graph. Different results instances
+		 * can be used on different threads at once, and the engine that
+		 * created them can be shared, when EngineBase::getIsThreadSafe is
+		 * true.
 		 *
 		 * Results instances should only be created by a Engine.
 		 *
