@@ -91,6 +91,14 @@ The C examples create a set of results up front and use it for each detection.
 `EngineHash::process` in the C++ API creates a new set of results for each call,
 so there the memory is allocated once for each call, at the same fixed size.
 
+# Threads
+
+A set of results is used by one thread at a time, because reading a value
+writes into the results. A program that detects on several threads uses a set
+of results for each thread. The resource manager, or in C++ the engine, can be
+shared by every thread, unless the library is built with the `NoThreading`
+option described in the [common library README](../../src/common/README.md#nothreading).
+
 # Examples
 
 There are several examples available, the source files can be found in the [`examples/dd`](../../examples/dd) folder. The examples are written in C or CPP.

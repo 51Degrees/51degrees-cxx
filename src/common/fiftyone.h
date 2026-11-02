@@ -140,6 +140,7 @@ MAP_TYPE(EvidencePrefixMap)
 MAP_TYPE(EvidencePrefix)
 MAP_TYPE(Headers)
 MAP_TYPE(ResourceHandle)
+MAP_TYPE(ResultsEvaluateMethod)
 MAP_TYPE(InterlockDoubleWidth)
 MAP_TYPE(Pool)
 MAP_TYPE(PoolResourceCreate)
@@ -347,6 +348,10 @@ MAP_TYPE(WeightedItemList)
 #define TextFileIterateWithLimit fiftyoneDegreesTextFileIterateWithLimit /**< Synonym for #fiftyoneDegreesTextFileIterateWithLimit function. */
 #define TextFileIterate fiftyoneDegreesTextFileIterate /**< Synonym for #fiftyoneDegreesTextFileIterate function. */
 #define ResourceManagerInit fiftyoneDegreesResourceManagerInit /**< Synonym for #fiftyoneDegreesResourceManagerInit function. */
+#define ResultsPendingClear fiftyoneDegreesResultsPendingClear /**< Synonym for #fiftyoneDegreesResultsPendingClear function. */
+#define ResultsPendingSet fiftyoneDegreesResultsPendingSet /**< Synonym for #fiftyoneDegreesResultsPendingSet function. */
+#define ResultsEvaluate fiftyoneDegreesResultsEvaluate /**< Synonym for #fiftyoneDegreesResultsEvaluate function. */
+#define ResultsEvaluateAll fiftyoneDegreesResultsEvaluateAll /**< Synonym for #fiftyoneDegreesResultsEvaluateAll function. */
 #define PropertiesGetPropertyIndexFromRequiredIndex fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex /**< Synonym for #fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex function. */
 #define DataSetRelease fiftyoneDegreesDataSetRelease /**< Synonym for #fiftyoneDegreesDataSetRelease function. */
 #define DataSetReset fiftyoneDegreesDataSetReset /**< Synonym for #fiftyoneDegreesDataSetReset function. */

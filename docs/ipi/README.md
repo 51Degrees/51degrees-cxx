@@ -60,6 +60,10 @@ An address below the lowest key in a graph has no profile for that graph's compo
 
 The [IP Intelligence specification](https://github.com/51Degrees/specifications/blob/main/ip-intelligence-specification/pipeline-elements/ip-intelligence-on-premise.md#address-forms) sets out each form.
 
+## Threads
+
+A set of results is used by one thread at a time, because reading a value writes into the results and the first read of a property of a component walks the component's graph. A program that looks up addresses on several threads uses a set of results for each thread. The resource manager, or in C++ the engine, can be shared by every thread, unless the library is built with the `NoThreading` option described in the [common library README](../../src/common/README.md#nothreading).
+
 ## Referencing the API
 
 ### Adding references with CMake

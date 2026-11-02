@@ -123,6 +123,11 @@ typedef struct fiftyone_degrees_weighted_values_collection_t {
  * This function extracts weighted values for specified properties from the results
  * and returns them as a collection.
  * 
+ *
+ * The first read of a property of a component walks the component's graph for
+ * the results. If the walk fails the exception is set, and the component is
+ * not walked again until the results are next populated, so later reads of
+ * its properties read as if it had no profile for the address.
  * @param results Pointer to the IP Intelligence results
  * @param requiredPropertyIndexes Array of required property indexes to extract,
  * each the index of a property in the names given when the data set was

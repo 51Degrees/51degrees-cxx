@@ -105,6 +105,12 @@
     <ClCompile Include="..\..\..\test\ipi\IpiPropertyNamesTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiFirstReadFileTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiFirstReadTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\ExamplePerformanceLegacyTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
