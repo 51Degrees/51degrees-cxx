@@ -346,15 +346,16 @@ typedef struct fiftyone_degrees_result_hash_t {
 														evidence the results
 														were populated from,
 														kept for the walks on
-														first reads. Its pairs
-														and the text of their
-														keys and values follow
-														the array in the same
+														first reads when no
+														properties were named.
+														Its pairs and the text
+														of their keys and
+														values follow the
+														array in the same
 														memory */ \
 	size_t evidenceBytes; /**< Number of bytes allocated for evidence */ \
 	int evidencePrefixes; /**< The walks' prefixes that some pair of the
-						  copied evidence has, so that a walk can skip the
-						  others */ \
+						  evidence has, so that a walk can skip the others */ \
 	bool profileIdsOverridden; /**< True if the evidence overrode the profile
 							   of a component, so that a walk applies the
 							   overrides again */

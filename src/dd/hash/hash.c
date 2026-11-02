@@ -3961,12 +3961,21 @@ static bool resultsHashFromEvidence_setEvidenceHeader_callback(
 		}
 	}
 
+	// Record the walks' prefixes the pair has, so that a walk can skip the
+	// prefixes no pair has.
+	for (int p = 0; p < FIFTYONE_DEGREES_ORDER_OF_PRECEDENCE_SIZE; p++) {
+		if ((pair->prefix & prefixOrderOfPrecedence[p]) == pair->prefix) {
+			s->results->evidencePrefixes |= prefixOrderOfPrecedence[p];
+		}
+	}
+
 	// Always continue to ensure all the evidence is considered.
 	return true;
 }
 
 // Assigns the header field to the evidence pair to avoid needing to lookup the
-// header during future operations.
+// header during future operations, and records the walks' prefixes the
+// evidence has.
 static void resultsHashFromEvidence_setEvidenceHeader(
 	detectionComponentState* state) {
 	EvidenceIterate(
@@ -4069,20 +4078,31 @@ static bool hasComponentEvidence(ResultsHash* results, byte componentIndex) {
 }
 
 // Takes a result for each available component that has evidence for one of
-// its headers, in component order, and marks the component to be walked on
-// its first read. The results then have the same number of results, in the
-// same order, as walking every component in order gives, whatever is read
-// first. Each result taken is as resultsHashReset left it, as nothing changes
-// a result after the count until the count includes it.
+// its headers, in component order, and either walks the component's graph
+// then or marks the component to be walked on its first read. The results
+// then have the same number of results, in the same order, as walking every
+// component in order gives, whatever is read first. Each result taken is as
+// resultsHashReset left it, as nothing changes a result after the count until
+// the count includes it.
 static void resultsHashFromEvidence_takeResults(
-	detectionComponentState* state) {
+	detectionComponentState* state,
+	bool walk,
+	Exception* exception) {
 	ResultsHash* results = state->results;
 	for (uint32_t i = 0; i < state->dataSet->componentsList.count; i++) {
 		if (state->dataSet->componentsAvailable[i] == true &&
 			results->count < results->capacity &&
 			hasComponentEvidence(results, (byte)i)) {
 			results->items[results->count++].componentIndex = (byte)i;
-			ResultsPendingSet(&results->b.b, (byte)i);
+			if (walk) {
+				results->b.b.evaluate(&results->b.b, (byte)i, exception);
+				if (EXCEPTION_FAILED) {
+					return;
+				}
+			}
+			else {
+				ResultsPendingSet(&results->b.b, (byte)i);
+			}
 		}
 	}
 }
@@ -4178,13 +4198,6 @@ static void resultsHashFromEvidence_copyEvidence(
 					from->parsedLength);
 			}
 			to->parsedLength = from->parsedLength;
-			for (int p = 0;
-				p < FIFTYONE_DEGREES_ORDER_OF_PRECEDENCE_SIZE;
-				p++) {
-				if ((to->prefix & prefixOrderOfPrecedence[p]) == to->prefix) {
-					results->evidencePrefixes |= prefixOrderOfPrecedence[p];
-				}
-			}
 		}
 	}
 }
@@ -4204,12 +4217,13 @@ static void resultsHashReset(ResultsHash* results) {
 }
 
 /**
- * Walks the graph of the component, against the evidence the results copied,
+ * Walks the graph of the component, against the evidence the results hold,
  * into the result the component took when the results were populated. Then,
  * as populating the results does once every graph has been walked, applies
  * the profile overrides again if the evidence overrode a profile, and gives
  * the component its default profile if unmatched results are allowed. Called
- * the first time a property of the component is read.
+ * as the results are populated when the caller named the properties, and
+ * otherwise the first time a property of the component is read.
  */
 static void resultsHashEvaluate(
 	fiftyoneDegreesResultsBase* base,
@@ -4303,12 +4317,24 @@ void fiftyoneDegreesResultsHashFromEvidence(
 			// efficiency of subsequent processing.
 			resultsHashFromEvidence_setEvidenceHeader(&state);
 
-			// Copy the evidence for the walks on first reads, and take a
-			// result for each component with evidence, in component order.
-			// No graph is walked here.
-			resultsHashFromEvidence_copyEvidence(&state, exception);
+			// Take a result for each component with evidence, in component
+			// order. When the caller named the properties, each component's
+			// graph is walked now, against the caller's evidence, which the
+			// results hold only while they walk. Otherwise the evidence is
+			// copied for the walks on first reads, and no graph is walked
+			// here.
+			if (ResultsWalkWhenPopulated(&dataSet->b.b)) {
+				EvidenceKeyValuePairArray* const copy = results->evidence;
+				results->evidence = evidence;
+				resultsHashFromEvidence_takeResults(&state, true, exception);
+				results->evidence = copy;
+			}
+			else {
+				resultsHashFromEvidence_copyEvidence(&state, exception);
+				if (EXCEPTION_FAILED) { break; };
+				resultsHashFromEvidence_takeResults(&state, false, exception);
+			}
 			if (EXCEPTION_FAILED) { break; };
-			resultsHashFromEvidence_takeResults(&state);
 		}
 
 		// Check for and process any profile Id overrides. If the caller can
@@ -4352,7 +4378,8 @@ void fiftyoneDegreesResultsHashFromUserAgent(
 	// a User-Agent processed here yields exactly the same results (one item
 	// per available component) as the same User-Agent passed through
 	// ResultsHashFromEvidence. The pair refers to the caller's string, which
-	// the results copy, so the caller can free it once this returns.
+	// the results either walk every graph with before this returns or copy,
+	// so the caller can free it once this returns.
 	//
 	// The array and its single item are built on the stack to avoid a heap
 	// allocation on this hot, UA-only detection path. EvidenceAddPair fills the
@@ -4509,8 +4536,9 @@ fiftyoneDegreesResultsHash* fiftyoneDegreesResultsHashCreate(
 
 	if (results != NULL) {
 
-		// Initialise the results, which walk each component's graph when one
-		// of its properties is first read.
+		// Initialise the results, which walk each component's graph as they
+		// are populated when the caller named the properties, and otherwise
+		// when one of the component's properties is first read.
 		ResultsDeviceDetectionInit(
 			&results->b,
 			&dataSet->b,

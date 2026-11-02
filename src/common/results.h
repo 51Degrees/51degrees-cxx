@@ -213,6 +213,20 @@ FIFTYONE_DEGREES_RESULTS_INLINE void fiftyoneDegreesResultsPendingSet(
 }
 
 /**
+ * Returns true if populating the results walks the graph of each component
+ * they answer for, rather than leaving each walk to the first read of one of
+ * the component's properties. That is when the caller named the properties
+ * the data set was created with, as every graph the results need is then
+ * known before anything is read.
+ * @param dataSet pointer to the data set the results are populated from
+ * @return true if populating the results walks the graphs
+ */
+FIFTYONE_DEGREES_RESULTS_INLINE bool fiftyoneDegreesResultsWalkWhenPopulated(
+	const fiftyoneDegreesDataSetBase *dataSet) {
+	return dataSet->available != NULL && dataSet->available->named != NULL;
+}
+
+/**
  * Walks the component's graph if it is pending, and marks it walked whether
  * or not the walk succeeds, so a failed walk is not repeated. Called before
  * a read of a property of the component.

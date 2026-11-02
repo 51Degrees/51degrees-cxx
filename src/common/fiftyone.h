@@ -349,6 +349,7 @@ MAP_TYPE(WeightedItemList)
 #define ResourceManagerInit fiftyoneDegreesResourceManagerInit /**< Synonym for #fiftyoneDegreesResourceManagerInit function. */
 #define ResultsPendingClear fiftyoneDegreesResultsPendingClear /**< Synonym for #fiftyoneDegreesResultsPendingClear function. */
 #define ResultsPendingSet fiftyoneDegreesResultsPendingSet /**< Synonym for #fiftyoneDegreesResultsPendingSet function. */
+#define ResultsWalkWhenPopulated fiftyoneDegreesResultsWalkWhenPopulated /**< Synonym for #fiftyoneDegreesResultsWalkWhenPopulated function. */
 #define ResultsEvaluate fiftyoneDegreesResultsEvaluate /**< Synonym for #fiftyoneDegreesResultsEvaluate function. */
 #define ResultsEvaluateAll fiftyoneDegreesResultsEvaluateAll /**< Synonym for #fiftyoneDegreesResultsEvaluateAll function. */
 #define ResultsHasOverrideValue fiftyoneDegreesResultsHasOverrideValue /**< Synonym for #fiftyoneDegreesResultsHasOverrideValue function. */

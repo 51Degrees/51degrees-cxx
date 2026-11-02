@@ -2680,7 +2680,8 @@ static void resultsIpiResetHasValuesCache(ResultsIpi* const results) {
 
 /**
  * Walks the graph of the component for the result that holds it, against the
- * data set the results hold. Called the first time a property of the
+ * data set the results hold. Called as the results are populated when the
+ * caller named the properties, and otherwise the first time a property of the
  * component is read.
  */
 static void resultsIpiEvaluate(
@@ -2722,8 +2723,9 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 
 	if (results != NULL) {
 
-		// Initialise the results, which walk each component's graph when
-		// one of its properties is first read.
+		// Initialise the results, which walk each component's graph as they
+		// are populated when the caller named the properties, and otherwise
+		// when one of the component's properties is first read.
 		fiftyoneDegreesResultsInit(&results->b, (void*)(&dataSet->b));
 		results->b.evaluate = resultsIpiEvaluate;
 
@@ -2808,8 +2810,10 @@ static bool isIpv4Mapped(const unsigned char* const ipAddress) {
 static void addResultsFromIpAddressNoChecks(
 	ResultsIpi* results,
 	const unsigned char* ipAddress,
-	fiftyoneDegreesIpType type) {
+	fiftyoneDegreesIpType type,
+	Exception* exception) {
 	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	const bool walk = ResultsWalkWhenPopulated(&dataSet->b.b);
 	// Every lookup comes through here, so an IPv4-mapped address takes the
 	// answers of its IPv4 address however it was given.
 	if (type == IP_TYPE_IPV6 && isIpv4Mapped(ipAddress)) {
@@ -2849,9 +2853,17 @@ static void addResultsFromIpAddressNoChecks(
 			memcpy(nextResult->targetIpAddress.value, ipAddress, IPV6_LENGTH);
 		}
 
-		// The graph is walked the first time a property of the component is
-		// read.
-		ResultsPendingSet(&results->b, (byte)componentIndex);
+		// The graph is walked now when the caller named the properties, and
+		// otherwise the first time a property of the component is read.
+		if (walk) {
+			results->b.evaluate(&results->b, (byte)componentIndex, exception);
+			if (EXCEPTION_FAILED) {
+				return;
+			}
+		}
+		else {
+			ResultsPendingSet(&results->b, (byte)componentIndex);
+		}
 	}
 }
 
@@ -2877,7 +2889,7 @@ void fiftyoneDegreesResultsIpiFromIpAddress(
 	resultsIpiResetHasValuesCache(results);
 	ResultsPendingClear(&results->b);
 
-	addResultsFromIpAddressNoChecks(results, ipAddress, type);
+	addResultsFromIpAddressNoChecks(results, ipAddress, type, exception);
 }
 
 void fiftyoneDegreesResultsIpiFromIpAddressString(
@@ -2953,7 +2965,8 @@ static bool setResultsFromEvidence(
 			addResultsFromIpAddressNoChecks(
 				results,
 				ipAddress.value,
-				ipAddress.type);
+				ipAddress.type,
+				exception);
 		}
 	}
 
