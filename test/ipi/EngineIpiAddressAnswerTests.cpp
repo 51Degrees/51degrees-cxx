@@ -85,7 +85,8 @@ protected:
 	Common::RequiredPropertiesConfig properties;
 	unique_ptr<Ipi::EngineIpi> engine;
 
-	// The graph result for each component. An exception would fail the test.
+	// The graph result for each component, with every graph walked before the
+	// slots are read. An exception would fail the test.
 	vector<uint32_t> rawOffsets(const char* ipAddress) {
 		EXCEPTION_CREATE;
 		fiftyoneDegreesResultsIpi* results =
@@ -95,6 +96,9 @@ protected:
 			ipAddress,
 			strlen(ipAddress),
 			exception);
+		if (EXCEPTION_OKAY) {
+			fiftyoneDegreesResultsEvaluateAll(&results->b, exception);
+		}
 		vector<uint32_t> offsets;
 		for (uint32_t i = 0; i < results->count; i++) {
 			offsets.push_back(results->items[i].graphResult.rawOffset);

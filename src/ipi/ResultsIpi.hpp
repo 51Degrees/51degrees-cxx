@@ -33,6 +33,7 @@
 
 
 class EngineIpIntelligenceTests;
+class IpiFirstReadJsonTests;
 
 namespace FiftyoneDegrees {
 	namespace IpIntelligence {
@@ -50,6 +51,17 @@ namespace FiftyoneDegrees {
 		 * The key used to get the value for a property can be either the
 		 * name of the property, or the index of the property in the
 		 * required properties structure.
+		 *
+		 * The first read of a property of a component walks the component's
+		 * graph, against the data set the results hold. A walk that fails
+		 * throws from that read and is not repeated, so later reads of the
+		 * component's properties read as if it had no profile.
+		 *
+		 * A results instance is used by one thread at a time, because
+		 * reading a value writes into the results and the first read of a
+		 * component walks its graph. Different results instances can be
+		 * used on different threads at once, and the engine that created
+		 * them can be shared, when EngineBase::getIsThreadSafe is true.
 		 *
 		 * Results instances should only be created by an Engine.
 		 *
@@ -72,6 +84,7 @@ namespace FiftyoneDegrees {
 		 */
 		class ResultsIpi : public ResultsBase {
 			friend class ::EngineIpIntelligenceTests;
+			friend class ::IpiFirstReadJsonTests;
 		public:
 			/**
 			 * @name Constructors and Destructors

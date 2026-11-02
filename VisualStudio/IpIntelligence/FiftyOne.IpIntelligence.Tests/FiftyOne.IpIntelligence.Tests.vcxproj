@@ -39,6 +39,8 @@
     <ClCompile Include="..\..\..\test\ipi\HeaderStatusTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\InvalidVersionTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiDoubleTextTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiFirstReadFileTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiFirstReadTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiReloadTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiSizeManagerFromMemoryTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\MemLeakReloadFromFileTests.cpp" />
