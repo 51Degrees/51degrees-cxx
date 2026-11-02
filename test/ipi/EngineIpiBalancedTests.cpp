@@ -69,6 +69,10 @@ static const char* balancedHeldType = "CollectionHeld";
 
 static const size_t balancedBufferBytes = 1024 * 1024;
 
+// The bytes that holding what is named keeps back for its own working, as
+// HELD_RESERVED_BYTES in src/ipi/ipi.c.
+static const size_t balancedReservedBytes = 131072;
+
 // Sets of properties from the examples, the documentation and common uses.
 static const char* balancedCommonSets[] = {
 	"IpRangeStart,IpRangeEnd,RegisteredCountry,RegisteredName,RegisteredOwner",
@@ -399,6 +403,47 @@ protected:
 		return size;
 	}
 
+	// Loads the data file with the memory tracked, setting the bytes still
+	// allocated once it is loaded and the most allocated while loading.
+	void loadTracked(
+		fiftyoneDegreesConfigIpi config,
+		const char* required,
+		size_t* loaded,
+		size_t* most) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesPropertiesRequired properties =
+			fiftyoneDegreesPropertiesDefault;
+		properties.string = required;
+		fiftyoneDegreesResourceManager manager;
+		fiftyoneDegreesMemoryTrackingReset();
+		fiftyoneDegreesMalloc = fiftyoneDegreesMemoryTrackingMalloc;
+		fiftyoneDegreesMallocAligned =
+			fiftyoneDegreesMemoryTrackingMallocAligned;
+		fiftyoneDegreesFree = fiftyoneDegreesMemoryTrackingFree;
+		fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryTrackingFreeAligned;
+		const fiftyoneDegreesStatusCode status =
+			fiftyoneDegreesIpiInitManagerFromFile(
+				&manager,
+				&config,
+				&properties,
+				dataFilePath.c_str(),
+				exception);
+		*loaded = fiftyoneDegreesMemoryTrackingGetAllocated();
+		*most = fiftyoneDegreesMemoryTrackingGetMax();
+		if (status == FIFTYONE_DEGREES_STATUS_SUCCESS) {
+			fiftyoneDegreesResourceManagerFree(&manager);
+		}
+		// Standard operation again, as the size functions leave it.
+		fiftyoneDegreesMalloc = fiftyoneDegreesMemoryStandardMalloc;
+		fiftyoneDegreesMallocAligned =
+			fiftyoneDegreesMemoryStandardMallocAligned;
+		fiftyoneDegreesFree = fiftyoneDegreesMemoryStandardFree;
+		fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryStandardFreeAligned;
+		fiftyoneDegreesMemoryTrackingReset();
+		ASSERT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, status);
+		EXCEPTION_THROW;
+	}
+
 	// The answers from the preset naming the properties match Low Memory.
 	void expectSameAnswers(
 		const fiftyoneDegreesConfigIpi& preset,
@@ -528,6 +573,26 @@ TEST_F(IpiBalancedTests, NamingNeverUsesMoreMemory) {
 	EXPECT_LE(
 		sizeOf(fiftyoneDegreesIpiBalancedConfig, allButOne.c_str()),
 		nothing);
+}
+
+// What naming fewer properties holds is paid for by what it leaves on file,
+// less the bytes it keeps back for its own working. So the most used while
+// loading may pass what the data set keeps by no more than those bytes,
+// whatever the data file saves.
+TEST_F(IpiBalancedTests, NamingAddsNoMoreWhileLoadingThanItKeepsBack) {
+	const string sets[] = { oneComponent, oneOfEach, allButOne };
+	for (const string& set : sets) {
+		size_t loaded = 0;
+		size_t most = 0;
+		ASSERT_NO_FATAL_FAILURE(loadTracked(
+			fiftyoneDegreesIpiBalancedConfig,
+			set.c_str(),
+			&loaded,
+			&most));
+		EXPECT_LE(most - loaded, balancedReservedBytes) <<
+			"Most while loading " << most << ", loaded " << loaded <<
+			", naming " << set.substr(0, 60);
+	}
 }
 
 TEST_F(IpiBalancedTests, CommonSetsGiveTheSameAnswersInNoMoreMemory) {
