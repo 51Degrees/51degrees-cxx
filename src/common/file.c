@@ -572,8 +572,8 @@ static bool isFileInUse(const char *pathName) {
 						}
 					}
 				}
+				closedir(fdDir);
 			}
-			closedir(fdDir);
 		}
 		closedir(procDir);
 	}
@@ -800,7 +800,7 @@ fiftyoneDegreesStatusCode fiftyoneDegreesFileAddTempFileName(
 		if (charsAdded < 0) {
 			status = ENCODING_ERROR;
 		}
-		else if ((size_t)charsAdded > length) {
+		else if ((size_t)charsAdded >= length) {
 			status = INSUFFICIENT_MEMORY;
 		}
 		else {
@@ -808,7 +808,7 @@ fiftyoneDegreesStatusCode fiftyoneDegreesFileAddTempFileName(
 		}
 	
 		// Discard any changes to the destination if error occurred
-		if (status != NOT_SET && status != SUCCESS) {
+		if (status != NOT_SET && status != SUCCESS && length > 0) {
 			memset(destination + nameStart, 0, length);
 		}
 	} while (status == SUCCESS && fileExists(destination));
@@ -866,7 +866,7 @@ static fiftyoneDegreesStatusCode createTempFileWithPaths(
 		if (charAdded < 0) {
 			status = ENCODING_ERROR;
 		}
-		else if ((size_t)charAdded > length) {
+		else if ((size_t)charAdded >= length) {
 			status = INSUFFICIENT_MEMORY;
 		}
 		else {
