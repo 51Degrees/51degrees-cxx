@@ -355,8 +355,9 @@ EXTERNAL_VAR fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig;
  * Uses caching to balance memory usage and performance. A connection is
  * maintained to the source data file to load data into caches when required.
  * As the cache is loaded, memory will increase until the cache capacity is
- * reached. The concurrency of each collection must be set to the maximum
- * number of concurrent operations to optimize file reads. This is the default
+ * reached. The components, maps, properties and root nodes are held in memory.
+ * The concurrency of each collection must be set to the maximum number of
+ * concurrent operations to optimize file reads. This is the default
  * configuration.
  * In this configuration, both the performance and predictive graphs are
  * enabled, as performance is not as big of a concern in this configuration, so
