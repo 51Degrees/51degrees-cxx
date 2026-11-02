@@ -143,6 +143,9 @@
     <ClInclude Include="..\..\..\test\common\Base.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\test\common\DoubleText.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\test\common\EngineTests.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

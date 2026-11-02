@@ -140,7 +140,32 @@ fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddInteger(
 		(size_t)(temp + sizeof(temp) - first));
 }
 
-StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
+/**
+ * The most decimal places written from the scaled value as an integer.
+ */
+#define STRING_BUILDER_DOUBLE_MAX_PLACES 6
+
+/**
+ * The least distance, in parts of the last decimal place, between the scaled
+ * fraction and a whole number or a half for it to be written as an integer.
+ * With up to six places the two ways of working out the places differ by less
+ * than 0.000000001 of the last place, so further away they round the same way.
+ */
+#define STRING_BUILDER_DOUBLE_MARGIN 0.000001
+
+/**
+ * Values must be inside this for their integer part to be an int.
+ */
+#define STRING_BUILDER_DOUBLE_LIMIT 2147483647.0
+
+static const uint32_t doublePlacesScale[] = {
+	1, 10, 100, 1000, 10000, 100000, 1000000 };
+
+/**
+ * Adds the value one decimal place at a time, rounding the last place half
+ * away from zero and leaving out trailing zeros.
+ */
+static StringBuilder* addDoubleByPlace(
 	fiftyoneDegreesStringBuilder * const builder,
 	const double value,
 	const uint8_t decimalPlaces) {
@@ -233,6 +258,61 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 	StringBuilderAddInteger(builder, intPart);
 	StringBuilderAddChars(builder, floatTail, digitsToAdd + 1);
 	return builder;
+}
+
+StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
+	fiftyoneDegreesStringBuilder * const builder,
+	const double value,
+	const uint8_t decimalPlaces) {
+	// Up to six places are written from the integer of the fraction scaled by
+	// the places, which is quicker than addDoubleByPlace and gives the same
+	// text. The two could only round apart when the scaled fraction is close
+	// to a whole number or a half, so those values, and other numbers of
+	// places, are added one place at a time.
+	if (decimalPlaces >= 1 &&
+		decimalPlaces <= STRING_BUILDER_DOUBLE_MAX_PLACES &&
+		value > -STRING_BUILDER_DOUBLE_LIMIT &&
+		value < STRING_BUILDER_DOUBLE_LIMIT) {
+		const int intPart = (int)value;
+		const double fraction = value < 0 ? intPart - value : value - intPart;
+		const double scaled = fraction * doublePlacesScale[decimalPlaces];
+		uint32_t digits = (uint32_t)scaled;
+		const double rest = scaled - digits;
+		if (rest > STRING_BUILDER_DOUBLE_MARGIN &&
+			rest < 1 - STRING_BUILDER_DOUBLE_MARGIN &&
+			(rest < 0.5 - STRING_BUILDER_DOUBLE_MARGIN ||
+			rest > 0.5 + STRING_BUILDER_DOUBLE_MARGIN)) {
+			if (rest > 0.5) {
+				digits++;
+			}
+			if (digits == doublePlacesScale[decimalPlaces]) {
+				// The places round up into the integer part.
+				return StringBuilderAddInteger(
+					builder,
+					value < 0 ? (int64_t)intPart - 1 : (int64_t)intPart + 1);
+			}
+			if (digits == 0) {
+				return StringBuilderAddInteger(builder, intPart);
+			}
+			char text[STRING_BUILDER_DOUBLE_MAX_PLACES + 1];
+			int places = decimalPlaces;
+			while (digits % 10 == 0) {
+				digits /= 10;
+				places--;
+			}
+			text[0] = '.';
+			for (int i = places; i > 0; i--) {
+				text[i] = (char)('0' + digits % 10);
+				digits /= 10;
+			}
+			if (value < 0 && intPart == 0) {
+				StringBuilderAddChar(builder, '-');
+			}
+			StringBuilderAddInteger(builder, intPart);
+			return StringBuilderAddChars(builder, text, (size_t)places + 1);
+		}
+	}
+	return addDoubleByPlace(builder, value, decimalPlaces);
 }
 
 fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddChars(
