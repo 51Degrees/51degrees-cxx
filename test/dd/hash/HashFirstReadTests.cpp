@@ -235,13 +235,14 @@ std::string valueOf(
 	fiftyoneDegreesResultsHash* results,
 	const char* name) {
 	std::vector<char> buffer(textBufferBytes, '\0');
+	char separator[] = "|";
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	fiftyoneDegreesResultsHashGetValuesString(
 		results,
 		name,
 		buffer.data(),
 		buffer.size(),
-		"|",
+		separator,
 		exception);
 	FIFTYONE_DEGREES_EXCEPTION_THROW;
 	return std::string(buffer.data());
