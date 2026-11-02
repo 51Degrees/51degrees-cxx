@@ -1362,6 +1362,27 @@ static void heldPlanFree(heldPlan* plan) {
 	heldFreeIfSet(plan->profiles);
 }
 
+/**
+ * Keeps only the first count ranges, so that a list sized for the most there
+ * could be is not still allocated while what it lists is held.
+ */
+static StatusCode heldRangesTrim(heldRange** ranges, const uint32_t count) {
+	heldRange* trimmed = NULL;
+	if (*ranges == NULL) {
+		return SUCCESS;
+	}
+	if (count > 0) {
+		trimmed = (heldRange*)Malloc(sizeof(heldRange) * count);
+		if (trimmed == NULL) {
+			return INSUFFICIENT_MEMORY;
+		}
+		memcpy(trimmed, *ranges, sizeof(heldRange) * count);
+	}
+	Free(*ranges);
+	*ranges = trimmed;
+	return SUCCESS;
+}
+
 static void heldPlanScanValue(void* state, const byte* record) {
 	heldPlan* const plan = (heldPlan*)state;
 	const uint32_t offset = (uint32_t)((const Value*)record)->nameOffset;
@@ -1888,7 +1909,28 @@ static StatusCode heldPlanApply(
 	DataSetIpi* dataSet,
 	FILE* file,
 	const heldPlan* plan) {
-	StatusCode status = heldCreate(
+	StatusCode status;
+	// Holding the profile groups frees their cache, so it comes before what
+	// adds to the memory used.
+	if (plan->holdProfileGroups) {
+		// With no profile groups there is nothing to hold or to read.
+		static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
+		static const fiftyoneDegreesCollectionConfig onFile = { false, 0, 0 };
+		FIFTYONE_DEGREES_COLLECTION_FREE(dataSet->profileGroups);
+		dataSet->profileGroups = CollectionCreateFromFile(
+			file,
+			&dataSet->b.b.filePool,
+			dataSet->header.profileGroups.length > 0 ? &inMemory : &onFile,
+			dataSet->header.profileGroups,
+			CollectionReadFileFixed);
+		if (dataSet->profileGroups == NULL) {
+			return getCollectionFileStatus(
+				dataSet,
+				dataSet->header.profileGroups,
+				0);
+		}
+	}
+	status = heldCreate(
 		&dataSet->strings,
 		file,
 		(uint64_t)dataSet->header.strings.startPosition,
@@ -1907,24 +1949,6 @@ static StatusCode heldPlanApply(
 		plan->valuesCount);
 	if (status != SUCCESS) {
 		return status;
-	}
-	if (plan->holdProfileGroups) {
-		// With no profile groups there is nothing to hold or to read.
-		static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
-		static const fiftyoneDegreesCollectionConfig onFile = { false, 0, 0 };
-		FIFTYONE_DEGREES_COLLECTION_FREE(dataSet->profileGroups);
-		dataSet->profileGroups = CollectionCreateFromFile(
-			file,
-			&dataSet->b.b.filePool,
-			dataSet->header.profileGroups.length > 0 ? &inMemory : &onFile,
-			dataSet->header.profileGroups,
-			CollectionReadFileFixed);
-		if (dataSet->profileGroups == NULL) {
-			return getCollectionFileStatus(
-				dataSet,
-				dataSet->header.profileGroups,
-				0);
-		}
 	}
 	status = heldEnlargeProfileCache(dataSet, file, plan);
 	if (status != SUCCESS) {
@@ -1953,13 +1977,17 @@ static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
 	}
 	status = heldPlanCreate(dataSet, file, &plan, exception);
 	if (status == SUCCESS && EXCEPTION_OKAY) {
-		// The memory used to work out the plan goes first so that it does not
-		// add to the most memory used.
+		// The memory used to work out the plan goes first, and the stretches of
+		// the strings, listed with room for one in every 64 KB of them, keep
+		// only those found, so that neither adds to the most memory used.
 		heldFreeIfSet(plan.buffer);
 		plan.buffer = NULL;
 		heldFreeIfSet(plan.buckets);
 		plan.buckets = NULL;
-		status = heldPlanApply(dataSet, file, &plan);
+		status = heldRangesTrim(&plan.strings, plan.stringsCount);
+		if (status == SUCCESS) {
+			status = heldPlanApply(dataSet, file, &plan);
+		}
 	}
 	heldPlanFree(&plan);
 	fclose(file);
