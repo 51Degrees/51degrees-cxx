@@ -774,3 +774,56 @@ TEST_F(Properties, Positions_ExistingWithNoNamesHasEveryProperty) {
 	EXPECT_GE(positionOf(reloaded, "Cyan"), 0);
 	fiftyoneDegreesPropertiesFree(reloaded);
 }
+
+/** The reads of a name made so far by getStringFailing. */
+static int nameCalls = 0;
+
+/** The read that gives no name, counting from one, or zero for none. */
+static int nameFailsOn = 0;
+
+/**
+ * Gets a property name as getStringValue does, but with no name on the chosen
+ * read, as a data set gives when the name cannot be read.
+ */
+static const fiftyoneDegreesString* getStringFailing(
+	void *state,
+	uint32_t index,
+	fiftyoneDegreesCollectionItem *item) {
+	if (index < ((stringCollectionState*)state)->count &&
+		++nameCalls == nameFailsOn) {
+		fiftyoneDegreesDataReset(&item->data);
+		item->collection = nullptr;
+		item->handle = nullptr;
+		return nullptr;
+	}
+	return getStringValue(state, index, item);
+}
+
+/**
+ * Test that the properties are still created, without comparing a missing
+ * name, when any one read of a name fails, and that nothing is left allocated.
+ * A name missing from the list is left for the caller to report.
+ */
+TEST_F(Properties, EachNameNotRead_FreesAll) {
+	fiftyoneDegreesPropertiesRequired required =
+		fiftyoneDegreesPropertiesDefault;
+	nameCalls = 0;
+	nameFailsOn = 0;
+	properties = fiftyoneDegreesPropertiesCreate(
+		&required,
+		strings->getState(),
+		getStringFailing,
+		getEvidenceProperties);
+	ASSERT_NE(nullptr, properties);
+	const int calls = nameCalls;
+	for (int n = 1; n <= calls; n++) {
+		fiftyoneDegreesPropertiesFree(properties);
+		nameCalls = 0;
+		nameFailsOn = n;
+		properties = fiftyoneDegreesPropertiesCreate(
+			&required,
+			strings->getState(),
+			getStringFailing,
+			getEvidenceProperties);
+	}
+}

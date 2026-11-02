@@ -377,12 +377,6 @@ protected:
 	vector<string> allNames;
 	int componentCount = 0;
 
-	void skipWithOneComponent() {
-		if (componentCount < 2) {
-			GTEST_SKIP() << "The data file has one component.";
-		}
-	}
-
 	size_t sizeOf(
 		fiftyoneDegreesConfigIpi config,
 		const char* required) {
@@ -445,7 +439,9 @@ TEST_F(IpiBalancedTests, NamingNothingKeepsThePreset) {
 	{
 		BalancedDataSet dataSet(&manager.manager);
 		EXPECT_STREQ(balancedMemoryType, dataSet->strings->typeName);
-		EXPECT_STREQ(balancedCacheType, dataSet->values->typeName);
+		// Only the default values are held, and the rest read through the
+		// cache of the preset.
+		EXPECT_STREQ(balancedHeldType, dataSet->values->typeName);
 		EXPECT_STREQ(balancedCacheType, dataSet->profiles->typeName);
 		EXPECT_EQ(
 			fiftyoneDegreesIpiBalancedConfig.profiles.capacity,
@@ -477,6 +473,62 @@ TEST_F(IpiBalancedTests, NamingEveryPropertyKeepsThePreset) {
 	EXPECT_STREQ(
 		balancedMemoryType,
 		BalancedDataSet(&manager.manager)->strings->typeName);
+}
+
+TEST_F(IpiBalancedTests, DefaultValuesAreHeldWhenNothingIsNamed) {
+	vector<const char*> names;
+	for (const string& name : allNames) {
+		names.push_back(name.c_str());
+	}
+	fiftyoneDegreesPropertiesRequired every = fiftyoneDegreesPropertiesDefault;
+	every.array = names.data();
+	every.count = (int)names.size();
+	const fiftyoneDegreesPropertiesRequired namings[] = {
+		fiftyoneDegreesPropertiesDefault,
+		every };
+	const fiftyoneDegreesConfigIpi* presets[] = {
+		&fiftyoneDegreesIpiBalancedConfig,
+		&fiftyoneDegreesIpiDefaultConfig };
+	for (const fiftyoneDegreesConfigIpi* preset : presets) {
+		for (const fiftyoneDegreesPropertiesRequired& properties : namings) {
+			BalancedManager manager(dataFilePath, *preset, properties);
+			BalancedDataSet dataSet(&manager.manager);
+			const fiftyoneDegreesPropertiesAvailable* available =
+				dataSet->b.b.available;
+			uint32_t defaults = 0;
+			for (uint32_t i = 0; i < available->count; i++) {
+				EXCEPTION_CREATE;
+				fiftyoneDegreesCollectionItem item;
+				fiftyoneDegreesDataReset(&item.data);
+				const fiftyoneDegreesProperty* property =
+					fiftyoneDegreesPropertyGet(
+						dataSet->properties,
+						available->items[i].propertyIndex,
+						&item,
+						exception);
+				EXCEPTION_THROW;
+				ASSERT_NE(nullptr, property);
+				const uint32_t index = property->defaultValueIndex;
+				FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->properties, &item);
+				if (index >= dataSet->values->count) {
+					continue;
+				}
+				fiftyoneDegreesDataReset(&item.data);
+				ASSERT_NE(nullptr, fiftyoneDegreesValueGet(
+					dataSet->values,
+					index,
+					&item,
+					exception));
+				EXCEPTION_THROW;
+				EXPECT_EQ(nullptr, item.handle) <<
+					"The default value of required index " << i <<
+					" was not held.";
+				FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->values, &item);
+				defaults++;
+			}
+			EXPECT_GT(defaults, 0u);
+		}
+	}
 }
 
 TEST_F(IpiBalancedTests, OtherPresetsAreUnchangedByNaming) {
@@ -561,9 +613,8 @@ TEST_F(IpiBalancedTests, CommonSetsGiveTheSameAnswersInNoMoreMemory) {
 }
 
 TEST_F(IpiBalancedTests, ProfileCacheGrowsWhenProfilesStayOnFile) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	// One property of the largest component, where the budget is plenty for a
 	// larger cache but not for the profiles.
@@ -584,9 +635,8 @@ TEST_F(IpiBalancedTests, ProfileCacheGrowsWhenProfilesStayOnFile) {
 }
 
 TEST_F(IpiBalancedTests, ProfileCacheOfTheCallerIsNotReduced) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	const char* required = "Country";
 	if (find(allNames.begin(), allNames.end(), required) == allNames.end()) {
@@ -727,9 +777,8 @@ TEST_F(IpiBalancedTests, ManyLiveResultsDoNotUseUpTheProfileCache) {
 }
 
 TEST_F(IpiBalancedTests, GraphsOfOtherComponentsStayOnFile) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	BalancedManager manager(
 		dataFilePath,
@@ -933,9 +982,8 @@ TEST_F(IpiBalancedTests, DefaultValuesReadForALookupOfNothing) {
 }
 
 TEST_F(IpiBalancedTests, PropertyThatWasNotNamedGivesWhatItGaveBefore) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	BalancedManager expected(
 		dataFilePath,
@@ -1040,6 +1088,16 @@ TEST_F(IpiBalancedTests, NamesThatMatchNothingFailAsBefore) {
 			&properties,
 			dataFilePath.c_str(),
 			exception));
+}
+
+TEST_F(IpiBalancedTests, PresetCachesFiftyThousandValues) {
+	const fiftyoneDegreesConfigIpi* presets[] = {
+		&fiftyoneDegreesIpiBalancedConfig,
+		&fiftyoneDegreesIpiDefaultConfig,
+		&fiftyoneDegreesIpiBalancedTempConfig };
+	for (const fiftyoneDegreesConfigIpi* preset : presets) {
+		EXPECT_EQ(50000u, preset->values.capacity);
+	}
 }
 
 TEST_F(IpiBalancedTests, EngineMetaDataMatches) {
@@ -1201,11 +1259,7 @@ protected:
 	std::vector<unsigned char> data;
 	string tempFilePath;
 
-	void readSmallFile() {
-		const string path = GetFilePath(_dataFolderName, balancedAsnFileName);
-		if (path.empty()) {
-			GTEST_SKIP() << "The small data file was not found.";
-		}
+	void readSmallFile(const string& path) {
 		FILE* file = fopen(path.c_str(), "rb");
 		ASSERT_NE(nullptr, file);
 		fseek(file, 0, SEEK_END);
@@ -1288,10 +1342,11 @@ protected:
 };
 
 TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
-	ASSERT_NO_FATAL_FAILURE(readSmallFile());
-	if (IsSkipped()) {
-		return;
+	const string smallFile = GetFilePath(_dataFolderName, balancedAsnFileName);
+	if (smallFile.empty()) {
+		GTEST_SKIP() << "The small data file was not found.";
 	}
+	ASSERT_NO_FATAL_FAILURE(readSmallFile(smallFile));
 	// Point the default value of the first property at a value of the second,
 	// and make the property mandatory so that the default is used.
 	const uint64_t properties = header()->properties.startPosition;
@@ -1366,9 +1421,8 @@ TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
 }
 
 TEST_F(IpiBalancedFileTests, NothingIsAllocatedDuringALookupOfHeldData) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	BalancedManager manager(
 		dataFilePath,
@@ -1406,10 +1460,11 @@ TEST_F(IpiBalancedFileTests, NothingIsAllocatedDuringALookupOfHeldData) {
 }
 
 TEST_F(IpiBalancedFileTests, TruncatedFileFailsWhenStringsAreHeld) {
-	ASSERT_NO_FATAL_FAILURE(readSmallFile());
-	if (IsSkipped()) {
-		return;
+	const string smallFile = GetFilePath(_dataFolderName, balancedAsnFileName);
+	if (smallFile.empty()) {
+		GTEST_SKIP() << "The small data file was not found.";
 	}
+	ASSERT_NO_FATAL_FAILURE(readSmallFile(smallFile));
 	// Cut the file part way through the strings. Holding them would otherwise
 	// be the first thing to read them.
 	data.resize((size_t)header()->strings.startPosition + 1024);

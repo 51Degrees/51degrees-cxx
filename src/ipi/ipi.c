@@ -535,15 +535,15 @@ static const String* initGetPropertyString(
 			&indexKey,
 			&propertyItem,
 			exception);
-		if (property != NULL && EXCEPTION_OKAY) {
-			name = PropertyGetName(
-				dataSet->strings,
-				property,
-				item,
-				exception);
+		if (property != NULL) {
 			if (EXCEPTION_OKAY) {
-				COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+				name = PropertyGetName(
+					dataSet->strings,
+					property,
+					item,
+					exception);
 			}
+			COLLECTION_RELEASE(dataSet->properties, &propertyItem);
 		}
 	}
 	return name;
@@ -804,18 +804,41 @@ static byte getProfilesOffsetShift(const DataSetIpi* dataSet) {
 }
 #endif
 
-static void initDataSetPost(
+/**
+ * Gets the status for a failure, which is the exception's if it holds one. An
+ * exception holding success was not cleared before the call, which stops the
+ * init methods in the same way.
+ */
+static StatusCode getFailureStatus(
+	StatusCode status,
+	Exception *exception) {
+#ifdef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
+	(void)exception;
+#else
+	if (EXCEPTION_FAILED) {
+		return exception->status == SUCCESS ? INVALID_INPUT : exception->status;
+	}
+#endif
+	return status;
+}
+
+static StatusCode initDataSetPost(
 	DataSetIpi* dataSet,
 	Exception* exception) {
 	
-	// Initialise the components lists
+	// Initialise the components lists. A list short of the count fails, which
+	// the status shows whether or not there is an exception to show it.
 	ComponentInitList(
 		dataSet->components,
 		&dataSet->componentsList,
 		dataSet->header.components.count,
 		exception);
-	if (EXCEPTION_FAILED) {
-		return;
+	if (EXCEPTION_FAILED ||
+		dataSet->componentsList.count < dataSet->header.components.count) {
+		return getFailureStatus(
+			dataSet->componentsList.items == NULL ?
+				INSUFFICIENT_MEMORY : CORRUPT_DATA,
+			exception);
 	}
 
 	// Initialise the components which have required properties.
@@ -823,12 +846,13 @@ static void initDataSetPost(
 		sizeof(bool) * dataSet->componentsList.count);
 	if (dataSet->componentsAvailable == NULL) {
 		EXCEPTION_SET(INSUFFICIENT_MEMORY);
-		return;
+		return INSUFFICIENT_MEMORY;
 	}
 	memset(
 		(char*)dataSet->componentsAvailable,
 		0,
 		sizeof(bool) * dataSet->componentsList.count);
+	return SUCCESS;
 }
 
 static StatusCode initWithMemory(
@@ -902,15 +926,18 @@ static StatusCode initWithMemory(
 		dataSet->graphs,
 		reader,
 		exception);
+	if (dataSet->graphsArray == NULL) {
+		// Graphs the memory is too short to hold leave the position short of
+		// the end, so their failure is returned first.
+		return getFailureStatus(CORRUPT_DATA, exception);
+	}
 
 	/* Check that the current pointer equals the last byte */
 	if (reader->lastByte != reader->current) {
 		return POINTER_OUT_OF_BOUNDS;
 	}
 
-	initDataSetPost(dataSet, exception);
-
-	return status;
+	return initDataSetPost(dataSet, exception);
 }
 
 static StatusCode initInMemory(
@@ -1040,6 +1067,10 @@ static StatusCode createProfilesFromFile(
  * memory never rises and lookups need fewer locks, file reads and allocations.
  * Everything still reads from the file if it is not held, so this can only
  * change where an answer comes from and never the answer.
+ *
+ * A caller who names nothing, or every property, has only the default values
+ * held, which a lookup reads for each mandatory property its profile has no
+ * value for.
  */
 
 /**
@@ -1967,6 +1998,60 @@ static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
 }
 
 /**
+ * Holds the default value of each required property, so that reading one takes
+ * no lock and reads nothing from the file. Anything allocated is freed with the
+ * data set if this fails.
+ */
+static StatusCode heldDefaultsInit(DataSetIpi* dataSet, Exception* exception) {
+	const PropertiesAvailable* const available = dataSet->b.b.available;
+	const uint32_t valueCount = dataSet->values->count;
+	uint32_t count = 0;
+	FILE* file;
+	if (available->count == 0) {
+		return SUCCESS;
+	}
+	heldRange* const ranges = (heldRange*)Malloc(
+		sizeof(heldRange) * available->count);
+	if (ranges == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t i = 0; i < available->count; i++) {
+		Item item;
+		DataReset(&item.data);
+		const Property* const property = PropertyGet(
+			dataSet->properties,
+			available->items[i].propertyIndex,
+			&item,
+			exception);
+		if (property == NULL || EXCEPTION_FAILED) {
+			Free(ranges);
+			return COLLECTION_FAILURE;
+		}
+		const uint32_t index = property->defaultValueIndex;
+		COLLECTION_RELEASE(dataSet->properties, &item);
+		if (index < valueCount) {
+			heldRangeAdd(ranges, &count, index, index + 1);
+		}
+	}
+	StatusCode status = SUCCESS;
+	if (count > 0) {
+		status = FileOpen(dataSet->b.b.fileName, &file);
+		if (status == SUCCESS) {
+			status = heldCreate(
+				&dataSet->values,
+				file,
+				(uint64_t)dataSet->header.values.startPosition,
+				dataSet->values->elementSize,
+				ranges,
+				count);
+			fclose(file);
+		}
+	}
+	Free(ranges);
+	return status;
+}
+
+/**
  * Gets the number of names in a list of required properties.
  */
 static uint32_t heldCountNames(const char* list) {
@@ -1984,20 +2069,26 @@ static uint32_t heldCountNames(const char* list) {
 }
 
 /**
+ * True for the shape of the Balanced preset, which holds the strings and the
+ * graphs in memory and reads the values and the profiles from the file. The
+ * other presets use the configuration as it is.
+ */
+static bool heldIsBalanced(const ConfigIpi* config) {
+	return config->b.allInMemory == false &&
+		config->strings.loaded &&
+		config->graph.loaded &&
+		config->values.loaded == false &&
+		config->profiles.loaded == false;
+}
+
+/**
  * True for the shape of the Balanced preset when the caller has named fewer
- * properties than the data file has. The other presets, and a caller who names
- * nothing, use the configuration as it is.
+ * properties than the data file has.
  */
 static bool heldIsWanted(
 	const DataSetIpi* dataSet,
 	const PropertiesRequired* properties) {
-	const ConfigIpi* const config = &dataSet->config;
-	if (config->b.allInMemory ||
-		config->strings.loaded == false ||
-		config->graph.loaded == false ||
-		config->values.loaded ||
-		config->profiles.loaded ||
-		properties == NULL) {
+	if (heldIsBalanced(&dataSet->config) == false || properties == NULL) {
 		return false;
 	}
 	const uint32_t count = dataSet->header.properties.count;
@@ -2086,11 +2177,12 @@ static StatusCode readDataSetFromFile(
 			// but the configuration for each individual graph.
 			dataSet->config.graph,
 			exception);
+		if (dataSet->graphsArray == NULL) {
+			return getFailureStatus(CORRUPT_DATA, exception);
+		}
 	}
 
-	initDataSetPost(dataSet, exception);
-
-	return status;
+	return initDataSetPost(dataSet, exception);
 }
 
 #endif
@@ -2251,6 +2343,15 @@ static StatusCode initDataSetFromFile(
 			return status;
 		}
 	}
+	else if (heldIsBalanced(&dataSet->config)) {
+		status = heldDefaultsInit(dataSet, exception);
+		if (status != SUCCESS || EXCEPTION_FAILED) {
+			if (config->b.useTempFile == true) {
+				FileDelete(dataSet->b.b.fileName);
+			}
+			return status;
+		}
+	}
 #endif
 
 	// Check there are properties available for retrieval.
@@ -2271,8 +2372,17 @@ fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromFile(
 	const char* fileName,
 	fiftyoneDegreesException* exception) {
 
+	// The init methods show some failures only in the exception, so they are
+	// always given one, and the status returned carries those failures.
+	Exception ownException;
+	if (exception == NULL) {
+		exception = &ownException;
+		EXCEPTION_CLEAR;
+	}
+
 	DataSetIpi* dataSet = (DataSetIpi*)Malloc(sizeof(DataSetIpi));
 	if (dataSet == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return INSUFFICIENT_MEMORY;
 	}
 
@@ -2282,7 +2392,10 @@ fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromFile(
 		properties,
 		fileName,
 		exception);
-	if (status != SUCCESS || EXCEPTION_FAILED) {
+	if (status == SUCCESS) {
+		status = getFailureStatus(status, exception);
+	}
+	if (status != SUCCESS) {
 		// Nothing below has taken ownership of the data set, so it is freed
 		// here on every failure. Without this the file path leaks it along
 		// with the file pool's open handles, which is the path every data
@@ -2402,8 +2515,17 @@ fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromMemory(
 	void* memory,
 	FileOffset size,
 	fiftyoneDegreesException* exception) {
+	// The init methods show some failures only in the exception, so they are
+	// always given one, and the status returned carries those failures.
+	Exception ownException;
+	if (exception == NULL) {
+		exception = &ownException;
+		EXCEPTION_CLEAR;
+	}
+
 	DataSetIpi* dataSet = (DataSetIpi*)Malloc(sizeof(DataSetIpi));
 	if (dataSet == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return INSUFFICIENT_MEMORY;
 	}
 
@@ -2414,7 +2536,10 @@ fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromMemory(
 		memory,
 		size,
 		exception);
-	if (status != SUCCESS || EXCEPTION_FAILED) {
+	if (status == SUCCESS) {
+		status = getFailureStatus(status, exception);
+	}
+	if (status != SUCCESS) {
 		// The memory stays with the caller until the data set is set up, so
 		// it is not freed with what the data set allocated.
 		dataSet->b.b.memoryToFree = NULL;

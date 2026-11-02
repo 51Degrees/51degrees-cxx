@@ -45,7 +45,7 @@
     "Configuration": "Debug",
     "Arch": "x64",
     "BuildMethod": "cmake",
-    "Products": ["common"]
+    "Products": ["common", "ipi"]
   },
   {
     "Image": "windows-latest",
@@ -82,6 +82,14 @@
   },
   {
     "Image": "ubuntu-latest",
+    "Name": "Ubuntu_x64_Debug_Asan",
+    "Configuration": "Debug",
+    "Arch": "x64",
+    "Asan": true,
+    "Products": ["common", "dd", "ipi"]
+  },
+  {
+    "Image": "ubuntu-latest",
     "Name": "Ubuntu_x86_Release",
     "Configuration": "Release",
     "Arch": "x86",
@@ -110,6 +118,15 @@
     "Configuration": "Release",
     "Arch": "x64",
     "CxxBothProducts": true,
+    "Products": ["dd", "ipi"]
+  },
+  {
+    "Image": "ubuntu-latest",
+    "Name": "Ubuntu_x64_Release_ExceptionsDisabled_BuildOnly",
+    "Configuration": "Release",
+    "Arch": "x64",
+    "ExceptionsDisabled": true,
+    "BuildOnly": true,
     "Products": ["dd", "ipi"]
   },
   {

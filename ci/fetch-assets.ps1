@@ -4,10 +4,17 @@ param (
     [string]$IpIntelligenceUrl,
     # The products to fetch for. Every product when not given, which is how
     # the asset cache is filled.
-    [string[]]$Products
+    [string[]]$Products,
+    # A build only entry runs nothing, so it needs no data files.
+    [bool]$BuildOnly
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
+
+if ($BuildOnly) {
+    Write-Output "No data files are needed to build without tests"
+    exit 0
+}
 
 $Products = $Products ? $Products : $AllProducts
 

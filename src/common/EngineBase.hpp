@@ -87,7 +87,7 @@ namespace FiftyoneDegrees {
 			 * configuration and properties provided.
 			 * @param config used to build the engine
 			 * @param properties the properties expected to be fetched
-			 * from results
+			 * from results, or null for every property
 			 */
 			EngineBase(
 				ConfigBase *config,

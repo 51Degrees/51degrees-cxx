@@ -4,10 +4,16 @@ param(
     [string]$Arch = "x64",
     [string]$Configuration = "Release",
     [string]$BuildMethod = "cmake",
-    [string[]]$Products
+    [string[]]$Products,
+    [bool]$BuildOnly
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
+
+if ($BuildOnly) {
+    Write-Output "'$Name' is built without its tests"
+    exit 0
+}
 
 if ($BuildMethod -ne "cmake") {
     # The Visual Studio builds have no CTest tests, so nothing runs here.

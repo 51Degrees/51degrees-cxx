@@ -89,7 +89,7 @@ static double readDoubleMatchingByteOrder(const byte ** const wkbBytes) {
 static uint16_t readUShortMismatchingByteOrder(const byte ** const wkbBytes) {
     byte t[2];
     for (short i = 0; i < 2; i++) {
-        t[i] = (*wkbBytes)[2 - i];
+        t[i] = (*wkbBytes)[1 - i];
     }
     *wkbBytes += 2;
     return *(uint16_t *)t;
@@ -97,7 +97,7 @@ static uint16_t readUShortMismatchingByteOrder(const byte ** const wkbBytes) {
 static int16_t readShortMismatchingByteOrder(const byte ** const wkbBytes) {
     byte t[2];
     for (short i = 0; i < 2; i++) {
-        t[i] = (*wkbBytes)[2 - i];
+        t[i] = (*wkbBytes)[1 - i];
     }
     *wkbBytes += 2;
     return *(int16_t *)t;
@@ -536,15 +536,17 @@ static void handleGeometry(
     const uint32_t coordType = geometryTypeFull / 1000;
     const uint32_t geometryCode = geometryTypeFull % 1000;
 
-    context->coordMode = CoordModes[coordType];
-
+    static size_t const CoordModesCount =
+        sizeof(CoordModes) / sizeof(CoordModes[0]);
     static size_t const GeometriesCount =
         sizeof(GEOMETRIES) / sizeof(GEOMETRIES[0]);
-    if (geometryCode >= GeometriesCount) {
+    if (coordType >= CoordModesCount || geometryCode >= GeometriesCount) {
         Exception * const exception = context->exception;
         EXCEPTION_SET(UNKNOWN_GEOMETRY);
         return;
     }
+
+    context->coordMode = CoordModes[coordType];
 
     const GeometryParser * const parser =
         GEOMETRIES[geometryCode];

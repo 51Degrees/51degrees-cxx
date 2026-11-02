@@ -215,8 +215,8 @@ TEST_F(HashSizeManagerFromMemoryTests, BytesLeftOver_ReportsOutOfBounds) {
 }
 
 /**
- * Test that a failure only the exception shows is left in the exception. The
- * init method returns success for this one.
+ * Test that a failure the init method finds in the exception is left in the
+ * exception.
  */
 TEST_F(HashSizeManagerFromMemoryTests, ComponentMissing_ReportsOutOfRange) {
 	Memory memory = emptyDataSet();

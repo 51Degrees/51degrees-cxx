@@ -71,7 +71,7 @@ EngineIpi::EngineIpi(
 	StatusCode status = IpiInitManagerFromMemory(
 		manager.get(),
 		&config->getConfig(),
-		properties->getConfig(),
+		properties ? properties->getConfig() : nullptr,
 		dataCopy,
 		(size_t)length,
 		exception);
@@ -335,8 +335,8 @@ IpIntelligence::ResultsIpi* EngineIpi::process(
 		requiredPropertyIndexes,
 		requiredPropertyIndexesCount,
 		exception);
-	if (exception->status !=
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
+	if (EXCEPTION_CHECK(
+		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
 		EXCEPTION_THROW;
 	}
 	return giveResults(results, manager);
@@ -355,8 +355,8 @@ IpIntelligence::ResultsIpi* EngineIpi::process(
 		requiredPropertyIndexes,
 		requiredPropertyIndexesCount,
 		exception);
-	if (exception->status !=
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
+	if (EXCEPTION_CHECK(
+		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
 		EXCEPTION_THROW;
 	}
 	return giveResults(results, manager);
@@ -378,8 +378,8 @@ IpIntelligence::ResultsIpi *EngineIpi::process(
 		requiredPropertyIndexes,
 		requiredPropertyIndexesCount,
 		exception);
-	if (exception->status !=
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
+	if (EXCEPTION_CHECK(
+		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
 		EXCEPTION_THROW;
 	}
 	return giveResults(results, manager);
@@ -393,8 +393,8 @@ Common::ResultsBase* EngineIpi::processBase(
 		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
 		exception);
-	if (exception->status != 
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
+	if (EXCEPTION_CHECK(
+		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
 		EXCEPTION_THROW;
 	}
 	return giveResults(results, manager);
