@@ -28,6 +28,8 @@
     <ClCompile Include="..\..\..\test\ipi\ExampleProcTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromFileTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleReloadFromMemoryTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiPositionsTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiPropertyNamesTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\MemLeakReloadFromFileTests.cpp" />
   </ItemGroup>
   <ItemGroup>
