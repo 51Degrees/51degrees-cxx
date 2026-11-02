@@ -91,10 +91,26 @@ The C examples create a set of results up front and use it for each detection.
 `EngineHash::process` in the C++ API creates a new set of results for each call,
 so there the memory is allocated once for each call, at the same fixed size.
 
+# Reading values
+
+Populating a set of results walks no graph. The results keep a copy of the
+evidence, and the graph of a component is walked the first time one of its
+properties is read, so a program that reads the properties of one component
+walks one graph. The values are the same whatever is read first. The copy is
+held in memory the results own, which grows to fit the largest evidence they
+are populated from, so the evidence can be freed once the results are
+populated.
+
+The match metrics, such as the iterations and the drift, and the device id
+are worked out from every component, so reading them walks every graph not yet
+walked. The C++ API does this itself. A C caller that reads the result items
+directly calls `fiftyoneDegreesResultsEvaluateAll` first.
+
 # Threads
 
 A set of results is used by one thread at a time, because reading a value
-writes into the results. A program that detects on several threads uses a set
+writes into the results and the first read of a property of a component walks
+the component's graph. A program that detects on several threads uses a set
 of results for each thread. The resource manager, or in C++ the engine, can be
 shared by every thread, unless the library is built with the `NoThreading`
 option described in the [common library README](../../src/common/README.md#nothreading).
