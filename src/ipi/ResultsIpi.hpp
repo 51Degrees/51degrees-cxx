@@ -33,6 +33,7 @@
 
 
 class EngineIpIntelligenceTests;
+class IpiFirstReadJsonTests;
 
 namespace FiftyoneDegrees {
 	namespace IpIntelligence {
@@ -83,6 +84,7 @@ namespace FiftyoneDegrees {
 		 */
 		class ResultsIpi : public ResultsBase {
 			friend class ::EngineIpIntelligenceTests;
+			friend class ::IpiFirstReadJsonTests;
 		public:
 			/**
 			 * @name Constructors and Destructors

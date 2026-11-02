@@ -29,14 +29,19 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <memory>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 #include "Constants.hpp"
 #include "../common/Base.hpp"
 #include "../../src/ipi/EngineIpi.hpp"
+#include "../../src/ipi/constantsIpi.h"
 
 /** Addresses the data files hold answers for, of both versions. */
 static const char* const firstReadAddresses[] = {
@@ -454,4 +459,264 @@ TEST_F(IpiFirstReadReloadTests, ReadAfterReload_WalksTheDataSetTheResultsHold) {
 	fiftyoneDegreesResultsIpiFree(reloaded);
 	fiftyoneDegreesResultsIpiFree(held);
 	fiftyoneDegreesResourceManagerFree(&manager);
+}
+
+namespace {
+
+/** Starting value of the fingerprint, from the 64 bit FNV-1a hash. */
+const uint64_t fingerprintOffsetBasis = 14695981039346656037ULL;
+
+/** Multiplier of the fingerprint, from the 64 bit FNV-1a hash. */
+const uint64_t fingerprintPrime = 1099511628211ULL;
+
+/** Significant digits written for a double, enough to tell any two apart. */
+const int jsonDoubleDigits = 17;
+
+/** Characters shown either side of the first difference between two texts. */
+const size_t differenceContextCharacters = 80;
+
+/** A fingerprint of the text, so that runs can be compared from their logs. */
+uint64_t fingerprint(const std::string& text) {
+	uint64_t hash = fingerprintOffsetBasis;
+	for (const char c : text) {
+		hash ^= (unsigned char)c;
+		hash *= fingerprintPrime;
+	}
+	return hash;
+}
+
+/** Where two texts first differ, or nothing when they are the same. */
+std::string firstDifference(
+	const std::string& expected,
+	const std::string& actual) {
+	if (expected == actual) {
+		return std::string();
+	}
+	size_t same = 0;
+	while (same < expected.size() && same < actual.size() &&
+		expected[same] == actual[same]) {
+		same++;
+	}
+	const size_t from = same > differenceContextCharacters ?
+		same - differenceContextCharacters : 0;
+	return "differs from character " + std::to_string(same) +
+		", expected '" + expected.substr(from, 2 * differenceContextCharacters) +
+		"', found '" + actual.substr(from, 2 * differenceContextCharacters) + "'";
+}
+
+void writeJson(std::ostringstream& json, const std::string& text) {
+	json << '"';
+	for (const char c : text) {
+		if (c == '"' || c == '\\') {
+			json << '\\';
+		}
+		json << c;
+	}
+	json << '"';
+}
+
+void writeJson(std::ostringstream& json, bool value) {
+	json << (value ? "true" : "false");
+}
+
+void writeJson(std::ostringstream& json, int value) {
+	json << value;
+}
+
+void writeJson(std::ostringstream& json, double value) {
+	json << value;
+}
+
+/** Writes the weighted values a getter gives, or why it gives none. */
+template <typename T>
+void writeJson(
+	std::ostringstream& json,
+	const FiftyoneDegrees::Common::Value<std::vector<
+		FiftyoneDegrees::IpIntelligence::WeightedValue<T>>>& value) {
+	if (value.hasValue() == false) {
+		const char* message = value.getNoValueMessage();
+		json << "{\"noValueReason\":" << (int)value.getNoValueReason() <<
+			",\"noValueMessage\":";
+		writeJson(json, std::string(message == nullptr ? "" : message));
+		json << "}";
+		return;
+	}
+	json << "[";
+	const char* separator = "";
+	for (const auto& item : value.getValue()) {
+		json << separator << "{\"value\":";
+		writeJson(json, item.getValue());
+		json << ",\"weight\":" << item.getRawWeight() << "}";
+		separator = ",";
+	}
+	json << "]";
+}
+
+/**
+ * Reads a property through the getter of ResultsIpi that its type needs, as
+ * the languages do to build JSON. Returns false if the getter threw, with
+ * what it threw as the JSON.
+ */
+bool readAsJson(
+	FiftyoneDegrees::IpIntelligence::ResultsIpi* results,
+	const std::string& name,
+	const std::string& type,
+	std::string& text) {
+	std::ostringstream json;
+	json.precision(jsonDoubleDigits);
+	try {
+		if (type == "bool" || type == "weightedbool") {
+			writeJson(json, results->getValuesAsWeightedBoolList(name));
+		}
+		else if (type == "int" || type == "weightedint") {
+			writeJson(json, results->getValuesAsWeightedIntegerList(name));
+		}
+		else if (type == "double" || type == "single" ||
+			type == "weighteddouble" || type == "weightedsingle") {
+			writeJson(json, results->getValuesAsWeightedDoubleList(name));
+		}
+		else if (type == "wkb") {
+			writeJson(json, results->getValuesAsWeightedWKTStringList(
+				name,
+				fiftyoneDegreesDefaultWktDecimalPlaces));
+		}
+		else {
+			// Strings and the reduced geometries, which the string list writes
+			// as text from the type they are stored as.
+			writeJson(json, results->getValuesAsWeightedStringList(name));
+		}
+	}
+	catch (const std::exception& e) {
+		json.str("");
+		json << "{\"exception\":";
+		writeJson(json, std::string(e.what()));
+		json << "}";
+		text = json.str();
+		return false;
+	}
+	text = json.str();
+	return true;
+}
+
+/** The name and type of each property the results make available. */
+std::vector<std::pair<std::string, std::string>> namesAndTypes(
+	FiftyoneDegrees::IpIntelligence::EngineIpi& engine,
+	FiftyoneDegrees::IpIntelligence::ResultsIpi* results) {
+	std::vector<std::pair<std::string, std::string>> properties;
+	std::unique_ptr<FiftyoneDegrees::Common::Collection<
+		std::string,
+		FiftyoneDegrees::Common::PropertyMetaData>> metaData(
+			engine.getMetaData()->getProperties());
+	for (const std::string& name : results->getProperties()) {
+		std::unique_ptr<FiftyoneDegrees::Common::PropertyMetaData> property(
+			metaData->getByKey(name));
+		properties.emplace_back(
+			name,
+			property == nullptr ? std::string() : property->getType());
+	}
+	return properties;
+}
+
+/**
+ * The JSON of every property, read in the order given, forwards or in
+ * reverse, and written in the order of the names. The name of each property
+ * whose getter threw is added to failed, with what it threw.
+ */
+std::string toJson(
+	FiftyoneDegrees::IpIntelligence::ResultsIpi* results,
+	const std::vector<std::pair<std::string, std::string>>& properties,
+	bool reverse,
+	std::vector<std::string>& failed) {
+	std::vector<std::string> read(properties.size());
+	for (size_t n = 0; n < properties.size(); n++) {
+		const size_t i = reverse ? properties.size() - 1 - n : n;
+		if (readAsJson(
+			results,
+			properties[i].first,
+			properties[i].second,
+			read[i]) == false) {
+			failed.push_back(properties[i].first + " (" +
+				properties[i].second + ") " + read[i]);
+		}
+	}
+	std::string json = "{";
+	for (size_t i = 0; i < properties.size(); i++) {
+		json += (i == 0 ? "\"" : ",\"") + properties[i].first + "\":" +
+			read[i];
+	}
+	return json + "}";
+}
+
+}
+
+/**
+ * Tests through the C++ classes that the languages build JSON with, which read
+ * every property through the getters of ResultsIpi.
+ */
+class IpiFirstReadJsonTests : public Base {
+protected:
+	/** Walks every graph of the results, as reading every property would. */
+	static void walkEveryGraph(
+		FiftyoneDegrees::IpIntelligence::ResultsIpi* results) {
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		fiftyoneDegreesResultsEvaluateAll(&results->results->b, exception);
+		FIFTYONE_DEGREES_EXCEPTION_THROW;
+	}
+};
+
+/**
+ * The JSON of every property is what it is when every graph is walked before
+ * the first read, whether the properties are read forwards or in reverse. The
+ * fingerprint of each address's JSON is written out, so that the JSON of
+ * different builds can be compared.
+ */
+TEST_F(IpiFirstReadJsonTests, Json_MatchesWalkingEveryGraphFirst) {
+	std::string dataFilePath;
+	for (int i = 0;
+		i < _IpiFileNamesLength && dataFilePath.empty();
+		i++) {
+		dataFilePath = GetFilePath(_dataFolderName, _IpiFileNames[i]);
+	}
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "No IP Intelligence data file was found.";
+	}
+	FiftyoneDegrees::IpIntelligence::ConfigIpi config;
+	config.setBalanced();
+	FiftyoneDegrees::Common::RequiredPropertiesConfig required;
+	FiftyoneDegrees::IpIntelligence::EngineIpi engine(
+		dataFilePath,
+		&config,
+		&required);
+	for (const char* address : firstReadAddresses) {
+		std::unique_ptr<FiftyoneDegrees::IpIntelligence::ResultsIpi> walked(
+			engine.process(address));
+		std::unique_ptr<FiftyoneDegrees::IpIntelligence::ResultsIpi> forward(
+			engine.process(address));
+		std::unique_ptr<FiftyoneDegrees::IpIntelligence::ResultsIpi> reverse(
+			engine.process(address));
+		walkEveryGraph(walked.get());
+		const std::vector<std::pair<std::string, std::string>> properties =
+			namesAndTypes(engine, forward.get());
+		ASSERT_FALSE(properties.empty()) << address;
+		std::vector<std::string> failed;
+		const std::string expected =
+			toJson(walked.get(), properties, false, failed);
+		EXPECT_EQ(std::string(), firstDifference(
+			expected,
+			toJson(forward.get(), properties, false, failed))) << address <<
+			" read forwards";
+		EXPECT_EQ(std::string(), firstDifference(
+			expected,
+			toJson(reverse.get(), properties, true, failed))) << address <<
+			" read in reverse";
+		EXPECT_TRUE(failed.empty()) << address << ", the getter threw for " <<
+			failed.size() << " reads, the first " << failed.front();
+		std::printf(
+			"JSON of %s, %u properties, %u characters, fingerprint %016llx\n",
+			address,
+			(unsigned int)properties.size(),
+			(unsigned int)expected.size(),
+			(unsigned long long)fingerprint(expected));
+		std::fflush(stdout);
+	}
 }
