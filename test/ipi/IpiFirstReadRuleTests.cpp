@@ -908,12 +908,16 @@ TEST_F(IpiFirstReadRuleTests, NoneNamed_ReadWalksOnlyItsComponent) {
 	std::vector<int> walks;
 	countWalks(results, walks);
 	populate(results, addresses[0]);
-	describe(results, 0);
-	describe(results, 0);
-	EXPECT_EQ(
-		std::vector<int>({
-			(int)dataSetOf(results)->b.b.available->items[0].componentIndex }),
-		walks) << "A read walked another component's graph, or its own twice.";
+	fiftyoneDegreesPropertiesAvailable* available =
+		dataSetOf(results)->b.b.available;
+	const int position = 0;
+	const int component = (int)available->items[
+		fiftyoneDegreesPropertiesGetAvailableIndex(available, position)]
+		.componentIndex;
+	describe(results, position);
+	describe(results, position);
+	EXPECT_EQ(std::vector<int>({ component }), walks) <<
+		"A read walked another component's graph, or its own twice.";
 	fiftyoneDegreesResultsIpiFree(results);
 }
 

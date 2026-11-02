@@ -282,44 +282,65 @@ fiftyoneDegreesDataSetHash* dataSetOf(fiftyoneDegreesResultsHash* results) {
 	return (fiftyoneDegreesDataSetHash*)results->b.b.dataSet;
 }
 
-/** The index of the property in the available properties, or -1. */
-int indexOf(fiftyoneDegreesResultsHash* results, const char* name) {
+/** The number of required property indexes of the results' data set. */
+int positionCount(fiftyoneDegreesResultsHash* results) {
+	return (int)fiftyoneDegreesPropertiesGetRequiredPropertyCount(
+		dataSetOf(results)->b.b.available);
+}
+
+/** The required property index of the property named, or -1. */
+int positionOf(fiftyoneDegreesResultsHash* results, const char* name) {
 	fiftyoneDegreesPropertiesAvailable* available =
 		dataSetOf(results)->b.b.available;
-	for (uint32_t i = 0; i < available->count; i++) {
-		if (strcmp(name, FIFTYONE_DEGREES_STRING(
-			available->items[i].name.data.ptr)) == 0) {
-			return (int)i;
+	for (int i = 0; i < positionCount(results); i++) {
+		const char* named = FIFTYONE_DEGREES_STRING(
+			fiftyoneDegreesPropertiesGetNameFromRequiredIndex(available, i));
+		if (named != nullptr && strcmp(name, named) == 0) {
+			return i;
 		}
 	}
 	return -1;
-}
-
-/** The component of the property at the index in the available properties. */
-int componentOf(fiftyoneDegreesResultsHash* results, int index) {
-	return (int)dataSetOf(results)->b.b.available->items[index].componentIndex;
 }
 
 /**
- * The first property, other than the one at the index given, on the same
- * component, or -1 if there is none.
+ * The index in the available properties of the property at the required
+ * property index, or -1 if the data set does not have it.
  */
-int otherOnComponent(fiftyoneDegreesResultsHash* results, int index) {
-	fiftyoneDegreesPropertiesAvailable* available =
-		dataSetOf(results)->b.b.available;
-	for (uint32_t i = 0; i < available->count; i++) {
-		if ((int)i != index &&
-			componentOf(results, (int)i) == componentOf(results, index)) {
-			return (int)i;
+int availableIndexOf(fiftyoneDegreesResultsHash* results, int position) {
+	return fiftyoneDegreesPropertiesGetAvailableIndex(
+		dataSetOf(results)->b.b.available,
+		position);
+}
+
+/** The component of the property at the required property index. */
+int componentOf(fiftyoneDegreesResultsHash* results, int position) {
+	return (int)dataSetOf(results)->b.b.available->items[
+		availableIndexOf(results, position)].componentIndex;
+}
+
+/**
+ * The required property index of the first property, other than the one at
+ * the index given, on the same component, or -1 if there is none.
+ */
+int otherOnComponent(fiftyoneDegreesResultsHash* results, int position) {
+	for (int i = 0; i < positionCount(results); i++) {
+		if (i != position &&
+			availableIndexOf(results, i) >= 0 &&
+			componentOf(results, i) == componentOf(results, position)) {
+			return i;
 		}
 	}
 	return -1;
 }
 
-/** True if the property can take its value from the evidence. */
-bool isOverridable(fiftyoneDegreesResultsHash* results, int index) {
+/**
+ * True if the property at the required property index can take its value
+ * from the evidence.
+ */
+bool isOverridable(fiftyoneDegreesResultsHash* results, int position) {
 	fiftyoneDegreesOverridePropertyArray* overridable =
 		dataSetOf(results)->b.b.overridable;
+	const int index = availableIndexOf(results, position);
 	for (uint32_t i = 0; overridable != nullptr && i < overridable->count; i++) {
 		if ((int)overridable->items[i].requiredPropertyIndex == index) {
 			return true;
@@ -436,8 +457,8 @@ TEST_F(HashFirstReadCTests, Read_WalksOnlyTheComponentRead) {
 			{ "User-Agent", iPhoneUserAgent } } }));
 	EXPECT_TRUE(walks.empty()) << "Populating the results walked a graph.";
 
-	const int platform = indexOf(results, "PlatformName");
-	const int browser = indexOf(results, "BrowserName");
+	const int platform = positionOf(results, "PlatformName");
+	const int browser = positionOf(results, "BrowserName");
 	ASSERT_GE(platform, 0);
 	ASSERT_GE(browser, 0);
 	valueOf(results, "PlatformName");
@@ -471,7 +492,7 @@ TEST_F(HashFirstReadCTests, Read_WalksOnlyTheComponentRead) {
  */
 TEST_F(HashFirstReadCTests, Override_ReadsWithoutWalking) {
 	fiftyoneDegreesResultsHash* results = create();
-	const int overridden = indexOf(results, overriddenName);
+	const int overridden = positionOf(results, overriddenName);
 	if (overridden < 0 || isOverridable(results, overridden) == false) {
 		fiftyoneDegreesResultsHashFree(results);
 		GTEST_SKIP() << "The data file cannot override " << overriddenName;
@@ -502,7 +523,9 @@ TEST_F(HashFirstReadCTests, Override_ReadsWithoutWalking) {
 		"Reading the overridden property walked its component.";
 
 	const char* otherName = FIFTYONE_DEGREES_STRING(
-		dataSetOf(results)->b.b.available->items[other].name.data.ptr);
+		fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
+			dataSetOf(results)->b.b.available,
+			other));
 	EXPECT_EQ(valueOf(walkedFirst, otherName), valueOf(results, otherName));
 	EXPECT_EQ(
 		fiftyoneDegreesResultsHashGetHasValues(walkedFirst, other, exception),
@@ -609,7 +632,8 @@ TEST_F(HashFirstReadCTests, Evidence_FreedBeforeTheFirstRead) {
 /**
  * A profile id override replaces the profile of its component. Reading a
  * property of that component walks nothing, and walking every graph later
- * keeps the override.
+ * keeps the override. IsMobile is the hardware property both the Lite and
+ * the enterprise data files have.
  */
 TEST_F(HashFirstReadCTests, ProfileOverride_SurvivesWalkingEveryGraph) {
 	fiftyoneDegreesResultsHash* first = create();
@@ -625,10 +649,10 @@ TEST_F(HashFirstReadCTests, ProfileOverride_SurvivesWalkingEveryGraph) {
 		sizeof(deviceId),
 		exception);
 	FIFTYONE_DEGREES_EXCEPTION_THROW;
-	const std::string iPhoneHardware = valueOf(first, "HardwareName");
-	const int hardwareIndex = indexOf(first, "HardwareName");
-	ASSERT_GE(hardwareIndex, 0);
-	const int hardwareComponent = componentOf(first, hardwareIndex);
+	const std::string iPhoneIsMobile = valueOf(first, "IsMobile");
+	const int isMobilePosition = positionOf(first, "IsMobile");
+	ASSERT_GE(isMobilePosition, 0);
+	const int hardwareComponent = componentOf(first, isMobilePosition);
 	fiftyoneDegreesResultsHashFree(first);
 
 	// The device id holds a profile id for each component, in component
@@ -656,9 +680,9 @@ TEST_F(HashFirstReadCTests, ProfileOverride_SurvivesWalkingEveryGraph) {
 	std::vector<int> walks;
 	countWalks(results, walks);
 	populate(results, evidence);
-	EXPECT_EQ(valueOf(walkedFirst, "HardwareName"),
-		valueOf(results, "HardwareName"));
-	EXPECT_EQ(iPhoneHardware, valueOf(results, "HardwareName")) <<
+	EXPECT_EQ(valueOf(walkedFirst, "IsMobile"),
+		valueOf(results, "IsMobile"));
+	EXPECT_EQ(iPhoneIsMobile, valueOf(results, "IsMobile")) <<
 		"The profile override was not applied.";
 	EXPECT_EQ(walks.end(), std::find(
 		walks.begin(),
@@ -666,7 +690,7 @@ TEST_F(HashFirstReadCTests, ProfileOverride_SurvivesWalkingEveryGraph) {
 		hardwareComponent)) <<
 		"Reading a property of the overridden component walked it.";
 	walkEveryGraph(results);
-	EXPECT_EQ(iPhoneHardware, valueOf(results, "HardwareName")) <<
+	EXPECT_EQ(iPhoneIsMobile, valueOf(results, "IsMobile")) <<
 		"Walking every graph replaced the profile override.";
 	EXPECT_EQ(std::string(), firstDifference(expected, jsonOf(results)));
 	fiftyoneDegreesResultsHashFree(walkedFirst);
