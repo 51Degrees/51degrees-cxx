@@ -639,6 +639,20 @@ TEST_F(HashCTests, HashSizeManagerFromFileNullConfig) {
 	internalSetUp();
 }
 
+TEST_F(HashCTests, BalancedPresetsHoldThePropertiesInMemory) {
+	const ConfigHash* presets[] = {
+		&HashBalancedConfig,
+		&HashDefaultConfig,
+		&HashBalancedTempConfig };
+	for (const ConfigHash* preset : presets) {
+		EXPECT_TRUE(preset->properties.loaded);
+	}
+	// The manager is made with the Default preset.
+	DataSetHash* dataSet = DataSetHashGet(&manager);
+	EXPECT_STREQ("CollectionMemory", dataSet->properties->typeName);
+	DataSetHashRelease(dataSet);
+}
+
 /**
  * Check that when an index for a property was not found (i.e. the index is -1)
  * an approriate error is set, and there is no segfault.
