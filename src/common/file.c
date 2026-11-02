@@ -572,8 +572,8 @@ static bool isFileInUse(const char *pathName) {
 						}
 					}
 				}
+				closedir(fdDir);
 			}
-			closedir(fdDir);
 		}
 		closedir(procDir);
 	}
@@ -808,7 +808,7 @@ fiftyoneDegreesStatusCode fiftyoneDegreesFileAddTempFileName(
 		}
 	
 		// Discard any changes to the destination if error occurred
-		if (status != NOT_SET && status != SUCCESS) {
+		if (status != NOT_SET && status != SUCCESS && length > 0) {
 			memset(destination + nameStart, 0, length);
 		}
 	} while (status == SUCCESS && fileExists(destination));
