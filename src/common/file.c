@@ -800,7 +800,7 @@ fiftyoneDegreesStatusCode fiftyoneDegreesFileAddTempFileName(
 		if (charsAdded < 0) {
 			status = ENCODING_ERROR;
 		}
-		else if ((size_t)charsAdded > length) {
+		else if ((size_t)charsAdded >= length) {
 			status = INSUFFICIENT_MEMORY;
 		}
 		else {
@@ -866,7 +866,7 @@ static fiftyoneDegreesStatusCode createTempFileWithPaths(
 		if (charAdded < 0) {
 			status = ENCODING_ERROR;
 		}
-		else if ((size_t)charAdded > length) {
+		else if ((size_t)charAdded >= length) {
 			status = INSUFFICIENT_MEMORY;
 		}
 		else {
