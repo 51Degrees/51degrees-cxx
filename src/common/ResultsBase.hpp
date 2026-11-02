@@ -52,8 +52,21 @@ namespace FiftyoneDegrees {
 		 * instead of a string representation.
 		 *
 		 * The key used to get the value for a property can be either the name
-		 * of the property, or the index of the property in the required
-		 * properties structure.
+		 * of the property, or its required property index, which is the index
+		 * of the property in the names the engine was created with. A reload
+		 * does not change it, and a property the data file lacks reads as a
+		 * property the data set does not have. An engine that named no
+		 * properties has no required property indexes, so its values are read
+		 * by name.
+		 *
+		 * A results instance is used by one thread at a time, because
+		 * reading a value writes into the results. An engine created naming
+		 * its properties walks every graph the results need as it processes
+		 * the evidence, and otherwise the first read of a component's
+		 * property walks the component's graph. Different results instances
+		 * can be used on different threads at once, and the engine that
+		 * created them can be shared, when EngineBase::getIsThreadSafe is
+		 * true.
 		 *
 		 * Results instances should only be created by a Engine.
 		 *
@@ -63,18 +76,19 @@ namespace FiftyoneDegrees {
 		 * using namespace FiftyoneDegrees::Common;
 		 * ResultsBase *results;
 		 *
-		 * // Iterate over all property indexes
-		 * for (int i = 0; i < results->getAvailableProperties(); i++) {
+		 * // Iterate over the properties the data set has, by name
+		 * for (const string &name : results->getProperties()) {
 		 *
 		 *     // Get the value for the property as a string
-		 *     string value = *results->getValueAsString(i);
+		 *     Value<string> value = results->getValueAsString(name);
 		 *
 		 *     // Do something with the value
 		 *     // ...
 		 * }
 		 *
-		 * // Or get a value using the name of the property
-		 * string value = *results->getValueAsString("name of a property");
+		 * // Or, for an engine created with the names "IsMobile,BrowserName",
+		 * // get the value of BrowserName by its index in those names
+		 * string value = *results->getValueAsString(1);
 		 *
 		 * // Delete the results
 		 * delete results;
@@ -116,9 +130,11 @@ namespace FiftyoneDegrees {
 			 */
 
 			/**
-			 * Get the number of available properties contained in the Results
-			 * instance.
-			 * @return the number of available properties
+			 * Get the number of required property indexes, which is the
+			 * number of names the engine was created with, including any the
+			 * data file lacks. When the engine named no properties, it is the
+			 * number of properties the data set has.
+			 * @return the number of required property indexes
 			 */
 			int getAvailableProperties() const;
 
@@ -131,18 +147,22 @@ namespace FiftyoneDegrees {
 			bool containsProperty(const string &propertyName) const;
 
 			/**
-			 * Get the names of the properties which are available in the
-			 * Results instance. The index of the property in the vector
-			 * indicates its index in the Results instance, so a name's index
-			 * can be used to fetch its corresponding value via a get method.
+			 * Get the names of the properties the data set has, in ascending
+			 * order. A name's place in the vector is not its required
+			 * property index when the engine named its properties, so read
+			 * the values by name.
 			 * @return vector containing the names of all available properties
 			 */
 			vector<string> getProperties() const;
 
 			/**
-			 * Get the name of the property at the require property index, or
-			 * an empty string if the required property index is invalid.
-			 * @param requiredPropertyIndex of the property name required
+			 * Get the name of the property at the required property index, or
+			 * an empty string if there is no property at the index. A
+			 * property the data file lacks gives the name the engine was
+			 * created with.
+			 * @param requiredPropertyIndex index of the property in the names
+			 * the engine was created with. When the engine named no properties
+			 * there is no name, as there are no indexes
 			 * @return the name of the property, or an empty string if not
 			 * valid
 			 */
@@ -188,7 +208,9 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all values associated with the required
 			 * property index. If the index is not valid an empty vector is
 			 * returned.
-			 * @param requiredPropertyIndex of the property required
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return a vector of values for the property
 			 */
 			Value<vector<string>> getValues(int requiredPropertyIndex);
@@ -228,7 +250,9 @@ namespace FiftyoneDegrees {
 			 * required property index. If the index is not valid an empty
 			 * string is returned. If the property relates to a list with more
 			 * than one value then values are separated by '|' characters.
-			 * @param requiredPropertyIndex of the property required
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return a string representation of the value for the property or
 			 * an empty string
 			 */
@@ -277,7 +301,9 @@ namespace FiftyoneDegrees {
 			 * Stored text such as "Unknown" gives false with a value, which is
 			 * kept for backwards compatibility. The remedy until version 5 is
 			 * #getValueAsStrictBool(int).
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return a boolean representation of the value for the property
 			 */
 			virtual Value<bool> getValueAsBool(int requiredPropertyIndex);
@@ -329,7 +355,9 @@ namespace FiftyoneDegrees {
 			 * Stored text such as "Unknown" gives 0 with a value, which is
 			 * kept for backwards compatibility. The remedy until version 5 is
 			 * #getValueAsStrictInteger(int).
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return an integer representation of the value for the property
 			 */
 			virtual Value<int> getValueAsInteger(int requiredPropertyIndex);
@@ -381,7 +409,9 @@ namespace FiftyoneDegrees {
 			 * Stored text such as "Unknown" gives 0 with a value, which is
 			 * kept for backwards compatibility. The remedy until version 5 is
 			 * #getValueAsStrictDouble(int).
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return a double representation of the value for the property
 			 */
 			virtual Value<double> getValueAsDouble(int requiredPropertyIndex);
@@ -408,7 +438,9 @@ namespace FiftyoneDegrees {
 			 * where #getValueAsBool(int) gives false.
 			 * This is the remedy until version 5, as that accessor keeps its
 			 * behaviour for backwards compatibility.
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return the value, or the reason there is no value
 			 */
 			Value<bool> getValueAsStrictBool(int requiredPropertyIndex);
@@ -435,7 +467,9 @@ namespace FiftyoneDegrees {
 			 * no value, where #getValueAsInteger(int) gives 0.
 			 * This is the remedy until version 5, as that accessor keeps its
 			 * behaviour for backwards compatibility.
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return the value, or the reason there is no value
 			 */
 			Value<int> getValueAsStrictInteger(int requiredPropertyIndex);
@@ -462,7 +496,9 @@ namespace FiftyoneDegrees {
 			 * #getValueAsDouble(int) gives 0.
 			 * This is the remedy until version 5, as that accessor keeps its
 			 * behaviour for backwards compatibility.
-			 * @param requiredPropertyIndex in the required properties
+			 * @param requiredPropertyIndex index of the property in the names the
+			 * engine was created with. When the engine named no properties there
+			 * is no value, with the invalid property reason, so read by name
 			 * @return the value, or the reason there is no value
 			 */
 			Value<double> getValueAsStrictDouble(int requiredPropertyIndex);
@@ -476,17 +512,26 @@ namespace FiftyoneDegrees {
 			fiftyoneDegreesPropertiesAvailable *available;
 
 			/**
-			 * Get the index in the available properties for the property name
-			 * provided.
+			 * Get the required property index of the property name provided.
 			 * @return 0 based index or -1 if not found
 			 */
 			int getRequiredPropertyIndex(const char *propertyName);
 
 			/**
+			 * Get the index a read by required property index uses, which is
+			 * the index given when the engine named its properties. When it
+			 * named none there are no required property indexes, so -1 is
+			 * given, which reads as a property the data set does not have.
+			 * @param requiredPropertyIndex index given by the caller
+			 * @return the index to read, or -1
+			 */
+			int allowedRequiredPropertyIndex(int requiredPropertyIndex) const;
+
+			/**
 			 * Get the values for the index in required properties and add them
 			 * to the values vector supplied. This is implemented by extending
 			 * classes.
-			 * @param requiredPropertyIndex index in the available properties
+			 * @param requiredPropertyIndex required property index of the property
 			 * @param values vector to populate with the values for the
 			 * property
 			 */
@@ -499,7 +544,7 @@ namespace FiftyoneDegrees {
              * property identified by its index in the required properties.
              * This is implemented by extending classes, and used when
              * populating a Value instance to return.
-             * @param requiredPropertyIndex index in the available properties
+             * @param requiredPropertyIndex required property index of the property
              * @return true if there are values available for the property
              */
 			virtual bool hasValuesInternal(int requiredPropertyIndex) = 0;
@@ -520,7 +565,7 @@ namespace FiftyoneDegrees {
              * Get the reason for values not being available. This is
              * implemented by the extending class and is called when the
              * hasValuesInternal method returns false.
-             * @param requiredPropertyIndex index in the available properties
+             * @param requiredPropertyIndex required property index of the property
              * @return enum indicating the reason for values not being
              * available
              */
@@ -543,7 +588,7 @@ namespace FiftyoneDegrees {
 			 * accessors. If there is not one value, then the reason is set in
 			 * the result.
 			 * @tparam T the type of the value being read
-			 * @param requiredPropertyIndex index in the available properties
+			 * @param requiredPropertyIndex required property index of the property
 			 * @param result to set the reason in if there is not one value
 			 * @param text set to the text of the value if there is one
 			 * @return true if there is one value
@@ -552,6 +597,21 @@ namespace FiftyoneDegrees {
 				int requiredPropertyIndex,
 				Value<T> &result,
 				string &text);
+
+			/**
+			 * The reads behind the public methods. Those that take a
+			 * required property index check it is allowed first, and those
+			 * that take a name find its index, so a read by name works when
+			 * the engine named no properties.
+			 */
+			Value<vector<string>> valuesAt(int requiredPropertyIndex);
+			Value<string> valueAsStringAt(int requiredPropertyIndex);
+			Value<bool> valueAsBoolAt(int requiredPropertyIndex);
+			Value<int> valueAsIntegerAt(int requiredPropertyIndex);
+			Value<double> valueAsDoubleAt(int requiredPropertyIndex);
+			Value<bool> valueAsStrictBoolAt(int requiredPropertyIndex);
+			Value<int> valueAsStrictIntegerAt(int requiredPropertyIndex);
+			Value<double> valueAsStrictDoubleAt(int requiredPropertyIndex);
 		};
 	FIFTYONE_DEGREES_COMMON_CXX_END
 	}

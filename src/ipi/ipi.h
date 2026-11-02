@@ -153,10 +153,12 @@
 #endif
 /**
  * Default value for the value cache size used in the default collection
- * configuration.
+ * configuration. The Balanced preset reads the values of every property of a
+ * lookup through this cache, so it holds enough of them that most reads find
+ * their value there.
  */
 #ifndef FIFTYONE_DEGREES_VALUE_CACHE_SIZE
-#define FIFTYONE_DEGREES_VALUE_CACHE_SIZE 500
+#define FIFTYONE_DEGREES_VALUE_CACHE_SIZE 50000
 #endif
 /**
  * Default value for the value cache loaded size used in the default collection
@@ -368,6 +370,13 @@ FIFTYONE_DEGREES_ARRAY_TYPE(
 /**
  * Array of Ipi results used to easily access and track the size of the
  * array.
+ *
+ * The results are used by one thread at a time, because reading a value
+ * writes into the results and, when no properties were named, the first read
+ * of a component walks its graph.
+ * Different results can be used on different threads at once, and the
+ * resource manager can be shared, unless the library is compiled with
+ * FIFTYONE_DEGREES_NO_THREADING.
  */
 typedef fiftyoneDegreesResultIpiArray fiftyoneDegreesResultsIpi;
 
@@ -729,6 +738,13 @@ EXTERNAL void fiftyoneDegreesResultsIpiFree(
  * component and no exception is set. A property of that component has no value
  * with the reason #FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE, unless
  * it is mandatory with a default value, in which case it reads as that default.
+ *
+ * When the caller named the properties the data set was created with, the
+ * graph of each component a named property belongs to is walked here, and a
+ * walk that fails sets the exception. Otherwise populating the results walks
+ * no graph, and the graph of each component is walked the first time one of
+ * its properties is read, against the data set the results hold, as
+ * #fiftyoneDegreesResultsIpiGetValues describes.
  * @param results preallocated results structure to populate
  * @param ipAddress byte array to process
  * @param ipAddressLength of the IP address byte array
@@ -746,6 +762,13 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddress(
 /**
  * Process a single IP Address and populate the IP range offset in the results
  * structure.
+ *
+ * When the caller named the properties the data set was created with, the
+ * graph of each component a named property belongs to is walked here, and a
+ * walk that fails sets the exception. Otherwise populating the results walks
+ * no graph, and the graph of each component is walked the first time one of
+ * its properties is read, against the data set the results hold, as
+ * #fiftyoneDegreesResultsIpiGetValues describes.
  * @param results preallocated results structure to populate
  * @param ipAddress string to process
  * @param ipAddressLength of the ipAddress string
@@ -761,6 +784,13 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddressString(
 /**
  * Processes the evidence value pairs in the evidence collection and
  * populates the result in the results structure.
+ *
+ * When the caller named the properties the data set was created with, the
+ * graph of each component a named property belongs to is walked here, and a
+ * walk that fails sets the exception. Otherwise populating the results walks
+ * no graph, and the graph of each component is walked the first time one of
+ * its properties is read, against the data set the results hold, as
+ * #fiftyoneDegreesResultsIpiGetValues describes.
  * @param results preallocated results structure to populate containing a
  *                pointer to an initialised resource manager
  * @param evidence to process containing parsed or unparsed values
@@ -773,99 +803,19 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromEvidence(
 	fiftyoneDegreesException* exception);
 
 /**
- * Processes the IP address exactly as #fiftyoneDegreesResultsIpiFromIpAddress,
- * but evaluates only the graphs needed by the required properties whose
- * indexes are supplied. It is meant for a service that knows, for every
- * request, which properties it will read. Other callers should use
- * #fiftyoneDegreesResultsIpiFromIpAddress.
- *
- * The result shape is unchanged, one item per available component in
- * component order. A component whose graph was not evaluated keeps a null
- * profile offset, so its properties report no value with the NULL_PROFILE
- * reason. A property that is mandatory with a default value reads as that
- * default instead, as it does for a component that produced no profile.
- *
- * The indexes are turned into a 32 bit mask, bit i meaning the graph for
- * component i in componentsList. Components at index 32 and above are beyond
- * the mask and are always evaluated, so a data file with more than 32
- * components is filtered for the first 32 only.
- *
- * An index is a position in the required properties of the data set the
- * results use, which are sorted by name. A reloaded data file that gains or
- * loses a required property moves the indexes of the properties after it, so
- * look them up again after a reload, for example with
- * #fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName.
- * @param results preallocated results structure to populate
- * @param ipAddress byte array to process
- * @param ipAddressLength of the IP address byte array
- * @param type of the ip
- * @param requiredPropertyIndexes array of required property indexes the
- * caller will read, or NULL to evaluate every graph
- * @param requiredPropertyIndexesCount number of entries in the array. A
- * negative count evaluates every graph. A count of zero with a non NULL array
- * evaluates no graph. Indexes outside the required properties are ignored.
- * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
- */
-EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddressForProperties(
-	fiftyoneDegreesResultsIpi* results,
-	const unsigned char* ipAddress,
-	size_t ipAddressLength,
-	fiftyoneDegreesIpType type,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
-	fiftyoneDegreesException* exception);
-
-/**
- * Processes the IP address string exactly as
- * #fiftyoneDegreesResultsIpiFromIpAddressString, but evaluates only the
- * graphs needed by the required properties whose indexes are supplied. See
- * #fiftyoneDegreesResultsIpiFromIpAddressForProperties for the rules that
- * apply to the indexes.
- * @param results preallocated results structure to populate
- * @param ipAddress string to process
- * @param ipAddressLength of the ipAddress string
- * @param requiredPropertyIndexes array of required property indexes the
- * caller will read, or NULL to evaluate every graph
- * @param requiredPropertyIndexesCount number of entries in the array
- * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
- */
-EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
-	fiftyoneDegreesResultsIpi* results,
-	const char* ipAddress,
-	size_t ipAddressLength,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
-	fiftyoneDegreesException* exception);
-
-/**
- * Processes the evidence exactly as #fiftyoneDegreesResultsIpiFromEvidence,
- * but evaluates only the graphs needed by the required properties whose
- * indexes are supplied. See #fiftyoneDegreesResultsIpiFromIpAddressForProperties
- * for the rules that apply to the indexes.
- * @param results preallocated results structure to populate containing a
- *                pointer to an initialised resource manager
- * @param evidence to process containing parsed or unparsed values
- * @param requiredPropertyIndexes array of required property indexes the
- * caller will read, or NULL to evaluate every graph
- * @param requiredPropertyIndexesCount number of entries in the array
- * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
- */
-EXTERNAL void fiftyoneDegreesResultsIpiFromEvidenceForProperties(
-	fiftyoneDegreesResultsIpi* results,
-	fiftyoneDegreesEvidenceKeyValuePairArray* evidence,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
-	fiftyoneDegreesException* exception);
-
-/**
  * Gets whether or not the results provided contain valid values for the
  * property index provided.
+ *
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results to check
- * @param requiredPropertyIndex index in the required properties of the
- * property to check for values of
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return true if there are valid values in the results for the property index
@@ -879,9 +829,17 @@ EXTERNAL bool fiftyoneDegreesResultsIpiGetHasValues(
 /**
  * Gets the reason why a results does not contain valid values for a given
  * property. 
+ *
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results to check
- * @param requiredPropertyIndex index in the required properties of the
- * property to check for values of
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return enum indicating why a valid value cannot be returned by the results
@@ -906,8 +864,17 @@ EXTERNAL const char* fiftyoneDegreesResultsIpiGetNoValueReasonMessage(
  * the caller to release the collection item returned. The 
  * fiftyoneDegreesResultsIpiGetValueString method should be used to get
  * the string representation of the value.
+ *
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results structure to release
- * @param requiredPropertyIndex
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return a pointer to the first value item 
@@ -919,6 +886,12 @@ EXTERNAL const fiftyoneDegreesProfilePercentage* fiftyoneDegreesResultsIpiGetVal
 
 /**
  * Adds to builder the values associated in the results for the property name.
+ *
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results structure to release
  * @param propertyName name of the property to be used with the values
  * @param builder string builder to fill with values
@@ -935,6 +908,12 @@ EXTERNAL void fiftyoneDegreesResultsIpiAddValuesString(
 
 /**
  * Sets the buffer the values associated in the results for the property name.
+ *
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results structure to release
  * @param propertyName name of the property to be used with the values
  * @param buffer character buffer allocated by the caller
@@ -955,8 +934,17 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesString(
 
 /**
  * Sets the buffer the values associated in the results for the property name.
+ *
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph for the results. If the walk fails the exception
+ * is set, and the component is not walked again until the results are next
+ * populated, so later reads of its properties read as if it had no profile for
+ * the address.
  * @param results pointer to the results structure to release
- * @param requiredPropertyIndex required property index of for the values
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param buffer character buffer allocated by the caller
  * @param bufferLength of the character buffer
  * @param separator string to be used to separate multiple values if available

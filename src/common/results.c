@@ -27,5 +27,8 @@ fiftyoneDegreesResultsBase* fiftyoneDegreesResultsInit(
 	fiftyoneDegreesResultsBase *results,
 	void *dataSet) {
 	results->dataSet = dataSet;
+	results->evaluate = NULL;
+	ResultsPendingClear(results);
+	results->overrides = NULL;
 	return results;
 }

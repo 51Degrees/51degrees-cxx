@@ -87,7 +87,7 @@ namespace FiftyoneDegrees {
 			 * configuration and properties provided.
 			 * @param config used to build the engine
 			 * @param properties the properties expected to be fetched
-			 * from results
+			 * from results, or null for every property
 			 */
 			EngineBase(
 				ConfigBase *config,
@@ -238,10 +238,11 @@ namespace FiftyoneDegrees {
 			/**
 			 * Get the names of the required properties in required property
 			 * index order, so position i in the vector is the index a caller
-			 * passes for that property. The names come from the data file
-			 * loaded and are sorted by name, so a refresh that loads a data file
-			 * which gains or loses a required property moves the indexes of the
-			 * properties after it. Call again after a refresh.
+			 * passes for that property. When the engine named its properties
+			 * these are the names it was created with, in that order, and a
+			 * refresh does not change them. When it named none, they are the
+			 * names of every property the data file loaded has, sorted by
+			 * name.
 			 * @return the required property names
 			 */
 			vector<string> getRequiredProperties() const;

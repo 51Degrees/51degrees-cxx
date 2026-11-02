@@ -27,8 +27,7 @@
  * must report the failure, keep the active data set and free the new one.
  *
  * The broken data is the data file with one more component in its header than
- * the file holds. The init methods return success for it and only the
- * exception shows the failure.
+ * the file holds, so reading the components fails.
  */
 
 #include "../common/Base.hpp"
@@ -391,8 +390,8 @@ protected:
 	static std::string engineLookup(EngineIpi *engine) {
 		std::unique_ptr<ResultsIpi> results(engine->process(lookupAddress));
 		std::string values;
-		for (int i = 0; i < results->getAvailableProperties(); i++) {
-			auto value = results->getValuesAsWeightedStringList(i);
+		for (const std::string &name : results->getProperties()) {
+			auto value = results->getValuesAsWeightedStringList(name);
 			if (value.hasValue()) {
 				for (const auto &weighted : value.getValue()) {
 					values.append(weighted.getValue()).append("|");

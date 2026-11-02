@@ -1023,6 +1023,93 @@ TEST(WKBToT, WKBToT_Test_LineStringZ_ReservedGeometryEmbedded)
 		RESERVED_GEOMETRY);
 }
 
+TEST(WKBToT, WKBToT_Reduced_LineString_BothByteOrders)
+{
+	// One line string of reduced coordinates, which are shorts scaled to 180
+	// and 90 degrees, in each byte order. One of the two is the opposite of
+	// the machine's order.
+	const byte littleEndian[] = {
+		0x01, // little endian
+		0x02, // line string
+		0x03, 0x00, // 3 points
+		0x00, 0x40, 0x00, 0xe0, // 16384, -8192
+		0x01, 0x80, 0xff, 0x7f, // -32767, 32767
+		0x64, 0x00, 0xc8, 0x00, // 100, 200
+	};
+	const byte bigEndian[] = {
+		0x00, // big endian
+		0x02, // line string
+		0x00, 0x03, // 3 points
+		0x40, 0x00, 0xe0, 0x00, // 16384, -8192
+		0x80, 0x01, 0x7f, 0xff, // -32767, 32767
+		0x00, 0x64, 0x00, 0xc8, // 100, 200
+	};
+	const byte * const geometries[] = { littleEndian, bigEndian };
+	for (const byte * const wkbBytes : geometries) {
+		char buffer[DEFAULT_BUFFER_SIZE] = { 0 };
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		fiftyoneDegreesConvertWkbToWkt(
+			wkbBytes,
+			FIFTYONE_DEGREES_WKBToT_REDUCTION_SHORT,
+			buffer,
+			sizeof(buffer),
+			3,
+			exception);
+		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY) <<
+			"Byte order " << (int)wkbBytes[0];
+		EXPECT_STREQ(
+			"LINESTRING(90.003 -22.501,-180 90,0.549 0.549)",
+			buffer) << "Byte order " << (int)wkbBytes[0];
+	}
+}
+
+TEST(WKBToT, WKBToT_Exception_UnknownCoordinateType)
+{
+	// A type of 4000 or more has no coordinate mode.
+	const byte point[] = {
+		0x01,
+		0xa1, 0x0f, 0x00, 0x00, // 4001, a point with no coordinate mode
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x40,
+	};
+	const byte largest[] = {
+		0x01,
+		0xff, 0xff, 0xff, 0xff, // the largest type
+	};
+	const byte multiPoint[] = {
+		0x01,
+		0x04, 0x00, 0x00, 0x00, // multi point
+		0x01, 0x00, 0x00, 0x00, // 1 point
+		0x01,
+		0xa1, 0x0f, 0x00, 0x00, // 4001
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x40,
+	};
+	const struct {
+		const byte *wkbBytes;
+		const char *expected;
+	} cases[] = {
+		{ point, "" },
+		{ largest, "" },
+		{ multiPoint, "MULTIPOINT(" },
+	};
+	for (const auto &c : cases) {
+		char buffer[DEFAULT_BUFFER_SIZE] = { 0 };
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		fiftyoneDegreesConvertWkbToWkt(
+			c.wkbBytes,
+			FIFTYONE_DEGREES_WKBToT_REDUCTION_NONE,
+			buffer,
+			sizeof(buffer),
+			15,
+			exception);
+		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(
+			FIFTYONE_DEGREES_STATUS_UNKNOWN_GEOMETRY)) <<
+			"Case '" << c.expected << "'";
+		EXPECT_STREQ(c.expected, buffer);
+	}
+}
+
 TEST(WKBToT, WKBToT_String_Point_2D_NDR)
 {
 	constexpr byte wkbStringBytes[] = {

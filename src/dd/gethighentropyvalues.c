@@ -258,10 +258,10 @@ void fiftyoneDegreesGhevDeviceDetectionInit(
 
     // If the GHEV property is not an available property then there is no need
     // for this functionality and the data structure can be set to null.
-    dataSet->ghevRequiredPropertyIndex = PropertiesGetRequiredPropertyIndexFromName(
+    dataSet->ghevAvailableIndex = PropertiesGetAvailableIndexFromName(
         dataSet->b.available,
         TARGET_PROPERTY_NAME);
-    if (dataSet->ghevRequiredPropertyIndex < 0) {
+    if (dataSet->ghevAvailableIndex < 0) {
         return;
     }
 
@@ -275,8 +275,9 @@ void fiftyoneDegreesGhevDeviceDetectionInit(
         NULL,
         exception);
 
-    // If no headers are identified then set the array to empty.
-    if (capacity == 0) {
+    // If no headers are identified then set the array to empty. A read that
+    // failed leaves the exception for the caller.
+    if (capacity == 0 || EXCEPTION_FAILED) {
         return;
     }
 
@@ -300,8 +301,9 @@ void fiftyoneDegreesGhevDeviceDetectionInit(
         addHeaderCallback,
         exception);
 
-    // Check the number of headers added is the same as the capacity.
-    assert(count == capacity);
+    // Check the number of headers added is the same as the capacity, unless
+    // a read failed.
+    assert(count == capacity || EXCEPTION_FAILED);
 }
 
 bool fiftyoneDegreesGhevDeviceDetectionAllPresent(
@@ -339,7 +341,7 @@ void fiftyoneDegreesGhevDeviceDetectionOverride(
 	fiftyoneDegreesException *exception) {
     (void)exception; // to suppress C4100 warning
     OverridesAdd(
-        results->overrides,
-        dataSet->ghevRequiredPropertyIndex,
+        results->b.overrides,
+        dataSet->ghevAvailableIndex,
         "");
 }

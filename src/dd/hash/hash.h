@@ -228,6 +228,37 @@ typedef struct fiftyone_degrees_hash_rootnodes_t {
 } fiftyoneDegreesHashRootNodes;
 
 /**
+ * Index from each value of the properties named when the data set is
+ * initialised to the profiles holding it, so those profiles are found without
+ * reading every profile.
+ *
+ * Property i is the first in the properties collection named names[i]. Each
+ * of its values has a key, from firstKeys[i] to firstKeys[i + 1] - 1, in the
+ * order of the values collection from firstValueIndexes[i]. The profiles
+ * holding the value with key k are profiles[starts[k]] to
+ * profiles[starts[k + 1] - 1]. Each is a position in the profile offsets
+ * collection, in ascending order, which is the order of the profiles in the
+ * data file.
+ */
+typedef struct fiftyone_degrees_hash_value_profiles_t {
+	uint32_t propertiesCount; /**< Number of properties named */
+	uint32_t keysCount; /**< Number of values with a key */
+	uint32_t profilesCount; /**< Number of entries in profiles */
+	const char **names; /**< Copy of each name the caller gave, in the order
+	                        given, without nulls or repeats */
+	uint32_t *propertyIndexes; /**< Index in the properties collection of each
+	                               property, or UINT32_MAX when the data file
+	                               has no property of the name */
+	uint32_t *firstValueIndexes; /**< Index in the values collection of the
+	                                 first value of each property */
+	uint32_t *firstKeys; /**< Key of the first value of each property, then
+	                         keysCount */
+	uint32_t *starts; /**< Position in profiles of the first profile of each
+	                      key, then profilesCount */
+	uint32_t *profiles; /**< Positions in the profile offsets collection */
+} fiftyoneDegreesHashValueProfiles;
+
+/**
  * Data set structure containing all the components used for detections.
  * This should predominantly be used through a #fiftyoneDegreesResourceManager
  * pointer to maintain a safe reference. If access the data set is needed then
@@ -260,6 +291,10 @@ typedef struct fiftyone_degrees_dataset_hash_t {
 	fiftyoneDegreesCollection *profileOffsets; /**< Collection of all offsets
 											   to profiles in the profiles
 											   collection */
+	fiftyoneDegreesHashValueProfiles *valueProfiles; /**< Profiles holding each
+	                                                 value of the properties
+	                                                 named to index, or NULL
+	                                                 when none were named */
 } fiftyoneDegreesDataSetHash;
 
 /** @cond FORWARD_DECLARATIONS */
@@ -287,6 +322,9 @@ typedef struct fiftyone_degrees_result_hash_t {
 	int32_t drift; /**< The maximum drift for a matched substring from the
 				   character position where it was expected to be found */
 	int32_t matchedNodes; /**< The number of hashes matched in the User-Agent */
+	byte componentIndex; /**< Index of the component the result was taken for
+						 when the results were populated, or UINT8_MAX if
+						 none */
     fiftyoneDegreesGraphTraceNode* trace; /**< The graph trace constructed
                                           during processing if the option was
                                           enabled (and the executable was
@@ -303,7 +341,24 @@ typedef struct fiftyone_degrees_result_hash_t {
 	fiftyoneDegreesCollectionItem propertyItem; /**< Property for the current
 												request */ \
 	fiftyoneDegreesList values; /**< List of value items when results are
-								fetched */
+								fetched */ \
+	fiftyoneDegreesEvidenceKeyValuePairArray *evidence; /**< Copy of the
+														evidence the results
+														were populated from,
+														kept for the walks on
+														first reads when no
+														properties were named.
+														Its pairs and the text
+														of their keys and
+														values follow the
+														array in the same
+														memory */ \
+	size_t evidenceBytes; /**< Number of bytes allocated for evidence */ \
+	int evidencePrefixes; /**< The walks' prefixes that some pair of the
+						  evidence has, so that a walk can skip the others */ \
+	bool profileIdsOverridden; /**< True if the evidence overrode the profile
+							   of a component, so that a walk applies the
+							   overrides again */
 
 FIFTYONE_DEGREES_ARRAY_TYPE(
 	fiftyoneDegreesResultHash,
@@ -312,6 +367,12 @@ FIFTYONE_DEGREES_ARRAY_TYPE(
 /**
  * Array of Hash results used to easily access and track the size of the
  * array.
+ *
+ * The results are used by one thread at a time, because reading a value
+ * writes into the results, and when no properties were named the first read
+ * of a property of a component walks the component's graph. Different results
+ * can be used on different threads at once, and the resource manager can be
+ * shared, unless the library is compiled with FIFTYONE_DEGREES_NO_THREADING.
  */
 typedef fiftyoneDegreesResultHashArray fiftyoneDegreesResultsHash;
 
@@ -355,8 +416,9 @@ EXTERNAL_VAR fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig;
  * Uses caching to balance memory usage and performance. A connection is
  * maintained to the source data file to load data into caches when required.
  * As the cache is loaded, memory will increase until the cache capacity is
- * reached. The concurrency of each collection must be set to the maximum
- * number of concurrent operations to optimize file reads. This is the default
+ * reached. The components, maps, properties and root nodes are held in memory.
+ * The concurrency of each collection must be set to the maximum number of
+ * concurrent operations to optimize file reads. This is the default
  * configuration.
  * In this configuration, both the performance and predictive graphs are
  * enabled, as performance is not as big of a concern in this configuration, so
@@ -441,6 +503,41 @@ fiftyoneDegreesHashInitManagerFromFile(
 	fiftyoneDegreesException *exception);
 
 /**
+ * Initialises the resource manager as #fiftyoneDegreesHashInitManagerFromFile
+ * does, and indexes the profiles holding each value of the properties named,
+ * so that #fiftyoneDegreesHashIterateProfilesForPropertyAndValue and
+ * #fiftyoneDegreesHashGetProfileIdsForPropertyAndValue find them without
+ * reading every profile. A property is indexed whether or not it is required,
+ * and whatever the configuration. A reload indexes the same names again.
+ * @param manager the resource manager to manage the shared data set resource
+ * @param config configuration for the operation of the data set, or NULL if
+ * default detection configuration is required
+ * @param properties the properties that will be consumed from the data set, or
+ * NULL if all available properties in the Hash data file should be available
+ * for consumption
+ * @param fileName the full path to a file with read permission that contains
+ * the Hash data set
+ * @param indexedProperties names of the properties to index, matched exactly,
+ * or NULL to index none. Null names and repeats are ignored, and a name the
+ * data file has no property of indexes nothing. The names are copied
+ * @param indexedPropertiesCount number of names in indexedProperties
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the status associated with the data set resource assigned to the
+ * resource manager. Any value other than #FIFTYONE_DEGREES_STATUS_SUCCESS
+ * means the data set was not created and the resource manager can not be used.
+ */
+EXTERNAL fiftyoneDegreesStatusCode
+fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesConfigHash *config,
+	fiftyoneDegreesPropertiesRequired *properties,
+	const char *fileName,
+	const char **indexedProperties,
+	int indexedPropertiesCount,
+	fiftyoneDegreesException *exception);
+
+/**
  * Gets the total size in bytes which will be allocated when intialising a
  * Hash resource and associated manager with the same parameters. If any of
  * the configuration options prevent the memory from being constant (i.e. more
@@ -497,6 +594,42 @@ fiftyoneDegreesHashInitManagerFromMemory(
 	fiftyoneDegreesException *exception);
 
 /**
+ * Initialises the resource manager as
+ * #fiftyoneDegreesHashInitManagerFromMemory does, and indexes the profiles
+ * holding each value of the properties named, as
+ * #fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties does.
+ * @param manager the resource manager to manage the shared data set resource
+ * @param config configuration for the operation of the data set, or NULL if
+ * default detection configuration is required
+ * @param properties the properties that will be consumed from the data set, or
+ * NULL if all available properties in the Hash data file should be available
+ * for consumption
+ * @param memory pointer to continuous memory containing the Hash data set. If
+ * the data set is not created the memory stays with the caller, even if the
+ * configuration says to free it
+ * @param size the number of bytes that make up the Hash data set
+ * @param indexedProperties names of the properties to index, matched exactly,
+ * or NULL to index none. Null names and repeats are ignored, and a name the
+ * data file has no property of indexes nothing. The names are copied
+ * @param indexedPropertiesCount number of names in indexedProperties
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the status associated with the data set resource assigned to the
+ * resource manager. Any value other than #FIFTYONE_DEGREES_STATUS_SUCCESS
+ * means the data set was not created and the resource manager can not be used.
+ */
+EXTERNAL fiftyoneDegreesStatusCode
+fiftyoneDegreesHashInitManagerFromMemoryWithIndexedProperties(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesConfigHash *config,
+	fiftyoneDegreesPropertiesRequired *properties,
+	void *memory,
+	long size,
+	const char **indexedProperties,
+	int indexedPropertiesCount,
+	fiftyoneDegreesException *exception);
+
+/**
  * Processes the evidence value pairs in the evidence collection and
  * populates the result in the results structure.
  *
@@ -508,6 +641,19 @@ fiftyoneDegreesHashInitManagerFromMemory(
  * example both 'query.user-agent' and 'header.user-agent') therefore does not
  * change the number or layout of result items. This is the single detection
  * entry point; ResultsHashFromUserAgent is a thin wrapper over it.
+ *
+ * Each available component with evidence for one of its headers takes a
+ * result, in component order. When the caller named the properties the data
+ * set was created with, the graph of each of those components is walked here,
+ * so no read walks a graph and the results keep no copy of the evidence.
+ * Otherwise no graph is walked here. The evidence is copied into the results,
+ * and a component's graph is walked the first time one of its properties is
+ * read. A device id in the evidence sets every profile here, and profile
+ * overrides and default profiles are applied as they are once every graph has
+ * been walked, so the answers do not depend on what is read first. The
+ * evidence can be freed once this returns. Code that reads the result items
+ * directly, such as their match metrics, calls
+ * #fiftyoneDegreesResultsEvaluateAll first.
  *
  * The 'query' and 'cookie' evidence key prefixes are used to get values which
  * dynamically override values returned from device detection. 'query' prefixes 
@@ -538,8 +684,9 @@ EXTERNAL void fiftyoneDegreesResultsHashFromEvidence(
  * single 'header.user-agent' evidence pair and passed to
  * #fiftyoneDegreesResultsHashFromEvidence, so the result shape is identical
  * to processing the same User-Agent as evidence (one item per available
- * component, not a single coalesced item). The userAgent string must remain
- * valid for the lifetime of the results, as it is referenced, not copied.
+ * component, not a single coalesced item). The User-Agent can be freed once
+ * this returns, as the results either walk every graph they need with it here
+ * or copy it.
  * @param results preallocated results structure to populate
  * @param userAgent string to process
  * @param userAgentLength of the User-Agent string
@@ -553,72 +700,10 @@ EXTERNAL void fiftyoneDegreesResultsHashFromUserAgent(
 	fiftyoneDegreesException *exception);
 
 /**
- * Processes the evidence exactly as #fiftyoneDegreesResultsHashFromEvidence,
- * but walks only the graphs needed by the required properties whose indexes
- * are supplied. It is meant for a service that knows, for every request,
- * which properties it will read. Other callers should use
- * #fiftyoneDegreesResultsHashFromEvidence.
- *
- * Results are built as for an unfiltered detection. A component whose graph
- * was not walked still takes the result its evidence would have used, with
- * no profile, so its properties report no value with the NULL_PROFILE
- * reason, and it receives no default profile even when allowUnmatched is
- * set. Values worked out across every result, such as the device id, the
- * matched User-Agents and the match metrics, count that result as a
- * component that matched nothing.
- *
- * The indexes are turned into a 32 bit mask, bit i meaning the graph for
- * component i in componentsList. Components at index 32 and above are beyond
- * the mask and are always walked, so a data file with more than 32 components
- * is filtered for the first 32 only.
- *
- * An index is a position in the required properties of the data set the
- * results use, which are sorted by name. A reloaded data file that gains or
- * loses a required property moves the indexes of the properties after it, so
- * look them up again after a reload, for example with
- * #fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName.
- * @param results preallocated results structure to populate
- * @param evidence to process containing parsed or unparsed values
- * @param requiredPropertyIndexes array of required property indexes the
- * caller will read, or NULL to walk every graph
- * @param requiredPropertyIndexesCount number of entries in the array. A
- * negative count walks every graph. A count of zero with a non NULL array
- * walks no graph. Indexes outside the required properties are ignored.
- * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
- */
-EXTERNAL void fiftyoneDegreesResultsHashFromEvidenceForProperties(
-	fiftyoneDegreesResultsHash *results,
-	fiftyoneDegreesEvidenceKeyValuePairArray *evidence,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
-	fiftyoneDegreesException *exception);
-
-/**
- * Processes the User-Agent exactly as #fiftyoneDegreesResultsHashFromUserAgent,
- * but walks only the graphs needed by the required properties whose indexes
- * are supplied. See #fiftyoneDegreesResultsHashFromEvidenceForProperties for
- * the rules that apply to the indexes.
- * @param results preallocated results structure to populate
- * @param userAgent string to process
- * @param userAgentLength of the User-Agent string
- * @param requiredPropertyIndexes array of required property indexes the
- * caller will read, or NULL to walk every graph
- * @param requiredPropertyIndexesCount number of entries in the array
- * @param exception pointer to an exception data structure to be used if an
- * exception occurs. See exceptions.h.
- */
-EXTERNAL void fiftyoneDegreesResultsHashFromUserAgentForProperties(
-	fiftyoneDegreesResultsHash *results,
-	const char* userAgent,
-	size_t userAgentLength,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
-	fiftyoneDegreesException *exception);
-
-/**
  * Process a single Device Id and populate the device offsets in the results
- * structure.
+ * structure. Any component still to be walked from an earlier population of
+ * the results is walked first, so the device id's profiles replace what the
+ * walk sets.
  * @param results preallocated results structure to populate
  * @param deviceId string to process
  * @param deviceIdLength of the deviceId string
@@ -668,9 +753,17 @@ EXTERNAL void fiftyoneDegreesResultsHashFree(
 /**
  * Gets whether or not the results provided contain valid values for the
  * property index provided.
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph, unless the property has an override value or
+ * the evidence overrides the component's profile. A failure to read the graph
+ * from the data file is reported by that read, and the component is not walked
+ * again until the results are next populated, so its properties then read as
+ * if it had no profile.
  * @param results pointer to the results to check
- * @param requiredPropertyIndex index in the required properties of the
- * property to check for values of
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return true if there are valid values in the results for the property index
@@ -683,10 +776,19 @@ EXTERNAL bool fiftyoneDegreesResultsHashGetHasValues(
 
 /**
  * Gets the reason why a results does not contain valid values for a given
- * property. 
+ * property.
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph, unless the evidence overrides the component's
+ * profile. Then, when unmatched results are not allowed, every graph still to
+ * be walked is walked, as the reason depends on the results the walks of other
+ * components set. A failure to read a graph from the data file is reported by
+ * that read, and the component is not walked again until the results are next
+ * populated, so its properties then read as if it had no profile.
  * @param results pointer to the results to check
- * @param requiredPropertyIndex index in the required properties of the
- * property to check for values of
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return enum indicating why a valid value cannot be returned by the results
@@ -709,11 +811,20 @@ EXTERNAL const char* fiftyoneDegreesResultsHashGetNoValueReasonMessage(
   * Populates the list of values in the results instance with value structure
   * instances associated with the required property index. When the results 
   * are released then the value items will be released. There is no need for
-  * the caller to release the collection item returned. The 
+  * the caller to release the collection item returned. The
   * fiftyoneDegreesResultsHashGetValueString method should be used to get
   * the string representation of the value.
+  * When no properties were named, the first read of a property of a component
+  * walks the component's graph, unless the property has an override value or
+  * the evidence overrides the component's profile. A failure to read the graph
+  * from the data file is reported by that read, and the component is not
+  * walked again until the results are next populated, so its properties then
+  * read as if it had no profile.
   * @param results pointer to the results structure to release
-  * @param requiredPropertyIndex
+  * @param requiredPropertyIndex index of the property in the names given
+  * when the data set was created, which a reload does not change. With no
+  * names given it is the index in the available properties, which a reload
+  * can change, so look it up from the name for each data set
   * @param exception pointer to an exception data structure to be used if an
   * exception occurs. See exceptions.h.
   * @return a pointer to the first value item 
@@ -744,8 +855,11 @@ EXTERNAL size_t fiftyoneDegreesResultsHashGetValuesString(
 	fiftyoneDegreesException *exception);
 
 /**
- * Sets the buffer to a JSON string that represents all the available 
- * properties and values in the results.
+ * Sets the buffer to a JSON string that represents all the available
+ * properties and values in the results. Each property is read as
+ * #fiftyoneDegreesResultsHashGetValues reads it, so when no properties were
+ * named the graph of each component is walked by the first read of one of its
+ * properties.
  * @param results pointer to the results structure to release
  * @param buffer character buffer allocated by the caller
  * @param length of the character buffer
@@ -763,7 +877,10 @@ EXTERNAL size_t fiftyoneDegreesResultsHashGetValuesJson(
 /**
  * Sets the buffer the values associated in the results for the property name.
  * @param results pointer to the results structure to release
- * @param requiredPropertyIndex required property index of for the values
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
  * @param buffer character buffer allocated by the caller
  * @param length of the character buffer
  * @param separator string to be used to separate multiple values if available
@@ -782,9 +899,10 @@ fiftyoneDegreesResultsHashGetValuesStringByRequiredPropertyIndex(
 	fiftyoneDegreesException *exception);
 
 /**
- * Sets the buffer the values associated in the results for all the available
- * properties where each line is the properties for the property at the 
- * corresponding index.
+ * Sets the buffer to the values in the results of every required property
+ * index, one line for each index in order, so line i holds the values of the
+ * property at required property index i. The line of a property the data set
+ * does not have is empty.
  * @param results pointer to the results structure to release
  * @param buffer character buffer allocated by the caller
  * @param length of the character buffer
@@ -899,7 +1017,16 @@ EXTERNAL void fiftyoneDegreesDataSetHashRelease(
 
 /**
  * Iterates over the profiles in the data set calling the callback method for
- * any profiles that contain the property and value provided.
+ * any profiles that contain the property and value provided. The profiles are
+ * iterated in the order of the data file, which is ascending profile id, and
+ * each one is passed to the callback whatever the callback returns. Both names
+ * are matched exactly.
+ *
+ * For a property named to index when the data set was initialised, with
+ * #fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties or
+ * #fiftyoneDegreesHashInitManagerFromMemoryWithIndexedProperties, an index
+ * finds the profiles. For any other property every profile is read. Both give
+ * the same profiles.
  * @param manager the resource manager containing a hash data set initialised
  * by one of the Hash data set init methods
  * @param propertyName name of the property which the value relates to
@@ -919,9 +1046,34 @@ EXTERNAL uint32_t fiftyoneDegreesHashIterateProfilesForPropertyAndValue(
 	fiftyoneDegreesException *exception);
 
 /**
+ * Gets the ids of the profiles that contain the property and value provided.
+ * They are the profiles #fiftyoneDegreesHashIterateProfilesForPropertyAndValue
+ * iterates over, in the same order, found in the same way.
+ * @param manager the resource manager containing a hash data set initialised
+ * by one of the Hash data set init methods
+ * @param propertyName name of the property which the value relates to
+ * @param valueName name of the property value which the profiles must contain
+ * @param profileIds array to set the profile ids in, or NULL to count them
+ * @param length number of ids the array can hold
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the number of profiles that contain the value. When this is more
+ * than length only the first length ids are set, so a larger array is needed
+ * for the rest.
+ */
+EXTERNAL uint32_t fiftyoneDegreesHashGetProfileIdsForPropertyAndValue(
+	fiftyoneDegreesResourceManager *manager,
+	const char *propertyName,
+	const char *valueName,
+	uint32_t *profileIds,
+	uint32_t length,
+	fiftyoneDegreesException *exception);
+
+/**
  * Get the device id string from the single result provided. This contains
  * profile ids for all components, concatenated with the separator character
- * '-'.
+ * '-'. The result is read as it is, so call
+ * #fiftyoneDegreesResultsEvaluateAll on the results it is from first.
  * @param dataSet pointer to the data set used to get the result
  * @param result pointer to the result to get the device id of
  * @param buffer pointer to the memory to write the characters to
@@ -939,7 +1091,8 @@ EXTERNAL char* fiftyoneDegreesHashGetDeviceIdFromResult(
 
 /**
  * Get the device id string from the results provided. This contains profile
- * ids for all components, concatenated with the separator character '-'.
+ * ids for all components, concatenated with the separator character '-', so
+ * every graph not yet walked is walked first.
  * @param results pointer to the results to get the device id of
  * @param buffer pointer to the memory to write the characters to
  * @param length amount of memory allocated to buffer

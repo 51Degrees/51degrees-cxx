@@ -225,7 +225,6 @@ public:
 		verifyMatchForLowerPrecedence();
 	}
 	void verifyNoMatchedNodes() {
-		int i;
 		vector<string>::iterator it;
 
 		// Disable unmatched-result defaults BEFORE detection. The unified
@@ -260,14 +259,22 @@ public:
 		std::unique_ptr<ResultsHash> const results(
 			engine->process(mobileUserAgent));
 
+		// Walk every graph, so that no read walks one after the items are
+		// changed below.
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		fiftyoneDegreesResultsEvaluateAll(
+			&results->results->b.b,
+			exception);
+		FIFTYONE_DEGREES_EXCEPTION_THROW;
+
 		// Force a whole-result miss: a User-Agent yields one result item per
 		// available component, so clear matchedNodes on every item.
 		for (uint32_t r = 0; r < results->results->count; r++) {
 			results->results->items[r].matchedNodes = 0;
 		}
 
-		for (i = 0; i < (int)results->available->count; i++) {
-			Value<string> value = results->getValueAsString(i);
+		for (const string &name : results->getProperties()) {
+			Value<string> value = results->getValueAsString(name);
 			ASSERT_FALSE(value.hasValue()) <<
 				L"The result should not contain a value as there were no "
 				L"matched nodes.";

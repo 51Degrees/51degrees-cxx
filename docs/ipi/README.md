@@ -30,7 +30,7 @@ same for every product in this repository, and are described in the
 
 ## Memory and the required properties
 
-The Balanced configuration (`fiftyoneDegreesIpiBalancedConfig`, or `setBalanced()` in C++) holds the strings, the graphs, the profile offsets and the property types in memory, and reads values and profiles through caches. The C API uses it when no configuration is given.
+The Balanced configuration (`fiftyoneDegreesIpiBalancedConfig`, or `setBalanced()` in C++) holds the strings, the graphs, the profile offsets and the property types in memory, and reads values and profiles through caches of 50,000 values and 10,000 profiles. The C API uses it when no configuration is given.
 
 Naming the required properties is all it takes to get more from it. There is no other setting. When fewer properties are named than the data file has, the parts of the file they do not read stay on file:
 
@@ -44,7 +44,7 @@ The memory that frees is then spent, in this order, as far as it lasts:
 3. The profiles of the components with a required property, smallest first.
 4. A larger profile cache, then part of the next component's profiles if at least half of them fit.
 
-The memory used does not rise above what naming nothing uses, and the answers do not change. A caller who names nothing, or every property, gets the configuration as it is.
+The memory used does not rise above what naming nothing uses, and the answers do not change. A caller who names nothing, or every property, gets the configuration as it is, with only the default value of each property held in memory. A lookup reads the default of each mandatory property its profile has no value for, so holding the defaults means those reads take no lock and read nothing from the file.
 
 Whatever is named, a profile read through a cache is read once for each lookup rather than once for each property, which uses 512 bytes for each component in each set of results.
 
@@ -59,6 +59,14 @@ Every other IPv6 address is looked up as an IPv6 address, including those that h
 An address below the lowest key in a graph has no profile for that graph's component. A property of that component then reads as its default if it is mandatory with a default value, and otherwise has no value.
 
 The [IP Intelligence specification](https://github.com/51Degrees/specifications/blob/main/ip-intelligence-specification/pipeline-elements/ip-intelligence-on-premise.md#address-forms) sets out each form.
+
+## Reading values
+
+When the properties were named, in C through the required properties and in C++ through the properties the engine is created with, looking up an address walks the graph of each component a named property belongs to, and no other, so no read walks a graph. When no properties were named, looking up an address walks no graph, and the graph of a component is walked the first time one of its properties is read. Either way the values are the same whatever is read first.
+
+## Threads
+
+A set of results is used by one thread at a time, because reading a value writes into the results and, when no properties were named, the first read of a property of a component walks the component's graph. A program that looks up addresses on several threads uses a set of results for each thread. The resource manager, or in C++ the engine, can be shared by every thread, unless the library is built with the `NoThreading` option described in the [common library README](../../src/common/README.md#nothreading).
 
 ## Referencing the API
 

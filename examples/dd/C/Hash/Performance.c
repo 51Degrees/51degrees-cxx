@@ -449,16 +449,11 @@ void runPerformanceThread(void* state) {
 		ResultsHashFromEvidence(results, evidence, exception);
 		EXCEPTION_THROW;
 
-		// Update the total iterations for the thread.
-		for (uint32_t i = 0; i < results->count; i++) {
-			thisState->iterations += 
-				(unsigned long long)results->items[i].iterations;
-		}
-
 		// Get the all properties from the results if this is part of the
 		// performance evaluation.
 		for (uint32_t j = 0; detectionOnly == false &&
-			j < dataSet->b.b.available->count; j++) {
+			j < PropertiesGetRequiredPropertyCount(dataSet->b.b.available);
+			j++) {
 			if (ResultsHashGetValues(
 				results,
 				j,
@@ -470,6 +465,17 @@ void runPerformanceThread(void* state) {
 					thisState->checkSum += value->size;
 				}
 			}
+		}
+
+		// Walk any graph the reads did not, which is every graph when only
+		// detecting, so that the iterations count every walk.
+		ResultsEvaluateAll(&results->b.b, exception);
+		EXCEPTION_THROW;
+
+		// Update the total iterations for the thread.
+		for (uint32_t i = 0; i < results->count; i++) {
+			thisState->iterations +=
+				(unsigned long long)results->items[i].iterations;
 		}
 
 		// Move to the next node.
@@ -638,7 +644,8 @@ void executeBenchmark(
 
 	// Check data file
 	DataSetHash* dataset = DataSetHashGet(&state->manager);
-	state->availableProperties = dataset->b.b.available->count;
+	state->availableProperties = PropertiesGetRequiredPropertyCount(
+		dataset->b.b.available);
 	fiftyoneDegreesExampleCheckDataFile(dataset);
 	DataSetHashRelease(dataset);
 

@@ -29,6 +29,8 @@
 
 
 class EngineHashTests;
+class HashFirstReadRuleTests;
+class HashFirstReadTests;
 
 namespace FiftyoneDegrees {
 	namespace DeviceDetection {
@@ -45,6 +47,20 @@ namespace FiftyoneDegrees {
 			 * The key used to get the value for a property can be either the
 			 * name of the property, or the index of the property in the
 			 * required properties structure.
+			 *
+			 * An engine created naming its properties walks the graph of
+			 * each component the results need as it processes the evidence.
+			 * Otherwise a component's graph is walked the first time one of
+			 * its properties is read. The match metrics, the device ids, the
+			 * traces and the matched User-Agents describe every component, so
+			 * reading one of them walks every graph not yet walked.
+			 *
+			 * A results instance is used by one thread at a time, because
+			 * reading a value writes into the results, and when no properties
+			 * were named the first read of a component's property walks its
+			 * graph. Different results instances can be used on different
+			 * threads at once, and the engine that created them can be shared,
+			 * when EngineBase::getIsThreadSafe is true.
 			 *
 			 * Results instances should only be created by an Engine.
 			 *
@@ -63,6 +79,8 @@ namespace FiftyoneDegrees {
 			 */
 			class ResultsHash : public ResultsDeviceDetection {
 				friend class ::EngineHashTests;
+				friend class ::HashFirstReadRuleTests;
+				friend class ::HashFirstReadTests;
                 friend class ResultsHashSerializer;
 			public:
 				/**
@@ -213,6 +231,12 @@ namespace FiftyoneDegrees {
 					int requiredPropertyIndex);
 
 			private:
+				/**
+				 * Walks every graph not yet walked, for the readers of the
+				 * result items.
+				 */
+				void evaluateAll() const;
+
 				fiftyoneDegreesResultsHash *results;
 
 				/**

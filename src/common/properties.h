@@ -28,8 +28,17 @@
  *
  * ## Terms
  *
- * **Required Property Index** : the 0 based index of the property in the list
- * of required properties. Not the same as the property index.
+ * **Required Property Index** : the 0 based index of the property in the
+ * names the caller gave when the data set was created, which is the index
+ * every read by position takes. A reload does not change it. A name the data
+ * does not have keeps its index, and reads as a property the data set does
+ * not have. When the caller named no property, it is the index of the
+ * property in the list of available properties, which a reload can change.
+ *
+ * **Available Index** : the 0 based index of the property in the list of
+ * available properties, which holds the properties the data has in ascending
+ * order of name. Not the same as the required property index when the caller
+ * named properties.
  *
  * **Property Index** : the 0 based index of the property in the source used to 
  * create the required properties. Not the same as the required property index.
@@ -61,9 +70,12 @@
  * 1. Separated string of property names. Valid separators include space,
  * comma and pipe.
  * 2. An array of strings.
- * 3. Existing properties results from a previous creation operation. This 
- * method is used when a data set is being reloaded due to a change in the 
- * underlying data.
+ * 3. Existing properties results from a previous creation operation. This
+ * method is used when a data set is being reloaded due to a change in the
+ * underlying data. The new results are created from the names the caller
+ * gave the first time, so a property the previous data did not have is
+ * available once the new data has it, and a caller that named no property
+ * gets every property of the new data.
  *
  * Creation also requires a method to retrieve the name of the properties from 
  * the underlying data source. A method pointer conforming to 
@@ -78,20 +90,22 @@
  * collection field of the collection item.
  *
  * Some, or all, of the required properties may not be present in the
- * underlying data source. Any missing properties will be ignored in the
- * results. The get  name from required index method can be used to iterate
- * over the available  properties. The number of available properties after
- * creation can be obtained  from the count field of properties results.
+ * underlying data source. A missing property is left out of the available
+ * properties, and keeps its required property index, which reads as a
+ * property the data set does not have. The number of required property
+ * indexes is given by #fiftyoneDegreesPropertiesGetRequiredPropertyCount, and
+ * the name at each by #fiftyoneDegreesPropertiesGetNameFromRequiredIndex. The
+ * count field and the items of the results are the available properties,
+ * which are in available index order, so a caller pairing them with required
+ * property indexes reads the wrong properties.
  *
- * Whilst the property names can be provided as string(s) the property names 
- * referenced from the properties results are collection items from a strings 
- * collection. The properties methods are responsible for releasing the 
+ * Whilst the property names can be provided as string(s) the property names
+ * referenced from the properties results are collection items from a strings
+ * collection. The properties methods are responsible for releasing the
  * references to these strings when the properties results are freed.
  *
- * The resulting require properties index will be in ascending order of the 
- * property name a string. As such the ordered list can be used with a binary 
- * search (divide and conquer) to quickly determine the required property index
- * from the property name.
+ * The available properties are in ascending order of the property name, so
+ * a binary search quickly finds a property from its name.
  *
  * ## Free
  *
@@ -170,10 +184,22 @@ typedef struct fiftyone_degrees_property_available_t {
     byte componentIndex; /**< Index in the data set's component list of the
                          component the property belongs to. Initialised to
                          zero and set by the engine when it initialises its
-                         available components. Used to turn required
-                         property indexes into the mask of components to
-                         evaluate. */
+                         available components. */
+    int32_t requiredPropertyIndex; /**< Index of the property in the names
+                                   the caller gave, the first if the name was
+                                   given more than once. When the caller named
+                                   no property, the index of this item */
 } fiftyoneDegreesPropertyAvailable;
+
+/**
+ * A property name the caller gave, in the place the caller gave it.
+ */
+typedef struct fiftyone_degrees_property_named_t {
+	int32_t availableIndex; /**< Index of the property in the available
+	                            properties, or -1 when the data does not have
+	                            the property */
+	const fiftyoneDegreesString *name; /**< The name as the caller gave it */
+} fiftyoneDegreesPropertyNamed;
 
 FIFTYONE_DEGREES_ARRAY_TYPE(
 	fiftyoneDegreesPropertyAvailable,
@@ -182,6 +208,14 @@ FIFTYONE_DEGREES_ARRAY_TYPE(
 	                                Initialised to false and set by the engine.
 	                                A list created from an existing list keeps
 	                                the value, which carries it across a reload */
+	uint32_t namedCount; /**< Number of names the caller gave, which is the
+	                         number of required property indexes when the
+	                         caller named properties */
+	fiftyoneDegreesPropertyNamed *named; /**< The names the caller gave, in the
+	                                         caller's order, or NULL when the
+	                                         caller named no property. A list
+	                                         created from an existing list is
+	                                         created from these names */
 )
 
 /** Array of properties which are available in a data set. */
@@ -243,14 +277,17 @@ typedef uint32_t(*fiftyoneDegreesEvidencePropertiesGetMethod)(
 EXTERNAL_VAR fiftyoneDegreesPropertiesRequired fiftyoneDegreesPropertiesDefault;
 
 /**
- * Creates a properties result instance for use with future property 
- * operations. The resulting required properties will be provided in ascending 
- * order.
- * @param properties required to be available as either a separated list of 
- * property names, an array of property names or an existing properties results 
- * structure from another data set. Valid separators include pipe, comma and 
- * space. The fields are evaluated in order of existing, array and then string.
- * the first field with a value is used.
+ * Creates a properties result instance for use with future property
+ * operations. The available properties are in ascending order of name, and
+ * the required property index of each name given is its place among the
+ * names given.
+ * @param properties required to be available as either a separated list of
+ * property names, an array of property names or an existing properties results
+ * structure from another data set. Valid separators include pipe, comma and
+ * space, and a run of separators separates two names. The fields are
+ * evaluated in order of existing, array and then string. The first field
+ * with a value is used. Existing results give the names they were created
+ * with.
  * @param state pointer to state used with the get method
  * @param getPropertyMethod method used to return the property name from a 
  * string collection
@@ -276,12 +313,14 @@ EXTERNAL int fiftyoneDegreesPropertiesGetPropertyIndexFromName(
 	const char *propertyName);
 
 /**
- * Gets the required property index in the list of all required properties from 
- * the name.
+ * Gets the required property index of the property named, which is its
+ * place in the names the caller gave, the first if the name was given more
+ * than once. When the caller named no property, it is the index of the
+ * property in the available properties.
  * @param available properties instance
  * @param propertyName string containing the property name
- * @return 0 based index of the property in the required properties or -1 if 
- * not available
+ * @return 0 based required property index, or -1 if the data set does not
+ * have the property
  */
 EXTERNAL int fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 	fiftyoneDegreesPropertiesAvailable *available,
@@ -290,68 +329,118 @@ EXTERNAL int fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 /**
  * Maps the required property index to the index in the source data structure.
  * @param available properties instance
- * @param requiredPropertyIndex index of the property in the required 
- * properties structure
- * @return 0 based index of the property in the source or -1 if not available
+ * @param requiredPropertyIndex index of the property in the names the caller
+ * gave, or when the caller named no property, in the available properties
+ * @return 0 based index of the property in the source, or -1 if the index is
+ * outside the names given or the data set does not have the property
  */
 EXTERNAL int fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
 	fiftyoneDegreesPropertiesAvailable *available,
 	int requiredPropertyIndex);
 
 /**
- * Gets the name as a string from the required property index.
+ * Gets the name as a string from the required property index. A property the
+ * data set does not have gives the name the caller gave.
  * @param available properties instance
- * @param requiredPropertyIndex index of the property in the required
- * properties structure
- * @return string representation of the property
+ * @param requiredPropertyIndex index of the property in the names the caller
+ * gave, or when the caller named no property, in the available properties
+ * @return string representation of the property, or NULL if the index is
+ * outside the names given
  */
-EXTERNAL fiftyoneDegreesString* 
+EXTERNAL fiftyoneDegreesString*
 	fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
 		fiftyoneDegreesPropertiesAvailable *available,
 		int requiredPropertyIndex);
 
 /**
- * Mask with every component enabled.
+ * The functions below are inline, so they add no name to the library.
  */
-#define FIFTYONE_DEGREES_COMPONENT_MASK_ALL UINT32_MAX
+#if defined(_MSC_VER)
+#define FIFTYONE_DEGREES_PROPERTIES_INLINE static __inline
+#elif defined(__GNUC__) || defined(__clang__)
+#define FIFTYONE_DEGREES_PROPERTIES_INLINE static __inline__
+#else
+#define FIFTYONE_DEGREES_PROPERTIES_INLINE static inline
+#endif
 
 /**
- * Number of components the mask can address.
+ * Gets the number of required property indexes, which is the number of names
+ * the caller gave, or when the caller named no property, the number of
+ * available properties. Use it, rather than the count field, with
+ * #fiftyoneDegreesPropertiesGetNameFromRequiredIndex and the reads that take
+ * a required property index.
+ * @param available properties instance
+ * @return number of required property indexes
  */
-#define FIFTYONE_DEGREES_COMPONENT_MASK_BITS 32
+FIFTYONE_DEGREES_PROPERTIES_INLINE uint32_t
+	fiftyoneDegreesPropertiesGetRequiredPropertyCount(
+		const fiftyoneDegreesPropertiesAvailable *available) {
+	if (available == NULL) {
+		return 0;
+	}
+	return available->named != NULL ? available->namedCount : available->count;
+}
 
 /**
- * True if component index i is enabled under the mask. Components at index
- * 32 and above are beyond the mask and are always enabled, so a data set
- * with more than 32 components is filtered for the first 32 only and the
- * shift never exceeds the width of the mask.
- * @param mask the component mask
- * @param i component index
+ * Gets the available index of the property at the required property index.
+ * @param available properties instance
+ * @param requiredPropertyIndex index of the property in the names the caller
+ * gave, or when the caller named no property, in the available properties
+ * @return 0 based available index, or -1 if the index is outside the names
+ * given or the data set does not have the property
  */
-#define FIFTYONE_DEGREES_COMPONENT_MASK_ENABLED(mask, i) \
-	((uint32_t)(i) >= FIFTYONE_DEGREES_COMPONENT_MASK_BITS || \
-	((mask) & (1u << (i))) != 0)
+FIFTYONE_DEGREES_PROPERTIES_INLINE int fiftyoneDegreesPropertiesGetAvailableIndex(
+	const fiftyoneDegreesPropertiesAvailable *available,
+	int requiredPropertyIndex) {
+	if (available == NULL || requiredPropertyIndex < 0) {
+		return -1;
+	}
+	if (available->named != NULL) {
+		return (uint32_t)requiredPropertyIndex < available->namedCount ?
+			(int)available->named[requiredPropertyIndex].availableIndex :
+			-1;
+	}
+	return (uint32_t)requiredPropertyIndex < available->count ?
+		requiredPropertyIndex :
+		-1;
+}
 
 /**
- * Builds the mask of components whose graphs a detection must evaluate from
- * the required property indexes a caller will read. Bit i means component i,
- * using the componentIndex recorded on each available property. The engine
- * must record that index when it initialises its available components, as
- * the Hash and IP intelligence engines do. Under an engine that does not,
- * every property reads as component 0.
- * @param available the available properties of the data set
- * @param requiredPropertyIndexes array of required property indexes, or NULL
- * to enable every component
- * @param requiredPropertyIndexesCount number of entries in the array. A
- * negative count enables every component. Zero with a non NULL array enables
- * none. Indexes outside the available properties are ignored, as are
- * components at index 32 and above, which the mask cannot address.
- * @return the component mask
+ * Gets the available index of the property named.
+ * @param available properties instance
+ * @param propertyName string containing the property name
+ * @return 0 based available index, or -1 if the data set does not have the
+ * property
  */
-EXTERNAL uint32_t fiftyoneDegreesPropertiesGetComponentMask(
-	fiftyoneDegreesPropertiesAvailable *available,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount);
+FIFTYONE_DEGREES_PROPERTIES_INLINE int
+	fiftyoneDegreesPropertiesGetAvailableIndexFromName(
+		fiftyoneDegreesPropertiesAvailable *available,
+		const char *propertyName) {
+	return fiftyoneDegreesPropertiesGetAvailableIndex(
+		available,
+		fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
+			available,
+			propertyName));
+}
+
+/**
+ * Maps the available index to the index in the source data structure.
+ * @param available properties instance
+ * @param availableIndex index of the property in the available properties
+ * @return 0 based index of the property in the source, or -1 if the index is
+ * outside the available properties
+ */
+FIFTYONE_DEGREES_PROPERTIES_INLINE int
+	fiftyoneDegreesPropertiesGetPropertyIndexFromAvailableIndex(
+		const fiftyoneDegreesPropertiesAvailable *available,
+		int availableIndex) {
+	if (available == NULL ||
+		availableIndex < 0 ||
+		(uint32_t)availableIndex >= available->count) {
+		return -1;
+	}
+	return (int)available->items[availableIndex].propertyIndex;
+}
 
 /**
  * Check if the 'SetHeader' properties are included in the

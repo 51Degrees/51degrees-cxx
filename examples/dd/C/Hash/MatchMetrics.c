@@ -67,7 +67,14 @@ fiftyoneDegreesResultsHashFromUserAgent(
 	exception);
 ```
 
-5. Obtain drift: The maximum drift for a matched substring from the character
+5. Walk every graph. Each graph is walked when a property of its component is
+first read, and the metrics below are read from the result items, which a walk
+sets.
+```
+fiftyoneDegreesResultsEvaluateAll(&results->b.b, exception);
+```
+
+6. Obtain drift: The maximum drift for a matched substring from the character
 position where it was expected to be found. The maximum drift to allow when
 finding a match can be set through the configuration structure.
 ```
@@ -75,21 +82,21 @@ int drift = results->items->drift;
 
 ```
 
-6. Obtain difference: The total difference in hash code values between the
+7. Obtain difference: The total difference in hash code values between the
 matched substrings and the actual substrings. The maximum difference to allow
 when finding a match can be set through the configuration structure.
 ```
 int difference = results->items->difference;
 ```
 
-7. Obtain iteration count: The number of iterations required to get the device
+8. Obtain iteration count: The number of iterations required to get the device
 offset in the devices collection in the graph of nodes. This is indicative of
 the time taken to fetch the result.
 ```
 int iterations = results->items->iterations;
 ```
 
-8. Obtain match method: provides information about the algorithm that was used
+9. Obtain match method: provides information about the algorithm that was used
 to perform detection for a particular User-Agent. For more information on what
 each method means please see:
 <a href="https://51degrees.com/support/documentation/hash?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-matchmetrics.c&utm_term=header">
@@ -98,13 +105,13 @@ How device detection works</a>.
 fiftyoneDegreesHashMatchMethod method = results->items->method;
 ```
 
-9. Obtain the matched User-Agent: the matched substrings in the User-Agent
+10. Obtain the matched User-Agent: the matched substrings in the User-Agent
 separated with underscored.
 ```
 char *matchedUserAgent = results->items->b.matchedUserAgent;
 ```
 
-10. Release the memory used by the results.
+11. Release the memory used by the results.
 ```
 fiftyoneDegreesResultsHashFree(results);
 ```
@@ -150,6 +157,10 @@ static const char* getPropertyValueAsString(
 static void outputMatchMetrics(ResultsHash *results) {
 	EXCEPTION_CREATE;
 	char deviceId[40];
+
+	// The metrics are read from the result items, which the walks set.
+	ResultsEvaluateAll(&results->b.b, exception);
+	EXCEPTION_THROW;
 	HashGetDeviceIdFromResults(
 		results,
 		deviceId,

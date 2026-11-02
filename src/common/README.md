@@ -91,6 +91,10 @@ A reduced size data file has the following differences:
 Enabling this option makes the API compatible with a reduced size 51Degrees data file. A few methods 
 which use the removed fields cannot be implemented with this option, so an exception is set.
 
+# Threads
+
+A set of results is used by one thread at a time, because reading a value writes into the results. When the properties were named, populating the results walks every graph they need, and otherwise the first read of a property of a component walks the component's graph. Different sets of results can be used on different threads at once, and the resource manager they come from, or in C++ the engine, can be shared, unless the library is built with the [NoThreading](#nothreading) option.
+
 # Tests
 
 The common tests are in [`test/common`](../../test/common). They run as

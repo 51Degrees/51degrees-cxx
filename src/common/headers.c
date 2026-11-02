@@ -54,17 +54,21 @@ static bool isUnique(Headers* headers, const char* value) {
 }
 
 /**
- * Free the members of the header.
+ * Free the members of the header, leaving them null. A header that fails part
+ * way through is freed here and then again with the array that holds it.
  */
 static void freeHeader(Header* header) {
 	if (header->name != NULL) {
 		Free((void*)header->name);
+		header->name = NULL;
 	}
 	if (header->pseudoHeaders != NULL) {
 		Free((void*)header->pseudoHeaders);
+		header->pseudoHeaders = NULL;
 	}
 	if (header->segmentHeaders != NULL) {
 		Free((void*)header->segmentHeaders);
+		header->segmentHeaders = NULL;
 	}
 }
 
@@ -113,7 +117,8 @@ static int countHeaderSegments(const char* name) {
 }
 
 /**
- * Count the number of segments for all the headers.
+ * Count the number of segments for all the headers, or -1 if a header name
+ * could not be read.
  */
 static int countAllSegments(void* state, HeadersGetMethod get) {
 	uint32_t count = 0, index = 0, segments;
@@ -122,6 +127,10 @@ static int countAllSegments(void* state, HeadersGetMethod get) {
 	DataReset(&item.data);
 	while (get(state, index, &item) >= 0) {
 		name = STRING(item.data.ptr); // header is string
+		if (name == NULL) {
+			// Nothing was read, so there is nothing to release.
+			return -1;
+		}
 		if (isHeaderValid(name)) {
 
 			// Count the number of segments.
@@ -273,6 +282,14 @@ static bool addHeadersFromDataSet(
 	// are valid and unique to the headers collection.
 	while ((headerId = get(state, index++, &item)) >= 0) {
 		name = STRING(item.data.ptr); // header is string
+		if (name == NULL) {
+			// Nothing was read, so there is nothing to release. A read that
+			// failed may already have set the exception.
+			if (EXCEPTION_OKAY) {
+				EXCEPTION_SET(COLLECTION_FAILURE);
+			}
+			return false;
+		}
 		if (isHeaderValid(name) && isUnique(headers, name)) {
 
 			// Set the next header from the data set name item aborting if 
@@ -284,6 +301,7 @@ static bool addHeadersFromDataSet(
 				(HeaderID)headerId,
 				headers->capacity,
 				exception) == false) {
+				COLLECTION_RELEASE(item.collection, &item);
 				return false;
 			}
 
@@ -483,7 +501,8 @@ static void copyRelationships(Header* src, Header* dst, Headers* headers) {
  * The arrays are initial created with more capacity than they are likely to 
  * need. To reduce the amount of data held in memory beyond the creation of the
  * headers to a minimum and thus enable the most efficient operation a copy of 
- * the headers structure is created using only the memory required.
+ * the headers structure is created using only the memory required. The source
+ * is freed whether or not the copy is made.
  */
 static Headers* trimHeaders(Headers* source, Exception* exception) {
 	Headers* trimmed;
@@ -502,6 +521,7 @@ static Headers* trimHeaders(Headers* source, Exception* exception) {
 		for (uint32_t i = 0; i < source->count; i++) {
 			if (copyHeader(&source->items[i], trimmed, exception) == NULL) {
 				HeadersFree(trimmed);
+				HeadersFree(source);
 				return NULL;
 			}
 		}
@@ -512,6 +532,10 @@ static Headers* trimHeaders(Headers* source, Exception* exception) {
 		}
 
 		// Finally free the sources now a trimmed copies has been made.
+		HeadersFree(source);
+	}
+	else {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		HeadersFree(source);
 	}
 	return trimmed;
@@ -527,11 +551,21 @@ fiftyoneDegreesHeaders* fiftyoneDegreesHeadersCreate(
 	// Count the number of headers and create an array with sufficient capacity
 	// to store all of them.
 	int32_t count = countAllSegments(state, get);
+	if (count < 0) {
+		// A read that failed may already have set the exception.
+		if (EXCEPTION_OKAY) {
+			EXCEPTION_SET(COLLECTION_FAILURE);
+		}
+		return NULL;
+	}
 	FIFTYONE_DEGREES_ARRAY_CREATE(
 		fiftyoneDegreesHeader, 
 		headers, 
 		count);
-	if (headers != NULL) {
+	if (headers == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
+	}
+	else {
 
 		// Initialise all the headers.
 		initHeaders(headers);

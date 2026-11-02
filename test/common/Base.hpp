@@ -108,6 +108,7 @@ public: \
  */
 class Base : public ::testing::Test {
 protected:
+	Base();
 	virtual void SetUp();
 	virtual void TearDown();
 	void SetUpMemoryCheck();
@@ -118,6 +119,12 @@ protected:
 		int concurrency,
 		FIFTYONE_DEGREES_THREAD_ROUTINE runThread);
 private:
+	/**
+	 * True once the test has taken its memory checkpoint. It is static, as
+	 * one test runs at a time, because a member would pad test classes with
+	 * aligned members, which a Windows build treats as an error.
+	 */
+	static bool checkpointTaken;
 #if defined(_DEBUG) && defined(_MSC_FULL_VER)
 	memoryStates _states;
 #endif

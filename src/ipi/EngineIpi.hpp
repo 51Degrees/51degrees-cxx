@@ -165,7 +165,10 @@ namespace FiftyoneDegrees {
 			 */
 
 			/**
-			 * Processes the evidence provided and returns the results.
+			 * Processes the evidence provided and returns the results. With
+			 * properties named, the graph of each component a named property
+			 * belongs to is walked here, and otherwise no graph is walked
+			 * until a property of its component is read.
 			 * @param evidence to process. The keys in getKeys() will be
 			 * the only ones considered by the engine.
 			 * @return a new results instance with the values for all requested
@@ -175,7 +178,10 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Processes the IP address string provided and returns the results.
-			 * This will auto detect the type of IP being used
+			 * This will auto detect the type of IP being used. With
+			 * properties named, the graph of each component a named property
+			 * belongs to is walked here, and otherwise no graph is walked
+			 * until a property of its component is read.
 			 * @param ipAddress the IP address string to process
 			 * @return a new results instance with the values for all requested
 			 * properties
@@ -188,7 +194,10 @@ namespace FiftyoneDegrees {
 			 * the amount of data that it need to process.
 			 * If the data is provided is smaller than the expected size for
 			 * the IP type (4 for ipv4 and 16 for ipv6) and incorrect format
-			 * exception will be thrown.
+			 * exception will be thrown. With properties named, the graph of
+			 * each component a named property belongs to is walked here, and
+			 * otherwise no graph is walked until a property of its component
+			 * is read.
 			 * @param ipAddress the IP address byte array to process
 			 * @param length the size of the byte array
 			 * @param type of the IP
@@ -199,63 +208,6 @@ namespace FiftyoneDegrees {
 				unsigned char ipAddress[],
 				long length,
 				fiftyoneDegreesIpType type);
-
-			/**
-			 * Processes the evidence as process(EvidenceIpi*) but evaluates
-			 * only the graphs needed by the required properties whose indexes
-			 * are supplied. NULL or a negative count evaluates every graph. A
-			 * count of zero evaluates none. A property whose graph was not
-			 * evaluated has no value with the NULL_PROFILE reason, except that
-			 * a property which is mandatory with a default value reads as that
-			 * default. The native mask is 32 bits, so components beyond index
-			 * 31 are always evaluated. Indexes are positions in
-			 * getRequiredProperties(), which move when a refresh loads a data
-			 * file that gains or loses a required property, so look them up
-			 * again after a refresh.
-			 * @param evidence to process
-			 * @param requiredPropertyIndexes the caller will read
-			 * @param requiredPropertyIndexesCount entries in the array
-			 * @return a new results instance, owned by the caller
-			 */
-			ResultsIpi* process(
-				EvidenceIpi *evidence,
-				const int *requiredPropertyIndexes,
-				int requiredPropertyIndexesCount);
-
-			/**
-			 * Processes the IP address string as process(const char*) but
-			 * evaluates only the graphs needed by the required properties
-			 * whose indexes are supplied. See the evidence overload for the
-			 * rules.
-			 * @param ipAddress the IP address string to process
-			 * @param requiredPropertyIndexes the caller will read
-			 * @param requiredPropertyIndexesCount entries in the array
-			 * @return a new results instance, owned by the caller
-			 */
-			ResultsIpi* process(
-				const char *ipAddress,
-				const int *requiredPropertyIndexes,
-				int requiredPropertyIndexesCount);
-
-			/**
-			 * Processes the raw IP address byte array as
-			 * process(unsigned char[], long, fiftyoneDegreesIpType) but
-			 * evaluates only the graphs needed by the required properties
-			 * whose indexes are supplied. See the evidence overload for the
-			 * rules.
-			 * @param ipAddress the IP address byte array to process
-			 * @param length the size of the byte array
-			 * @param type of the IP
-			 * @param requiredPropertyIndexes the caller will read
-			 * @param requiredPropertyIndexesCount entries in the array
-			 * @return a new results instance, owned by the caller
-			 */
-			ResultsIpi *process(
-				unsigned char ipAddress[],
-				long length,
-				fiftyoneDegreesIpType type,
-				const int *requiredPropertyIndexes,
-				int requiredPropertyIndexesCount);
 
 			/**
 			 * @}

@@ -20,9 +20,14 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+%include stdint.i
+%include std_vector.i
 %include "../EngineDeviceDetection.i"
 %include "ResultsHash.i"
 %include "ConfigHash.i"
+
+/* Profile ids for a property value. */
+%template(VectorUInt32Swig) std::vector<uint32_t>;
 
 %newobject process;
 
@@ -48,14 +53,9 @@ public:
 	void refreshData(unsigned char data[], long length);
 	ResultsHash* process(EvidenceDeviceDetection *evidence);
 	ResultsHash* process(const char *userAgent);
-	ResultsHash* process(
-		EvidenceDeviceDetection *evidence,
-		const int *requiredPropertyIndexes,
-		int requiredPropertyIndexesCount);
-	ResultsHash* process(
-		const char *userAgent,
-		const int *requiredPropertyIndexes,
-		int requiredPropertyIndexesCount);
+	std::vector<uint32_t> getProfileIdsForPropertyValue(
+		const std::string &propertyName,
+		const std::string &valueName);
 	ResultsBase* processBase(EvidenceBase *evidence);
 	ResultsDeviceDetection* processDeviceDetection(
 		EvidenceDeviceDetection *evidence);

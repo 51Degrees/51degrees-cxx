@@ -28,17 +28,42 @@
 using namespace FiftyoneDegrees;
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
+namespace {
+	// Holds the names of the properties to index in the form the C layer
+	// takes, which copies them before the init call returns.
+	struct IndexedProperties {
+		std::vector<std::string> names;
+		std::vector<const char*> pointers;
+		explicit IndexedProperties(
+			const DeviceDetection::Hash::ConfigHash *config)
+			: names(config->getIndexedProperties()) {
+			for (const std::string &name : names) {
+				pointers.push_back(name.c_str());
+			}
+		}
+		const char** get() {
+			return pointers.empty() ? nullptr : pointers.data();
+		}
+		int count() const {
+			return (int)pointers.size();
+		}
+	};
+}
+
 EngineHash::EngineHash(
 	const char *fileName,
 	DeviceDetection::Hash::ConfigHash *config,
 	Common::RequiredPropertiesConfig *properties)
 	: EngineDeviceDetection(config, properties) {
 	EXCEPTION_CREATE;
-	StatusCode status = HashInitManagerFromFile(
+	IndexedProperties indexed(config);
+	StatusCode status = HashInitManagerFromFileWithIndexedProperties(
 		manager.get(),
 		config->getConfig(),
-		properties->getConfig(),
+		properties ? properties->getConfig() : nullptr,
 		fileName,
+		indexed.get(),
+		indexed.count(),
 		exception);
 	if (status != SUCCESS) {
 		throw StatusCodeException(status, fileName);
@@ -67,12 +92,15 @@ EngineHash::EngineHash(
 	config->getConfig()->b.b.freeData = true;
 	void *dataCopy = copyData(data, length);
 
-	StatusCode status = HashInitManagerFromMemory(
+	IndexedProperties indexed(config);
+	StatusCode status = HashInitManagerFromMemoryWithIndexedProperties(
 		manager.get(),
 		config->getConfig(),
-		properties->getConfig(),
+		properties ? properties->getConfig() : nullptr,
 		dataCopy,
 		(size_t)length,
+		indexed.get(),
+		indexed.count(),
 		exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		// The memory stays with the caller until the data set is set up.
@@ -274,16 +302,6 @@ static DeviceDetection::Hash::ResultsHash* giveResults(
 	return given;
 }
 
-DeviceDetection::Hash::ResultsHash* EngineHash::process(
-	DeviceDetection::EvidenceDeviceDetection *evidence) const {
-	return process(evidence, nullptr, -1);
-}
-
-DeviceDetection::Hash::ResultsHash* EngineHash::process(
-	const char *userAgent) const {
-	return process(userAgent, nullptr, -1);
-}
-
 // A set of results is created for each call rather than taken from a pool made
 // at startup. A pool would avoid these allocations, but it would change when
 // results are freed in every language, a reload would have to replace pooled
@@ -291,17 +309,13 @@ DeviceDetection::Hash::ResultsHash* EngineHash::process(
 // values to the next. That complexity is why a pool is not used, although it
 // might be looked at in future.
 DeviceDetection::Hash::ResultsHash* EngineHash::process(
-	DeviceDetection::EvidenceDeviceDetection *evidence,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount) const {
+	DeviceDetection::EvidenceDeviceDetection *evidence) const {
 	EXCEPTION_CREATE;
 
 	OwnedResults results = createResults(manager.get(), overridesEnabled);
-	ResultsHashFromEvidenceForProperties(
+	ResultsHashFromEvidence(
 		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
-		requiredPropertyIndexes,
-		requiredPropertyIndexesCount,
 		exception);
 	EXCEPTION_THROW;
 
@@ -309,20 +323,16 @@ DeviceDetection::Hash::ResultsHash* EngineHash::process(
 }
 
 DeviceDetection::Hash::ResultsHash* EngineHash::process(
-	const char *userAgent,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount) const {
+	const char *userAgent) const {
 	EXCEPTION_CREATE;
 
 	// A User-Agent on its own carries no values to override, so the results
 	// need no list of override values.
 	OwnedResults results = createResults(manager.get(), 0);
-	ResultsHashFromUserAgentForProperties(
+	ResultsHashFromUserAgent(
 		results.get(),
 		userAgent,
 		userAgent == nullptr ? 0 : strlen(userAgent),
-		requiredPropertyIndexes,
-		requiredPropertyIndexesCount,
 		exception);
 	EXCEPTION_THROW;
 	return giveResults(results, manager);
@@ -348,6 +358,46 @@ DeviceDetection::ResultsDeviceDetection* EngineHash::processDeviceDetection(
 DeviceDetection::ResultsDeviceDetection* EngineHash::processDeviceDetection(
 	const char *userAgent) const {
 	return process(userAgent);
+}
+
+namespace {
+	// The ids of the profiles the C layer passes. A failure to grow the list
+	// is recorded rather than thrown through the C layer.
+	struct ProfileIdsState {
+		std::vector<uint32_t> ids;
+		bool failed = false;
+	};
+}
+
+static bool addProfileId(void *state, fiftyoneDegreesCollectionItem *item) {
+	ProfileIdsState *profileIds = (ProfileIdsState*)state;
+	try {
+		profileIds->ids.push_back(
+			((fiftyoneDegreesProfile*)item->data.ptr)->profileId);
+	}
+	catch (...) {
+		profileIds->failed = true;
+	}
+	return true;
+}
+
+std::vector<uint32_t> EngineHash::getProfileIdsForPropertyValue(
+	const std::string &propertyName,
+	const std::string &valueName) const {
+	EXCEPTION_CREATE;
+	ProfileIdsState profileIds;
+	HashIterateProfilesForPropertyAndValue(
+		manager.get(),
+		propertyName.c_str(),
+		valueName.c_str(),
+		&profileIds,
+		addProfileId,
+		exception);
+	EXCEPTION_THROW;
+	if (profileIds.failed) {
+		throw StatusCodeException(INSUFFICIENT_MEMORY);
+	}
+	return profileIds.ids;
 }
 
 void EngineHash::initMetaData() {

@@ -134,15 +134,6 @@ typedef struct state_with_unique_header_index_t {
 } stateWithUniqueHeaderIndex;
 
 /**
- * Used to pass the results being populated together with the mask of
- * components whose graphs are evaluated. See COMPONENT_MASK_ENABLED.
- */
-typedef struct results_with_component_mask_t {
-	ResultsIpi* results; /* Results being populated */
-	uint32_t componentMask; /* Components whose graphs are evaluated */
-} resultsWithComponentMask;
-
-/**
  * Used to represent the structure within a profile groups item
  */
 #pragma pack(push, 2)
@@ -535,15 +526,15 @@ static const String* initGetPropertyString(
 			&indexKey,
 			&propertyItem,
 			exception);
-		if (property != NULL && EXCEPTION_OKAY) {
-			name = PropertyGetName(
-				dataSet->strings,
-				property,
-				item,
-				exception);
+		if (property != NULL) {
 			if (EXCEPTION_OKAY) {
-				COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+				name = PropertyGetName(
+					dataSet->strings,
+					property,
+					item,
+					exception);
 			}
+			COLLECTION_RELEASE(dataSet->properties, &propertyItem);
 		}
 	}
 	return name;
@@ -569,8 +560,8 @@ static StatusCode initComponentsAvailable(
 			return COLLECTION_FAILURE;
 		}
 		dataSet->componentsAvailable[property->componentIndex] = true;
-		// Record the component so required property indexes can be turned
-		// into a component mask without reading the property again.
+		// Record the component, so that it is known without reading the
+		// property again.
 		dataSet->b.b.available->items[i].componentIndex =
 			property->componentIndex;
 		COLLECTION_RELEASE(dataSet->properties, &item);
@@ -804,18 +795,41 @@ static byte getProfilesOffsetShift(const DataSetIpi* dataSet) {
 }
 #endif
 
-static void initDataSetPost(
+/**
+ * Gets the status for a failure, which is the exception's if it holds one. An
+ * exception holding success was not cleared before the call, which stops the
+ * init methods in the same way.
+ */
+static StatusCode getFailureStatus(
+	StatusCode status,
+	Exception *exception) {
+#ifdef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
+	(void)exception;
+#else
+	if (EXCEPTION_FAILED) {
+		return exception->status == SUCCESS ? INVALID_INPUT : exception->status;
+	}
+#endif
+	return status;
+}
+
+static StatusCode initDataSetPost(
 	DataSetIpi* dataSet,
 	Exception* exception) {
 	
-	// Initialise the components lists
+	// Initialise the components lists. A list short of the count fails, which
+	// the status shows whether or not there is an exception to show it.
 	ComponentInitList(
 		dataSet->components,
 		&dataSet->componentsList,
 		dataSet->header.components.count,
 		exception);
-	if (EXCEPTION_FAILED) {
-		return;
+	if (EXCEPTION_FAILED ||
+		dataSet->componentsList.count < dataSet->header.components.count) {
+		return getFailureStatus(
+			dataSet->componentsList.items == NULL ?
+				INSUFFICIENT_MEMORY : CORRUPT_DATA,
+			exception);
 	}
 
 	// Initialise the components which have required properties.
@@ -823,12 +837,13 @@ static void initDataSetPost(
 		sizeof(bool) * dataSet->componentsList.count);
 	if (dataSet->componentsAvailable == NULL) {
 		EXCEPTION_SET(INSUFFICIENT_MEMORY);
-		return;
+		return INSUFFICIENT_MEMORY;
 	}
 	memset(
 		(char*)dataSet->componentsAvailable,
 		0,
 		sizeof(bool) * dataSet->componentsList.count);
+	return SUCCESS;
 }
 
 static StatusCode initWithMemory(
@@ -902,15 +917,18 @@ static StatusCode initWithMemory(
 		dataSet->graphs,
 		reader,
 		exception);
+	if (dataSet->graphsArray == NULL) {
+		// Graphs the memory is too short to hold leave the position short of
+		// the end, so their failure is returned first.
+		return getFailureStatus(CORRUPT_DATA, exception);
+	}
 
 	/* Check that the current pointer equals the last byte */
 	if (reader->lastByte != reader->current) {
 		return POINTER_OUT_OF_BOUNDS;
 	}
 
-	initDataSetPost(dataSet, exception);
-
-	return status;
+	return initDataSetPost(dataSet, exception);
 }
 
 static StatusCode initInMemory(
@@ -1040,6 +1058,10 @@ static StatusCode createProfilesFromFile(
  * memory never rises and lookups need fewer locks, file reads and allocations.
  * Everything still reads from the file if it is not held, so this can only
  * change where an answer comes from and never the answer.
+ *
+ * A caller who names nothing, or every property, has only the default values
+ * held, which a lookup reads for each mandatory property its profile has no
+ * value for.
  */
 
 /**
@@ -1360,6 +1382,27 @@ static void heldPlanFree(heldPlan* plan) {
 	heldFreeIfSet(plan->strings);
 	heldFreeIfSet(plan->values);
 	heldFreeIfSet(plan->profiles);
+}
+
+/**
+ * Keeps only the first count ranges, so that a list sized for the most there
+ * could be is not still allocated while what it lists is held.
+ */
+static StatusCode heldRangesTrim(heldRange** ranges, const uint32_t count) {
+	heldRange* trimmed = NULL;
+	if (*ranges == NULL) {
+		return SUCCESS;
+	}
+	if (count > 0) {
+		trimmed = (heldRange*)Malloc(sizeof(heldRange) * count);
+		if (trimmed == NULL) {
+			return INSUFFICIENT_MEMORY;
+		}
+		memcpy(trimmed, *ranges, sizeof(heldRange) * count);
+	}
+	Free(*ranges);
+	*ranges = trimmed;
+	return SUCCESS;
 }
 
 static void heldPlanScanValue(void* state, const byte* record) {
@@ -1888,7 +1931,28 @@ static StatusCode heldPlanApply(
 	DataSetIpi* dataSet,
 	FILE* file,
 	const heldPlan* plan) {
-	StatusCode status = heldCreate(
+	StatusCode status;
+	// Holding the profile groups frees their cache, so it comes before what
+	// adds to the memory used.
+	if (plan->holdProfileGroups) {
+		// With no profile groups there is nothing to hold or to read.
+		static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
+		static const fiftyoneDegreesCollectionConfig onFile = { false, 0, 0 };
+		FIFTYONE_DEGREES_COLLECTION_FREE(dataSet->profileGroups);
+		dataSet->profileGroups = CollectionCreateFromFile(
+			file,
+			&dataSet->b.b.filePool,
+			dataSet->header.profileGroups.length > 0 ? &inMemory : &onFile,
+			dataSet->header.profileGroups,
+			CollectionReadFileFixed);
+		if (dataSet->profileGroups == NULL) {
+			return getCollectionFileStatus(
+				dataSet,
+				dataSet->header.profileGroups,
+				0);
+		}
+	}
+	status = heldCreate(
 		&dataSet->strings,
 		file,
 		(uint64_t)dataSet->header.strings.startPosition,
@@ -1907,24 +1971,6 @@ static StatusCode heldPlanApply(
 		plan->valuesCount);
 	if (status != SUCCESS) {
 		return status;
-	}
-	if (plan->holdProfileGroups) {
-		// With no profile groups there is nothing to hold or to read.
-		static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
-		static const fiftyoneDegreesCollectionConfig onFile = { false, 0, 0 };
-		FIFTYONE_DEGREES_COLLECTION_FREE(dataSet->profileGroups);
-		dataSet->profileGroups = CollectionCreateFromFile(
-			file,
-			&dataSet->b.b.filePool,
-			dataSet->header.profileGroups.length > 0 ? &inMemory : &onFile,
-			dataSet->header.profileGroups,
-			CollectionReadFileFixed);
-		if (dataSet->profileGroups == NULL) {
-			return getCollectionFileStatus(
-				dataSet,
-				dataSet->header.profileGroups,
-				0);
-		}
 	}
 	status = heldEnlargeProfileCache(dataSet, file, plan);
 	if (status != SUCCESS) {
@@ -1953,16 +1999,74 @@ static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
 	}
 	status = heldPlanCreate(dataSet, file, &plan, exception);
 	if (status == SUCCESS && EXCEPTION_OKAY) {
-		// The memory used to work out the plan goes first so that it does not
-		// add to the most memory used.
+		// The memory used to work out the plan goes first, and the stretches of
+		// the strings, listed with room for one in every 64 KB of them, keep
+		// only those found, so that neither adds to the most memory used.
 		heldFreeIfSet(plan.buffer);
 		plan.buffer = NULL;
 		heldFreeIfSet(plan.buckets);
 		plan.buckets = NULL;
-		status = heldPlanApply(dataSet, file, &plan);
+		status = heldRangesTrim(&plan.strings, plan.stringsCount);
+		if (status == SUCCESS) {
+			status = heldPlanApply(dataSet, file, &plan);
+		}
 	}
 	heldPlanFree(&plan);
 	fclose(file);
+	return status;
+}
+
+/**
+ * Holds the default value of each required property, so that reading one takes
+ * no lock and reads nothing from the file. Anything allocated is freed with the
+ * data set if this fails.
+ */
+static StatusCode heldDefaultsInit(DataSetIpi* dataSet, Exception* exception) {
+	const PropertiesAvailable* const available = dataSet->b.b.available;
+	const uint32_t valueCount = dataSet->values->count;
+	uint32_t count = 0;
+	FILE* file;
+	if (available->count == 0) {
+		return SUCCESS;
+	}
+	heldRange* const ranges = (heldRange*)Malloc(
+		sizeof(heldRange) * available->count);
+	if (ranges == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t i = 0; i < available->count; i++) {
+		Item item;
+		DataReset(&item.data);
+		const Property* const property = PropertyGet(
+			dataSet->properties,
+			available->items[i].propertyIndex,
+			&item,
+			exception);
+		if (property == NULL || EXCEPTION_FAILED) {
+			Free(ranges);
+			return COLLECTION_FAILURE;
+		}
+		const uint32_t index = property->defaultValueIndex;
+		COLLECTION_RELEASE(dataSet->properties, &item);
+		if (index < valueCount) {
+			heldRangeAdd(ranges, &count, index, index + 1);
+		}
+	}
+	StatusCode status = SUCCESS;
+	if (count > 0) {
+		status = FileOpen(dataSet->b.b.fileName, &file);
+		if (status == SUCCESS) {
+			status = heldCreate(
+				&dataSet->values,
+				file,
+				(uint64_t)dataSet->header.values.startPosition,
+				dataSet->values->elementSize,
+				ranges,
+				count);
+			fclose(file);
+		}
+	}
+	Free(ranges);
 	return status;
 }
 
@@ -1984,25 +2088,32 @@ static uint32_t heldCountNames(const char* list) {
 }
 
 /**
+ * True for the shape of the Balanced preset, which holds the strings and the
+ * graphs in memory and reads the values and the profiles from the file. The
+ * other presets use the configuration as it is.
+ */
+static bool heldIsBalanced(const ConfigIpi* config) {
+	return config->b.allInMemory == false &&
+		config->strings.loaded &&
+		config->graph.loaded &&
+		config->values.loaded == false &&
+		config->profiles.loaded == false;
+}
+
+/**
  * True for the shape of the Balanced preset when the caller has named fewer
- * properties than the data file has. The other presets, and a caller who names
- * nothing, use the configuration as it is.
+ * properties than the data file has.
  */
 static bool heldIsWanted(
 	const DataSetIpi* dataSet,
 	const PropertiesRequired* properties) {
-	const ConfigIpi* const config = &dataSet->config;
-	if (config->b.allInMemory ||
-		config->strings.loaded == false ||
-		config->graph.loaded == false ||
-		config->values.loaded ||
-		config->profiles.loaded ||
-		properties == NULL) {
+	if (heldIsBalanced(&dataSet->config) == false || properties == NULL) {
 		return false;
 	}
 	const uint32_t count = dataSet->header.properties.count;
 	if (properties->existing != NULL) {
-		return properties->existing->count < count;
+		return properties->existing->named != NULL &&
+			properties->existing->namedCount < count;
 	}
 	if (properties->array != NULL && properties->count > 0) {
 		return (uint32_t)properties->count < count;
@@ -2085,11 +2196,12 @@ static StatusCode readDataSetFromFile(
 			// but the configuration for each individual graph.
 			dataSet->config.graph,
 			exception);
+		if (dataSet->graphsArray == NULL) {
+			return getFailureStatus(CORRUPT_DATA, exception);
+		}
 	}
 
-	initDataSetPost(dataSet, exception);
-
-	return status;
+	return initDataSetPost(dataSet, exception);
 }
 
 #endif
@@ -2250,6 +2362,15 @@ static StatusCode initDataSetFromFile(
 			return status;
 		}
 	}
+	else if (heldIsBalanced(&dataSet->config)) {
+		status = heldDefaultsInit(dataSet, exception);
+		if (status != SUCCESS || EXCEPTION_FAILED) {
+			if (config->b.useTempFile == true) {
+				FileDelete(dataSet->b.b.fileName);
+			}
+			return status;
+		}
+	}
 #endif
 
 	// Check there are properties available for retrieval.
@@ -2270,8 +2391,17 @@ fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromFile(
 	const char* fileName,
 	fiftyoneDegreesException* exception) {
 
+	// The init methods show some failures only in the exception, so they are
+	// always given one, and the status returned carries those failures.
+	Exception ownException;
+	if (exception == NULL) {
+		exception = &ownException;
+		EXCEPTION_CLEAR;
+	}
+
 	DataSetIpi* dataSet = (DataSetIpi*)Malloc(sizeof(DataSetIpi));
 	if (dataSet == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return INSUFFICIENT_MEMORY;
 	}
 
@@ -2281,7 +2411,10 @@ fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromFile(
 		properties,
 		fileName,
 		exception);
-	if (status != SUCCESS || EXCEPTION_FAILED) {
+	if (status == SUCCESS) {
+		status = getFailureStatus(status, exception);
+	}
+	if (status != SUCCESS) {
 		// Nothing below has taken ownership of the data set, so it is freed
 		// here on every failure. Without this the file path leaks it along
 		// with the file pool's open handles, which is the path every data
@@ -2401,8 +2534,17 @@ fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromMemory(
 	void* memory,
 	FileOffset size,
 	fiftyoneDegreesException* exception) {
+	// The init methods show some failures only in the exception, so they are
+	// always given one, and the status returned carries those failures.
+	Exception ownException;
+	if (exception == NULL) {
+		exception = &ownException;
+		EXCEPTION_CLEAR;
+	}
+
 	DataSetIpi* dataSet = (DataSetIpi*)Malloc(sizeof(DataSetIpi));
 	if (dataSet == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return INSUFFICIENT_MEMORY;
 	}
 
@@ -2413,7 +2555,10 @@ fiftyoneDegreesStatusCode fiftyoneDegreesIpiInitManagerFromMemory(
 		memory,
 		size,
 		exception);
-	if (status != SUCCESS || EXCEPTION_FAILED) {
+	if (status == SUCCESS) {
+		status = getFailureStatus(status, exception);
+	}
+	if (status != SUCCESS) {
 		// The memory stays with the caller until the data set is set up, so
 		// it is not freed with what the data set allocated.
 		dataSet->b.b.memoryToFree = NULL;
@@ -2533,6 +2678,34 @@ static void resultsIpiResetHasValuesCache(ResultsIpi* const results) {
 	}
 }
 
+/**
+ * Walks the graph of the component for the result that holds it, against the
+ * data set the results hold. Called as the results are populated when the
+ * caller named the properties, and otherwise the first time a property of the
+ * component is read.
+ */
+static void resultsIpiEvaluate(
+	fiftyoneDegreesResultsBase* base,
+	byte componentIndex,
+	Exception* exception) {
+	ResultsIpi* const results =
+		(ResultsIpi*)((byte*)base - offsetof(ResultsIpi, b));
+	const DataSetIpi* const dataSet = (DataSetIpi*)results->b.dataSet;
+	const Component* const component = COMPONENT(dataSet, componentIndex);
+	if (component == NULL) {
+		return;
+	}
+	for (uint32_t i = 0; i < results->count; i++) {
+		if (results->items[i].componentIndex == (int32_t)componentIndex) {
+			setResultFromIpAddress(
+				&results->items[i],
+				dataSet,
+				component->componentId,
+				exception);
+		}
+	}
+}
+
 fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 	fiftyoneDegreesResourceManager* manager) {
 	ResultsIpi* results;
@@ -2550,19 +2723,28 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 
 	if (results != NULL) {
 
-		// Initialise the results.
+		// Initialise the results, which walk each component's graph as they
+		// are populated when the caller named the properties, and otherwise
+		// when one of the component's properties is first read.
 		fiftyoneDegreesResultsInit(&results->b, (void*)(&dataSet->b));
+		results->b.evaluate = resultsIpiEvaluate;
 
 		// Reset the property and values list ready for first use sized for
-		// a single value to be returned.
-		WeightedItemListInit(&results->values, 1, FIFTYONE_DEGREES_WEIGHTED_ITEM_LIST_DEFAULT_LOAD_FACTOR);
+		// a single value to be returned. Results without the memory for the
+		// list are freed, and none are returned.
+		results->hasValuesCache = NULL;
+		results->hasValuesCacheCount = 0;
+		results->keptProfiles = NULL;
 		DataReset(&results->propertyItem.data);
+		WeightedItemListInit(&results->values, 1, FIFTYONE_DEGREES_WEIGHTED_ITEM_LIST_DEFAULT_LOAD_FACTOR);
+		if (results->values.items == NULL) {
+			fiftyoneDegreesResultsIpiFree(results);
+			return NULL;
+		}
 
 		// Allocate the cache used to avoid repeating the profile walks
 		// which check whether a property has values for the current
 		// results. If the allocation fails the cache is not used.
-		results->hasValuesCache = NULL;
-		results->hasValuesCacheCount = 0;
 		if (dataSet->b.b.available != NULL &&
 			dataSet->b.b.available->count > 0) {
 			results->hasValuesCache = (byte*)Malloc(
@@ -2579,7 +2761,6 @@ fiftyoneDegreesResultsIpi* fiftyoneDegreesResultsIpiCreate(
 		// a copy because a cache entry held between calls could leave a shard
 		// of the cache with no entry to give. If this allocation fails each
 		// property reads the cache.
-		results->keptProfiles = NULL;
 		if (dataSet->config.profiles.loaded == false &&
 			dataSet->config.profiles.capacity > 0 &&
 			results->capacity > 0) {
@@ -2631,13 +2812,13 @@ static bool isIpv4Mapped(const unsigned char* const ipAddress) {
 	return memcmp(ipAddress, prefix, sizeof(prefix)) == 0;
 }
 
-static bool addResultsFromIpAddressNoChecks(
+static void addResultsFromIpAddressNoChecks(
 	ResultsIpi* results,
 	const unsigned char* ipAddress,
 	fiftyoneDegreesIpType type,
-	uint32_t componentMask,
-	fiftyoneDegreesException* exception) {
+	Exception* exception) {
 	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	const bool walk = ResultsWalkWhenPopulated(&dataSet->b.b);
 	// Every lookup comes through here, so an IPv4-mapped address takes the
 	// answers of its IPv4 address however it was given.
 	if (type == IP_TYPE_IPV6 && isIpv4Mapped(ipAddress)) {
@@ -2677,30 +2858,25 @@ static bool addResultsFromIpAddressNoChecks(
 			memcpy(nextResult->targetIpAddress.value, ipAddress, IPV6_LENGTH);
 		}
 
-		// Only evaluate the graph for a component the caller will read. The
-		// result slot is kept so the positional mapping to components is
-		// unchanged, and the slot reads as a null profile.
-		if (COMPONENT_MASK_ENABLED(componentMask, componentIndex)) {
-			setResultFromIpAddress(
-				nextResult,
-				dataSet,
-				component->componentId,
-				exception);
+		// The graph is walked now when the caller named the properties, and
+		// otherwise the first time a property of the component is read.
+		if (walk) {
+			results->b.evaluate(&results->b, (byte)componentIndex, exception);
 			if (EXCEPTION_FAILED) {
-				return false;
+				return;
 			}
 		}
+		else {
+			ResultsPendingSet(&results->b, (byte)componentIndex);
+		}
 	}
-	return true;
 }
 
-void fiftyoneDegreesResultsIpiFromIpAddressForProperties(
+void fiftyoneDegreesResultsIpiFromIpAddress(
 	fiftyoneDegreesResultsIpi* results,
 	const unsigned char* ipAddress,
 	size_t ipAddressLength,
 	fiftyoneDegreesIpType type,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
 	fiftyoneDegreesException* exception) {
 
 	// Make sure the input is always in the correct format
@@ -2716,40 +2892,15 @@ void fiftyoneDegreesResultsIpiFromIpAddressForProperties(
 	// Reset the results data before iterating the evidence.
 	results->count = 0;
 	resultsIpiResetHasValuesCache(results);
+	ResultsPendingClear(&results->b);
 
-	addResultsFromIpAddressNoChecks(
-		results,
-		ipAddress,
-		type,
-		PropertiesGetComponentMask(
-			((DataSetIpi*)results->b.dataSet)->b.b.available,
-			requiredPropertyIndexes,
-			requiredPropertyIndexesCount),
-		exception);
+	addResultsFromIpAddressNoChecks(results, ipAddress, type, exception);
 }
 
-void fiftyoneDegreesResultsIpiFromIpAddress(
-	fiftyoneDegreesResultsIpi* results,
-	const unsigned char* ipAddress,
-	size_t ipAddressLength,
-	fiftyoneDegreesIpType type,
-	fiftyoneDegreesException* exception) {
-	fiftyoneDegreesResultsIpiFromIpAddressForProperties(
-		results,
-		ipAddress,
-		ipAddressLength,
-		type,
-		NULL,
-		-1,
-		exception);
-}
-
-void fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
+void fiftyoneDegreesResultsIpiFromIpAddressString(
 	fiftyoneDegreesResultsIpi* results,
 	const char* ipAddress,
 	size_t ipLength,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
 	fiftyoneDegreesException* exception) {
 	IpAddress ip;
 	const bool parsed =
@@ -2763,23 +2914,19 @@ void fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
 	// Perform the search on the IP address byte array
 	switch(ip.type) {
 	case IP_TYPE_IPV4:
-		fiftyoneDegreesResultsIpiFromIpAddressForProperties(
+		fiftyoneDegreesResultsIpiFromIpAddress(
 			results,
 			ip.value,
 			IPV4_LENGTH,
 			IP_TYPE_IPV4,
-			requiredPropertyIndexes,
-			requiredPropertyIndexesCount,
 			exception);
 		break;
 	case IP_TYPE_IPV6:
-		fiftyoneDegreesResultsIpiFromIpAddressForProperties(
+		fiftyoneDegreesResultsIpiFromIpAddress(
 			results,
 			ip.value,
 			IPV6_LENGTH,
 			IP_TYPE_IPV6,
-			requiredPropertyIndexes,
-			requiredPropertyIndexesCount,
 			exception);
 		break;
 	case IP_TYPE_INVALID:
@@ -2789,28 +2936,12 @@ void fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
 	}
 }
 
-void fiftyoneDegreesResultsIpiFromIpAddressString(
-	fiftyoneDegreesResultsIpi* results,
-	const char* ipAddress,
-	size_t ipLength,
-	fiftyoneDegreesException* exception) {
-	fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
-		results,
-		ipAddress,
-		ipLength,
-		NULL,
-		-1,
-		exception);
-}
-
 static bool setResultsFromEvidence(
 	void* state,
 	EvidenceKeyValuePair* pair) {
 	const stateWithUniqueHeaderIndex* indexState = (stateWithUniqueHeaderIndex*)state;
 	const stateWithException* exceptionState = (stateWithException*)indexState->subState;
-	const resultsWithComponentMask* masked =
-		(resultsWithComponentMask*)exceptionState->state;
-	ResultsIpi* results = masked->results;
+	ResultsIpi* results = (ResultsIpi*)exceptionState->state;
 	Exception* exception = exceptionState->exception;
 	// We should not look further if a 
 	// result has already been found
@@ -2840,7 +2971,6 @@ static bool setResultsFromEvidence(
 				results,
 				ipAddress.value,
 				ipAddress.type,
-				masked->componentMask,
 				exception);
 		}
 	}
@@ -2872,21 +3002,13 @@ static void fiftyoneDegreesIterateHeadersWithEvidence(
 	}
 }
 
-void fiftyoneDegreesResultsIpiFromEvidenceForProperties(
+void fiftyoneDegreesResultsIpiFromEvidence(
 	fiftyoneDegreesResultsIpi* results,
 	fiftyoneDegreesEvidenceKeyValuePairArray* evidence,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
 	fiftyoneDegreesException* exception) {
 	stateWithException subState;
 	stateWithUniqueHeaderIndex state;
-	resultsWithComponentMask masked;
-	masked.results = results;
-	masked.componentMask = PropertiesGetComponentMask(
-		((DataSetIpi*)results->b.dataSet)->b.b.available,
-		requiredPropertyIndexes,
-		requiredPropertyIndexesCount);
-	subState.state = &masked;
+	subState.state = results;
 	subState.exception = exception;
 	state.subState = &subState;
 
@@ -2894,6 +3016,7 @@ void fiftyoneDegreesResultsIpiFromEvidenceForProperties(
 		// Reset the results data before iterating the evidence.
 		results->count = 0;
 		resultsIpiResetHasValuesCache(results);
+		ResultsPendingClear(&results->b);
 
 		fiftyoneDegreesIterateHeadersWithEvidence(
 			results,
@@ -2917,18 +3040,6 @@ void fiftyoneDegreesResultsIpiFromEvidenceForProperties(
 			}
 		}
 	}
-}
-
-void fiftyoneDegreesResultsIpiFromEvidence(
-	fiftyoneDegreesResultsIpi* results,
-	fiftyoneDegreesEvidenceKeyValuePairArray* evidence,
-	fiftyoneDegreesException* exception) {
-	fiftyoneDegreesResultsIpiFromEvidenceForProperties(
-		results,
-		evidence,
-		NULL,
-		-1,
-		exception);
 }
 
 static bool addWeightedValue(
@@ -3295,10 +3406,10 @@ static WeightedItem* getValuesFromResult(
 	return results->values.items;
 }
 
-const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
-	fiftyoneDegreesResultsIpi* const results,
-	int const requiredPropertyIndex,
-	fiftyoneDegreesException* const exception) {
+static const WeightedItem* resultsIpiGetValues(
+	ResultsIpi* const results,
+	int const availableIndex,
+	Exception* const exception) {
 	Property* property;
 	DataSetIpi* dataSet;
 	const WeightedItem* firstValue = NULL;
@@ -3308,10 +3419,10 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 
 	dataSet = (DataSetIpi*)results->b.dataSet;
 
-	// Work out the property index from the required property index.
-	const uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	// Work out the property index from the available index.
+	const int propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	if (propertyIndex >= 0) {
 		// Set the property that will be available in the results structure. 
@@ -3319,7 +3430,7 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 		// are used to obtain the values.
 		property = PropertyGet(
 			dataSet->properties,
-			propertyIndex,
+			(uint32_t)propertyIndex,
 			&results->propertyItem,
 			exception);
 
@@ -3329,6 +3440,9 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 			if (results->propertyItem.collection == NULL) {
 				results->propertyItem.collection = dataSet->properties;
 			}
+
+			// The first read of a property of the component walks its graph.
+			ResultsEvaluate(&results->b, property->componentIndex, exception);
 
 			// Only the result for the component that owns the property can
 			// hold values for it. Profiles only carry values for properties
@@ -3345,7 +3459,8 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 				}
 			}
 
-			if (results->values.count == 0 &&
+			if (EXCEPTION_OKAY &&
+				results->values.count == 0 &&
 				property->defaultValueIndex != UINT32_MAX &&
 				property->isMandatory) {
 				// There are no values, but the default value from the property
@@ -3365,6 +3480,19 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 		WeightedItemListRelease(&results->values);
 	}
 	return firstValue;
+}
+
+const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
+	fiftyoneDegreesResultsIpi* const results,
+	int const requiredPropertyIndex,
+	fiftyoneDegreesException* const exception) {
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	return resultsIpiGetValues(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
 }
 
 static bool visitProfilePropertyValue(
@@ -3480,7 +3608,7 @@ static bool resultHasValidPropertyValueOffset(
 
 static bool resultsGetHasValidPropertyValueOffset(
 	fiftyoneDegreesResultsIpi* const results,
-	const int requiredPropertyIndex,
+	const int availableIndex,
 	fiftyoneDegreesException* const exception) {
 	bool hasValidOffset = false;
 	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
@@ -3488,19 +3616,19 @@ static bool resultsGetHasValidPropertyValueOffset(
 	// Return the outcome of a previous walk over the same results for the
 	// property if one was recorded.
 	const bool canUseCache = results->hasValuesCache != NULL &&
-		requiredPropertyIndex >= 0 &&
-		(uint32_t)requiredPropertyIndex < results->hasValuesCacheCount;
+		availableIndex >= 0 &&
+		(uint32_t)availableIndex < results->hasValuesCacheCount;
 	if (canUseCache) {
-		const byte cached = results->hasValuesCache[requiredPropertyIndex];
+		const byte cached = results->hasValuesCache[availableIndex];
 		if (cached != IPI_HAS_VALUES_UNKNOWN) {
 			return cached == IPI_HAS_VALUES_TRUE;
 		}
 	}
 
-	// Work out the property index from the required property index.
-	const int32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	// Work out the property index from the available index.
+	const int32_t propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	if (propertyIndex >= 0) {
 		// Set the property that will be available in the results structure.
@@ -3513,6 +3641,9 @@ static bool resultsGetHasValidPropertyValueOffset(
 			exception);
 
 		if (property != NULL && EXCEPTION_OKAY) {
+			// The first read of a property of the component walks its graph.
+			ResultsEvaluate(&results->b, property->componentIndex, exception);
+
 			// Only the result for the component that owns the property can
 			// hold values for it. Profiles only carry values for properties
 			// of their own component, so the results for other components
@@ -3534,7 +3665,7 @@ static bool resultsGetHasValidPropertyValueOffset(
 			// no value reason calls for the same property and results do
 			// not need to repeat it.
 			if (EXCEPTION_OKAY && canUseCache) {
-				results->hasValuesCache[requiredPropertyIndex] =
+				results->hasValuesCache[availableIndex] =
 					hasValidOffset ?
 					IPI_HAS_VALUES_TRUE : IPI_HAS_VALUES_FALSE;
 			}
@@ -3543,16 +3674,16 @@ static bool resultsGetHasValidPropertyValueOffset(
 	return hasValidOffset;
 }
 
-bool fiftyoneDegreesResultsIpiGetHasValues(
-	fiftyoneDegreesResultsIpi* results,
-	int requiredPropertyIndex,
-	fiftyoneDegreesException* exception) {
+static bool resultsIpiGetHasValues(
+	ResultsIpi* results,
+	int availableIndex,
+	Exception* exception) {
 	const DataSetIpi *dataSet = (DataSetIpi*)results->b.dataSet;
 	// Ensure any previous uses of the results to get values are released.
 	resultsIpiRelease(results);
 
-	if (requiredPropertyIndex < 0 ||
-		requiredPropertyIndex >= (int)dataSet->b.b.available->count) {
+	if (availableIndex < 0 ||
+		availableIndex >= (int)dataSet->b.b.available->count) {
 		// The property index is not valid.
 		return false;
 	}
@@ -3565,7 +3696,7 @@ bool fiftyoneDegreesResultsIpiGetHasValues(
 	// outcome of a previous walk for the property is used if available.
 	const bool hasValidOffset = resultsGetHasValidPropertyValueOffset(
 		results,
-		requiredPropertyIndex,
+		availableIndex,
 		exception);
 	if (EXCEPTION_FAILED) {
 		return false;
@@ -3573,14 +3704,14 @@ bool fiftyoneDegreesResultsIpiGetHasValues(
 	if (hasValidOffset) {
 		return true;
 	}
-	const uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	const int propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	if (propertyIndex >= 0) {
 		Property *property = PropertyGet(
 			dataSet->properties,
-			propertyIndex,
+			(uint32_t)propertyIndex,
 			&results->propertyItem,
 			exception);
 		if (property != NULL && EXCEPTION_OKAY) {
@@ -3596,16 +3727,29 @@ bool fiftyoneDegreesResultsIpiGetHasValues(
 	return false;
 }
 
-fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason(
+bool fiftyoneDegreesResultsIpiGetHasValues(
 	fiftyoneDegreesResultsIpi* results,
 	int requiredPropertyIndex,
 	fiftyoneDegreesException* exception) {
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	return resultsIpiGetHasValues(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
+}
+
+static fiftyoneDegreesResultsNoValueReason resultsIpiGetNoValueReason(
+	ResultsIpi* results,
+	int availableIndex,
+	Exception* exception) {
 	const DataSetIpi *dataSet = (DataSetIpi*)results->b.dataSet;
 	// Ensure any previous uses of the results to get values are released.
 	resultsIpiRelease(results);
 
-	if (requiredPropertyIndex < 0 ||
-		requiredPropertyIndex >= (int)dataSet->b.b.available->count) {
+	if (availableIndex < 0 ||
+		availableIndex >= (int)dataSet->b.b.available->count) {
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY;
 	}
 
@@ -3617,7 +3761,7 @@ fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason(
 	// outcome of a previous walk for the property is used if available.
 	const bool hasValidOffset = resultsGetHasValidPropertyValueOffset(
 		results,
-		requiredPropertyIndex,
+		availableIndex,
 		exception);
 	if (EXCEPTION_FAILED) {
 		return false;
@@ -3630,6 +3774,19 @@ fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason(
 	}
 
 	return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
+}
+
+fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsIpiGetNoValueReason(
+	fiftyoneDegreesResultsIpi* results,
+	int requiredPropertyIndex,
+	fiftyoneDegreesException* exception) {
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	return resultsIpiGetNoValueReason(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
 }
 
 const char* fiftyoneDegreesResultsIpiGetNoValueReasonMessage(
@@ -3695,7 +3852,7 @@ static void pushValues(
 
 static void fiftyoneDegreesResultsIpiGetValuesStringInternal(
 	fiftyoneDegreesResultsIpi* results,
-	int requiredPropertyIndex,
+	int availableIndex,
 	StringBuilder * const builder,
 	const char* separator,
 	fiftyoneDegreesException* exception) {
@@ -3704,9 +3861,9 @@ static void fiftyoneDegreesResultsIpiGetValuesStringInternal(
 	Property *property;
 	const DataSetIpi *dataSet = (DataSetIpi *)results->b.dataSet;
 
-	const int propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	const int propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	if (propertyIndex >= 0) {
 		PropertyValueType const storedValueType = PropertyGetStoredTypeByIndex(
@@ -3727,10 +3884,10 @@ static void fiftyoneDegreesResultsIpiGetValuesStringInternal(
 			&propertyItem,
 			exception);
 		if (property != NULL && EXCEPTION_OKAY) {
-			if (requiredPropertyIndex >= 0) {
-				weightedItem = fiftyoneDegreesResultsIpiGetValues(
+			if (availableIndex >= 0) {
+				weightedItem = resultsIpiGetValues(
 					results,
-					requiredPropertyIndex,
+					availableIndex,
 					exception);
 				if (weightedItem != NULL && EXCEPTION_OKAY) {
 					pushValues(
@@ -3755,14 +3912,14 @@ void fiftyoneDegreesResultsIpiAddValuesString(
 	const char* separator,
 	fiftyoneDegreesException* exception) {
 	const DataSetIpi * const dataSet = (DataSetIpi *)results->b.dataSet;
-	const int requiredPropertyIndex = PropertiesGetRequiredPropertyIndexFromName(
+	const int availableIndex = PropertiesGetAvailableIndexFromName(
 		dataSet->b.b.available,
 		propertyName);
 
-	if (requiredPropertyIndex >= 0) {
+	if (availableIndex >= 0) {
 		fiftyoneDegreesResultsIpiGetValuesStringInternal(
 			results,
-			requiredPropertyIndex,
+			availableIndex,
 			builder,
 			separator,
 			exception);
@@ -3800,12 +3957,15 @@ size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
 	const char* separator,
 	fiftyoneDegreesException* exception) {
 
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
 	StringBuilder builder = { buffer, bufferLength };
 	StringBuilderInit(&builder);
 
 	fiftyoneDegreesResultsIpiGetValuesStringInternal(
 		results,
-		requiredPropertyIndex,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
 		&builder,
 		separator,
 		exception);

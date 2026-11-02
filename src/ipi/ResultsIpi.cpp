@@ -155,7 +155,14 @@ IpIntelligence::ResultsIpi::getPropertyValueType(
 }
 
 Common::Value<IpIntelligence::IpAddress>
-IpIntelligence::ResultsIpi::getValueAsIpAddress(int requiredPropertyIndex) {
+IpIntelligence::ResultsIpi::getValueAsIpAddress(
+    int requiredPropertyIndex) {
+    return valueAsIpAddressAt(
+        allowedRequiredPropertyIndex(requiredPropertyIndex));
+}
+
+Common::Value<IpIntelligence::IpAddress>
+IpIntelligence::ResultsIpi::valueAsIpAddressAt(int requiredPropertyIndex) {
     EXCEPTION_CREATE;
     const WeightedItem *valuesItems;
     Common::Value<IpAddress> result;
@@ -227,19 +234,19 @@ IpIntelligence::ResultsIpi::getValueAsIpAddress(int requiredPropertyIndex) {
 
 Common::Value<IpIntelligence::IpAddress>
 IpIntelligence::ResultsIpi::getValueAsIpAddress(const char *propertyName) {
-    return getValueAsIpAddress(
+    return valueAsIpAddressAt(
         ResultsBase::getRequiredPropertyIndex(propertyName));
 }
 
 Common::Value<IpIntelligence::IpAddress>
 IpIntelligence::ResultsIpi::getValueAsIpAddress(const string &propertyName) {
-    return getValueAsIpAddress(
+    return valueAsIpAddressAt(
         ResultsBase::getRequiredPropertyIndex(propertyName.c_str()));
 }
 
 Common::Value<IpIntelligence::IpAddress>
 IpIntelligence::ResultsIpi::getValueAsIpAddress(const string *propertyName) {
-    return getValueAsIpAddress(
+    return valueAsIpAddressAt(
         ResultsBase::getRequiredPropertyIndex(propertyName->c_str()));
 }
 
@@ -272,6 +279,13 @@ IpIntelligence::ResultsIpi::getTargetIpAddress() {
 
 Common::Value<vector<WeightedValue<bool>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedBoolList(
+    int requiredPropertyIndex) {
+    return valuesAsWeightedBoolListAt(
+        allowedRequiredPropertyIndex(requiredPropertyIndex));
+}
+
+Common::Value<vector<WeightedValue<bool>>>
+IpIntelligence::ResultsIpi::valuesAsWeightedBoolListAt(
     int requiredPropertyIndex) {
     EXCEPTION_CREATE;
     uint32_t i;
@@ -331,26 +345,33 @@ IpIntelligence::ResultsIpi::getValuesAsWeightedBoolList(
 Common::Value<vector<WeightedValue<bool>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedBoolList(
     const char *propertyName) {
-  return getValuesAsWeightedBoolList(
+  return valuesAsWeightedBoolListAt(
       ResultsBase::getRequiredPropertyIndex(propertyName));
 }
 
 Common::Value<vector<WeightedValue<bool>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedBoolList(
     const string &propertyName) {
-  return getValuesAsWeightedBoolList(
+  return valuesAsWeightedBoolListAt(
       ResultsBase::getRequiredPropertyIndex(propertyName.c_str()));
 }
 
 Common::Value<vector<WeightedValue<bool>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedBoolList(
     const string *propertyName) {
-  return getValuesAsWeightedBoolList(
+  return valuesAsWeightedBoolListAt(
       ResultsBase::getRequiredPropertyIndex(propertyName->c_str()));
 }
 
 Common::Value<vector<WeightedValue<string>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedStringList(
+    int requiredPropertyIndex) {
+    return valuesAsWeightedStringListAt(
+        allowedRequiredPropertyIndex(requiredPropertyIndex));
+}
+
+Common::Value<vector<WeightedValue<string>>>
+IpIntelligence::ResultsIpi::valuesAsWeightedStringListAt(
     const int requiredPropertyIndex) {
 
     vector<WeightedValue<string>> values;
@@ -451,25 +472,32 @@ void IpIntelligence::ResultsIpi::iterateWeightedValues(
 Common::Value<vector<WeightedValue<string>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedStringList(
     const char *propertyName) {
-    return getValuesAsWeightedStringList(
+    return valuesAsWeightedStringListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName));
 }
 
 Common::Value<vector<WeightedValue<std::vector<uint8_t>>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedUTF8StringList(const string &propertyName) {
-    return getValuesAsWeightedUTF8StringList(
+    return valuesAsWeightedUTF8StringListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName.c_str()));
 }
 
 Common::Value<vector<WeightedValue<std::vector<uint8_t>>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedUTF8StringList(
     const char *propertyName) {
-    return getValuesAsWeightedUTF8StringList(
+    return valuesAsWeightedUTF8StringListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName));
 }
 
 Common::Value<vector<WeightedValue<std::vector<uint8_t>>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedUTF8StringList(
+    int requiredPropertyIndex) {
+    return valuesAsWeightedUTF8StringListAt(
+        allowedRequiredPropertyIndex(requiredPropertyIndex));
+}
+
+Common::Value<vector<WeightedValue<std::vector<uint8_t>>>>
+IpIntelligence::ResultsIpi::valuesAsWeightedUTF8StringListAt(
     int requiredPropertyIndex) {
 
     vector<WeightedValue<std::vector<uint8_t>>> values;
@@ -533,19 +561,26 @@ IpIntelligence::ResultsIpi::getValuesAsWeightedUTF8StringList(
 
 Common::Value<std::vector<uint8_t>>
 IpIntelligence::ResultsIpi::getValueAsUTF8String(const string &propertyName) {
-    return getValueAsUTF8String(
+    return valueAsUTF8StringAt(
         ResultsBase::getRequiredPropertyIndex(propertyName.c_str()));
 }
 
 Common::Value<std::vector<uint8_t>>
 IpIntelligence::ResultsIpi::getValueAsUTF8String(
     const char *propertyName) {
-    return getValueAsUTF8String(
+    return valueAsUTF8StringAt(
         ResultsBase::getRequiredPropertyIndex(propertyName));
 }
 
 Common::Value<std::vector<uint8_t>>
 IpIntelligence::ResultsIpi::getValueAsUTF8String(
+    int requiredPropertyIndex) {
+    return valueAsUTF8StringAt(
+        allowedRequiredPropertyIndex(requiredPropertyIndex));
+}
+
+Common::Value<std::vector<uint8_t>>
+IpIntelligence::ResultsIpi::valueAsUTF8StringAt(
     int requiredPropertyIndex) {
 
     Common::Value<std::vector<uint8_t>> result;
@@ -622,19 +657,28 @@ IpIntelligence::ResultsIpi::getValueAsUTF8String(
 Common::Value<vector<WeightedValue<string>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedStringList(
     const string &propertyName) {
-    return getValuesAsWeightedStringList(
+    return valuesAsWeightedStringListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName.c_str()));
 }
 
 Common::Value<vector<WeightedValue<string>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedStringList(
     const string *propertyName) {
-    return getValuesAsWeightedStringList(
+    return valuesAsWeightedStringListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName->c_str()));
 }
 
 Common::Value<vector<WeightedValue<string>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedWKTStringList(
+    const int requiredPropertyIndex,
+    const byte decimalPlaces) {
+    return valuesAsWeightedWKTStringListAt(
+        allowedRequiredPropertyIndex(requiredPropertyIndex),
+        decimalPlaces);
+}
+
+Common::Value<vector<WeightedValue<string>>>
+IpIntelligence::ResultsIpi::valuesAsWeightedWKTStringListAt(
     const int requiredPropertyIndex,
     const byte decimalPlaces) {
     EXCEPTION_CREATE;
@@ -694,7 +738,7 @@ Common::Value<vector<WeightedValue<string>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedWKTStringList(
 const char *propertyName,
 byte decimalPlaces) {
-    return getValuesAsWeightedWKTStringList(
+    return valuesAsWeightedWKTStringListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName),
         decimalPlaces);
 }
@@ -703,7 +747,7 @@ Common::Value<vector<WeightedValue<string>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedWKTStringList(
 const string &propertyName,
 byte decimalPlaces) {
-    return getValuesAsWeightedWKTStringList(
+    return valuesAsWeightedWKTStringListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName.c_str()),
         decimalPlaces);
 }
@@ -712,13 +756,20 @@ Common::Value<vector<WeightedValue<string>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedWKTStringList(
 const string *propertyName,
 byte decimalPlaces) {
-    return getValuesAsWeightedWKTStringList(
+    return valuesAsWeightedWKTStringListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName->c_str()),
         decimalPlaces);
 }
 
 Common::Value<vector<WeightedValue<int>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedIntegerList(
+    int requiredPropertyIndex) {
+    return valuesAsWeightedIntegerListAt(
+        allowedRequiredPropertyIndex(requiredPropertyIndex));
+}
+
+Common::Value<vector<WeightedValue<int>>>
+IpIntelligence::ResultsIpi::valuesAsWeightedIntegerListAt(
     int requiredPropertyIndex) {
     EXCEPTION_CREATE;
     uint32_t i;
@@ -778,26 +829,33 @@ IpIntelligence::ResultsIpi::getValuesAsWeightedIntegerList(
 Common::Value<vector<WeightedValue<int>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedIntegerList(
     const char *propertyName) {
-    return getValuesAsWeightedIntegerList(
+    return valuesAsWeightedIntegerListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName));
 }
 
 Common::Value<vector<WeightedValue<int>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedIntegerList(
     const string &propertyName) {
-    return getValuesAsWeightedIntegerList(
+    return valuesAsWeightedIntegerListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName.c_str()));
 }
 
 Common::Value<vector<WeightedValue<int>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedIntegerList(
     const string *propertyName) {
-    return getValuesAsWeightedIntegerList(
+    return valuesAsWeightedIntegerListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName->c_str()));
 }
 
 Common::Value<vector<WeightedValue<double>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedDoubleList(
+    int requiredPropertyIndex) {
+    return valuesAsWeightedDoubleListAt(
+        allowedRequiredPropertyIndex(requiredPropertyIndex));
+}
+
+Common::Value<vector<WeightedValue<double>>>
+IpIntelligence::ResultsIpi::valuesAsWeightedDoubleListAt(
     int requiredPropertyIndex) {
     EXCEPTION_CREATE;
     uint32_t i;
@@ -857,21 +915,21 @@ IpIntelligence::ResultsIpi::getValuesAsWeightedDoubleList(
 Common::Value<vector<WeightedValue<double>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedDoubleList(
     const char *propertyName) {
-    return getValuesAsWeightedDoubleList(
+    return valuesAsWeightedDoubleListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName));
 }
 
 Common::Value<vector<WeightedValue<double>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedDoubleList(
     const string &propertyName) {
-    return getValuesAsWeightedDoubleList(
+    return valuesAsWeightedDoubleListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName.c_str()));
 }
 
 Common::Value<vector<WeightedValue<double>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedDoubleList(
     const string *propertyName) {
-    return getValuesAsWeightedDoubleList(
+    return valuesAsWeightedDoubleListAt(
         ResultsBase::getRequiredPropertyIndex(propertyName->c_str()));
 }
 

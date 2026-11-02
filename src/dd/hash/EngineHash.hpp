@@ -24,6 +24,8 @@
 #define FIFTYONE_DEGREES_ENGINE_HASH_HPP
 
 #include <sstream>
+#include <string>
+#include <vector>
 #include "../../common/resource.h"
 #include "../EvidenceDeviceDetection.hpp"
 #include "../EngineDeviceDetection.hpp"
@@ -164,40 +166,21 @@ namespace FiftyoneDegrees {
 				ResultsHash* process(const char *userAgent) const;
 
 				/**
-				 * Processes the evidence as process(EvidenceDeviceDetection*)
-				 * but walks only the graphs needed by the required properties
-				 * whose indexes are supplied. NULL or a negative count walks
-				 * every graph. A count of zero walks none. A property whose
-				 * graph was not walked has no value with the NULL_PROFILE
-				 * reason. The native mask is 32 bits, so components beyond
-				 * index 31 are always walked. Indexes are positions in
-				 * getRequiredProperties(), which move when a refresh loads a
-				 * data file that gains or loses a required property, so look
-				 * them up again after a refresh.
-				 * @param evidence to process
-				 * @param requiredPropertyIndexes the caller will read
-				 * @param requiredPropertyIndexesCount entries in the array
-				 * @return new results instance, owned by the caller
+				 * Gets the ids of the profiles holding a value of a property,
+				 * such as a NativeModel or a TAC, in the order of the data
+				 * file, which is ascending profile id. A value held by several
+				 * profiles gives all of them. Both names are matched exactly.
+				 * For a property named with ConfigHash::setIndexedProperties
+				 * the data set's index of profiles by value finds them.
+				 * Otherwise every profile is read, which gives the same ids.
+				 * @param propertyName name of the property
+				 * @param valueName name of the value
+				 * @return ids of the profiles holding the value, which is empty
+				 * when none does
 				 */
-				ResultsHash* process(
-					EvidenceDeviceDetection *evidence,
-					const int *requiredPropertyIndexes,
-					int requiredPropertyIndexesCount) const;
-
-				/**
-				 * Processes the User-Agent as process(const char*) but walks
-				 * only the graphs needed by the required properties whose
-				 * indexes are supplied. See the evidence overload for the
-				 * rules.
-				 * @param userAgent to process
-				 * @param requiredPropertyIndexes the caller will read
-				 * @param requiredPropertyIndexesCount entries in the array
-				 * @return new results instance, owned by the caller
-				 */
-				ResultsHash* process(
-					const char *userAgent,
-					const int *requiredPropertyIndexes,
-					int requiredPropertyIndexesCount) const;
+				std::vector<uint32_t> getProfileIdsForPropertyValue(
+					const std::string &propertyName,
+					const std::string &valueName) const;
 
 				/**
 				 * @}

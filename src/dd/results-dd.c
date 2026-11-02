@@ -32,7 +32,7 @@ void fiftyoneDegreesResultsDeviceDetectionInit(
 	fiftyoneDegreesDataSetDeviceDetection *dataSet,
 	uint32_t overridesCapacity) {
 	ResultsInit(&results->b, (void*)dataSet);
-	results->overrides = OverrideValuesCreate(overridesCapacity);
+	results->b.overrides = OverrideValuesCreate(overridesCapacity);
 
 	// Allocate working memory that might be used when combining header values
 	// to become pseudo headers.
@@ -55,7 +55,7 @@ void fiftyoneDegreesResultsDeviceDetectionInit(
 
 void fiftyoneDegreesResultsDeviceDetectionFree(
 	fiftyoneDegreesResultsDeviceDetection *results) {
-	OverrideValuesFree(results->overrides);
+	OverrideValuesFree(results->b.overrides);
 	Free(results->bufferPseudo);
 	Free(results->bufferTransform);
 }

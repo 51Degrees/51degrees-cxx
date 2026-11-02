@@ -1206,7 +1206,9 @@ static bool addComponentForProperty(
 		return false;
 	}
 	const uint32_t propertyIndex =
-		dataSet->b.b.available->items[required].propertyIndex;
+		(uint32_t)PropertiesGetPropertyIndexFromRequiredIndex(
+			dataSet->b.b.available,
+			required);
 	const Property* property = PropertyGet(
 		dataSet->properties,
 		propertyIndex,

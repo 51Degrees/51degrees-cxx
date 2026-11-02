@@ -5,10 +5,16 @@ param(
     [string]$Configuration = "Release",
     [string]$BuildMethod = "cmake",
     [string[]]$Products,
-    [bool]$SkipLiteTests
+    [bool]$SkipLiteTests,
+    [bool]$BuildOnly
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
+
+if ($BuildOnly) {
+    Write-Output "'$Name' is built without its tests"
+    exit 0
+}
 
 $Products = Get-Products -Products $Products -RepoPath $RepoName
 $RepoPath = (Resolve-Path $RepoName).Path

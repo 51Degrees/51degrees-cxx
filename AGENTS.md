@@ -77,6 +77,19 @@ tests. On a pull request, `ci/products.ps1` skips a product the change does
 not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
 docs and tools counts as touching every product.
 
+`Ubuntu_x64_Release_ExceptionsDisabled_BuildOnly` compiles both products with
+`ExceptionsDisabled` on, which makes `fiftyoneDegreesException` a void
+pointer. Its `BuildOnly` key leaves out the tests, which read the exception,
+and the data files. So code outside the tests reads `exception->status` only
+inside `#ifndef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED`, or through the macros in
+`src/common/exceptions.h`, which compile either way.
+
+CMake builds every test file in a test folder, but the Visual Studio test
+projects list theirs by name, so add a new test file to its `.vcxproj` and
+`.vcxproj.filters`. `ci/check-visual-studio-tests.ps1` fails the Visual Studio
+builds when one is missing. Those builds run the common and Device Detection
+tests, and build the IP Intelligence tests without running them.
+
 ## Versions
 
 The repository has one version, tagged as a plain version such as `4.5.96`.

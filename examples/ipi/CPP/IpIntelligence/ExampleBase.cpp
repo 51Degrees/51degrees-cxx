@@ -77,13 +77,10 @@ unsigned long ExampleBase::generateHash(unsigned char *value) {
 
 unsigned long ExampleBase::getHashCode(FiftyoneDegrees::IpIntelligence::ResultsIpi *results) {
 	unsigned long hashCode = 0;
-	uint32_t requiredPropertyIndex;
 	string valueName;
-	
-	for (requiredPropertyIndex = 0;
-		requiredPropertyIndex < (uint32_t)results->getAvailableProperties();
-		requiredPropertyIndex++) {
-		Common::Value<string> nextValue = results->getValueAsString(requiredPropertyIndex);
+
+	for (const string &name : results->getProperties()) {
+		Common::Value<string> nextValue = results->getValueAsString(name);
 		if (nextValue.hasValue()) {
 			valueName = nextValue.getValue();
 			hashCode ^= generateHash((unsigned char *)(valueName.c_str()));

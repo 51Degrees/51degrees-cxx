@@ -144,7 +144,12 @@ void fiftyoneDegreesComponentInitList(
 				&componentKey,
 				&item,
 				exception);
-			if (component != NULL && EXCEPTION_OKAY) {
+			if (component == NULL) {
+				// A null exception cannot end the loop, so stop here. The list
+				// is then short of the count, which the caller checks.
+				break;
+			}
+			if (EXCEPTION_OKAY) {
 				ListAdd(list, &item);
 
 				// Move to the next component in the collection.
@@ -153,6 +158,10 @@ void fiftyoneDegreesComponentInitList(
 					exception);
 			}
 		}
+	}
+	else if (count > 0) {
+		// A list of no items may come back null, which is not a failure.
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 	}
 }
 

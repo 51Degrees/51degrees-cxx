@@ -232,6 +232,21 @@ TEST_F(File, TempCreateFilenameSmallBuffer) {
 	EXPECT_EQ('\0', tempFileName[0]);
 }
 
+/**
+ * Check a name that needs all of the length, leaving no room for its null, is
+ * too long rather than cut short, and that one more byte is enough.
+ */
+TEST_F(File, TempCreateFileNameFillingTheLength) {
+	char tempFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	createTempFileName(fileName, tempFileName, FIFTYONE_DEGREES_FILE_MAX_PATH);
+	const size_t needed = strlen(tempFileName);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY,
+		fiftyoneDegreesFileAddTempFileName(fileName, tempFileName, 0, needed));
+	EXPECT_EQ('\0', tempFileName[0]);
+	createTempFileName(fileName, tempFileName, needed + 1);
+	EXPECT_EQ(needed, strlen(tempFileName));
+}
+
 TEST_F(File, TempCreateFileNameNoDup) {
 	char tempFileNames[2][FIFTYONE_DEGREES_FILE_MAX_PATH];
 	for (int i = 0; i < 2; i++) {
@@ -451,6 +466,25 @@ TEST_F(File, TempCreateZeroBufferWithoutPaths) {
 		fiftyoneDegreesFileNewTempFile(fileName, NULL, 0, NULL, 0)) <<
 		"Expected file path too long status.";
 	removeDir(tempPath1);
+}
+
+/**
+ * Check a path that fills the destination with its separator, leaving no room
+ * for the name, is too long and that nothing is written after the
+ * destination. The path is in a folder that does not exist, so no file is
+ * made if the check fails.
+ */
+TEST_F(File, TempCreatePathFillingTheBuffer) {
+	const char* paths[] = { "absent/folder" };
+	const size_t length = strlen(paths[0]) + 1;
+	char buffer[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	memset(buffer, 'x', sizeof(buffer));
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY,
+		fiftyoneDegreesFileNewTempFile(fileName, paths, 1, buffer, length));
+	for (size_t i = length; i < sizeof(buffer); i++) {
+		ASSERT_EQ('x', buffer[i]) <<
+			"Byte " << i << " after the destination was written.";
+	}
 }
 
 /*

@@ -147,6 +147,11 @@ static void executeTest(const char *userAgent, void *state) {
 		strlen(userAgent),
 		exception);
 	EXCEPTION_THROW;
+
+	// Walk every graph, as reading the properties would, so that the memory
+	// the walks use is measured.
+	ResultsEvaluateAll(&threadState->results->b.b, exception);
+	EXCEPTION_THROW;
 	result = (ResultHash*)threadState->results->items;
 
 	// Increase the count for this performance thread and update the user

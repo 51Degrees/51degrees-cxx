@@ -39,10 +39,8 @@ static const char* graphFilterUserAgent = (
 	"Safari/9537.53");
 
 /**
- * Tests for the EngineHash::process overloads that take the required
- * property indexes a caller will read, so that only the graphs those
- * properties depend on are walked, and for getRequiredProperties which
- * gives the names in required property index order.
+ * Tests for getRequiredProperties, which gives the names in required
+ * property index order.
  */
 class EngineHashGraphFilterTests : public Base {
 public:
@@ -75,48 +73,10 @@ protected:
 TEST_F(EngineHashGraphFilterTests, RequiredPropertiesAreInIndexOrder) {
 	vector<string> names = engine->getRequiredProperties();
 	unique_ptr<ResultsHash> results(engine->process(graphFilterUserAgent));
-	vector<string> fromResults = results->getProperties();
-	ASSERT_EQ(fromResults.size(), names.size());
+	ASSERT_EQ((size_t)results->getAvailableProperties(), names.size());
 	for (size_t i = 0; i < names.size(); i++) {
-		EXPECT_EQ(fromResults[i], names[i]) <<
+		EXPECT_EQ(results->getPropertyName((int)i), names[i]) <<
 			"Name at required property index " << i << " differs.";
 	}
 	EXPECT_TRUE(results->containsProperty("IsMobile"));
-}
-
-TEST_F(EngineHashGraphFilterTests, NullIndexesGiveEveryValue) {
-	unique_ptr<ResultsHash> all(engine->process(graphFilterUserAgent));
-	unique_ptr<ResultsHash> filtered(
-		engine->process(graphFilterUserAgent, nullptr, -1));
-	EXPECT_EQ(all->getDeviceId(), filtered->getDeviceId());
-	EXPECT_TRUE(filtered->getValueAsString("IsMobile").hasValue());
-	EXPECT_TRUE(filtered->getValueAsString("BrowserName").hasValue());
-}
-
-TEST_F(EngineHashGraphFilterTests, OneIndexGivesOnlyThatComponent) {
-	vector<string> names = engine->getRequiredProperties();
-	int isMobile = -1;
-	for (size_t i = 0; i < names.size(); i++) {
-		if (names[i] == "IsMobile") { isMobile = (int)i; }
-	}
-	ASSERT_GE(isMobile, 0) << "IsMobile must be a required property.";
-	int indexes[] = { isMobile };
-	EvidenceDeviceDetection evidence;
-	evidence["header.user-agent"] = graphFilterUserAgent;
-	unique_ptr<ResultsHash> results(engine->process(&evidence, indexes, 1));
-	EXPECT_TRUE(results->getValueAsString("IsMobile").hasValue());
-	Value<string> browser = results->getValueAsString("BrowserName");
-	EXPECT_FALSE(browser.hasValue()) <<
-		"BrowserName belongs to a component whose graph was not walked.";
-	EXPECT_EQ(
-		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE,
-		browser.getNoValueReason());
-}
-
-TEST_F(EngineHashGraphFilterTests, EmptyIndexesGiveNoValue) {
-	int none[] = { 0 };
-	unique_ptr<ResultsHash> results(
-		engine->process(graphFilterUserAgent, none, 0));
-	EXPECT_FALSE(results->getValueAsString("IsMobile").hasValue());
-	EXPECT_FALSE(results->getValueAsString("BrowserName").hasValue());
 }

@@ -193,7 +193,8 @@ static unsigned long getHashCode(ResultsIpi *results) {
 	const char* valueName;
 	DataSetIpi* dataSet = (DataSetIpi*)results->b.dataSet;
 	for (requiredPropertyIndex = 0;
-		requiredPropertyIndex < dataSet->b.b.available->count;
+		requiredPropertyIndex < PropertiesGetRequiredPropertyCount(
+			dataSet->b.b.available);
 		requiredPropertyIndex++) {
 		EXCEPTION_CLEAR;
 		if (ResultsIpiGetHasValues(

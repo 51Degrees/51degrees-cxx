@@ -268,8 +268,6 @@ typedef struct detection_component_state_t {
 	EvidencePrefix specialPrefix; /* Prefix given to the headers that special
 								  evidence such as GHEV or SUA is turned into.
 								  See setSpecialHeaderPrefix */
-	uint32_t graphs; /* Bit i set means the graph for component i is walked.
-					 See COMPONENT_MASK_ENABLED */
 } detectionComponentState;
 
 /**
@@ -360,7 +358,7 @@ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX, \
 { false, 10000, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Strings */ \
 { true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Components */ \
 { true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Maps */ \
-{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Properties */ \
+{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Properties */ \
 { false, 500, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Values */ \
 { false, 10000, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Profiles */ \
 { true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Root Nodes */ \
@@ -420,8 +418,9 @@ static void hashResultReset(const DataSetHash *dataSet, ResultHash *result) {
 	result->method = FIFTYONE_DEGREES_HASH_MATCH_METHOD_NONE;
 	result->iterations = 0;
 	result->matchedNodes = 0;
+	result->componentIndex = UINT8_MAX;
 	for (i = 0; i < dataSet->componentsList.count; i++) {
-		
+
 		// Overridden profiles have to be set explicitly.
 		result->profileIsOverriden[i] = false;
 
@@ -1287,6 +1286,554 @@ static bool processRoots(
 }
 
 /**
+ * INDEX OF PROFILES BY VALUE
+ */
+
+/**
+ * The values of one indexed property, used while the index of profiles by
+ * value is built.
+ */
+typedef struct value_profiles_range_t {
+	uint32_t firstValueIndex; /* Index of the property's first value */
+	uint32_t valuesCount; /* Number of values the property has */
+	uint32_t firstKey; /* Key of the property's first value */
+} valueProfilesRange;
+
+/**
+ * Holds the ids of the profiles found when every profile is read.
+ */
+typedef struct value_profiles_ids_t {
+	uint32_t *profileIds; /* Array to set the ids in, or NULL */
+	uint32_t length; /* Number of ids the array can hold */
+	uint32_t count; /* Number of profiles found */
+} valueProfilesIds;
+
+static int valueProfilesCompareRanges(const void *a, const void *b) {
+	const uint32_t x = ((const valueProfilesRange*)a)->firstValueIndex;
+	const uint32_t y = ((const valueProfilesRange*)b)->firstValueIndex;
+	return x < y ? -1 : (x > y ? 1 : 0);
+}
+
+/**
+ * Frees an index of profiles by value. The names and the arrays for each
+ * property are in the memory of the index itself.
+ */
+static void valueProfilesFree(HashValueProfiles *index) {
+	if (index->profiles != NULL) {
+		Free(index->profiles);
+	}
+	if (index->starts != NULL) {
+		Free(index->starts);
+	}
+	Free(index);
+}
+
+/**
+ * Allocates the bytes, or returns NULL when a size_t cannot hold them, which
+ * on a 32 bit build it might not.
+ */
+static void* valueProfilesMalloc(uint64_t bytes) {
+	return (uint64_t)(size_t)bytes == bytes ? Malloc((size_t)bytes) : NULL;
+}
+
+/**
+ * True when the name at the index is not null and does not repeat a name
+ * before it in the list.
+ */
+static bool valueProfilesIsNewName(const char **names, uint32_t index) {
+	if (names[index] == NULL) {
+		return false;
+	}
+	for (uint32_t i = 0; i < index; i++) {
+		if (names[i] != NULL && strcmp(names[i], names[index]) == 0) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Creates an index holding a copy of each name in the list, in the order of
+ * the list without nulls or repeats, with no property found for any of them.
+ */
+static HashValueProfiles* valueProfilesCreateNames(
+	const char **names,
+	uint32_t namesCount,
+	Exception *exception) {
+	uint32_t i, count = 0;
+	uint64_t chars = 0;
+	size_t length;
+	char *copy;
+	HashValueProfiles *index;
+	for (i = 0; i < namesCount; i++) {
+		if (valueProfilesIsNewName(names, i)) {
+			chars += strlen(names[i]) + 1;
+			count++;
+		}
+	}
+
+	// The arrays for each property follow the index, and then the names,
+	// which need no alignment.
+	index = (HashValueProfiles*)valueProfilesMalloc(
+		sizeof(HashValueProfiles) +
+		(uint64_t)count * (sizeof(const char*) + sizeof(uint32_t) * 3) +
+		sizeof(uint32_t) +
+		chars);
+	if (index == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
+		return NULL;
+	}
+	index->propertiesCount = count;
+	index->keysCount = 0;
+	index->profilesCount = 0;
+	index->names = (const char**)(index + 1);
+	index->propertyIndexes = (uint32_t*)(index->names + count);
+	index->firstValueIndexes = index->propertyIndexes + count;
+	index->firstKeys = index->firstValueIndexes + count;
+	index->starts = NULL;
+	index->profiles = NULL;
+	copy = (char*)(index->firstKeys + count + 1);
+	count = 0;
+	for (i = 0; i < namesCount; i++) {
+		if (valueProfilesIsNewName(names, i)) {
+			length = strlen(names[i]) + 1;
+			memcpy(copy, names[i], length);
+			index->names[count] = copy;
+			index->propertyIndexes[count] = UINT32_MAX;
+			index->firstValueIndexes[count] = 0;
+			index->firstKeys[count] = 0;
+			copy += length;
+			count++;
+		}
+	}
+	index->firstKeys[count] = 0;
+	return index;
+}
+
+/**
+ * Finds the property of each name, being the first in the properties
+ * collection with exactly that name as reading every profile finds it, and
+ * gives its values the keys after those of the property before it in the
+ * index.
+ */
+static StatusCode valueProfilesFindProperties(
+	DataSetHash *dataSet,
+	HashValueProfiles *index,
+	Exception *exception) {
+	Item propertyItem, nameItem;
+	Property *property;
+	const String *name;
+	uint32_t i, p, valuesCount, found = 0;
+	uint64_t keys = 0;
+	const uint32_t propertiesCount = CollectionGetCount(dataSet->properties);
+	const uint32_t allValuesCount = CollectionGetCount(dataSet->values);
+	DataReset(&propertyItem.data);
+	DataReset(&nameItem.data);
+	for (p = 0; p < propertiesCount && found < index->propertiesCount; p++) {
+		property = PropertyGet(
+			dataSet->properties,
+			p,
+			&propertyItem,
+			exception);
+		if (property == NULL || EXCEPTION_FAILED) {
+			if (property != NULL) {
+				COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+			}
+			return COLLECTION_FAILURE;
+		}
+		name = PropertyGetName(
+			dataSet->strings,
+			property,
+			&nameItem,
+			exception);
+		if (name == NULL || EXCEPTION_FAILED) {
+			if (name != NULL) {
+				COLLECTION_RELEASE(dataSet->strings, &nameItem);
+			}
+			COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+			return COLLECTION_FAILURE;
+		}
+		for (i = 0; i < index->propertiesCount; i++) {
+			if (index->propertyIndexes[i] == UINT32_MAX &&
+				strcmp(&name->value, index->names[i]) == 0) {
+
+				// A property whose values are not all in the values
+				// collection is given none, so that no key reaches past the
+				// collection. Its number of values is kept in its first key
+				// until every property is found.
+				index->propertyIndexes[i] = p;
+				index->firstValueIndexes[i] = property->firstValueIndex;
+				index->firstKeys[i] =
+					property->firstValueIndex <= property->lastValueIndex &&
+					property->lastValueIndex < allValuesCount ?
+					property->lastValueIndex - property->firstValueIndex + 1 :
+					0;
+				found++;
+				break;
+			}
+		}
+		COLLECTION_RELEASE(dataSet->strings, &nameItem);
+		COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+	}
+
+	// The starts of the keys need one more entry than there are keys.
+	for (i = 0; i < index->propertiesCount; i++) {
+		valuesCount = index->firstKeys[i];
+		index->firstKeys[i] = (uint32_t)keys;
+		keys += valuesCount;
+		if (keys >= UINT32_MAX) {
+			EXCEPTION_SET(CORRUPT_DATA);
+			return CORRUPT_DATA;
+		}
+	}
+	index->firstKeys[index->propertiesCount] = (uint32_t)keys;
+	index->keysCount = (uint32_t)keys;
+	return SUCCESS;
+}
+
+/**
+ * Reads every profile and, for each of its values that has a key, counts the
+ * profile for the key or, once the index is sized, puts the profile in front
+ * of those already placed for the key. Filling reads from the last profile to
+ * the first, so the profiles of each key end up in the order of the data file.
+ */
+static StatusCode valueProfilesRead(
+	DataSetHash *dataSet,
+	HashValueProfiles *index,
+	const valueProfilesRange *ranges,
+	uint32_t rangesCount,
+	bool fill,
+	uint64_t *found,
+	Exception *exception) {
+	Item item;
+	Profile *profile;
+	const uint32_t *values;
+	uint32_t i, position, key, r, v;
+	const uint32_t count = CollectionGetCount(dataSet->profileOffsets);
+	DataReset(&item.data);
+	for (i = 0; i < count; i++) {
+		position = fill ? count - 1 - i : i;
+		profile = ProfileGetByIndex(
+			dataSet->profileOffsets,
+			dataSet->profiles,
+			position,
+			&item,
+			exception);
+		if (profile == NULL || EXCEPTION_FAILED) {
+			if (profile != NULL) {
+				COLLECTION_RELEASE(dataSet->profiles, &item);
+			}
+			return COLLECTION_FAILURE;
+		}
+
+		// The values of a profile and the ranges are both in ascending order
+		// of value index, so one walk along both finds each value with a key.
+		values = (const uint32_t*)(profile + 1);
+		r = 0;
+		v = 0;
+		while (v < profile->valueCount && r < rangesCount) {
+			if (values[v] < ranges[r].firstValueIndex) {
+				v++;
+			}
+			else if (values[v] - ranges[r].firstValueIndex >=
+				ranges[r].valuesCount) {
+				r++;
+			}
+			else {
+				key = ranges[r].firstKey +
+					(values[v] - ranges[r].firstValueIndex);
+				if (fill == false) {
+					index->starts[key]++;
+				}
+				else if (index->starts[key] > 0) {
+					index->profiles[--index->starts[key]] = position;
+				}
+				(*found)++;
+				v++;
+			}
+		}
+		COLLECTION_RELEASE(dataSet->profiles, &item);
+	}
+	return SUCCESS;
+}
+
+/**
+ * Creates the index of the profiles holding each value of the properties
+ * named. The profiles are read twice, first to count the profiles of each key
+ * so that the index is allocated at its final size, and then to fill it.
+ */
+static StatusCode valueProfilesCreate(
+	DataSetHash *dataSet,
+	const char **names,
+	uint32_t namesCount,
+	Exception *exception) {
+	StatusCode status;
+	valueProfilesRange *ranges = NULL;
+	uint32_t i, rangesCount = 0;
+	uint64_t total = 0, counted = 0, filled = 0;
+	HashValueProfiles *index = valueProfilesCreateNames(
+		names,
+		namesCount,
+		exception);
+	if (index == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	status = valueProfilesFindProperties(dataSet, index, exception);
+
+	// The starts of the keys are allocated once the properties are found and
+	// the number of keys is known. The ranges have room for one more than the
+	// properties, so that no memory is the only reason for a null result.
+	if (status == SUCCESS) {
+		index->starts = (uint32_t*)valueProfilesMalloc(
+			((uint64_t)index->keysCount + 1) * sizeof(uint32_t));
+		ranges = (valueProfilesRange*)valueProfilesMalloc(
+			(uint64_t)index->propertiesCount * sizeof(valueProfilesRange) +
+			sizeof(valueProfilesRange));
+		if (index->starts == NULL || ranges == NULL) {
+			EXCEPTION_SET(INSUFFICIENT_MEMORY);
+			status = INSUFFICIENT_MEMORY;
+		}
+	}
+	if (status == SUCCESS) {
+		for (i = 0; i < index->propertiesCount; i++) {
+			if (index->firstKeys[i + 1] > index->firstKeys[i]) {
+				ranges[rangesCount].firstValueIndex =
+					index->firstValueIndexes[i];
+				ranges[rangesCount].valuesCount =
+					index->firstKeys[i + 1] - index->firstKeys[i];
+				ranges[rangesCount].firstKey = index->firstKeys[i];
+				rangesCount++;
+			}
+		}
+		memset(
+			index->starts,
+			0,
+			sizeof(uint32_t) * ((size_t)index->keysCount + 1));
+		qsort(
+			ranges,
+			rangesCount,
+			sizeof(valueProfilesRange),
+			valueProfilesCompareRanges);
+
+		// The profiles are only read when there are values to find in them.
+		if (rangesCount > 0) {
+			status = valueProfilesRead(
+				dataSet,
+				index,
+				ranges,
+				rangesCount,
+				false,
+				&counted,
+				exception);
+		}
+	}
+
+	// Each key's count becomes the end of its profiles, which filling then
+	// moves back to their start.
+	if (status == SUCCESS) {
+		if (counted > UINT32_MAX) {
+			EXCEPTION_SET(CORRUPT_DATA);
+			status = CORRUPT_DATA;
+		}
+		else {
+			for (i = 0; i < index->keysCount; i++) {
+				total += index->starts[i];
+				index->starts[i] = (uint32_t)total;
+			}
+			index->starts[index->keysCount] = (uint32_t)counted;
+			index->profilesCount = (uint32_t)counted;
+		}
+	}
+	if (status == SUCCESS && counted > 0) {
+		index->profiles = (uint32_t*)valueProfilesMalloc(
+			counted * sizeof(uint32_t));
+		if (index->profiles == NULL) {
+			EXCEPTION_SET(INSUFFICIENT_MEMORY);
+			status = INSUFFICIENT_MEMORY;
+		}
+		else {
+			status = valueProfilesRead(
+				dataSet,
+				index,
+				ranges,
+				rangesCount,
+				true,
+				&filled,
+				exception);
+		}
+	}
+
+	// The profiles of each key must lie between the start of the key and the
+	// start of the next, which a second read finding other values breaks.
+	if (status == SUCCESS) {
+		for (i = 0; i < index->keysCount && filled == counted; i++) {
+			if (index->starts[i] > index->starts[i + 1]) {
+				filled = 0;
+			}
+		}
+		if (filled != counted) {
+			EXCEPTION_SET(CORRUPT_DATA);
+			status = CORRUPT_DATA;
+		}
+	}
+
+	if (ranges != NULL) {
+		Free(ranges);
+	}
+	if (status == SUCCESS) {
+		dataSet->valueProfiles = index;
+	}
+	else {
+		valueProfilesFree(index);
+	}
+	return status;
+}
+
+/**
+ * Creates the index of profiles by value for the properties named. Nothing is
+ * indexed when there are no names, or only nulls.
+ */
+static StatusCode valueProfilesInit(
+	DataSetHash *dataSet,
+	const char **names,
+	int namesCount,
+	Exception *exception) {
+	for (int i = 0; names != NULL && i < namesCount; i++) {
+		if (names[i] != NULL) {
+			return valueProfilesCreate(
+				dataSet,
+				names,
+				(uint32_t)namesCount,
+				exception);
+		}
+	}
+	return SUCCESS;
+}
+
+/**
+ * Gets the index of the data set a reload replaces. A reload initialises the
+ * new data set with the configuration of the one in use, which is the copy
+ * held in that data set, so the data set is found from where that copy is.
+ */
+static const HashValueProfiles* valueProfilesGetReplaced(const void *config) {
+	return ((const DataSetHash*)(
+		(const byte*)config - offsetof(DataSetHash, config)))->valueProfiles;
+}
+
+/**
+ * Finds, from the index of profiles by value, the positions in the profile
+ * offsets collection of the profiles holding the value. Returns false when the
+ * index cannot answer, being when there is no index or the property is not
+ * one of those indexed, so that every profile has to be read instead.
+ */
+static bool valueProfilesGet(
+	DataSetHash *dataSet,
+	const char *propertyName,
+	const char *valueName,
+	const uint32_t **profiles,
+	uint32_t *count,
+	Exception *exception) {
+	Item item;
+	Property *property;
+	long valueIndex;
+	uint32_t i, first, key;
+	const HashValueProfiles *index = dataSet->valueProfiles;
+	*profiles = NULL;
+	*count = 0;
+	if (index == NULL) {
+		return false;
+	}
+
+	// The name is matched exactly, as reading every profile matches it.
+	for (i = 0; i < index->propertiesCount; i++) {
+		if (strcmp(index->names[i], propertyName) == 0) {
+			break;
+		}
+	}
+	if (i == index->propertiesCount) {
+		return false;
+	}
+
+	// No profile holds a value of a property the data file does not have.
+	if (index->propertyIndexes[i] == UINT32_MAX) {
+		return true;
+	}
+
+	// The value is found as reading every profile finds it.
+	DataReset(&item.data);
+	property = PropertyGet(
+		dataSet->properties,
+		index->propertyIndexes[i],
+		&item,
+		exception);
+	if (property != NULL) {
+		if (EXCEPTION_OKAY) {
+			valueIndex = ValueGetIndexByNameAndType(
+				dataSet->values,
+				dataSet->strings,
+				property,
+				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+				valueName,
+				exception);
+			first = index->firstValueIndexes[i];
+			if (valueIndex >= 0 &&
+				EXCEPTION_OKAY &&
+				(uint32_t)valueIndex >= first &&
+				(uint32_t)valueIndex - first <
+				index->firstKeys[i + 1] - index->firstKeys[i]) {
+				key = index->firstKeys[i] + ((uint32_t)valueIndex - first);
+				*count = index->starts[key + 1] - index->starts[key];
+				if (*count > 0) {
+					*profiles = index->profiles + index->starts[key];
+				}
+			}
+		}
+		COLLECTION_RELEASE(dataSet->properties, &item);
+	}
+	return true;
+}
+
+/**
+ * Passes each profile at the positions to the callback, whatever it returns,
+ * as reading every profile does for the profiles it finds.
+ */
+static uint32_t valueProfilesIterate(
+	DataSetHash *dataSet,
+	const uint32_t *profiles,
+	uint32_t count,
+	void *state,
+	ProfileIterateMethod callback,
+	Exception *exception) {
+	Item item;
+	uint32_t i, iterated = 0;
+	DataReset(&item.data);
+	for (i = 0; i < count && EXCEPTION_OKAY; i++) {
+		if (ProfileGetByIndex(
+			dataSet->profileOffsets,
+			dataSet->profiles,
+			profiles[i],
+			&item,
+			exception) != NULL) {
+			if (EXCEPTION_OKAY) {
+				callback(state, &item);
+				iterated++;
+			}
+			COLLECTION_RELEASE(dataSet->profiles, &item);
+		}
+	}
+	return iterated;
+}
+
+static bool valueProfilesAddId(void *state, Item *item) {
+	valueProfilesIds *ids = (valueProfilesIds*)state;
+	if (ids->profileIds != NULL && ids->count < ids->length) {
+		ids->profileIds[ids->count] = ((Profile*)item->data.ptr)->profileId;
+	}
+	ids->count++;
+	return true;
+}
+
+/**
  * DATA INITIALISE AND RESET METHODS
  */
 
@@ -1304,6 +1851,7 @@ static void resetDataSet(DataSetHash *dataSet) {
 	dataSet->properties = NULL;
 	dataSet->strings = NULL;
 	dataSet->values = NULL;
+	dataSet->valueProfiles = NULL;
 }
 
 static void freeDataSet(void *dataSetPtr) {
@@ -1315,6 +1863,12 @@ static void freeDataSet(void *dataSetPtr) {
 			Free(dataSet->componentHeaders[i]);
 		}
 		Free(dataSet->componentHeaders);
+	}
+
+	// Free the index of profiles by value.
+	if (dataSet->valueProfiles != NULL) {
+		valueProfilesFree(dataSet->valueProfiles);
+		dataSet->valueProfiles = NULL;
 	}
 
 	// Free the common data set fields.
@@ -1401,15 +1955,15 @@ static const String* initGetPropertyString(
 			&propertyKey,
 			&propertyItem,
 			exception);
-		if (property != NULL && EXCEPTION_OKAY) {
-			name = PropertyGetName(
-				dataSet->strings,
-				property,
-				item,
-				exception);
+		if (property != NULL) {
 			if (EXCEPTION_OKAY) {
-				COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+				name = PropertyGetName(
+					dataSet->strings,
+					property,
+					item,
+					exception);
 			}
+			COLLECTION_RELEASE(dataSet->properties, &propertyItem);
 		}
 	}
 	return name;
@@ -1473,8 +2027,8 @@ static StatusCode initComponentsAvailable(
 			return COLLECTION_FAILURE;
 		}
 		dataSet->componentsAvailable[property->componentIndex] = true;
-		// Record the component so required property indexes can be turned
-		// into a component mask without reading the property again.
+		// Record the component, so that it is known without reading the
+		// property again.
 		dataSet->b.b.available->items[i].componentIndex =
 			property->componentIndex;
 		COLLECTION_RELEASE(dataSet->properties, &item);
@@ -1720,7 +2274,7 @@ static StatusCode initIndicesPropertyProfile(
 		}
 #ifndef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
 		// The exception will only be available if not disabled.
-		else {
+		else if (exception != NULL) {
 			status = exception->status;
 		}
 #endif
@@ -1776,9 +2330,7 @@ static void initGetHighEntropyValues(
 		dataSet->strings, 
 		exception);
 
-	// Clean up if an exception occurred after checking in debug mode if there
-	// was an exception.
-	assert(EXCEPTION_OKAY);
+	// Clean up if an exception occurred, such as a failed allocation.
 	if (!EXCEPTION_OKAY) {
 		if (dataSet->b.ghevHeaders != NULL) {
 			Free(dataSet->b.ghevHeaders);
@@ -1824,19 +2376,42 @@ static StatusCode checkVersion(DataSetHash *dataSet) {
 	return SUCCESS;
 }
 
-static void initDataSetPost(
+/**
+ * Gets the status for a failure, which is the exception's if it holds one. An
+ * exception holding success was not cleared before the call, which stops the
+ * init methods in the same way.
+ */
+static StatusCode getFailureStatus(
+	StatusCode status,
+	Exception *exception) {
+#ifdef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
+	(void)exception;
+#else
+	if (EXCEPTION_FAILED) {
+		return exception->status == SUCCESS ? INVALID_INPUT : exception->status;
+	}
+#endif
+	return status;
+}
+
+static StatusCode initDataSetPost(
 	DataSetHash *dataSet, 
 	Exception *exception) {
 	uint32_t i;
 
-	// Initialise the components lists
+	// Initialise the components lists. A list short of the count fails, which
+	// the status shows whether or not there is an exception to show it.
 	ComponentInitList(
 		dataSet->components,
 		&dataSet->componentsList,
 		dataSet->header.components.count,
 		exception);
-	if (EXCEPTION_FAILED) {
-		return;
+	if (EXCEPTION_FAILED ||
+		dataSet->componentsList.count < dataSet->header.components.count) {
+		return getFailureStatus(
+			dataSet->componentsList.items == NULL ?
+				INSUFFICIENT_MEMORY : CORRUPT_DATA,
+			exception);
 	}
 
 	// Initialise the components which have required properties.
@@ -1844,12 +2419,13 @@ static void initDataSetPost(
 		sizeof(bool) * dataSet->componentsList.count);
 	if (dataSet->componentsAvailable == NULL) {
 		EXCEPTION_SET(INSUFFICIENT_MEMORY);
-		return;
+		return INSUFFICIENT_MEMORY;
 	}
 
 	for (i = 0; i < dataSet->componentsList.count; i++) {
 		dataSet->componentsAvailable[i] = false;
 	}
+	return SUCCESS;
 }
 
 static StatusCode initWithMemory(
@@ -1915,9 +2491,7 @@ static StatusCode initWithMemory(
 		return POINTER_OUT_OF_BOUNDS;
 	}
 
-	initDataSetPost(dataSet, exception);
-
-	return status;
+	return initDataSetPost(dataSet, exception);
 }
 
 static StatusCode initInMemory(
@@ -2028,9 +2602,7 @@ static StatusCode readDataSetFromFile(
 
 	COLLECTION_CREATE_FILE(profileOffsets, CollectionReadFileFixed);
 
-	initDataSetPost(dataSet, exception);
-
-	return status;
+	return initDataSetPost(dataSet, exception);
 }
 
 #endif
@@ -2107,10 +2679,12 @@ static StatusCode initWithFile(DataSetHash *dataSet, Exception *exception) {
 
 #endif
 
-static StatusCode initDataSetFromFile(
+static StatusCode initDataSetFromFileIndexing(
 	void *dataSetBase,
 	const void *configBase,
 	PropertiesRequired *properties,
+	const char **indexedProperties,
+	int indexedPropertiesCount,
 	const char *fileName,
 	Exception *exception) {
 	DataSetHash *dataSet = (DataSetHash*)dataSetBase;
@@ -2175,7 +2749,7 @@ static StatusCode initDataSetFromFile(
 	}
 
 	// Initialise the index for properties and profiles to values.
-	initIndicesPropertyProfile(dataSet, exception);
+	status = initIndicesPropertyProfile(dataSet, exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		if (config->b.b.useTempFile == true) {
 			FileDelete(dataSet->b.b.fileName);
@@ -2192,9 +2766,45 @@ static StatusCode initDataSetFromFile(
 		return status;
 	}
 
+	// Initialise the index of the profiles holding each value of the
+	// properties to index.
+	status = valueProfilesInit(
+		dataSet,
+		indexedProperties,
+		indexedPropertiesCount,
+		exception);
+	if (status != SUCCESS || EXCEPTION_FAILED) {
+		if (config->b.b.useTempFile == true) {
+			FileDelete(dataSet->b.b.fileName);
+		}
+		return status;
+	}
+
 	initGetHighEntropyValues(dataSet, exception);
 
 	return status;
+}
+
+/**
+ * Initialises the data set a reload creates from a file. The reload methods
+ * from FIFTYONE_DEGREES_DATASET_RELOAD call it, and it indexes the properties
+ * the data set it replaces indexed.
+ */
+static StatusCode initDataSetFromFile(
+	void *dataSetBase,
+	const void *configBase,
+	PropertiesRequired *properties,
+	const char *fileName,
+	Exception *exception) {
+	const HashValueProfiles *index = valueProfilesGetReplaced(configBase);
+	return initDataSetFromFileIndexing(
+		dataSetBase,
+		configBase,
+		properties,
+		index == NULL ? NULL : index->names,
+		index == NULL ? 0 : (int)index->propertiesCount,
+		fileName,
+		exception);
 }
 
 fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromFile(
@@ -2202,6 +2812,25 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromFile(
 	fiftyoneDegreesConfigHash *config,
 	fiftyoneDegreesPropertiesRequired *properties,
 	const char *fileName,
+	fiftyoneDegreesException *exception) {
+	return HashInitManagerFromFileWithIndexedProperties(
+		manager,
+		config,
+		properties,
+		fileName,
+		NULL,
+		0,
+		exception);
+}
+
+fiftyoneDegreesStatusCode
+fiftyoneDegreesHashInitManagerFromFileWithIndexedProperties(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesConfigHash *config,
+	fiftyoneDegreesPropertiesRequired *properties,
+	const char *fileName,
+	const char **indexedProperties,
+	int indexedPropertiesCount,
 	fiftyoneDegreesException *exception) {
 
 	// A null configuration means the balanced one, which uses a graph.
@@ -2211,18 +2840,32 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromFile(
 		return INVALID_CONFIG;
 	}
 
+	// The init methods show some failures only in the exception, so they are
+	// always given one, and the status returned carries those failures.
+	Exception ownException;
+	if (exception == NULL) {
+		exception = &ownException;
+		EXCEPTION_CLEAR;
+	}
+
 	DataSetHash *dataSet = (DataSetHash*)Malloc(sizeof(DataSetHash));
 	if (dataSet == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return INSUFFICIENT_MEMORY;
 	}
 
-	StatusCode status = initDataSetFromFile(
+	StatusCode status = initDataSetFromFileIndexing(
 		dataSet,
 		config,
 		properties,
+		indexedProperties,
+		indexedPropertiesCount,
 		fileName,
 		exception);
-	if (status != SUCCESS || EXCEPTION_FAILED) {
+	if (status == SUCCESS) {
+		status = getFailureStatus(status, exception);
+	}
+	if (status != SUCCESS) {
 		// Nothing below has taken ownership of the data set, so it is freed
 		// here on every failure. Without this a failed initialisation leaks
 		// it along with the file pool's open handles.
@@ -2287,10 +2930,12 @@ size_t fiftyoneDegreesHashSizeManagerFromFile(
 	return allocated;
 }
 
-static StatusCode initDataSetFromMemory(
+static StatusCode initDataSetFromMemoryIndexing(
 	void *dataSetBase,
 	const void *configBase,
 	PropertiesRequired *properties,
+	const char **indexedProperties,
+	int indexedPropertiesCount,
 	void *memory,
 	long size,
 	Exception *exception) {
@@ -2330,9 +2975,12 @@ static StatusCode initDataSetFromMemory(
 	// Initialise the components available to flag which components have
 	// properties which are to be returned (i.e. available properties).
 	status = initComponentsAvailable(dataSet, exception);
-	
+	if (status != SUCCESS || EXCEPTION_FAILED) {
+		return status;
+	}
+
 	// Initialise the index for properties and profiles to values.
-	initIndicesPropertyProfile(dataSet, exception);
+	status = initIndicesPropertyProfile(dataSet, exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		if (config->b.b.useTempFile == true) {
 			FileDelete(dataSet->b.b.fileName);
@@ -2349,9 +2997,47 @@ static StatusCode initDataSetFromMemory(
 		return status;
 	}
 
+	// Initialise the index of the profiles holding each value of the
+	// properties to index.
+	status = valueProfilesInit(
+		dataSet,
+		indexedProperties,
+		indexedPropertiesCount,
+		exception);
+	if (status != SUCCESS || EXCEPTION_FAILED) {
+		if (config->b.b.useTempFile == true) {
+			FileDelete(dataSet->b.b.fileName);
+		}
+		return status;
+	}
+
 	initGetHighEntropyValues(dataSet, exception);
 
 	return status;
+}
+
+/**
+ * Initialises the data set a reload creates from memory. The reload methods
+ * from FIFTYONE_DEGREES_DATASET_RELOAD call it, and it indexes the properties
+ * the data set it replaces indexed.
+ */
+static StatusCode initDataSetFromMemory(
+	void *dataSetBase,
+	const void *configBase,
+	PropertiesRequired *properties,
+	void *memory,
+	long size,
+	Exception *exception) {
+	const HashValueProfiles *index = valueProfilesGetReplaced(configBase);
+	return initDataSetFromMemoryIndexing(
+		dataSetBase,
+		configBase,
+		properties,
+		index == NULL ? NULL : index->names,
+		index == NULL ? 0 : (int)index->propertiesCount,
+		memory,
+		size,
+		exception);
 }
 
 fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromMemory(
@@ -2361,6 +3047,27 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromMemory(
 	void *memory,
 	long size,
 	fiftyoneDegreesException *exception) {
+	return HashInitManagerFromMemoryWithIndexedProperties(
+		manager,
+		config,
+		properties,
+		memory,
+		size,
+		NULL,
+		0,
+		exception);
+}
+
+fiftyoneDegreesStatusCode
+fiftyoneDegreesHashInitManagerFromMemoryWithIndexedProperties(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesConfigHash *config,
+	fiftyoneDegreesPropertiesRequired *properties,
+	void *memory,
+	long size,
+	const char **indexedProperties,
+	int indexedPropertiesCount,
+	fiftyoneDegreesException *exception) {
 
 	// A null configuration means the balanced one, which uses a graph.
 	if (config != NULL &&
@@ -2369,19 +3076,33 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashInitManagerFromMemory(
 		return INVALID_CONFIG;
 	}
 
+	// The init methods show some failures only in the exception, so they are
+	// always given one, and the status returned carries those failures.
+	Exception ownException;
+	if (exception == NULL) {
+		exception = &ownException;
+		EXCEPTION_CLEAR;
+	}
+
 	DataSetHash *dataSet = (DataSetHash*)Malloc(sizeof(DataSetHash));
 	if (dataSet == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return INSUFFICIENT_MEMORY;
 	}
 
-	StatusCode status = initDataSetFromMemory(
+	StatusCode status = initDataSetFromMemoryIndexing(
 		dataSet,
 		config,
 		properties,
+		indexedProperties,
+		indexedPropertiesCount,
 		memory,
 		size,
 		exception);
-	if (status != SUCCESS || EXCEPTION_FAILED) {
+	if (status == SUCCESS) {
+		status = getFailureStatus(status, exception);
+	}
+	if (status != SUCCESS) {
 		// The memory stays with the caller until the data set is set up, so
 		// it is not freed with what the data set allocated.
 		dataSet->b.b.memoryToFree = NULL;
@@ -2537,37 +3258,45 @@ static HashRootNodes* getRootNodesForComponentHeaderId(
 }
 
 
-// Set the members of the result and rest the result.
+// Resets what a walk of the component sets in the result, and sets the value
+// and header the walk uses. The profiles of other components in the result,
+// such as a default profile or a profile override, are kept.
 static ResultHash* hashResultSet(
-	DataSetHash* dataSet, 
-	ResultHash* result, 
-	const char* value, 
-	size_t valueLength, 
+	DataSetHash* dataSet,
+	ResultHash* result,
+	byte componentIndex,
+	const char* value,
+	size_t valueLength,
 	int headerIndex) {
-	hashResultReset(dataSet, result);
+	ResultsUserAgentReset(&dataSet->config.b, &result->b);
+	result->difference = 0;
+	result->drift = 0;
+	result->method = FIFTYONE_DEGREES_HASH_MATCH_METHOD_NONE;
+	result->iterations = 0;
+	result->matchedNodes = 0;
+	result->profileIsOverriden[componentIndex] = false;
+	result->profileOffsets[componentIndex] = NULL_PROFILE_OFFSET;
+	if (result->b.matchedUserAgent != NULL) {
+		result->b.matchedUserAgentLength =
+			dataSet->config.b.maxMatchedUserAgentLength;
+	}
 	result->b.targetUserAgent = value;
 	result->b.targetUserAgentLength = valueLength;
 	result->b.uniqueHttpHeaderIndex = headerIndex;
 	return result;
 }
 
-// Returns the next result in the results if there is capacity available, 
-// otherwise null.
-static ResultHash* getNextResult(
-	const char* value, 
-	size_t length,
+// The result the component took when the results were populated, or null if
+// its evidence gave it none.
+static ResultHash* getComponentResult(
 	ResultsHash* results,
-	int headerIndex) {
-	ResultHash* result = NULL;
-	if (results->count < results->capacity) {
-		result = hashResultSet(
-			(DataSetHash*)results->b.b.dataSet, 
-			&((ResultHash*)results->items)[results->count++],
-			value, 
-			length, 
-			headerIndex);
+	byte componentIndex) {
+	for (uint32_t i = 0; i < results->count; i++) {
+		if (results->items[i].componentIndex == componentIndex) {
+			return &results->items[i];
+		}
 	}
-	return result;
+	return NULL;
 }
 
 static void completeResult(
@@ -2597,15 +3326,10 @@ static void completeResult(
 		result->method = FIFTYONE_DEGREES_HASH_MATCH_METHOD_PREDICTIVE;
 	}
 
-	// Add the profile to the result for the component index and set all other
-	// profile offsets to null indicating that the result does not relate to
-	// those components.
-	for (uint32_t i = 0; i < state->dataSet->componentsList.count; i++) {
-		result->profileOffsets[i] = 
-			componentIndex == i ? 
-			state->profileOffset : 
-			NULL_PROFILE_OFFSET;
-	}
+	// Add the profile to the result for the component index. The profiles of
+	// other components in the result, such as the default profile of a
+	// component with no evidence, are kept.
+	result->profileOffsets[componentIndex] = state->profileOffset;
 }
 
 // For the value, component, and header performs device detection using the 
@@ -2668,46 +3392,33 @@ static bool setResultFromEvidenceForComponentCallback(
 	Exception* exception = s->exception;
 	if (pair->header != NULL && pair->header->isDataSet) {
 
-		// Get the next result instance in the array of results or if there
-		// is already a result instance assigned to this iteration then use
-		// that one as it indicates that a prior evaluation did not result in
-		// any matched nodes.
+		// Use the result the component took when the results were
+		// populated. A header tried after one that gave no matched nodes uses
+		// the same result again.
 		result = s->lastResult == NULL ?
-			getNextResult(
-				(const char*)pair->parsedValue, 
-				pair->parsedLength, 
-				s->results, 
-				pair->header->index) :
+			getComponentResult(s->results, s->componentIndex) :
+			s->lastResult;
+		if (result != NULL) {
 			hashResultSet(
-				s->dataSet, 
-				s->lastResult, 
+				s->dataSet,
+				result,
+				s->componentIndex,
 				(const char*)pair->parsedValue,
 				pair->parsedLength,
 				pair->header->index);
-		if (result != NULL) {
 
-			// Set the last result instance in case this iteration doesn't 
+			// Set the last result instance in case this iteration doesn't
 			// produce and outcome that concludes the iterations.
 			s->lastResult = result;
 
-			if (COMPONENT_MASK_ENABLED(s->graphs, s->componentIndex)) {
-
-				// Perform the device detection and set the result.
-				complete = setResultForComponentHeader(
-					s->dataSet,
-					s->componentIndex,
-					pair->header,
-					result,
-					exception);
-				if (EXCEPTION_FAILED) return false;
-			}
-			else {
-
-				// The caller will not read this component, so leave the
-				// result with a null profile and do not walk the graph.
-				complete = true;
-			}
-
+			// Perform the device detection and set the result.
+			complete = setResultForComponentHeader(
+				s->dataSet,
+				s->componentIndex,
+				pair->header,
+				result,
+				exception);
+			if (EXCEPTION_FAILED) return false;
 		}
 		else {
 
@@ -2924,8 +3635,9 @@ static void overrideProfileId(void *state, const uint32_t profileId) {
 	detectionComponentState* s = (detectionComponentState*)state;
 	Exception* exception = s->exception;
 	ResultsHash *results = (ResultsHash*)s->results;
-	if (profileId > 0) {
-		addProfileById(results, profileId, true, exception);
+	if (profileId > 0 &&
+		addProfileById(results, profileId, true, exception)) {
+		results->profileIdsOverridden = true;
 	}
 }
 
@@ -2961,23 +3673,50 @@ static ResultHash* getResultFromResults(
 	return result;
 }
 
+// Returns a result whose profile for the component is overridden, or null.
+static ResultHash* getOverriddenResult(
+	ResultsHash* results,
+	byte componentIndex) {
+	for (uint32_t i = 0; i < results->count; i++) {
+		if (results->items[i].profileIsOverriden[componentIndex]) {
+			return &results->items[i];
+		}
+	}
+	return NULL;
+}
+
+// Walks the component's graph on the first read of one of its properties,
+// unless a profile override has set its profile, which a walk would not
+// change.
+static void evaluateComponent(
+	ResultsHash* results,
+	byte componentIndex,
+	Exception* exception) {
+	if (getOverriddenResult(results, componentIndex) == NULL) {
+		ResultsEvaluate(&results->b.b, componentIndex, exception);
+	}
+}
+
 /**
- * Loop through the HTTP headers that matter to this component index until a
- * matching result for an HTTP header is found in the results.
+ * Walks the component's graph if this is the first read of one of its
+ * properties, then loops through the HTTP headers that matter to this
+ * component index until a matching result for an HTTP header is found in the
+ * results.
  */
 static ResultHash* getResultFromResultsForComponentIndex(
 	DataSetHash* dataSet,
 	ResultsHash* results,
-	byte componentIndex) {
-	uint32_t i;
+	byte componentIndex,
+	Exception* exception) {
 	ResultHash* result = NULL;
 
-	// Check if there are any results with on overridden profile. This takes
-	// precedence.
-	for (i = 0; i < results->count; i++) {
-		if (results->items[i].profileIsOverriden[componentIndex]) {
-			return &results->items[i];
-		}
+	// A result with an overridden profile takes precedence. A default profile
+	// is marked as overridden and the walk can set one, so look for the
+	// overridden result after the walk.
+	evaluateComponent(results, componentIndex, exception);
+	result = getOverriddenResult(results, componentIndex);
+	if (result != NULL) {
+		return result;
 	}
 
 	// Now look for the best result based on the order of preference for HTTP
@@ -3002,13 +3741,13 @@ static void resultsHashFromEvidence_extractOverrides(
 	// Extract any property value overrides from the evidence.
 	OverridesExtractFromEvidence(
 		state->dataSet->b.b.overridable,
-		state->results->b.overrides,
+		state->results->b.b.overrides,
 		state->evidence);
 
 	// If a value has been overridden, override the property which
 	// calculates its override with an empty string to ensure that an
 	// infinite loop of overrides can't occur.
-	const int overridesCount = state->results->b.overrides->count;
+	const int overridesCount = state->results->b.b.overrides->count;
 	for (int overrideIndex = 0;
 		overrideIndex < overridesCount && EXCEPTION_OKAY;
 		++overrideIndex)
@@ -3016,16 +3755,17 @@ static void resultsHashFromEvidence_extractOverrides(
 		const int overridingPropertyIndex =
 			OverridesGetOverridingRequiredPropertyIndex(
 				state->dataSet->b.b.available,
-				state->results->b.overrides->items[overrideIndex]
+				state->results->b.b.overrides->items[overrideIndex]
 				.requiredPropertyIndex);
 
 		if (overridingPropertyIndex >= 0) {
 			// Get the property index so that the type of the property that 
 			// performs the override can be checked before it is removed
 			// from the result.
-			const int propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
-				state->dataSet->b.b.available,
-				overridingPropertyIndex);
+			const int propertyIndex =
+				PropertiesGetPropertyIndexFromAvailableIndex(
+					state->dataSet->b.b.available,
+					overridingPropertyIndex);
 			if (PropertyGetValueType(
 				state->dataSet->properties,
 				propertyIndex,
@@ -3033,7 +3773,7 @@ static void resultsHashFromEvidence_extractOverrides(
 				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT &&
 				EXCEPTION_OKAY) {
 				OverridesAdd(
-					state->results->b.overrides,
+					state->results->b.b.overrides,
 					overridingPropertyIndex,
 					"");
 			}
@@ -3047,48 +3787,66 @@ static void resultsHashFromEvidence_extractOverrides(
 // The method is needed to handle an expectation that a profile is always
 // returned for a component which is a past behavior when allowUnmatched is
 // true.
+static void resultsHashFromEvidence_SetMissingComponentDefaultProfile(
+	DataSetHash* dataSet,
+	ResultsHash* results,
+	byte componentIndex,
+	Exception* exception) {
+
+	// Get the result for the component.
+	ResultHash* result = getResultFromResultsForComponentIndex(
+		dataSet,
+		results,
+		componentIndex,
+		exception);
+
+	// If there is no result for the component, or no profile within the
+	// result for the component, then add the default profile.
+	if (result == NULL ||
+		result->profileOffsets[componentIndex] == NULL_PROFILE_OFFSET) {
+		if (result != NULL) {
+			addProfile(
+				result,
+				componentIndex,
+				COMPONENT(dataSet, componentIndex)->defaultProfileOffset,
+				true);
+		}
+		else {
+			addProfile(
+				&results->items[0],
+				componentIndex,
+				COMPONENT(dataSet, componentIndex)->defaultProfileOffset,
+				true);
+			if (results->count == 0) {
+				results->count = 1;
+			}
+		}
+	}
+}
+
+// True if the component's graph is still to be walked.
+static bool isPending(ResultsHash* results, byte componentIndex) {
+	return (results->b.b.pending[componentIndex >> 5] &
+		((uint32_t)1 << (componentIndex & 31))) != 0;
+}
+
+// Sets the default profiles for the components not waiting for a walk. A
+// component waiting for one takes its default after the walk.
 static void resultsHashFromEvidence_SetMissingComponentDefaultProfiles(
 	DataSetHash* dataSet,
 	ResultsHash* results,
-	uint32_t graphs) {
+	Exception* exception) {
 
 	if (dataSet->config.b.allowUnmatched == true) {
 		for (byte i = 0;
-			i < dataSet->componentsList.count;
+			i < dataSet->componentsList.count && EXCEPTION_OKAY;
 			i++) {
-
-			// A component whose graph was not walked gets no default.
-			if (COMPONENT_MASK_ENABLED(graphs, i) == false) {
-				continue;
-			}
-
-			// Get the result for the component.
-			ResultHash* result = getResultFromResultsForComponentIndex(
-				dataSet,
-				results,
-				i);
-
-			// If there is no result for the component, or no profile within 
-			// the result for the component, then add the default profile.
-			if (result == NULL ||
-				result->profileOffsets[i] == NULL_PROFILE_OFFSET) {
-				if (result != NULL) {
-					addProfile(
-						result,
-						i,
-						COMPONENT(dataSet, i)->defaultProfileOffset,
-						true);
-				}
-				else {
-					addProfile(
-						&results->items[0],
-						i,
-						COMPONENT(dataSet, i)->defaultProfileOffset,
-						true);
-					if (results->count == 0) {
-						results->count = 1;
-					}
-				}
+			if (isPending(results, i) == false) {
+				resultsHashFromEvidence_SetMissingComponentDefaultProfile(
+					dataSet,
+					results,
+					i,
+					exception);
 			}
 		}
 	}
@@ -3115,7 +3873,7 @@ static int resultsHashFromEvidence_findAndApplyDeviceIDs(
 			resultsHashFromEvidence_SetMissingComponentDefaultProfiles(
 				state->dataSet,
 				state->results,
-				state->graphs);
+				exception);
 		}
 
 	} while (false); // once
@@ -3138,7 +3896,13 @@ static void resultsHashFromEvidence_handleComponentEvidence(
 		i < FIFTYONE_DEGREES_ORDER_OF_PRECEDENCE_SIZE;
 		i++) {
 
-		// If evidence was found and processed for the component headers then 
+		// No header can be found for a prefix no pair has.
+		if ((state->results->evidencePrefixes &
+			prefixOrderOfPrecedence[i]) == 0) {
+			continue;
+		}
+
+		// If evidence was found and processed for the component headers then
 		// return.
 		if (EvidenceIterateForHeaders(
 			state->evidence,
@@ -3197,12 +3961,21 @@ static bool resultsHashFromEvidence_setEvidenceHeader_callback(
 		}
 	}
 
+	// Record the walks' prefixes the pair has, so that a walk can skip the
+	// prefixes no pair has.
+	for (int p = 0; p < FIFTYONE_DEGREES_ORDER_OF_PRECEDENCE_SIZE; p++) {
+		if ((pair->prefix & prefixOrderOfPrecedence[p]) == pair->prefix) {
+			s->results->evidencePrefixes |= prefixOrderOfPrecedence[p];
+		}
+	}
+
 	// Always continue to ensure all the evidence is considered.
 	return true;
 }
 
 // Assigns the header field to the evidence pair to avoid needing to lookup the
-// header during future operations.
+// header during future operations, and records the walks' prefixes the
+// evidence has.
 static void resultsHashFromEvidence_setEvidenceHeader(
 	detectionComponentState* state) {
 	EvidenceIterate(
@@ -3212,21 +3985,220 @@ static void resultsHashFromEvidence_setEvidenceHeader(
 		resultsHashFromEvidence_setEvidenceHeader_callback);
 }
 
-// Considering only those components that have available properties perform
-// device detection using the most relevant available evidence. i.e. use UACH
-// pseudo headers before a single header like User-Agent. Ensure only one input
-// is evaluated.
-static void resultsHashFromEvidence_handleAllEvidence(
-	detectionComponentState* state) {
-	for (uint32_t i = 0; i < state->dataSet->componentsList.count; i++) {
-		if (state->dataSet->componentsAvailable[i] == true) {
-			state->componentIndex = (byte)i;
-			state->lastResult = NULL;
-			resultsHashFromEvidence_handleComponentEvidence(state);
+// Stops at the first pair for a header from the data set, which is the pair
+// that takes a result for the component in its walk.
+static bool hasComponentEvidenceCallback(
+	void* state,
+	EvidenceKeyValuePair* pair) {
+	if (pair->header != NULL && pair->header->isDataSet) {
+		*(bool*)state = true;
+		return false;
+	}
+	return true;
+}
+
+// True if no pair before the one at the index has the same header and is one
+// the prefix finds, so that a walk looking for the header with the prefix
+// finds the pair at the index.
+static bool isFirstPairForHeader(
+	EvidenceKeyValuePairArray* evidence,
+	uint32_t index,
+	int prefix) {
+	for (uint32_t i = 0; i < index; i++) {
+		EvidenceKeyValuePair* earlier = &evidence->items[i];
+		if (earlier->header == evidence->items[index].header &&
+			(earlier->prefix & prefix) == earlier->prefix) {
+			return false;
 		}
 	}
-	if (state->results->count == 0) {
-		state->headerUniqueId = 0;
+	return true;
+}
+
+// True if a walk of the component would try one of the copied pairs as it is,
+// which is when the pair's header is one of the component's headers from the
+// data set, a walk's prefix finds the pair first for that header, and the
+// value fits the memory the walk uses. Every pair a walk finds by name has its
+// header set, as the header of each pair is set before the evidence is
+// copied. Headers made of several others are not looked for here.
+static bool hasHeaderEvidence(ResultsHash* results, byte componentIndex) {
+	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
+	EvidenceKeyValuePairArray* evidence = results->evidence;
+	HeaderPtrs* headers = dataSet->componentHeaders[componentIndex];
+	for (uint32_t i = 0; i < evidence->count; i++) {
+		EvidenceKeyValuePair* pair = &evidence->items[i];
+		if (pair->header == NULL ||
+			pair->header->isDataSet == false ||
+			(results->b.bufferPseudo != NULL &&
+				pair->parsedLength >= (size_t)results->b.bufferPseudoLength)) {
+			continue;
+		}
+		bool first = false;
+		for (int p = 0; p < FIFTYONE_DEGREES_ORDER_OF_PRECEDENCE_SIZE; p++) {
+			const int prefix = prefixOrderOfPrecedence[p];
+			if ((pair->prefix & prefix) == pair->prefix &&
+				isFirstPairForHeader(evidence, i, prefix)) {
+				first = true;
+			}
+		}
+		if (first) {
+			for (uint32_t h = 0; h < headers->count; h++) {
+				if (headers->items[h] == pair->header) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+// True if the evidence the results hold gives the component a result, which
+// is when its walk would try at least one header. The pairs are looked at
+// first, which answers for any evidence holding one of the component's
+// headers as it is, and otherwise the walk's own pass over the headers
+// answers, which also assembles the headers made of several others.
+static bool hasComponentEvidence(ResultsHash* results, byte componentIndex) {
+	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
+	bool found = hasHeaderEvidence(results, componentIndex);
+	for (int i = 0;
+		i < FIFTYONE_DEGREES_ORDER_OF_PRECEDENCE_SIZE && found == false;
+		i++) {
+		if ((results->evidencePrefixes & prefixOrderOfPrecedence[i]) == 0) {
+			continue;
+		}
+		EvidenceIterateForHeaders(
+			results->evidence,
+			prefixOrderOfPrecedence[i],
+			dataSet->componentHeaders[componentIndex],
+			results->b.bufferPseudo,
+			results->b.bufferPseudoLength,
+			&found,
+			hasComponentEvidenceCallback);
+	}
+	return found;
+}
+
+// Takes a result for each available component that has evidence for one of
+// its headers, in component order, and either walks the component's graph
+// then or marks the component to be walked on its first read. The results
+// then have the same number of results, in the same order, as walking every
+// component in order gives, whatever is read first. Each result taken is as
+// resultsHashReset left it, as nothing changes a result after the count until
+// the count includes it.
+static void resultsHashFromEvidence_takeResults(
+	detectionComponentState* state,
+	bool walk,
+	Exception* exception) {
+	ResultsHash* results = state->results;
+	for (uint32_t i = 0; i < state->dataSet->componentsList.count; i++) {
+		if (state->dataSet->componentsAvailable[i] == true &&
+			results->count < results->capacity &&
+			hasComponentEvidence(results, (byte)i)) {
+			results->items[results->count++].componentIndex = (byte)i;
+			if (walk) {
+				results->b.b.evaluate(&results->b.b, (byte)i, exception);
+				if (EXCEPTION_FAILED) {
+					return;
+				}
+			}
+			else {
+				ResultsPendingSet(&results->b.b, (byte)i);
+			}
+		}
+	}
+}
+
+// Bytes of text needed to copy the pair's key, value and parsed value, each
+// with a null terminator.
+static size_t evidenceTextBytes(EvidenceKeyValuePair* pair) {
+	size_t bytes = pair->item.keyLength + 1 + pair->item.valueLength + 1;
+	if (pair->parsedValue != NULL && pair->parsedValue != pair->item.value) {
+		bytes += pair->parsedLength + 1;
+	}
+	return bytes;
+}
+
+// Copies the characters to the text, with a null terminator, and returns the
+// copy, or null if there were none to copy.
+static const char* copyEvidenceText(
+	char** next,
+	const char* characters,
+	size_t length) {
+	char* copy = *next;
+	if (characters == NULL) {
+		return NULL;
+	}
+	memcpy(copy, characters, length);
+	copy[length] = '\0';
+	*next += length + 1;
+	return copy;
+}
+
+// Copies the evidence into the results, so that the walks on first reads
+// have it after the caller has freed it. The pairs keep their prefixes and
+// headers, and their keys, values and parsed values are copied, including the
+// headers special evidence has been turned into.
+static void resultsHashFromEvidence_copyEvidence(
+	detectionComponentState* state,
+	Exception* exception) {
+	ResultsHash* results = state->results;
+	EvidenceKeyValuePairArray* array;
+	uint32_t pairs = 0, i;
+	size_t textBytes = 0;
+	for (array = state->evidence; array != NULL; array = array->next) {
+		for (i = 0; i < array->count; i++) {
+			pairs++;
+			textBytes += evidenceTextBytes(&array->items[i]);
+		}
+	}
+	const size_t bytes = sizeof(EvidenceKeyValuePairArray) +
+		sizeof(EvidenceKeyValuePair) * pairs +
+		textBytes;
+	if (results->evidenceBytes < bytes) {
+		Free(results->evidence);
+		results->evidence = (EvidenceKeyValuePairArray*)Malloc(bytes);
+		if (results->evidence == NULL) {
+			results->evidenceBytes = 0;
+			EXCEPTION_SET(INSUFFICIENT_MEMORY);
+			return;
+		}
+		results->evidenceBytes = bytes;
+	}
+	results->evidence->items = (EvidenceKeyValuePair*)(results->evidence + 1);
+	results->evidence->capacity = pairs;
+	results->evidence->count = 0;
+	results->evidence->next = NULL;
+	results->evidence->prev = NULL;
+	char* next = (char*)(results->evidence->items + pairs);
+	for (array = state->evidence; array != NULL; array = array->next) {
+		for (i = 0; i < array->count; i++) {
+			EvidenceKeyValuePair* from = &array->items[i];
+			EvidenceKeyValuePair* to =
+				&results->evidence->items[results->evidence->count++];
+			to->prefix = from->prefix;
+			to->header = from->header;
+			to->item.key = copyEvidenceText(
+				&next,
+				from->item.key,
+				from->item.keyLength);
+			to->item.keyLength = from->item.keyLength;
+			to->item.value = copyEvidenceText(
+				&next,
+				from->item.value,
+				from->item.valueLength);
+			to->item.valueLength = from->item.valueLength;
+			if (from->parsedValue == NULL ||
+				from->parsedValue == from->item.value) {
+				to->parsedValue = from->parsedValue == NULL ?
+					NULL : to->item.value;
+			}
+			else {
+				to->parsedValue = copyEvidenceText(
+					&next,
+					(const char*)from->parsedValue,
+					from->parsedLength);
+			}
+			to->parsedLength = from->parsedLength;
+		}
 	}
 }
 
@@ -3236,13 +4208,65 @@ static void resultsHashReset(ResultsHash* results) {
 		hashResultReset(dataSet, &results->items[i]);
 	}
 	results->count = 0;
+	ResultsPendingClear(&results->b.b);
+	if (results->evidence != NULL) {
+		results->evidence->count = 0;
+	}
+	results->evidencePrefixes = 0;
+	results->profileIdsOverridden = false;
 }
 
-void fiftyoneDegreesResultsHashFromEvidenceForProperties(
+/**
+ * Walks the graph of the component, against the evidence the results hold,
+ * into the result the component took when the results were populated. Then,
+ * as populating the results does once every graph has been walked, applies
+ * the profile overrides again if the evidence overrode a profile, and gives
+ * the component its default profile if unmatched results are allowed. Called
+ * as the results are populated when the caller named the properties, and
+ * otherwise the first time a property of the component is read.
+ */
+static void resultsHashEvaluate(
+	fiftyoneDegreesResultsBase* base,
+	byte componentIndex,
+	Exception* exception) {
+	ResultsHash* const results = (ResultsHash*)((byte*)base -
+		offsetof(ResultsHash, b) -
+		offsetof(ResultsDeviceDetection, b));
+	DataSetHash* const dataSet = (DataSetHash*)results->b.b.dataSet;
+	detectionComponentState state = {
+		dataSet,
+		results,
+		NULL,
+		results->evidence,
+		componentIndex,
+		0,
+		0,
+		exception,
+		FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING };
+	resultsHashFromEvidence_handleComponentEvidence(&state);
+	if (EXCEPTION_FAILED) {
+		return;
+	}
+	if (dataSet->config.b.processSpecialEvidence) {
+		if (results->profileIdsOverridden) {
+			OverrideProfileIds(results->evidence, &state, overrideProfileId);
+			if (EXCEPTION_FAILED) {
+				return;
+			}
+		}
+		if (dataSet->config.b.allowUnmatched == true) {
+			resultsHashFromEvidence_SetMissingComponentDefaultProfile(
+				dataSet,
+				results,
+				componentIndex,
+				exception);
+		}
+	}
+}
+
+void fiftyoneDegreesResultsHashFromEvidence(
 	fiftyoneDegreesResultsHash *results,
 	fiftyoneDegreesEvidenceKeyValuePairArray *evidence,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
 	fiftyoneDegreesException *exception) {
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
 
@@ -3262,11 +4286,7 @@ void fiftyoneDegreesResultsHashFromEvidenceForProperties(
 		0,
 		0,
 		exception,
-		FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
-		PropertiesGetComponentMask(
-			dataSet->b.b.available,
-			requiredPropertyIndexes,
-			requiredPropertyIndexesCount) };
+		FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING };
 
 	// Reset the results data before iterating the evidence.
 	resultsHashReset(results);
@@ -3293,32 +4313,48 @@ void fiftyoneDegreesResultsHashFromEvidenceForProperties(
 				resultsHashFromEvidence_setSpecialHeaders(&state);
 			}
 
-			// Sets the index of the header in the data set to improve 
+			// Sets the index of the header in the data set to improve
 			// efficiency of subsequent processing.
 			resultsHashFromEvidence_setEvidenceHeader(&state);
 
-			// Evaluate all the available evidence for the components that
-			// relate to available properties.
-			resultsHashFromEvidence_handleAllEvidence(&state);
+			// Take a result for each component with evidence, in component
+			// order. When the caller named the properties, each component's
+			// graph is walked now, against the caller's evidence, which the
+			// results hold only while they walk. Otherwise the evidence is
+			// copied for the walks on first reads, and no graph is walked
+			// here.
+			if (ResultsWalkWhenPopulated(&dataSet->b.b)) {
+				EvidenceKeyValuePairArray* const copy = results->evidence;
+				results->evidence = evidence;
+				resultsHashFromEvidence_takeResults(&state, true, exception);
+				results->evidence = copy;
+			}
+			else {
+				resultsHashFromEvidence_copyEvidence(&state, exception);
+				if (EXCEPTION_FAILED) { break; };
+				resultsHashFromEvidence_takeResults(&state, false, exception);
+			}
+			if (EXCEPTION_FAILED) { break; };
 		}
 
 		// Check for and process any profile Id overrides. If the caller can
 		// expect defaults to be returned for missing components then also set
-		// these.
+		// these, for the components that are not waiting for a walk.
 		if (dataSet->config.b.processSpecialEvidence) {
 			OverrideProfileIds(evidence, &state, overrideProfileId);
 			if (EXCEPTION_FAILED) { break; };
 			resultsHashFromEvidence_SetMissingComponentDefaultProfiles(
 				dataSet,
 				results,
-				state.graphs);
+				exception);
+			if (EXCEPTION_FAILED) { break; };
 		}
 
 		// Check to see if all the UACH evidence is present and if so then 
 		// override the JavascriptGetHighEntropyValues value to an empty value
 		// to ensure unneeded JavaScript isn't returned.
 		if (dataSet->config.b.processSpecialEvidence &&
-			results->b.overrides->capacity > 0 &&
+			results->b.b.overrides->capacity > 0 &&
 			GhevDeviceDetectionAllPresent(
 				&dataSet->b,
 				evidence,
@@ -3330,35 +4366,20 @@ void fiftyoneDegreesResultsHashFromEvidenceForProperties(
 	} while (false); // once
 }
 
-void fiftyoneDegreesResultsHashFromEvidence(
-	fiftyoneDegreesResultsHash *results,
-	fiftyoneDegreesEvidenceKeyValuePairArray *evidence,
-	fiftyoneDegreesException *exception) {
-	fiftyoneDegreesResultsHashFromEvidenceForProperties(
-		results,
-		evidence,
-		NULL,
-		-1,
-		exception);
-}
-
-void fiftyoneDegreesResultsHashFromUserAgentForProperties(
+void fiftyoneDegreesResultsHashFromUserAgent(
 	fiftyoneDegreesResultsHash *results,
 	const char* userAgent,
 	size_t userAgentLength,
-	const int *requiredPropertyIndexes,
-	int requiredPropertyIndexesCount,
 	fiftyoneDegreesException *exception) {
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 
 	// Wrap the User-Agent in a single-pair evidence array keyed on the data
-	// set's User-Agent header and delegate to the evidence-driven detection,
-	// which is now the single detection implementation. A User-Agent processed
-	// here therefore yields exactly the same results (one item per available
-	// component) as the same User-Agent passed through ResultsHashFromEvidence.
-	// The evidence pair aliases the caller's string (parsedValue == item.value
-	// for a header prefix, no copy), so the lifetime contract is unchanged: the
-	// caller must keep userAgent alive while the results are in use.
+	// set's User-Agent header and pass it to the evidence-driven detection, so
+	// a User-Agent processed here yields exactly the same results (one item
+	// per available component) as the same User-Agent passed through
+	// ResultsHashFromEvidence. The pair refers to the caller's string, which
+	// the results either walk every graph with before this returns or copy,
+	// so the caller can free it once this returns.
 	//
 	// The array and its single item are built on the stack to avoid a heap
 	// allocation on this hot, UA-only detection path. EvidenceAddPair fills the
@@ -3386,12 +4407,7 @@ void fiftyoneDegreesResultsHashFromUserAgentForProperties(
 		FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
 		uaPair);
 
-	fiftyoneDegreesResultsHashFromEvidenceForProperties(
-		results,
-		&evidence,
-		requiredPropertyIndexes,
-		requiredPropertyIndexesCount,
-		exception);
+	fiftyoneDegreesResultsHashFromEvidence(results, &evidence, exception);
 
 	// Guard the stack-allocation contract: if a future change makes the
 	// engine add pairs beyond the capacity of 1, EvidenceAddPair would heap
@@ -3399,20 +4415,6 @@ void fiftyoneDegreesResultsHashFromUserAgentForProperties(
 	// would walk prev back to this stack block). Debug builds only; assert
 	// compiles out under NDEBUG (release).
 	assert(evidence.next == NULL);
-}
-
-void fiftyoneDegreesResultsHashFromUserAgent(
-	fiftyoneDegreesResultsHash *results,
-	const char* userAgent,
-	size_t userAgentLength,
-	fiftyoneDegreesException *exception) {
-	fiftyoneDegreesResultsHashFromUserAgentForProperties(
-		results,
-		userAgent,
-		userAgentLength,
-		NULL,
-		-1,
-		exception);
 }
 
 // Adds the profile associated with the string version of the profile id 
@@ -3433,6 +4435,14 @@ int fiftyoneDegreesResultsHashFromDeviceId(
 	fiftyoneDegreesException *exception) {
 	int count = 0;
 	char *current = (char*)deviceId, *previous = (char*)deviceId;
+
+	// Walk any component still waiting from the last population, so that the
+	// device id's profiles replace what the walks set, as they do when every
+	// graph has been walked.
+	ResultsEvaluateAll(&results->b.b, exception);
+	if (EXCEPTION_FAILED) {
+		return 0;
+	}
 	while (*current != '\0' &&
 		(size_t)(current - deviceId) < deviceIdLength &&
 		EXCEPTION_OKAY) {
@@ -3475,6 +4485,9 @@ void fiftyoneDegreesResultsHashFree(
 		if (results->items[i].trace != NULL) {
 			GraphTraceFree(results->items[i].trace);
 		}
+	}
+	if (results->evidence != NULL) {
+		Free(results->evidence);
 	}
 	ResultsDeviceDetectionFree(&results->b);
 	DataSetRelease((DataSetBase*)results->b.b.dataSet);
@@ -3523,15 +4536,38 @@ fiftyoneDegreesResultsHash* fiftyoneDegreesResultsHashCreate(
 
 	if (results != NULL) {
 
-		// Initialise the results.
+		// Initialise the results, which walk each component's graph as they
+		// are populated when the caller named the properties, and otherwise
+		// when one of the component's properties is first read.
 		ResultsDeviceDetectionInit(
 			&results->b,
 			&dataSet->b,
 			overridesCapacity);
+		results->b.b.evaluate = resultsHashEvaluate;
+		results->evidence = NULL;
+		results->evidenceBytes = 0;
+		results->evidencePrefixes = 0;
+		results->profileIdsOverridden = false;
+		DataReset(&results->propertyItem.data);
+		ListReset(&results->values);
+
+		// Clear every pointer before anything is allocated for it, so that
+		// the results can be freed whichever allocation fails.
+		for (i = 0; i < results->capacity; i++) {
+			results->items[i].b.matchedUserAgent = NULL;
+			results->items[i].profileOffsets = NULL;
+			results->items[i].profileIsOverriden = NULL;
+			results->items[i].trace = NULL;
+		}
+		bool allocated =
+			results->b.b.overrides != NULL &&
+			results->b.bufferPseudo != NULL &&
+			(results->b.bufferTransform != NULL ||
+				results->b.bufferTransformLength == 0);
 
 		// Set the memory for matched User-Agents and route, or make the
 		// pointer NULL.
-		for (i = 0; i < results->capacity; i++) {
+		for (i = 0; allocated && i < results->capacity; i++) {
 			ResultsUserAgentInit(&dataSet->config.b, &results->items[i].b);
 
 			// Allocate memory for the profile offsets.
@@ -3544,15 +4580,27 @@ fiftyoneDegreesResultsHash* fiftyoneDegreesResultsHashCreate(
 			if (dataSet->config.traceRoute == true) {
 				results->items[i].trace = GraphTraceCreate("Hash Result %d", i);
 			}
-			else {
-				results->items[i].trace = NULL;
-			}
+			allocated =
+				(results->items[i].b.matchedUserAgent != NULL ||
+					dataSet->config.b.updateMatchedUserAgent == false) &&
+				results->items[i].profileOffsets != NULL &&
+				results->items[i].profileIsOverriden != NULL &&
+				(results->items[i].trace != NULL ||
+					dataSet->config.traceRoute == false);
 		}
 
-		// Reset the property and values list ready for first use sized for 
-		// a single value to be returned.
-		ListInit(&results->values, 1);
-		DataReset(&results->propertyItem.data);
+		// Reset the values list ready for first use sized for a single value
+		// to be returned.
+		if (allocated) {
+			allocated = ListInit(&results->values, 1) != NULL;
+		}
+
+		// Results that lack any of their memory are freed, and none are
+		// returned.
+		if (allocated == false) {
+			fiftyoneDegreesResultsHashFree(results);
+			return NULL;
+		}
 
 		// Set the default profile offsets and override flags. Set the count to
 		// capacity to ensure all the result instances are reset.
@@ -3668,10 +4716,14 @@ static uint32_t addValuesFromProfile(
 
 		// Check to see if the capacity of the list needs to increase. If it 
 		// does then free the list and initialise it with a larger capacity 
-		// before adding the values again.
+		// before adding the values again. A list that cannot be allocated is
+		// reported, as the values would otherwise be missing without a reason.
 		if (count > results->values.count) {
 			ListFree(&results->values);
-			ListInit(&results->values, count);
+			if (ListInit(&results->values, count) == NULL) {
+				EXCEPTION_SET(INSUFFICIENT_MEMORY);
+				return 0;
+			}
 			iterateValuesFromProfileForProperty(
 				dataSet,
 				profile,
@@ -3732,11 +4784,11 @@ static uint32_t addValuesFromResult(
 
 static Item* getValuesFromOverrides(
 	ResultsHash *results,
-	uint32_t requiredPropertyIndex) {
+	uint32_t availableIndex) {
 	Item *value = NULL;
-	if (OverrideValuesAdd(
-			results->b.overrides,
-			requiredPropertyIndex,
+	if (ResultsGetOverrideValues(
+			&results->b.b,
+			availableIndex,
 			&results->values) > 0) {
 		value = results->values.items;
 	}
@@ -3763,9 +4815,14 @@ static Item* getValuesFromResult(
 	return results->values.items;
 }
 
-static StringBuilder* getValuesStringByRequiredPropertyIndex(
+static Item* resultsHashGetValues(
+	ResultsHash *results,
+	int availableIndex,
+	Exception *exception);
+
+static StringBuilder* getValuesStringByAvailableIndex(
 	fiftyoneDegreesResultsHash* results,
-	const int requiredPropertyIndex,
+	const int availableIndex,
 	StringBuilder *builder,
 	char* const separator,
 	size_t const separatorLen,
@@ -3774,9 +4831,9 @@ static StringBuilder* getValuesStringByRequiredPropertyIndex(
 	uint32_t i = 0;
 
 	// Set the results structure to the value items for the property.
-	if (ResultsHashGetValues(
+	if (resultsHashGetValues(
 		results,
-		requiredPropertyIndex,
+		availableIndex,
 		exception) != NULL && EXCEPTION_OKAY) {
 
 		// Loop through the values adding them to the string buffer.
@@ -3804,6 +4861,26 @@ static StringBuilder* getValuesStringByRequiredPropertyIndex(
 	return builder;
 }
 
+static size_t getValuesStringForAvailableIndex(
+	fiftyoneDegreesResultsHash* results,
+	const int availableIndex,
+	char* const buffer,
+	size_t const length,
+	char* const separator,
+	fiftyoneDegreesException *exception) {
+	StringBuilder builder = { buffer, length };
+	StringBuilderInit(&builder);
+	getValuesStringByAvailableIndex(
+		results,
+		availableIndex,
+		&builder,
+		separator,
+		(size_t const)strlen(separator),
+		exception);
+	StringBuilderComplete(&builder);
+	return builder.added;
+}
+
 size_t fiftyoneDegreesResultsHashGetValuesStringByRequiredPropertyIndex(
 	fiftyoneDegreesResultsHash* results,
 	const int requiredPropertyIndex,
@@ -3811,17 +4888,16 @@ size_t fiftyoneDegreesResultsHashGetValuesStringByRequiredPropertyIndex(
 	size_t const length,
 	char* const separator,
 	fiftyoneDegreesException *exception) {
-	StringBuilder builder = { buffer, length };
-	StringBuilderInit(&builder);
-	getValuesStringByRequiredPropertyIndex(
-		results, 
-		requiredPropertyIndex, 
-		&builder,
-		separator, 
-		(size_t const)strlen(separator), 
-		exception);	
-	StringBuilderComplete(&builder);
-	return builder.added;
+	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
+	return getValuesStringForAvailableIndex(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		buffer,
+		length,
+		separator,
+		exception);
 }
 
 size_t fiftyoneDegreesResultsHashGetValuesStringAllProperties(
@@ -3834,14 +4910,23 @@ size_t fiftyoneDegreesResultsHashGetValuesStringAllProperties(
 	StringBuilderInit(&builder);
 	size_t const separatorLen = strlen(separator);
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
-	for (uint32_t i = 0; i < dataSet->b.b.available->count; i++) {
-		getValuesStringByRequiredPropertyIndex(
-			results,
-			i,
-			&builder,
-			separator,
-			separatorLen,
-			exception);
+	const uint32_t count = PropertiesGetRequiredPropertyCount(
+		dataSet->b.b.available);
+	for (uint32_t i = 0; i < count; i++) {
+		// One line for each required property index, empty for a property
+		// the data set does not have.
+		const int availableIndex = PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			(int)i);
+		if (availableIndex >= 0) {
+			getValuesStringByAvailableIndex(
+				results,
+				availableIndex,
+				&builder,
+				separator,
+				separatorLen,
+				exception);
+		}
 		StringBuilderAddChar(&builder, '\r');
 	}
 	StringBuilderComplete(&builder);
@@ -3858,17 +4943,16 @@ size_t fiftyoneDegreesResultsHashGetValuesString(
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 	size_t charactersAdded = 0;
 
-	// Get the required property index for the property name.
-	const int requiredPropertyIndex =
-		PropertiesGetRequiredPropertyIndexFromName(
-			dataSet->b.b.available,
-			propertyName);
-	if (requiredPropertyIndex >= 0) {
-		
+	// Get the available index for the property name.
+	const int availableIndex = PropertiesGetAvailableIndexFromName(
+		dataSet->b.b.available,
+		propertyName);
+	if (availableIndex >= 0) {
+
 		// Add the values into the buffer returning the number required.
-		charactersAdded = ResultsHashGetValuesStringByRequiredPropertyIndex(
+		charactersAdded = getValuesStringForAvailableIndex(
 			results,
-			requiredPropertyIndex,
+			availableIndex,
 			buffer,
 			length,
 			separator,
@@ -3902,6 +4986,9 @@ ResultHash* getResultForPropertyIndex(
 
 	if (property != NULL && EXCEPTION_OKAY) {
 
+		// The first read of a property of the component walks its graph.
+		evaluateComponent(results, property->componentIndex, exception);
+
 		if (results->count == 1) {
 
 			// Use the only result available to return the property value.
@@ -3909,64 +4996,68 @@ ResultHash* getResultForPropertyIndex(
 		}
 		else if (results->count > 1) {
 
-			// Multiple headers could contain the best result for the 
-			// property. Find the best one available before retrieving the 
+			// Multiple headers could contain the best result for the
+			// property. Find the best one available before retrieving the
 			// property value.
 			result = getResultFromResultsForComponentIndex(
 				dataSet,
 				results,
-				property->componentIndex);
+				property->componentIndex,
+				exception);
 		}
 	}
 	return result;
 }
 
 
+// Gets the result holding the profile for the property at the available
+// index, which is the index of the property in the available properties.
 ResultHash* getResultForRequiredPropertyIndex(
 	ResultsHash* results,
-	int requiredPropertyIndex,
+	int availableIndex,
 	Exception *exception) {
 	DataSetHash *dataSet;
 	ResultHash *result = NULL;
 
 	dataSet = (DataSetHash*)results->b.b.dataSet;
 
-	// Work out the property index from the required property index.
-	uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	// Work out the property index from the available index.
+	const int propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
-	if (requiredPropertyIndex >= 0 &&
-		requiredPropertyIndex < (int)dataSet->b.b.available->count) {
-		result = getResultForPropertyIndex(results, propertyIndex, exception);
+	if (propertyIndex >= 0) {
+		result = getResultForPropertyIndex(
+			results,
+			(uint32_t)propertyIndex,
+			exception);
 	}
 	return result;
 }
 
-bool fiftyoneDegreesResultsHashGetHasValues(
-	fiftyoneDegreesResultsHash* results,
-	int requiredPropertyIndex,
-	fiftyoneDegreesException *exception) {
+static bool resultsHashGetHasValues(
+	ResultsHash* results,
+	int availableIndex,
+	Exception *exception) {
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 	// Ensure any previous uses of the results to get values are released.
 	resultsHashRelease(results);
 
-	if (requiredPropertyIndex < 0 ||
-		requiredPropertyIndex >= (int)dataSet->b.b.available->count) {
+	if (availableIndex < 0 ||
+		availableIndex >= (int)dataSet->b.b.available->count) {
 		// The property index is not valid.
 		return false;
 	}
-	if (OverrideHasValueForRequiredPropertyIndex(
-		results->b.overrides,
-		requiredPropertyIndex)) {
+	if (ResultsHasOverrideValue(&results->b.b, (uint32_t)availableIndex)) {
 		// There is an override value for the property.
 		return true;
 	}
 
-	// Work out the property index from the required property index.
-	uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	// Work out the property index from the available index.
+	uint32_t propertyIndex =
+		(uint32_t)PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	// Set the property that will be available in the results structure. 
 	// This may also be needed to work out which of a selection of results 
@@ -3980,7 +5071,8 @@ bool fiftyoneDegreesResultsHashGetHasValues(
 	ResultHash *result = getResultFromResultsForComponentIndex(
 		dataSet,
 		results,
-		property->componentIndex);
+		property->componentIndex,
+		exception);
 
 	if (result == NULL) {
 		// There is no result which contains values for the property.
@@ -4003,16 +5095,29 @@ bool fiftyoneDegreesResultsHashGetHasValues(
 	return true;
 }
 
-fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsHashGetNoValueReason(
-	fiftyoneDegreesResultsHash *results,
+bool fiftyoneDegreesResultsHashGetHasValues(
+	fiftyoneDegreesResultsHash* results,
 	int requiredPropertyIndex,
 	fiftyoneDegreesException *exception) {
+	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
+	return resultsHashGetHasValues(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
+}
+
+static fiftyoneDegreesResultsNoValueReason resultsHashGetNoValueReason(
+	ResultsHash *results,
+	int availableIndex,
+	Exception *exception) {
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
 	// Ensure any previous uses of the results to get values are released.
 	resultsHashRelease(results);
 
-	if (requiredPropertyIndex < 0 ||
-		requiredPropertyIndex >= (int)dataSet->b.b.available->count) {
+	if (availableIndex < 0 ||
+		availableIndex >= (int)dataSet->b.b.available->count) {
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY;
 	}
 
@@ -4022,13 +5127,14 @@ fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsHashGetNoValueReason(
 
 	ResultHash *result = getResultForRequiredPropertyIndex(
 		results,
-		requiredPropertyIndex,
+		availableIndex,
 		exception);
 
-	// Work out the property index from the required property index.
-	uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+	// Work out the property index from the available index.
+	uint32_t propertyIndex =
+		(uint32_t)PropertiesGetPropertyIndexFromAvailableIndex(
 		dataSet->b.b.available,
-		requiredPropertyIndex);
+		availableIndex);
 
 	// Set the property that will be available in the results structure. 
 	// This may also be needed to work out which of a selection of results 
@@ -4055,10 +5161,31 @@ fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsHashGetNoValueReason(
 	else if (result->profileOffsets[property->componentIndex] == NULL_PROFILE_OFFSET) {
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE;
 	}
-	else if (ISUNMATCHED(dataSet, result)) {
+
+	// The matched nodes are set by the walk of the component the result was
+	// taken for, which a profile override of this component can leave
+	// waiting, so walk every graph still waiting before reading them.
+	if (dataSet->config.b.allowUnmatched == false &&
+		result->profileIsOverriden[property->componentIndex]) {
+		ResultsEvaluateAll(&results->b.b, exception);
+	}
+	if (ISUNMATCHED(dataSet, result)) {
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_MATCHED_NODES;
 	}
 	return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
+}
+
+fiftyoneDegreesResultsNoValueReason fiftyoneDegreesResultsHashGetNoValueReason(
+	fiftyoneDegreesResultsHash *results,
+	int requiredPropertyIndex,
+	fiftyoneDegreesException *exception) {
+	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
+	return resultsHashGetNoValueReason(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
 }
 
 const char* fiftyoneDegreesResultsHashGetNoValueReasonMessage(
@@ -4089,10 +5216,10 @@ const char* fiftyoneDegreesResultsHashGetNoValueReasonMessage(
 	}
 }
 
-fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
-	fiftyoneDegreesResultsHash* results,
-	int requiredPropertyIndex,
-	fiftyoneDegreesException *exception) {
+static Item* resultsHashGetValues(
+	ResultsHash *results,
+	int availableIndex,
+	Exception *exception) {
 	ResultHash *result;
 	Property *property;
 	DataSetHash *dataSet;
@@ -4102,16 +5229,17 @@ fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
 	resultsHashRelease(results);
 
 	// Check the overrides first.
-	firstValue = getValuesFromOverrides(results, requiredPropertyIndex);
+	firstValue = getValuesFromOverrides(results, availableIndex);
 
 	if (firstValue == NULL) {
 
 		dataSet = (DataSetHash*)results->b.b.dataSet;
 
-		// Work out the property index from the required property index.
-		uint32_t propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+		// Work out the property index from the available index.
+		uint32_t propertyIndex =
+			(uint32_t)PropertiesGetPropertyIndexFromAvailableIndex(
 			dataSet->b.b.available,
-			requiredPropertyIndex);
+			availableIndex);
 
 		if (((int32_t)propertyIndex) < 0) {
 			EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
@@ -4131,11 +5259,12 @@ fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
 				result = getResultFromResultsForComponentIndex(
 					dataSet,
 					results,
-					property->componentIndex);
+					property->componentIndex,
+					exception);
 
 				if (result != NULL) {
 
-					// Ensure there is a collection available to the property 
+					// Ensure there is a collection available to the property
 					// item so that it can be freed when the results are freed.
 					if (results->propertyItem.collection == NULL) {
 						results->propertyItem.collection = dataSet->properties;
@@ -4146,7 +5275,7 @@ fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
 							results,
 							result,
 							property,
-							requiredPropertyIndex,
+							availableIndex,
 							exception);
 					}
 				}
@@ -4163,6 +5292,19 @@ fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
 	return firstValue;
 }
 
+fiftyoneDegreesCollectionItem* fiftyoneDegreesResultsHashGetValues(
+	fiftyoneDegreesResultsHash* results,
+	int requiredPropertyIndex,
+	fiftyoneDegreesException *exception) {
+	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
+	return resultsHashGetValues(
+		results,
+		PropertiesGetAvailableIndex(
+			dataSet->b.b.available,
+			requiredPropertyIndex),
+		exception);
+}
+
 uint32_t fiftyoneDegreesHashIterateProfilesForPropertyAndValue(
 	fiftyoneDegreesResourceManager *manager,
 	const char *propertyName,
@@ -4171,18 +5313,98 @@ uint32_t fiftyoneDegreesHashIterateProfilesForPropertyAndValue(
 	fiftyoneDegreesProfileIterateMethod callback,
 	fiftyoneDegreesException *exception) {
 	uint32_t count = 0;
+	const uint32_t *profiles = NULL;
 	DataSetHash *dataSet = DataSetHashGet(manager);
-	count = ProfileIterateProfilesForPropertyAndValue(
-		dataSet->strings,
-		dataSet->properties,
-		dataSet->values,
-		dataSet->profiles,
-		dataSet->profileOffsets,
+	if (valueProfilesGet(
+		dataSet,
 		propertyName,
 		valueName,
-		state,
-		callback,
-		exception);
+		&profiles,
+		&count,
+		exception)) {
+		count = valueProfilesIterate(
+			dataSet,
+			profiles,
+			count,
+			state,
+			callback,
+			exception);
+	}
+	else {
+		count = ProfileIterateProfilesForPropertyAndValue(
+			dataSet->strings,
+			dataSet->properties,
+			dataSet->values,
+			dataSet->profiles,
+			dataSet->profileOffsets,
+			propertyName,
+			valueName,
+			state,
+			callback,
+			exception);
+	}
+	DataSetHashRelease(dataSet);
+	return count;
+}
+
+uint32_t fiftyoneDegreesHashGetProfileIdsForPropertyAndValue(
+	fiftyoneDegreesResourceManager *manager,
+	const char *propertyName,
+	const char *valueName,
+	uint32_t *profileIds,
+	uint32_t length,
+	fiftyoneDegreesException *exception) {
+	uint32_t i, count = 0;
+	const uint32_t *profiles = NULL;
+	const ProfileOffset *profileOffset;
+	Item item;
+	valueProfilesIds ids = { profileIds, length, 0 };
+	DataSetHash *dataSet = DataSetHashGet(manager);
+	if (valueProfilesGet(
+		dataSet,
+		propertyName,
+		valueName,
+		&profiles,
+		&count,
+		exception)) {
+
+		// Each profile offset holds the id of its profile, so the profiles
+		// themselves are not read.
+		DataReset(&item.data);
+		for (i = 0;
+			profileIds != NULL && i < count && i < length && EXCEPTION_OKAY;
+			i++) {
+			const CollectionKey profileOffsetKey = {
+				{profiles[i]},
+				CollectionKeyType_ProfileOffset,
+			};
+			profileOffset = (const ProfileOffset*)dataSet->profileOffsets->get(
+				dataSet->profileOffsets,
+				&profileOffsetKey,
+				&item,
+				exception);
+			if (profileOffset != NULL) {
+				if (EXCEPTION_OKAY) {
+					profileIds[i] = profileOffset->profileId;
+				}
+				COLLECTION_RELEASE(dataSet->profileOffsets, &item);
+			}
+		}
+	}
+	else {
+		ProfileIterateProfilesForPropertyAndValue(
+			dataSet->strings,
+			dataSet->properties,
+			dataSet->values,
+			dataSet->profiles,
+			dataSet->profileOffsets,
+			propertyName,
+			valueName,
+			&ids,
+			valueProfilesAddId,
+			exception);
+		count = ids.count;
+	}
 	DataSetHashRelease(dataSet);
 	return count;
 }
@@ -4263,6 +5485,12 @@ char* fiftyoneDegreesHashGetDeviceIdFromResults(
 	StringBuilderInit(&builder);
 	DataReset(&profileItem.data);
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
+
+	// The device id has a profile for every component.
+	ResultsEvaluateAll(&results->b.b, exception);
+	if (EXCEPTION_FAILED) {
+		return NULL;
+	}
 	if (results->count > 1) {
 
 		// There are multiple results, so the overall device id must be
@@ -4277,7 +5505,8 @@ char* fiftyoneDegreesHashGetDeviceIdFromResults(
 			result = getResultFromResultsForComponentIndex(
 				dataSet,
 				results,
-				i);
+				i,
+				exception);
 
 			// If there is no profile then add the 0 id, otherwise get the 
 			// profile from the offset and use the profile id.
@@ -4373,7 +5602,7 @@ size_t fiftyoneDegreesResultsHashGetValuesJson(
 	// For each of the available properties and values.
 	for (uint32_t i = 0; i < dataSet->b.b.available->count; i++) {
 		// Get the data set property index.
-		propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+		propertyIndex = PropertiesGetPropertyIndexFromAvailableIndex(
 			dataSet->b.b.available, 
 			i);
 		if (propertyIndex >= 0) {
@@ -4382,7 +5611,7 @@ size_t fiftyoneDegreesResultsHashGetValuesJson(
             // A non-NULL return is not enough: when the matched profile has
             // no values for the property it returns the list's items with a
             // count of zero, so the count must be checked too.
-            if (ResultsHashGetValues(results, i, exception) != NULL &&
+            if (resultsHashGetValues(results, (int)i, exception) != NULL &&
                 EXCEPTION_OKAY &&
                 results->values.count > 0) {
                 // Get the property.

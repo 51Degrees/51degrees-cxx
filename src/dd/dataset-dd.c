@@ -69,6 +69,22 @@ static bool isDeviceIdNamed(PropertiesRequired *properties) {
 	return false;
 }
 
+/**
+ * True if any available property can be overridden, so a null list of them
+ * means the list could not be allocated.
+ */
+static bool hasOverridableProperty(
+	PropertiesAvailable *available,
+	void *state,
+	fiftyoneDegreesOverridesFilterMethod filter) {
+	for (uint32_t i = 0; i < available->count; i++) {
+		if (filter(state, i) == true) {
+			return true;
+		}
+	}
+	return false;
+}
+
 fiftyoneDegreesStatusCode 
 fiftyoneDegreesDataSetDeviceDetectionInitPropertiesAndHeaders(
 	fiftyoneDegreesDataSetDeviceDetection *dataSet,
@@ -129,6 +145,12 @@ fiftyoneDegreesDataSetDeviceDetectionInitPropertiesAndHeaders(
 	// The ghevHeaders member is initialised in 
 	// fiftyoneDegreesGhevDeviceDetectionInit if required.
 	dataSet->ghevHeaders = NULL;
+
+	if (dataSet->b.overridable == NULL &&
+		hasOverridableProperty(dataSet->b.available, state, overridesFilter)) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
+		return INSUFFICIENT_MEMORY;
+	}
 
 	return status;
 }

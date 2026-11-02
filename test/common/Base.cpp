@@ -22,6 +22,29 @@
 
 #include "Base.hpp"
 
+#if defined(_DEBUG) && defined(_MSC_FULL_VER)
+/**
+ * True if the test skipped itself. The googletest of the Visual Studio
+ * projects has no skip.
+ */
+static bool isSkipped() {
+#ifdef GTEST_SKIP_
+	return ::testing::Test::IsSkipped();
+#else
+	return false;
+#endif
+}
+#endif
+
+bool Base::checkpointTaken = false;
+
+/**
+ * Starts each test with no memory checkpoint taken.
+ */
+Base::Base() {
+	checkpointTaken = false;
+}
+
 /**
  * Create a memory checkpoint before the test method is called. Also resets
  * 51Degrees memory tracking counters.
@@ -30,6 +53,7 @@ void Base::SetUpMemoryCheck() {
 	// Reset the memory tracking counters in case the test will use memory
 	// allocation tracking.
 	fiftyoneDegreesMemoryTrackingReset();
+	checkpointTaken = true;
 
 #ifdef _DEBUG
 #ifdef _MSC_FULL_VER
@@ -94,8 +118,19 @@ string Base::GetFilePath(string dataFolderName, string fileName) {
  */
 size_t Base::PerformMemoryCheck() {
 	size_t leakedMemory = 0;
+	if (checkpointTaken == false) {
+		// The test never took the checkpoint, as one whose set up method
+		// returns or skips before calling this class's one does, so there is
+		// nothing to compare with.
+		return leakedMemory;
+	}
 #ifdef _DEBUG
 #ifdef _MSC_FULL_VER
+	// googletest holds its record of a skip on the heap until the program
+	// ends, so a test that skipped itself is not compared.
+	if (isSkipped()) {
+		return leakedMemory;
+	}
 	_CrtMemState s3;
 	// Take a sample of the memory now that everything is done.
 	_CrtMemCheckpoint(&_states.s2);
@@ -103,9 +138,16 @@ size_t Base::PerformMemoryCheck() {
 	// Check there were no memory leaks.
 	leakedMemory = _CrtMemDifference(&s3, &_states.s1, &_states.s2);
 	if (leakedMemory) {
-		// There were, so dump the info and fail the test.
+		// There were, so dump the info to standard error as well as the
+		// debugger, where a log shows it, and fail the test.
+		const int mode = _CrtSetReportMode(
+			_CRT_WARN,
+			_CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+		const _HFILE file = _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
 		_CrtMemDumpAllObjectsSince(&_states.s1);
 		_CrtMemDumpStatistics(&s3);
+		_CrtSetReportFile(_CRT_WARN, file);
+		_CrtSetReportMode(_CRT_WARN, mode);
 	}
 #else
 	// Check memory leaks.
@@ -121,7 +163,8 @@ size_t Base::PerformMemoryCheck() {
  */
 void Base::TearDown() {
 	if (PerformMemoryCheck()) {
-		FAIL() << "There was a memory leak, see debug log for details.";
+		FAIL() << "There was a memory leak, see the debug log or standard "
+			"error for details.";
 	}
 }
 

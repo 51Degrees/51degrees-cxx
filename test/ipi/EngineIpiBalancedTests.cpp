@@ -69,6 +69,10 @@ static const char* balancedHeldType = "CollectionHeld";
 
 static const size_t balancedBufferBytes = 1024 * 1024;
 
+// The bytes that holding what is named keeps back for its own working, as
+// HELD_RESERVED_BYTES in src/ipi/ipi.c.
+static const size_t balancedReservedBytes = 131072;
+
 // Sets of properties from the examples, the documentation and common uses.
 static const char* balancedCommonSets[] = {
 	"IpRangeStart,IpRangeEnd,RegisteredCountry,RegisteredName,RegisteredOwner",
@@ -377,12 +381,6 @@ protected:
 	vector<string> allNames;
 	int componentCount = 0;
 
-	void skipWithOneComponent() {
-		if (componentCount < 2) {
-			GTEST_SKIP() << "The data file has one component.";
-		}
-	}
-
 	size_t sizeOf(
 		fiftyoneDegreesConfigIpi config,
 		const char* required) {
@@ -397,6 +395,47 @@ protected:
 			exception);
 		EXCEPTION_THROW;
 		return size;
+	}
+
+	// Loads the data file with the memory tracked, setting the bytes still
+	// allocated once it is loaded and the most allocated while loading.
+	void loadTracked(
+		fiftyoneDegreesConfigIpi config,
+		const char* required,
+		size_t* loaded,
+		size_t* most) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesPropertiesRequired properties =
+			fiftyoneDegreesPropertiesDefault;
+		properties.string = required;
+		fiftyoneDegreesResourceManager manager;
+		fiftyoneDegreesMemoryTrackingReset();
+		fiftyoneDegreesMalloc = fiftyoneDegreesMemoryTrackingMalloc;
+		fiftyoneDegreesMallocAligned =
+			fiftyoneDegreesMemoryTrackingMallocAligned;
+		fiftyoneDegreesFree = fiftyoneDegreesMemoryTrackingFree;
+		fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryTrackingFreeAligned;
+		const fiftyoneDegreesStatusCode status =
+			fiftyoneDegreesIpiInitManagerFromFile(
+				&manager,
+				&config,
+				&properties,
+				dataFilePath.c_str(),
+				exception);
+		*loaded = fiftyoneDegreesMemoryTrackingGetAllocated();
+		*most = fiftyoneDegreesMemoryTrackingGetMax();
+		if (status == FIFTYONE_DEGREES_STATUS_SUCCESS) {
+			fiftyoneDegreesResourceManagerFree(&manager);
+		}
+		// Standard operation again, as the size functions leave it.
+		fiftyoneDegreesMalloc = fiftyoneDegreesMemoryStandardMalloc;
+		fiftyoneDegreesMallocAligned =
+			fiftyoneDegreesMemoryStandardMallocAligned;
+		fiftyoneDegreesFree = fiftyoneDegreesMemoryStandardFree;
+		fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryStandardFreeAligned;
+		fiftyoneDegreesMemoryTrackingReset();
+		ASSERT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, status);
+		EXCEPTION_THROW;
 	}
 
 	// The answers from the preset naming the properties match Low Memory.
@@ -445,7 +484,9 @@ TEST_F(IpiBalancedTests, NamingNothingKeepsThePreset) {
 	{
 		BalancedDataSet dataSet(&manager.manager);
 		EXPECT_STREQ(balancedMemoryType, dataSet->strings->typeName);
-		EXPECT_STREQ(balancedCacheType, dataSet->values->typeName);
+		// Only the default values are held, and the rest read through the
+		// cache of the preset.
+		EXPECT_STREQ(balancedHeldType, dataSet->values->typeName);
 		EXPECT_STREQ(balancedCacheType, dataSet->profiles->typeName);
 		EXPECT_EQ(
 			fiftyoneDegreesIpiBalancedConfig.profiles.capacity,
@@ -477,6 +518,62 @@ TEST_F(IpiBalancedTests, NamingEveryPropertyKeepsThePreset) {
 	EXPECT_STREQ(
 		balancedMemoryType,
 		BalancedDataSet(&manager.manager)->strings->typeName);
+}
+
+TEST_F(IpiBalancedTests, DefaultValuesAreHeldWhenNothingIsNamed) {
+	vector<const char*> names;
+	for (const string& name : allNames) {
+		names.push_back(name.c_str());
+	}
+	fiftyoneDegreesPropertiesRequired every = fiftyoneDegreesPropertiesDefault;
+	every.array = names.data();
+	every.count = (int)names.size();
+	const fiftyoneDegreesPropertiesRequired namings[] = {
+		fiftyoneDegreesPropertiesDefault,
+		every };
+	const fiftyoneDegreesConfigIpi* presets[] = {
+		&fiftyoneDegreesIpiBalancedConfig,
+		&fiftyoneDegreesIpiDefaultConfig };
+	for (const fiftyoneDegreesConfigIpi* preset : presets) {
+		for (const fiftyoneDegreesPropertiesRequired& properties : namings) {
+			BalancedManager manager(dataFilePath, *preset, properties);
+			BalancedDataSet dataSet(&manager.manager);
+			const fiftyoneDegreesPropertiesAvailable* available =
+				dataSet->b.b.available;
+			uint32_t defaults = 0;
+			for (uint32_t i = 0; i < available->count; i++) {
+				EXCEPTION_CREATE;
+				fiftyoneDegreesCollectionItem item;
+				fiftyoneDegreesDataReset(&item.data);
+				const fiftyoneDegreesProperty* property =
+					fiftyoneDegreesPropertyGet(
+						dataSet->properties,
+						available->items[i].propertyIndex,
+						&item,
+						exception);
+				EXCEPTION_THROW;
+				ASSERT_NE(nullptr, property);
+				const uint32_t index = property->defaultValueIndex;
+				FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->properties, &item);
+				if (index >= dataSet->values->count) {
+					continue;
+				}
+				fiftyoneDegreesDataReset(&item.data);
+				ASSERT_NE(nullptr, fiftyoneDegreesValueGet(
+					dataSet->values,
+					index,
+					&item,
+					exception));
+				EXCEPTION_THROW;
+				EXPECT_EQ(nullptr, item.handle) <<
+					"The default value of required index " << i <<
+					" was not held.";
+				FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->values, &item);
+				defaults++;
+			}
+			EXPECT_GT(defaults, 0u);
+		}
+	}
 }
 
 TEST_F(IpiBalancedTests, OtherPresetsAreUnchangedByNaming) {
@@ -530,6 +627,26 @@ TEST_F(IpiBalancedTests, NamingNeverUsesMoreMemory) {
 		nothing);
 }
 
+// What naming fewer properties holds is paid for by what it leaves on file,
+// less the bytes it keeps back for its own working. So the most used while
+// loading may pass what the data set keeps by no more than those bytes,
+// whatever the data file saves.
+TEST_F(IpiBalancedTests, NamingAddsNoMoreWhileLoadingThanItKeepsBack) {
+	const string sets[] = { oneComponent, oneOfEach, allButOne };
+	for (const string& set : sets) {
+		size_t loaded = 0;
+		size_t most = 0;
+		ASSERT_NO_FATAL_FAILURE(loadTracked(
+			fiftyoneDegreesIpiBalancedConfig,
+			set.c_str(),
+			&loaded,
+			&most));
+		EXPECT_LE(most - loaded, balancedReservedBytes) <<
+			"Most while loading " << most << ", loaded " << loaded <<
+			", naming " << set.substr(0, 60);
+	}
+}
+
 TEST_F(IpiBalancedTests, CommonSetsGiveTheSameAnswersInNoMoreMemory) {
 	const size_t nothing = sizeOf(fiftyoneDegreesIpiBalancedConfig, nullptr);
 	int tested = 0;
@@ -561,9 +678,8 @@ TEST_F(IpiBalancedTests, CommonSetsGiveTheSameAnswersInNoMoreMemory) {
 }
 
 TEST_F(IpiBalancedTests, ProfileCacheGrowsWhenProfilesStayOnFile) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	// One property of the largest component, where the budget is plenty for a
 	// larger cache but not for the profiles.
@@ -584,9 +700,8 @@ TEST_F(IpiBalancedTests, ProfileCacheGrowsWhenProfilesStayOnFile) {
 }
 
 TEST_F(IpiBalancedTests, ProfileCacheOfTheCallerIsNotReduced) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	const char* required = "Country";
 	if (find(allNames.begin(), allNames.end(), required) == allNames.end()) {
@@ -727,9 +842,8 @@ TEST_F(IpiBalancedTests, ManyLiveResultsDoNotUseUpTheProfileCache) {
 }
 
 TEST_F(IpiBalancedTests, GraphsOfOtherComponentsStayOnFile) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	BalancedManager manager(
 		dataFilePath,
@@ -914,15 +1028,18 @@ TEST_F(IpiBalancedTests, DefaultValuesReadForALookupOfNothing) {
 		fiftyoneDegreesResultsIpiCreate(&actual.manager);
 	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
 		actualResults->b.dataSet)->b.b.available->count;
-	const int none = 0;
 	const string address = balancedAddresses()[0];
 	EXCEPTION_CREATE;
-	fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
-		expectedResults, address.c_str(), address.size(), &none, 0, exception);
+	fiftyoneDegreesResultsIpiFromIpAddressString(
+		expectedResults, address.c_str(), address.size(), exception);
 	EXCEPTION_THROW;
-	fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
-		actualResults, address.c_str(), address.size(), &none, 0, exception);
+	fiftyoneDegreesResultsIpiFromIpAddressString(
+		actualResults, address.c_str(), address.size(), exception);
 	EXCEPTION_THROW;
+	// No graph is walked, so every property reads as for an address with no
+	// profile.
+	fiftyoneDegreesResultsPendingClear(&expectedResults->b);
+	fiftyoneDegreesResultsPendingClear(&actualResults->b);
 	for (int i = 0; i < count; i++) {
 		EXPECT_EQ(
 			balancedAnswer(expectedResults, i, buffer),
@@ -933,9 +1050,8 @@ TEST_F(IpiBalancedTests, DefaultValuesReadForALookupOfNothing) {
 }
 
 TEST_F(IpiBalancedTests, PropertyThatWasNotNamedGivesWhatItGaveBefore) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	BalancedManager expected(
 		dataFilePath,
@@ -1040,6 +1156,16 @@ TEST_F(IpiBalancedTests, NamesThatMatchNothingFailAsBefore) {
 			&properties,
 			dataFilePath.c_str(),
 			exception));
+}
+
+TEST_F(IpiBalancedTests, PresetCachesFiftyThousandValues) {
+	const fiftyoneDegreesConfigIpi* presets[] = {
+		&fiftyoneDegreesIpiBalancedConfig,
+		&fiftyoneDegreesIpiDefaultConfig,
+		&fiftyoneDegreesIpiBalancedTempConfig };
+	for (const fiftyoneDegreesConfigIpi* preset : presets) {
+		EXPECT_EQ(50000u, preset->values.capacity);
+	}
 }
 
 TEST_F(IpiBalancedTests, EngineMetaDataMatches) {
@@ -1201,11 +1327,7 @@ protected:
 	std::vector<unsigned char> data;
 	string tempFilePath;
 
-	void readSmallFile() {
-		const string path = GetFilePath(_dataFolderName, balancedAsnFileName);
-		if (path.empty()) {
-			GTEST_SKIP() << "The small data file was not found.";
-		}
+	void readSmallFile(const string& path) {
 		FILE* file = fopen(path.c_str(), "rb");
 		ASSERT_NE(nullptr, file);
 		fseek(file, 0, SEEK_END);
@@ -1288,10 +1410,11 @@ protected:
 };
 
 TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
-	ASSERT_NO_FATAL_FAILURE(readSmallFile());
-	if (IsSkipped()) {
-		return;
+	const string smallFile = GetFilePath(_dataFolderName, balancedAsnFileName);
+	if (smallFile.empty()) {
+		GTEST_SKIP() << "The small data file was not found.";
 	}
+	ASSERT_NO_FATAL_FAILURE(readSmallFile(smallFile));
 	// Point the default value of the first property at a value of the second,
 	// and make the property mandatory so that the default is used.
 	const uint64_t properties = header()->properties.startPosition;
@@ -1337,25 +1460,24 @@ TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
 			fiftyoneDegreesResultsIpiCreate(&expected.manager);
 		fiftyoneDegreesResultsIpi* actualResults =
 			fiftyoneDegreesResultsIpiCreate(&actual.manager);
-		const int none = 0;
 		const string address = balancedAddresses()[0];
 		EXCEPTION_CREATE;
-		fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
+		fiftyoneDegreesResultsIpiFromIpAddressString(
 			expectedResults,
 			address.c_str(),
 			address.size(),
-			&none,
-			0,
 			exception);
 		EXCEPTION_THROW;
-		fiftyoneDegreesResultsIpiFromIpAddressStringForProperties(
+		fiftyoneDegreesResultsIpiFromIpAddressString(
 			actualResults,
 			address.c_str(),
 			address.size(),
-			&none,
-			0,
 			exception);
 		EXCEPTION_THROW;
+		// No graph is walked, so the property reads as for an address with no
+		// profile.
+		fiftyoneDegreesResultsPendingClear(&expectedResults->b);
+		fiftyoneDegreesResultsPendingClear(&actualResults->b);
 		const string answer = balancedAnswer(actualResults, 0, buffer);
 		EXPECT_EQ(
 			"1", answer.substr(0, 1)) << "The default value was not found.";
@@ -1366,9 +1488,8 @@ TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
 }
 
 TEST_F(IpiBalancedFileTests, NothingIsAllocatedDuringALookupOfHeldData) {
-	skipWithOneComponent();
-	if (IsSkipped()) {
-		return;
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
 	}
 	BalancedManager manager(
 		dataFilePath,
@@ -1406,10 +1527,11 @@ TEST_F(IpiBalancedFileTests, NothingIsAllocatedDuringALookupOfHeldData) {
 }
 
 TEST_F(IpiBalancedFileTests, TruncatedFileFailsWhenStringsAreHeld) {
-	ASSERT_NO_FATAL_FAILURE(readSmallFile());
-	if (IsSkipped()) {
-		return;
+	const string smallFile = GetFilePath(_dataFolderName, balancedAsnFileName);
+	if (smallFile.empty()) {
+		GTEST_SKIP() << "The small data file was not found.";
 	}
+	ASSERT_NO_FATAL_FAILURE(readSmallFile(smallFile));
 	// Cut the file part way through the strings. Holding them would otherwise
 	// be the first thing to read them.
 	data.resize((size_t)header()->strings.startPosition + 1024);
