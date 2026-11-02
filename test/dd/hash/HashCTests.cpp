@@ -703,7 +703,13 @@ TEST_F(HashCTests, HashResultsGetValuesOutOfRangePropertyIndex) {
 	EXCEPTION_THROW;
 	Item item;
 	DataReset(&item.data);
-	ResultsHashGetValues(results, dataSet->b.b.available->count, exception);
+	// One past the last required property index, which counts the names
+	// given, so a data file without one of them still makes it out of range.
+	ResultsHashGetValues(
+		results,
+		(int)fiftyoneDegreesPropertiesGetRequiredPropertyCount(
+			dataSet->b.b.available),
+		exception);
 	ResultsHashFree(results);
 	DataSetHashRelease(dataSet);
 
