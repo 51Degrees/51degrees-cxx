@@ -48,14 +48,19 @@
  *
  * ## First read
  *
- * Populating the results walks no graph. Each component the results answer
- * for is marked pending, and the first read of one of its properties walks
- * the component's graph against the data set the results hold. A component
- * is walked at most once each time the results are populated, so a walk that
- * fails is not repeated, and the component's properties then read as if it
- * had no profile. Anything that depends on every component, such as a value
- * made from all of them or the items of the results read directly, needs
- * #fiftyoneDegreesResultsEvaluateAll first.
+ * When the caller named the properties the data set was created with,
+ * populating the results walks the graph of each component they answer for,
+ * as #fiftyoneDegreesResultsWalkWhenPopulated decides, and the call that
+ * populates them reports a walk that fails. Otherwise populating the results
+ * walks no graph. Each component the results answer for is marked pending,
+ * and the first read of one of its properties walks the component's graph
+ * against the data set the results hold. A component is walked at most once
+ * each time the results are populated, so a walk that fails is not repeated,
+ * and the component's properties then read as if it had no profile. Anything
+ * that depends on every component, such as a value made from all of them or
+ * the items of the results read directly, needs
+ * #fiftyoneDegreesResultsEvaluateAll first, which walks nothing when the
+ * results walked every graph as they were populated.
  *
  * ## Overrides
  *
@@ -69,10 +74,11 @@
  * ## Threads
  *
  * A results structure is used by one thread at a time, because reading a
- * value writes into the results, and the first read of a component's
- * property can walk the component's graph. Different results can be used on
- * different threads at once, and the resource manager they come from can be
- * shared, unless the library is compiled with FIFTYONE_DEGREES_NO_THREADING.
+ * value writes into the results, and when no properties were named the first
+ * read of a component's property walks the component's graph. Different
+ * results can be used on different threads at once, and the resource manager
+ * they come from can be shared, unless the library is compiled with
+ * FIFTYONE_DEGREES_NO_THREADING.
  *
  * @{
  */

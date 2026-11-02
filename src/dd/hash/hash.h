@@ -369,10 +369,10 @@ FIFTYONE_DEGREES_ARRAY_TYPE(
  * array.
  *
  * The results are used by one thread at a time, because reading a value
- * writes into the results, and the first read of a property of a component
- * walks the component's graph. Different results can be used on different
- * threads at once, and the resource manager can be shared, unless the
- * library is compiled with FIFTYONE_DEGREES_NO_THREADING.
+ * writes into the results, and when no properties were named the first read
+ * of a property of a component walks the component's graph. Different results
+ * can be used on different threads at once, and the resource manager can be
+ * shared, unless the library is compiled with FIFTYONE_DEGREES_NO_THREADING.
  */
 typedef fiftyoneDegreesResultHashArray fiftyoneDegreesResultsHash;
 
@@ -642,13 +642,16 @@ fiftyoneDegreesHashInitManagerFromMemoryWithIndexedProperties(
  * change the number or layout of result items. This is the single detection
  * entry point; ResultsHashFromUserAgent is a thin wrapper over it.
  *
- * No graph is walked here. The evidence is copied into the results, each
- * available component with evidence for one of its headers takes a result, in
- * component order, and a component's graph is walked the first time one of its
- * properties is read. A device id in the evidence sets every profile here, and
- * profile overrides and default profiles are applied as they are once every
- * graph has been walked, so the answers do not depend on what is read first.
- * The evidence can be freed once this returns. Code that reads the result items
+ * Each available component with evidence for one of its headers takes a
+ * result, in component order. When the caller named the properties the data
+ * set was created with, the graph of each of those components is walked here,
+ * so no read walks a graph and the results keep no copy of the evidence.
+ * Otherwise no graph is walked here. The evidence is copied into the results,
+ * and a component's graph is walked the first time one of its properties is
+ * read. A device id in the evidence sets every profile here, and profile
+ * overrides and default profiles are applied as they are once every graph has
+ * been walked, so the answers do not depend on what is read first. The
+ * evidence can be freed once this returns. Code that reads the result items
  * directly, such as their match metrics, calls
  * #fiftyoneDegreesResultsEvaluateAll first.
  *
@@ -681,8 +684,9 @@ EXTERNAL void fiftyoneDegreesResultsHashFromEvidence(
  * single 'header.user-agent' evidence pair and passed to
  * #fiftyoneDegreesResultsHashFromEvidence, so the result shape is identical
  * to processing the same User-Agent as evidence (one item per available
- * component, not a single coalesced item). The User-Agent is copied into the
- * results, so it can be freed once this returns.
+ * component, not a single coalesced item). The User-Agent can be freed once
+ * this returns, as the results either walk every graph they need with it here
+ * or copy it.
  * @param results preallocated results structure to populate
  * @param userAgent string to process
  * @param userAgentLength of the User-Agent string
@@ -749,12 +753,12 @@ EXTERNAL void fiftyoneDegreesResultsHashFree(
 /**
  * Gets whether or not the results provided contain valid values for the
  * property index provided.
- * The first read of a property of a component walks the component's graph,
- * unless the property has an override value or the evidence overrides the
- * component's profile. A failure to read the graph from the data file is
- * reported by that read, and the component is not walked again until the
- * results are next populated, so its properties then read as if it had no
- * profile.
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph, unless the property has an override value or
+ * the evidence overrides the component's profile. A failure to read the graph
+ * from the data file is reported by that read, and the component is not walked
+ * again until the results are next populated, so its properties then read as
+ * if it had no profile.
  * @param results pointer to the results to check
  * @param requiredPropertyIndex index of the property in the names given
  * when the data set was created, which a reload does not change. With no
@@ -773,13 +777,13 @@ EXTERNAL bool fiftyoneDegreesResultsHashGetHasValues(
 /**
  * Gets the reason why a results does not contain valid values for a given
  * property.
- * The first read of a property of a component walks the component's graph,
- * unless the evidence overrides the component's profile. Then, when unmatched
- * results are not allowed, every graph still to be walked is walked, as the
- * reason depends on the results the walks of other components set. A failure
- * to read a graph from the data file is reported by that read, and the
- * component is not walked again until the results are next populated, so its
- * properties then read as if it had no profile.
+ * When no properties were named, the first read of a property of a component
+ * walks the component's graph, unless the evidence overrides the component's
+ * profile. Then, when unmatched results are not allowed, every graph still to
+ * be walked is walked, as the reason depends on the results the walks of other
+ * components set. A failure to read a graph from the data file is reported by
+ * that read, and the component is not walked again until the results are next
+ * populated, so its properties then read as if it had no profile.
  * @param results pointer to the results to check
  * @param requiredPropertyIndex index of the property in the names given
  * when the data set was created, which a reload does not change. With no
@@ -810,12 +814,12 @@ EXTERNAL const char* fiftyoneDegreesResultsHashGetNoValueReasonMessage(
   * the caller to release the collection item returned. The
   * fiftyoneDegreesResultsHashGetValueString method should be used to get
   * the string representation of the value.
-  * The first read of a property of a component walks the component's graph,
-  * unless the property has an override value or the evidence overrides the
-  * component's profile. A failure to read the graph from the data file is
-  * reported by that read, and the component is not walked again until the
-  * results are next populated, so its properties then read as if it had no
-  * profile.
+  * When no properties were named, the first read of a property of a component
+  * walks the component's graph, unless the property has an override value or
+  * the evidence overrides the component's profile. A failure to read the graph
+  * from the data file is reported by that read, and the component is not
+  * walked again until the results are next populated, so its properties then
+  * read as if it had no profile.
   * @param results pointer to the results structure to release
   * @param requiredPropertyIndex index of the property in the names given
   * when the data set was created, which a reload does not change. With no
@@ -853,8 +857,9 @@ EXTERNAL size_t fiftyoneDegreesResultsHashGetValuesString(
 /**
  * Sets the buffer to a JSON string that represents all the available
  * properties and values in the results. Each property is read as
- * #fiftyoneDegreesResultsHashGetValues reads it, so the graph of each
- * component is walked by the first read of one of its properties.
+ * #fiftyoneDegreesResultsHashGetValues reads it, so when no properties were
+ * named the graph of each component is walked by the first read of one of its
+ * properties.
  * @param results pointer to the results structure to release
  * @param buffer character buffer allocated by the caller
  * @param length of the character buffer
