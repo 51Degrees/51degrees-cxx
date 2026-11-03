@@ -77,6 +77,10 @@ tests. On a pull request, `ci/products.ps1` skips a product the change does
 not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
 docs and tools counts as touching every product.
 
+Pull requests target `release/next`, not `main`, because every language takes
+each commit on `main` at its next nightly. The README's "Making changes" says
+how a change reaches `main`.
+
 `Ubuntu_x64_Release_ExceptionsDisabled_BuildOnly` compiles both products with
 `ExceptionsDisabled` on, which makes `fiftyoneDegreesException` a void
 pointer. Its `BuildOnly` key leaves out the tests, which read the exception,
