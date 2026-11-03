@@ -152,16 +152,16 @@ submodule, and its nightly build moves that submodule to the newest commit on
 `main`, whether tagged or not. A commit on `main` therefore starts a new release
 of every language's packages the next night.
 
-So small changes merge into `release/next` rather than `main`. Pull requests
-target `release/next`, and when a release is wanted one pull request merges
-`release/next` into `main`, so the languages update once for all of them.
+So small changes merge into `rc` rather than `main`. Pull requests target `rc`,
+and when a release is wanted one pull request merges `rc` into `main`, so the
+languages update once for all of them.
 
 - The nightly build here only builds and merges pull requests into `main`. Build
-  a pull request into `release/next` before merging it, with common-ci's
+  a pull request into `rc` before merging it, with common-ci's
   [`nightly-pull-request.yml`](https://github.com/51Degrees/common-ci/blob/main/.github/workflows/nightly-pull-request.yml)
-  started with `dryrun: 'true'` and `branch: release/next`.
+  started with `dryrun: 'true'` and `branch: rc`.
 - Data file updates still reach `main` every night. Merge `main` into
-  `release/next` before opening the release pull request.
+  `rc` before opening the release pull request.
 - GitHub closes an issue only when its fix reaches `main`, so the release pull
   request names every issue its changes fix.
 
