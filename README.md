@@ -1,10 +1,35 @@
-# 51Degrees C and C++
+# 51Degrees Device Detection and IP Intelligence for C and C++
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-c-and-cpp "Data rewards the curious") **C and C++ libraries for Device Detection and IP Intelligence**
+<img src=".github/images/logo.png" alt="51Degrees" title="Data rewards the curious" width="160">
 
-This repository holds the 51Degrees C and C++ code: the common library, Device
-Detection and IP Intelligence. The 51Degrees APIs for other languages build on
-these sources.
+**C and C++ libraries for Device Detection and IP Intelligence**
+
+Our User-Agent parser for C and C++ supports Device Detection, browser detection, mobile detection, and crawler detection on-premise. IP Intelligence adds IP geolocation, including IP to country data.
+
+It reads User-Agent and User-Agent Client Hints, HTTP request headers that carry browser and device information.
+
+## Install
+
+Clone with the submodules, then follow the build instructions below.
+
+```
+git clone --recurse-submodules https://github.com/51Degrees/51degrees-cxx.git
+```
+
+Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=install).
+
+Created from `common-cxx`, `device-detection-cxx`, `ip-intelligence-cxx`, and `ip-graph-cxx`, this repository continues their work.
+
+### Build
+
+Once the build tools and data files described below are in place, build everything from the repository root:
+
+```
+mkdir build
+cd build
+cmake ..
+cmake --build . --config Release
+```
 
 | Product | Read first | Documentation |
 | --- | --- | --- |
@@ -113,7 +138,7 @@ with every library, example and test. There are also dedicated solutions:
 - `VisualStudio/IpIntelligence/IpIntelligence.sln`
 
 Besides `Debug` and `Release` they have `MemoryOnly` configurations, which hold
-the data in continuous memory for the best performance, and `Single`
+the data in continuous memory for performance, and `Single`
 configurations, which do not support multi threaded use.
 
 ## Tests
@@ -167,6 +192,14 @@ languages update once for all of them.
 
 ## History
 
+| Earlier repository | What it held |
+| --- | --- |
+| [common-cxx](https://github.com/51Degrees/common-cxx) | Shared C code |
+| [device-detection-cxx](https://github.com/51Degrees/device-detection-cxx) | Device Detection in C and C++ |
+| [ip-intelligence-cxx](https://github.com/51Degrees/ip-intelligence-cxx) | IP Intelligence in C and C++ |
+| [ip-graph-cxx](https://github.com/51Degrees/ip-graph-cxx) | The IP graph data structure |
+
+
 This repository brings together `common-cxx`, `device-detection-cxx`,
 `ip-intelligence-cxx` and `ip-graph-cxx`. Their full history is included, with
 every commit keeping its original SHA, so `git log --follow` traces a file
@@ -174,6 +207,13 @@ back through its move into this layout. The tags and releases of the original
 repositories stay with those repositories.
 [docs/path-map.md](docs/path-map.md) lists where each of their paths is now.
 
-## Licence
+## License
 
 [European Union Public Licence v1.2](LICENSE)
+
+## Find out more
+
+- [Device Detection](https://51degrees.com/device-detection?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=find-out-more)
+- [IP Intelligence](https://51degrees.com/ip-intelligence?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=find-out-more)
+- [Documentation](https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=find-out-more)
+- https://github.com/51Degrees/51degrees-cxx
