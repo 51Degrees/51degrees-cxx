@@ -1084,6 +1084,24 @@ TEST_F(File, OpenWithEachSeparator) {
 	removeDir(tempPath1);
 }
 
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+/**
+ * Check a seek to 3 GiB, which a 32 bit offset cannot hold, lands where it
+ * was asked to. Seeking past the end of a file does not grow it.
+ */
+TEST_F(File, SeekPastTwoGiB) {
+	const fiftyoneDegreesFileOffset offset =
+		(fiftyoneDegreesFileOffset)3 << 30;
+	FILE *file = NULL;
+	ASSERT_EQ(
+		FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileOpen(fileName, &file));
+	EXPECT_EQ(0, fiftyoneDegreesFileSeek(file, offset, SEEK_SET));
+	EXPECT_EQ(offset, fiftyoneDegreesFileTell(file));
+	fclose(file);
+}
+#endif
+
 #ifdef _WIN32
 /**
  * Check a file opens through a network path written with each separator. The

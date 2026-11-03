@@ -79,6 +79,8 @@ static void freeFileHandle(Pool *pool, void *fileHandle) {
 #pragma warning (default:4100)  
 #endif
 
+/* Windows uses _fseeki64 and _ftelli64 with every compiler, because MinGW's
+   fseeko and ftello take a 32 bit offset unless _FILE_OFFSET_BITS is 64. */
 int fiftyoneDegreesFileSeek(
    FILE * const stream,
    const FileOffset offset,
@@ -86,7 +88,7 @@ int fiftyoneDegreesFileSeek(
 
 	return
 #ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
-#	ifdef _MSC_VER
+#	ifdef _WIN32
 	_fseeki64
 #	else
 	fseeko
@@ -101,7 +103,7 @@ FileOffset fiftyoneDegreesFileTell(FILE * const stream) {
 
 	return
 #ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
-#	ifdef _MSC_VER
+#	ifdef _WIN32
 	_ftelli64
 #	else
 	ftello
