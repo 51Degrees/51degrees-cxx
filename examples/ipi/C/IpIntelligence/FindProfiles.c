@@ -101,7 +101,7 @@ There are '1' countries in the data set with code 'gb'.
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
 
-static const char* dataDir = "ip-intelligence-data";
+static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 

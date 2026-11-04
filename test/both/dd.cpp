@@ -33,7 +33,7 @@ using namespace FiftyoneDegrees::DeviceDetection::Hash;
 BothResult bothDdEngineLookup(void) {
 	char path[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	if (fiftyoneDegreesFileGetPath(
-		"device-detection-data",
+		"data/device-detection",
 		"51Degrees-LiteV4.1.hash",
 		path,
 		sizeof(path)) != FIFTYONE_DEGREES_STATUS_SUCCESS) {

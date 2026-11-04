@@ -116,7 +116,7 @@ values for the isMobile property instead of string values.
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
-static const char *dataDir = "device-detection-data";
+static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 

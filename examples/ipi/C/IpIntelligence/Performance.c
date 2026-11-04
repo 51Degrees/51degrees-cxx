@@ -65,7 +65,7 @@
 #define MAX_EVIDENCE 20
 
 // The ip intelligence data folder from the sub module with lite ip intel data.
-static const char* dataDir = "ip-intelligence-data";
+static const char* dataDir = "data/ip-intelligence";
 
 // In this example, by default, the 51degrees "Lite" file needs to be in the
 // ip-intelligence-data,

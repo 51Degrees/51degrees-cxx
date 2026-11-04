@@ -149,7 +149,7 @@ Areas: "POLYGON EMPTY":1
 #include "../../../../src/ipi/fiftyone.h"
 #include "../../../../src/ipi/ipi_weighted_results.h"
 
-static const char* dataDir = "ip-intelligence-data";
+static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 

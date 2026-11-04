@@ -45,7 +45,7 @@ This example is available in full on [GitHub](https://github.com/51Degrees/51deg
 
 #define MAX_EVIDENCE 8
 
-static const char *dataDir = "device-detection-data";
+static const char *dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be in the
 // device-detection-data,

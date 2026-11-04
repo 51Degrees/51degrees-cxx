@@ -57,7 +57,7 @@ BothResult bothDdLookup(void) {
 	EXCEPTION_CREATE;
 
 	if (FileGetPath(
-		"device-detection-data",
+		"data/device-detection",
 		"51Degrees-LiteV4.1.hash",
 		path,
 		sizeof(path)) != SUCCESS) {

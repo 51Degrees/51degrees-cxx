@@ -112,7 +112,7 @@ Failed to reload '0' times.
 
 #define THREAD_COUNT 4
 
-static const char* dataDir = "ip-intelligence-data";
+static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 

@@ -95,7 +95,7 @@ https://51degrees.com/Support/Documentation/APIs/C-V32/Benchmarks?utm_source=cod
 
 #define THREAD_COUNT 4
 
-static const char *dataDir = "device-detection-data";
+static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 

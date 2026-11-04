@@ -56,7 +56,7 @@ This example is available in full on [GitHub](https://github.com/51Degrees/51deg
 #include "../../../../src/common/textfile.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
-static const char *dataDir = "device-detection-data";
+static const char *dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be somewhere in the
 // project space, or you may specify another file as a command line parameter.

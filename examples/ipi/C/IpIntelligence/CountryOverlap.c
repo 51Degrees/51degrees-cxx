@@ -2128,7 +2128,7 @@ int fiftyoneDegreesIpiCountryOverlap(
 
 #ifndef TEST
 
-static const char* dataDir = "ip-intelligence-data";
+static const char* dataDir = "data/ip-intelligence";
 
 /** The enterprise data file is searched for first because the analysis
 requires properties the Lite file does not include. The Lite name is

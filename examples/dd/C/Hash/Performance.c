@@ -65,7 +65,7 @@ static bool detectionOnly = false;
 #define MAX_EVIDENCE 20
 
 // The device detection data folder from the sub module with lite device data.
-static const char* dataDir = "device-detection-data";
+static const char* dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be in the
 // device-detection-data,

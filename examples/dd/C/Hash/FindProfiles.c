@@ -71,7 +71,7 @@ fiftyoneDegreesResourceManagerFree(&manager);
 // which requires to be included before 'malloc.h'.
 #include "ExampleBase.h"
 
-static const char *dataDir = "device-detection-data";
+static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
