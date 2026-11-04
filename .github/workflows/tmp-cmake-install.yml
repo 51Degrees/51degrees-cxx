@@ -79,12 +79,20 @@ jobs:
           }
 
   Vcpkg:
+    if: false
     needs: Hash
     strategy:
       fail-fast: false
       matrix:
         include:
+          - { os: ubuntu-latest, triplet: x64-linux, consumer: run }
+          - { os: ubuntu-latest, triplet: x64-linux-dynamic, consumer: run }
           - { os: ubuntu-latest, triplet: arm64-android, consumer: build }
+          - { os: windows-latest, triplet: x64-windows, consumer: run }
+          - { os: windows-latest, triplet: x64-windows-static, consumer: run }
+          - { os: windows-latest, triplet: x86-windows, consumer: run }
+          - { os: windows-latest, triplet: arm64-windows, consumer: build }
+          - { os: windows-latest, triplet: x64-uwp, consumer: none }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -281,7 +289,6 @@ jobs:
   # Every macOS check on one runner, one after another, as the organisation
   # has five macOS runners.
   MacOS:
-    if: false
     needs: Hash
     runs-on: macos-latest
     defaults:
@@ -314,8 +321,8 @@ jobs:
             --overlay-ports=packaging/vcpkg --triplet arm64-osx
           cmake -S test/install -B consumer-vcpkg `
             "-DCMAKE_TOOLCHAIN_FILE=$env:RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake" `
-            -DVCPKG_TARGET_TRIPLET=arm64-osx -DCMAKE_BUILD_TYPE=Release `
-            -DEXPECTED_VERSION=4.5.102
+            '-DVCPKG_TARGET_TRIPLET=arm64-osx' '-DCMAKE_BUILD_TYPE=Release' `
+            '-DEXPECTED_VERSION=4.5.102'
           cmake --build consumer-vcpkg
           foreach ($program in 'dd-c', 'dd-cxx', 'ipi-c', 'ipi-cxx') {
             Write-Output "Running $program"
