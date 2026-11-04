@@ -406,9 +406,9 @@ int main(int argc, char* argv[]) {
 			sizeof(dataFilePath));
 		if (status != SUCCESS) {
 			printf(("Failed to find a device detection "
-				"data file. Make sure the device-detection-data "
-				"submodule has been updated by running "
-				"`git submodule update --recursive`"));
+				"data file. Make sure the data submodule is there, "
+				"by running `git submodule update --init data`, and "
+				"run this example again to download the file."));
 			fgetc(stdin);
 			return 1;
 		}

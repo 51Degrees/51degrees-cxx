@@ -102,7 +102,7 @@ fiftyoneDegreesResourceManagerFree(&manager);
 
 Expected output:
 ```
-Output Written to [Full Path]/ip-intelligence-data/20000 IP Addresses.processed.csv
+Output Written to [Full Path]/data/ip-intelligence/20000 IP Addresses.processed.csv
 
 ```
 Expected content of output file:

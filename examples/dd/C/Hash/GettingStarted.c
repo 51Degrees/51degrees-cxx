@@ -48,7 +48,7 @@ This example is available in full on [GitHub](https://github.com/51Degrees/51deg
 static const char *dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be in the
-// device-detection-data,
+// data/device-detection folder, and is downloaded there when it is missing,
 // or you may specify another file as a command line parameter.
 //
 // Note that the Lite data file is only used for illustration, and has
@@ -465,9 +465,9 @@ int main(int argc, char* argv[]) {
 
 	if (status != SUCCESS) {
 		printf(("Failed to find a device detection "
-			"data file. Make sure the device-detection-data "
-			"submodule has been updated by running "
-			"`git submodule update --recursive`"));
+			"data file. Make sure the data submodule is there, "
+			"by running `git submodule update --init data`, and "
+			"run this example again to download the file."));
 		fgetc(stdin);
 		return 1;
 	}

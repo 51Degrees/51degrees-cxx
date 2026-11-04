@@ -420,8 +420,8 @@ int main(int argc, char* argv[]) {
 	printf("\t#                                                           #\n");
 	printf("\t#    Command line arguments should be a Hash format data    #\n");
 	printf("\t#   file and a CSV file containing a list of User-Agents.   #\n");
-	printf("\t#        A test file of 20,000 can be downloaded from       #\n");
-	printf("\t#    https://github.com/51Degrees/device-detection-data     #\n");
+	printf("\t#     When none are given, the Lite data file and a test    #\n");
+	printf("\t#    file of 20,000 are used, and downloaded if missing.    #\n");
 	printf("\t#                                                           #\n");
 	printf("\t#############################################################\n");
 

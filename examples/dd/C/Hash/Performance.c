@@ -31,8 +31,9 @@
  * @example Hash/Performance.c
  * The example illustrates a "clock-time" benchmark for assessing detection speed.
  *
- * Using a YAML formatted evidence file - "20000 Evidence Records.yml" - supplied with the
- * distribution or can be obtained from the [data repository on Github](https://github.com/51Degrees/device-detection-data/blob/main/20000%20Evidence%20Records.yml).
+ * Using a YAML formatted evidence file - "20000 Evidence Records.yml" - from the
+ * [data repository on GitHub](https://github.com/51Degrees/data), which the example
+ * downloads when it is missing.
  *
  * It's important to understand the trade-offs between performance, memory usage and accuracy, that
  * the 51Degrees pipeline configuration makes available, and this example shows a range of
@@ -68,7 +69,7 @@ static bool detectionOnly = false;
 static const char* dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be in the
-// device-detection-data,
+// data/device-detection folder, and is downloaded there when it is missing,
 // or you may specify another file as a command line parameter.
 //
 // Note that the Lite data file is only used for illustration, and has
@@ -988,9 +989,9 @@ int main(int argc, char* argv[]) {
 			sizeof(dataFilePath));
 		if (status != SUCCESS) {
 			printf(("Failed to find a device detection "
-				"data file. Make sure the device-detection-data "
-				"submodule has been updated by running "
-				"`git submodule update --recursive`\n"));
+				"data file. Make sure the data submodule is there, "
+				"by running `git submodule update --init data`, and "
+				"run this example again to download the file.\n"));
 			fgetc(stdin);
 			return 1;
 		}
@@ -1004,9 +1005,9 @@ int main(int argc, char* argv[]) {
 			sizeof(evidenceFilePath));
 		if (status != SUCCESS) {
 			printf(("Failed to find a device detection "
-				"evidence file. Make sure the device-detection-data "
-				"submodule has been updated by running "
-				"`git submodule update --recursive`\n"));
+				"evidence file. Make sure the data submodule is there, "
+				"by running `git submodule update --init data`, and "
+				"run this example again to download the file.\n"));
 			fgetc(stdin);
 			return 1;
 		}
