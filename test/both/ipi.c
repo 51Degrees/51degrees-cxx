@@ -54,7 +54,7 @@ BothResult bothIpiLookup(void) {
 	EXCEPTION_CREATE;
 
 	if (FileGetPath(
-		"ip-intelligence-data",
+		"data/ip-intelligence",
 		"51Degrees-LiteV41.ipi",
 		path,
 		sizeof(path)) != SUCCESS) {

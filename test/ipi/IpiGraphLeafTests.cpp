@@ -43,7 +43,7 @@
 
 using namespace std;
 
-// Committed to the data submodule, so the ASN file is checked in every build.
+// CI downloads the ASN file, so it is tested in every build.
 static const char asnFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
 static const char enterpriseFileName[] = "51Degrees-EnterpriseIpiV41.ipi";
 

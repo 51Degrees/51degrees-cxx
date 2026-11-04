@@ -40,7 +40,7 @@
 #include "../common/Base.hpp"
 #include "../../src/ipi/EngineIpi.hpp"
 
-/** The data file committed to the data submodule, so every build has it. */
+/** The free ASN data file, which the data repository's script downloads. */
 static const char firstReadFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 /** An address the data file has an answer for. */
@@ -54,8 +54,8 @@ public:
 			GetFilePath(_dataFolderName, firstReadFileName);
 		if (path.empty()) {
 			GTEST_SKIP() << "The file '" << firstReadFileName <<
-				"' was not found. Run 'git submodule update --init' to "
-				"fetch it.";
+				"' was not found. Run data/get-data-files.sh or .ps1 to "
+				"download it.";
 		}
 		copyPath = std::string("ipi-first-read-") +
 			::testing::UnitTest::GetInstance()->current_test_info()->name() +

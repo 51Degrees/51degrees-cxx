@@ -37,7 +37,7 @@
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
 
-/** The small data file in the data repository, which is always present. */
+/** The small data file, which the data repository's script downloads. */
 static const char asnFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 static std::string withSeparator(std::string path, char from, char to) {

@@ -45,10 +45,10 @@ This example is available in full on [GitHub](https://github.com/51Degrees/51deg
 
 #define MAX_EVIDENCE 8
 
-static const char *dataDir = "device-detection-data";
+static const char *dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be in the
-// device-detection-data,
+// data/device-detection folder, and is downloaded there when it is missing,
 // or you may specify another file as a command line parameter.
 //
 // Note that the Lite data file is only used for illustration, and has
@@ -443,8 +443,8 @@ int main(int argc, char* argv[]) {
 	// example. See the documentation for more detail on this and other 
 	// configuration options:
 	// https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-gettingstarted.c&utm_term=main
-	// https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-gettingstarted.c&utm_term=main
-	// https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-gettingstarted.c&utm_term=main
+	// https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-gettingstarted.c&utm_term=main
+	// https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-gettingstarted.c&utm_term=main
 	ConfigHash config = HashLowMemoryConfig;
 
 	// Path for the data file.
@@ -456,7 +456,7 @@ int main(int argc, char* argv[]) {
 		strcpy(dataFilePath, argv[1]);
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,
@@ -465,9 +465,9 @@ int main(int argc, char* argv[]) {
 
 	if (status != SUCCESS) {
 		printf(("Failed to find a device detection "
-			"data file. Make sure the device-detection-data "
-			"submodule has been updated by running "
-			"`git submodule update --recursive`"));
+			"data file. Make sure the data submodule is there, "
+			"by running `git submodule update --init data`, and "
+			"run this example again to download the file."));
 		fgetc(stdin);
 		return 1;
 	}

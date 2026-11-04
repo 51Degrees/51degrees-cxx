@@ -207,7 +207,7 @@ int main(int argc, char* argv[]) {
 		strcpy(dataFilePath, argv[1]);
 	}
 	else {
-		status = fiftyoneDegreesFileGetPath(
+		status = ExampleBase::getFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,
@@ -223,7 +223,7 @@ int main(int argc, char* argv[]) {
 		strcpy(userAgentFilePath, argv[2]);
 	}
 	else {
-		status = fiftyoneDegreesFileGetPath(
+		status = ExampleBase::getFilePath(
 			dataDir,
 			userAgentFileName,
 			userAgentFilePath,

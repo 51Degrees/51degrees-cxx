@@ -104,4 +104,21 @@ EXTERNAL void fiftyoneDegreesExampleMemCheck(
 EXTERNAL void fiftyoneDegreesExampleCheckDataFile(
     fiftyoneDegreesDataSetHash *dataset);
 
+/**
+ * Finds a file in the data folder as fiftyoneDegreesFileGetPath does. When
+ * the file is missing and the data repository has a link to it, runs the
+ * data repository's download script for that file, and looks again if the
+ * script succeeds.
+ * @param dataFolderName name of the folder, such as data/device-detection
+ * @param fileName name of the file to find
+ * @param destination memory to write the path of the file to
+ * @param size of the destination in bytes
+ * @return the status of the last search
+ */
+EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
+    const char *dataFolderName,
+    const char *fileName,
+    char *destination,
+    size_t size);
+
 #endif

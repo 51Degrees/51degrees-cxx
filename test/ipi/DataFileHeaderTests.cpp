@@ -26,11 +26,11 @@
  * offset shift, refuses a copy whose header it does not support, and that the
  * size method reports the status of a file it cannot use.
  *
- * The tests use the ASN data file because it is committed to the data
- * submodule, so every build reads the same file. CI replaces the other data
- * files the tests use. Only the header of a copy is changed, because the
- * offsets stored in the file are in the unit its header declares, so another
- * valid shift needs a file written for that shift.
+ * The tests use the ASN data file because CI downloads it and never stands
+ * another file in for it, as it does for the other data files the tests use.
+ * Only the header of a copy is changed, because the offsets stored in the
+ * file are in the unit its header declares, so another valid shift needs a
+ * file written for that shift.
  */
 
 #include "../common/Base.hpp"
@@ -80,7 +80,7 @@ protected:
 		const std::string path = GetFilePath(_dataFolderName, asnFileName);
 		if (path.empty()) {
 			GTEST_SKIP() << "The file '" << asnFileName << "' was not found. "
-				"Run 'git submodule update --init' to fetch it.";
+				"Run data/get-data-files.sh or .ps1 to download it.";
 		}
 		FILE* file = fopen(path.c_str(), "rb");
 		ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";

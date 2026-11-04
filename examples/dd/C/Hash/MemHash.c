@@ -39,7 +39,7 @@
 // Number of threads to start for performance analysis.
 #define THREAD_COUNT 4
 
-static const char *dataDir = "device-detection-data";
+static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
@@ -420,8 +420,8 @@ int main(int argc, char* argv[]) {
 	printf("\t#                                                           #\n");
 	printf("\t#    Command line arguments should be a Hash format data    #\n");
 	printf("\t#   file and a CSV file containing a list of User-Agents.   #\n");
-	printf("\t#        A test file of 20,000 can be downloaded from       #\n");
-	printf("\t#    https://github.com/51Degrees/device-detection-data     #\n");
+	printf("\t#     When none are given, the Lite data file and a test    #\n");
+	printf("\t#    file of 20,000 are used, and downloaded if missing.    #\n");
 	printf("\t#                                                           #\n");
 	printf("\t#############################################################\n");
 
@@ -432,7 +432,7 @@ int main(int argc, char* argv[]) {
 		strcpy(dataFilePath, argv[1]);
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,
@@ -447,7 +447,7 @@ int main(int argc, char* argv[]) {
 		strcpy(userAgentFilePath, argv[2]);
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			userAgentFileName,
 			userAgentFilePath,
