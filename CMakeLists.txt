@@ -75,7 +75,9 @@ option(FIFTYONE_CXX_BOTH_PRODUCTS
 # file installs none of it unless it turns this on.
 option(FIFTYONE_INSTALL "Add the install rules" ${FIFTYONE_TOP_LEVEL})
 
-if (MSVC)
+# A Visual Studio generator names the toolset and the Windows SDK. Another
+# generator, such as Ninja, gives only the compiler's toolset version.
+if (MSVC AND CMAKE_GENERATOR MATCHES "^Visual Studio")
 	# Check minimum required versions for MSVC
 	if (CMAKE_VS_PLATFORM_TOOLSET MATCHES "v([0-9]+)")
 		if (${CMAKE_MATCH_1} LESS MIN_VS_TOOLSET_VERSION)
@@ -88,6 +90,8 @@ if (MSVC)
 	if (CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION VERSION_LESS ${MIN_VS_PLATFORM_VERSION})
 		message(FATAL_ERROR "Require at least windows SDK version ${MIN_VS_PLATFORM_VERSION} which can be downloaded from https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/")
 	endif()
+elseif (MSVC AND MSVC_TOOLSET_VERSION LESS MIN_VS_TOOLSET_VERSION)
+	message(FATAL_ERROR "Require at least Platform Toolset v${MIN_VS_TOOLSET_VERSION}. These can be installed by Visual Studio Installer or as part of C++ Build Tools which can be downloaded from https://visualstudio.microsoft.com/visual-cpp-build-tools/")
 endif()
 
 include(CTest)
