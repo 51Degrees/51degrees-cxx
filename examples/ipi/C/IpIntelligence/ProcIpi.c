@@ -23,9 +23,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../../Base/ExampleBase.h"
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
-#include "../../Base/ExampleBase.h"
 
 static const char* dataDir = "data/ip-intelligence";
 

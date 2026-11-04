@@ -98,9 +98,9 @@ There are '1' countries in the data set with code 'gb'.
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "../../Base/ExampleBase.h"
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
-#include "../../Base/ExampleBase.h"
 
 static const char* dataDir = "data/ip-intelligence";
 

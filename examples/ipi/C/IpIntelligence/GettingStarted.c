@@ -145,9 +145,9 @@ Areas: "POLYGON EMPTY":1
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "../../Base/ExampleBase.h"
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
-#include "../../Base/ExampleBase.h"
 #include "../../../../src/ipi/ipi_weighted_results.h"
 
 static const char* dataDir = "data/ip-intelligence";

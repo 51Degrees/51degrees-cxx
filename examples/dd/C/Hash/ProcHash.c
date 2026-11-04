@@ -22,9 +22,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "ExampleBase.h"
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
-#include "ExampleBase.h"
 
 static const char *dataDir = "data/device-detection";
 
