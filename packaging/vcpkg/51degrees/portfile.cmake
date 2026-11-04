@@ -5,8 +5,8 @@ endif()
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO 51Degrees/51degrees-cxx
-    REF e6024b51fff295314e72310007da17bfb0dbb737
-    SHA512 2abc37b11bcf3e5d4d936f71622af9f12811dd9a1121f9dd2d1472c71689fbfa2fd6b544eef8c914fe1b64e1ac88aae957ff7adc6a130f185ab0a0bea6f4813b
+    REF 34585ffb7db554a41e4668f7c495ecc68c29ca0e
+    SHA512 0
     HEAD_REF main
 )
 

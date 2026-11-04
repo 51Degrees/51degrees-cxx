@@ -7,7 +7,7 @@ on:
 
 env:
   # The commit of feature/cmake-install that the port and the recipe build.
-  PINNED: e6024b51fff295314e72310007da17bfb0dbb737
+  PINNED: 34585ffb7db554a41e4668f7c495ecc68c29ca0e
 
 jobs:
   Hash:
@@ -27,8 +27,6 @@ jobs:
 
   # Configures rc and the branch with Ninja and MSVC, as vcpkg does.
   NinjaMsvc:
-    # Left out of this round, set to true for the final one.
-    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -52,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -84,14 +82,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, triplet: x64-linux, consumer: true }
-          - { os: ubuntu-latest, triplet: x64-linux-dynamic, consumer: true }
-          - { os: ubuntu-latest, triplet: arm64-android, consumer: false }
-          - { os: windows-latest, triplet: x64-windows, consumer: true }
-          - { os: windows-latest, triplet: x64-windows-static, consumer: true }
-          - { os: windows-latest, triplet: x86-windows, consumer: true }
-          - { os: windows-latest, triplet: arm64-windows, consumer: false }
-          - { os: windows-latest, triplet: x64-uwp, consumer: false }
+          - { os: ubuntu-latest, triplet: x64-linux, consumer: run }
+          - { os: ubuntu-latest, triplet: x64-linux-dynamic, consumer: run }
+          - { os: ubuntu-latest, triplet: arm64-android, consumer: build }
+          - { os: windows-latest, triplet: x64-windows, consumer: run }
+          - { os: windows-latest, triplet: x64-windows-static, consumer: run }
+          - { os: windows-latest, triplet: x86-windows, consumer: run }
+          - { os: windows-latest, triplet: arm64-windows, consumer: build }
+          - { os: windows-latest, triplet: x64-uwp, consumer: none }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -129,7 +127,7 @@ jobs:
           Get-ChildItem -Recurse "$env:RUNNER_TEMP/vcpkg/buildtrees/51degrees" -Filter *.log |
             ForEach-Object { Write-Output "=== $_"; Get-Content $_ -Tail 60 }
       - name: Build test/install with the vcpkg toolchain
-        if: matrix.consumer
+        if: matrix.consumer != 'none'
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           $arguments = @(
@@ -138,13 +136,24 @@ jobs:
             '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}'
             '-DCMAKE_BUILD_TYPE=Release'
             '-DEXPECTED_VERSION=4.5.102')
-          if ('${{ matrix.triplet }}' -eq 'x86-windows') { $arguments += '-A', 'Win32' }
-          elseif ($IsWindows) { $arguments += '-A', 'x64' }
+          switch ('${{ matrix.triplet }}') {
+            'x86-windows' { $arguments += '-A', 'Win32' }
+            'arm64-windows' { $arguments += '-A', 'ARM64' }
+            'arm64-android' {
+              $arguments += "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$env:ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
+              $arguments += '-DANDROID_ABI=arm64-v8a'
+            }
+            default { if ($IsWindows) { $arguments += '-A', 'x64' } }
+          }
           if ('${{ matrix.triplet }}' -eq 'x64-windows-static') {
             $arguments += '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>'
           }
           cmake @arguments
           cmake --build consumer --config Release
+          if ('${{ matrix.consumer }}' -ne 'run') {
+            Write-Output 'Built for another platform, so not run'
+            exit 0
+          }
           $bin = $IsWindows ? 'consumer/Release' : 'consumer'
           foreach ($program in 'dd-c', 'dd-cxx', 'ipi-c', 'ipi-cxx') {
             Write-Output "Running $program"
@@ -152,8 +161,6 @@ jobs:
           }
 
   Conan:
-    # Left out of this round, set to true for the final one.
-    if: false
     needs: Hash
     strategy:
       fail-fast: false
