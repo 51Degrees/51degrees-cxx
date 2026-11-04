@@ -193,11 +193,6 @@ extern "C" void fiftyoneDegreesExampleCPPReloadFromMemoryRun(ExampleParameters *
 		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);
 		exit(1);
 	}
-	catch (...) {
-		// The engine has gone, so the memory it used can be freed.
-		fiftyoneDegreesFree(reader.startByte);
-		throw;
-	}
 	// Free the memory for the test.
 	fiftyoneDegreesFree(reader.startByte);
 }
