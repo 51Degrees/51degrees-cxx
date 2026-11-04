@@ -99,6 +99,16 @@ projects list theirs by name, so add a new test file to its `.vcxproj` and
 builds when one is missing. Those builds run the common and Device Detection
 tests, and build the IP Intelligence tests without running them.
 
+## Releases
+
+Pull requests go to `rc`, not `main`, and stay drafts until they have been
+reviewed, because the nightly merges any pull request into `rc` that is not a
+draft and has no review requested. When a release is wanted, one pull request
+merges `rc` into `main`, and the "Only rc into main" check fails a pull request
+into `main` from any other branch.
+The steps are in the README's [Making changes](README.md#making-changes)
+section.
+
 ## Versions
 
 The repository has one version, tagged as a plain version such as `4.5.96`.
