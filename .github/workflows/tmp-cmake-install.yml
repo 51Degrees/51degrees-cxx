@@ -194,9 +194,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: ${{ github.workspace }}
-      # The last linter Conan Center kept in its repository, removed on
-      # 4 November 2024 when the checks moved to its own service.
+      # The last commit with Conan Center's whole in-repo linter, 19 September
+      # 2024. Its plugins went the next day and the rest on 4 November 2024,
+      # when the checks moved to Conan Center's own service.
       CCI: 2ee7947fd090162737149b7abdcd49302ba3821d
+      # Conan Center's CMake package template, linted the same way as a
+      # control, at its commit of 4 November 2026.
+      TEMPLATE: 179568aa426a7197b270cad44ac35ae26afb469b
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -214,14 +218,48 @@ jobs:
             curl -sSfL -o "linter/$f" \
               "https://raw.githubusercontent.com/conan-io/conan-center-index/$CCI/linter/$f"
           done
-      - name: Lint the recipe
+      - name: Get the template
         run: |
-          pylint --rcfile=linter/pylintrc_recipe --output-format=parseable \
-            packaging/conan/51degrees/all/conanfile.py
-          pylint --rcfile=linter/pylintrc_testpackage --output-format=parseable \
-            packaging/conan/51degrees/all/test_package/conanfile.py
+          base="https://raw.githubusercontent.com/conan-io/conan-center-index/$TEMPLATE/docs/package_templates/cmake_package/all"
+          mkdir -p template/test_package
+          curl -sSfL -o template/conanfile.py "$base/conanfile.py"
+          curl -sSfL -o template/test_package/conanfile.py "$base/test_package/conanfile.py"
+      - name: Lint the recipe and the template
+        run: |
+          lint() {
+            pylint --rcfile="linter/$1" --output-format=parseable --exit-zero "$2" |
+              tee /dev/stderr | grep -E '^[^ ]+:[0-9]+: \[' > "$3" || true
+          }
+          lint pylintrc_recipe packaging/conan/51degrees/all/conanfile.py recipe.txt
+          lint pylintrc_recipe template/conanfile.py recipe-template.txt
+          lint pylintrc_testpackage packaging/conan/51degrees/all/test_package/conanfile.py test.txt
+          lint pylintrc_testpackage template/test_package/conanfile.py test-template.txt
+          # A finding the template also gets comes from running a linter
+          # written for Conan 1, so only the others count.
+          python3 - <<'EOF'
+          import re, sys
+          def findings(path):
+              keys = set()
+              for line in open(path):
+                  m = re.match(r"^[^ ]+:\d+: \[(\w+)\([^)]*\)[^\]]*\] (.*)$", line.strip())
+                  if m:
+                      text = re.sub(r"'\w+Conan'", "'<recipe class>'", m.group(2))
+                      keys.add((m.group(1), text))
+              return keys
+          failed = False
+          for mine, template in (("recipe.txt", "recipe-template.txt"), ("test.txt", "test-template.txt")):
+              own = findings(mine) - findings(template)
+              print(f"{mine}: {len(findings(mine))} findings, {len(own)} not also in the template")
+              for code, text in sorted(own):
+                  print(f"  {code} {text}")
+                  failed = True
+          sys.exit(1 if failed else 0)
+          EOF
+      - name: Lint the YAML files
+        if: always()
+        run: |
           yamllint --config-file linter/yamllint_rules.yml -f standard \
             packaging/conan/51degrees/config.yml packaging/conan/51degrees/all/conandata.yml
           python3 linter/config_yaml_linter.py packaging/conan/51degrees/config.yml
           python3 linter/conandata_yaml_linter.py packaging/conan/51degrees/all/conandata.yml
-          echo "The recipe passes every check of that linter"
+          echo "The YAML files pass"
