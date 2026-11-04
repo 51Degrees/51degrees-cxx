@@ -1,0 +1,52 @@
+name: Temporary CMake install, vcpkg and Conan checks
+
+on:
+  push:
+    branches:
+      - 'tmp/cmake-install'
+
+env:
+  # The commit of feature/cmake-install that the port and the recipe build.
+  PINNED: 10076fe777930ef0ff23859a1f8837177835f229
+
+jobs:
+  Hash:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hash the source archive of the pinned commit
+        run: |
+          curl -sSfL -o src.tar.gz "https://github.com/51Degrees/51degrees-cxx/archive/$PINNED.tar.gz"
+          ls -l src.tar.gz
+          echo "sha512 $(sha512sum src.tar.gz | cut -d' ' -f1)"
+          echo "sha256 $(sha256sum src.tar.gz | cut -d' ' -f1)"
+          tar -tzf src.tar.gz | head -5
+
+  InstallCheck:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install check
+        run: |
+          ./ci/check-install.ps1 -RepoName . -Products dd, ipi -Options @(
+            '-DFIFTYONE_BUILD_DEVICE_DETECTION=ON'
+            '-DFIFTYONE_BUILD_IP_INTELLIGENCE=ON'
+            '-DFIFTYONE_IPI_SYMBOLS=ON'
+            '-DFIFTYONE_CXX_BOTH_PRODUCTS=ON')
+      - name: Names the -complete libraries export
+        if: runner.os == 'Linux'
+        run: |
+          foreach ($lib in 'device-detection', 'ip-intelligence') {
+            $file = "build-install/build/lib/libfiftyone-$lib-complete.so"
+            $all = @(nm -D --defined-only $file)
+            $ours = @($all | Select-String -SimpleMatch 'fiftyoneDegrees')
+            Write-Output "$file exports $($all.Count) names, $($ours.Count) of them 51Degrees names"
+          }
