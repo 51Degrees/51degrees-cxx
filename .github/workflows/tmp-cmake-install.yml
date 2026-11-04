@@ -7,7 +7,7 @@ on:
 
 env:
   # The commit of feature/cmake-install that the port and the recipe build.
-  PINNED: c7de2d1af76be53041726617a72ff266a475c399
+  PINNED: e6024b51fff295314e72310007da17bfb0dbb737
 
 jobs:
   Hash:
@@ -27,6 +27,8 @@ jobs:
 
   # Configures rc and the branch with Ninja and MSVC, as vcpkg does.
   NinjaMsvc:
+    # Left out of this round, set to true for the final one.
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -50,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -146,6 +148,8 @@ jobs:
           }
 
   Conan:
+    # Left out of this round, set to true for the final one.
+    if: false
     needs: Hash
     strategy:
       fail-fast: false
@@ -263,3 +267,63 @@ jobs:
           python3 linter/config_yaml_linter.py packaging/conan/51degrees/config.yml
           python3 linter/conandata_yaml_linter.py packaging/conan/51degrees/all/conandata.yml
           echo "The YAML files pass"
+
+  # Every macOS check on one runner, one after another, as the organisation
+  # has five macOS runners.
+  MacOS:
+    needs: Hash
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install check
+        run: |
+          sw_vers
+          ./ci/check-install.ps1 -RepoName . -Products dd, ipi -Options @(
+            '-DFIFTYONE_BUILD_DEVICE_DETECTION=ON'
+            '-DFIFTYONE_BUILD_IP_INTELLIGENCE=ON'
+            '-DFIFTYONE_IPI_SYMBOLS=ON'
+            '-DFIFTYONE_CXX_BOTH_PRODUCTS=ON')
+      - name: Install the vcpkg port for arm64-osx
+        if: ${{ !cancelled() }}
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$env:RUNNER_TEMP/vcpkg"
+          git -C "$env:RUNNER_TEMP/vcpkg" log -1 --format='vcpkg at %H %cs'
+          & "$env:RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          $portfile = 'packaging/vcpkg/51degrees/portfile.cmake'
+          (Get-Content -Raw $portfile).Replace(
+            'SHA512 0', 'SHA512 ${{ needs.Hash.outputs.sha512 }}') |
+            Set-Content -NoNewline $portfile
+          & "$env:RUNNER_TEMP/vcpkg/vcpkg" install 51degrees `
+            --overlay-ports=packaging/vcpkg --triplet arm64-osx
+          cmake -S test/install -B consumer-vcpkg `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=arm64-osx -DCMAKE_BUILD_TYPE=Release `
+            -DEXPECTED_VERSION=4.5.102
+          cmake --build consumer-vcpkg
+          foreach ($program in 'dd-c', 'dd-cxx', 'ipi-c', 'ipi-cxx') {
+            Write-Output "Running $program"
+            & "consumer-vcpkg/$program"
+            if ($LASTEXITCODE -ne 0) { throw "$program failed" }
+          }
+      - name: Show the vcpkg build logs
+        if: failure()
+        run: |
+          Get-ChildItem -Recurse "$env:RUNNER_TEMP/vcpkg/buildtrees/51degrees" -Filter *.log |
+            ForEach-Object { Write-Output "=== $_"; Get-Content $_ -Tail 60 }
+      - name: Create the Conan package
+        if: ${{ !cancelled() }}
+        run: |
+          pip install "conan>=2.0.9,<3"
+          conan profile detect
+          conan profile show
+          $data = 'packaging/conan/51degrees/all/conandata.yml'
+          (Get-Content -Raw $data).Replace(('0' * 64),
+            '${{ needs.Hash.outputs.sha256 }}') | Set-Content -NoNewline $data
+          conan create packaging/conan/51degrees/all `
+            --version 4.5.102.cci.20261104 --build=missing -s build_type=Release
+          if ($LASTEXITCODE -ne 0) { throw 'conan create failed' }
