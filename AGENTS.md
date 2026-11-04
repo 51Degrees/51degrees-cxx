@@ -77,6 +77,14 @@ tests. On a pull request, `ci/products.ps1` skips a product the change does
 not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
 docs and tools counts as touching every product.
 
+`ci/select-options.ps1` chooses the entries a pull request runs. The standard
+set builds the products a change touches with GCC and MSVC, without the IP
+Intelligence tests unless an IP Intelligence file changed in more than its
+comments. A change to a product's source adds that product's other entries.
+The repeated Debug builds and macOS run only when `rc` itself or the release
+pull request is built, which `.github/workflows/release-pull-request.yml`
+does on every entry.
+
 Pull requests target `rc`, not `main`, because every language takes
 each commit on `main` at its next nightly. The README's "Making changes" says
 how a change reaches `main`.
