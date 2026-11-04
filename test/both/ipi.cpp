@@ -32,7 +32,7 @@ using namespace FiftyoneDegrees::IpIntelligence;
 BothResult bothIpiEngineLookup(void) {
 	char path[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	if (fiftyoneDegreesFileGetPath(
-		"ip-intelligence-data",
+		"data/ip-intelligence",
 		"51Degrees-LiteV41.ipi",
 		path,
 		sizeof(path)) != FIFTYONE_DEGREES_STATUS_SUCCESS) {

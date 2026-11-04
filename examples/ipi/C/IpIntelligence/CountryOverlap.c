@@ -144,6 +144,7 @@ CountryOverlap <data file> --probe <ip> [ip...]
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "../../Base/ExampleBase.h"
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
 #include "../../../../src/ipi/ipi_weighted_results.h"
@@ -2128,7 +2129,7 @@ int fiftyoneDegreesIpiCountryOverlap(
 
 #ifndef TEST
 
-static const char* dataDir = "ip-intelligence-data";
+static const char* dataDir = "data/ip-intelligence";
 
 /** The enterprise data file is searched for first because the analysis
 requires properties the Lite file does not include. The Lite name is
@@ -2356,7 +2357,7 @@ int main(int argc, char* argv[]) {
 		for (int i = 0;
 			i < (int)(sizeof(dataFileNames) / sizeof(dataFileNames[0]));
 			i++) {
-			status = FileGetPath(
+			status = fiftyoneDegreesExampleGetFilePath(
 				dataDir,
 				dataFileNames[i],
 				dataFilePath,

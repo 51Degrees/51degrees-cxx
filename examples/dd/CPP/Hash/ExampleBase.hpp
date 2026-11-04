@@ -34,7 +34,7 @@
 
 #define THREAD_COUNT 4
 
-static const char *dataDir = "device-detection-data";
+static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
@@ -120,6 +120,21 @@ namespace FiftyoneDegrees {
 				static void reportStatus(
 					fiftyoneDegreesStatusCode status,
 					const char* fileName);
+
+				/**
+				 * Finds a file in the data folder, and downloads it first
+				 * when it is missing and the data repository links to it.
+				 * @param dataFolderName name of the folder to look in
+				 * @param fileName name of the file to find
+				 * @param destination memory to write the path of the file to
+				 * @param size of the destination in bytes
+				 * @return the status of the last search
+				 */
+				static fiftyoneDegreesStatusCode getFilePath(
+					const char* dataFolderName,
+					const char* fileName,
+					char* destination,
+					size_t size);
 
 			protected:
 				/**

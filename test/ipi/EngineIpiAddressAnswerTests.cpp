@@ -34,8 +34,8 @@ using namespace std;
 namespace Ipi = FiftyoneDegrees::IpIntelligence;
 namespace Common = FiftyoneDegrees::Common;
 
-// Committed to the data submodule, so these tests need no download. The lowest
-// key in its IPv4 graph is 1.0.0.0 and in its IPv6 graph is 2001:4:112::.
+// The free ASN data file, which the data repository's script downloads. Its
+// lowest key is 1.0.0.0 in the IPv4 graph and 2001:4:112:: in the IPv6 graph.
 static const char asnFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 // What a result holds when no profile relates to the address.

@@ -4,3 +4,6 @@
 [submodule "ip-intelligence-data"]
 	path = ip-intelligence-data
 	url = ../ip-intelligence-data
+[submodule "data"]
+	path = data
+	url = ../data

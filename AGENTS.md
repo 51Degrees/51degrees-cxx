@@ -63,10 +63,15 @@ Memory must not rise above what naming nothing uses.
 ## Data files
 
 The tests and examples find data by searching upward from their working
-directory for a folder named `device-detection-data` or
-`ip-intelligence-data`. Those names are fixed. The data repositories are
-submodules at the root. The enterprise files used in CI are fetched by
-`ci/fetch-assets.ps1` and are never committed.
+directory for the folder `data/device-detection` or `data/ip-intelligence`.
+Those names are fixed. `data` is the data repository, a submodule at the root,
+which holds a `<file>.link` for each free data file rather than the file.
+`data/get-data-files.ps1` and `data/get-data-files.sh` download them, and an
+example whose file is missing runs the script for it. The
+`device-detection-data` and `ip-intelligence-data` submodules are kept only
+until the other language APIs read `data`, so nothing here uses them. The
+enterprise files used in CI are fetched by `ci/fetch-assets.ps1` and are never
+committed.
 
 ## CI
 

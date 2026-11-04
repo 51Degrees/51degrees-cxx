@@ -38,8 +38,8 @@ not listed moved with its parent. Deleted: each repository's `ci/` and
 | `ip-intelligence-cxx/Directory.Build.props` | `VisualStudio/IpIntelligence/Directory.Build.props` |
 | `ip-intelligence-cxx/README.md` | `docs/ipi/README.md` |
 | `ip-intelligence-cxx/STORED_WEIGHTED_VALUE_DESIGN_PROPOSAL.md` | `docs/ipi/STORED_WEIGHTED_VALUE_DESIGN_PROPOSAL.md` |
-| `device-detection-cxx/device-detection-data` (submodule) | `device-detection-data` (submodule) |
-| `ip-intelligence-cxx/ip-intelligence-data` (submodule) | `ip-intelligence-data` (submodule) |
+| `device-detection-cxx/device-detection-data` (submodule) | `data/device-detection`, in the `data` submodule, and `device-detection-data` (submodule) until the languages move |
+| `ip-intelligence-cxx/ip-intelligence-data` (submodule) | `data/ip-intelligence`, in the `data` submodule, and `ip-intelligence-data` (submodule) until the languages move |
 | `device-detection-cxx/src/common-cxx/` (submodule) | the `common-cxx` rows above |
 | `ip-intelligence-cxx/src/common-cxx/` (submodule) | the `common-cxx` rows above |
 | `ip-intelligence-cxx/src/ip-graph-cxx/` (submodule) | the `ip-graph-cxx` rows above |
@@ -56,3 +56,8 @@ root.
 - The SWIG interface files include `cxx/src/...`, so a generated wrapper needs
   the folder that holds `cxx/` on its include path. A wrapper already committed
   includes the old path, so it needs the same change or generating again.
+- The data files are in `cxx/data/device-detection` and
+  `cxx/data/ip-intelligence`, once `cxx/data/get-data-files.ps1` or
+  `cxx/data/get-data-files.sh` has downloaded them. `cxx/device-detection-data`
+  and `cxx/ip-intelligence-data` stay until every language reads the files from
+  `cxx/data`.

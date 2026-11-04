@@ -11,22 +11,19 @@ The 51Degrees device detection API is built on the 51Degrees [common API](../../
 ## Data File
 
 In order to perform device detection, you will need to use a 51Degrees data file. 
-This repository includes a free, 'lite' file in the 'device-detection-data' 
-submodule that has a significantly reduced set of properties. To obtain a 
+A free, 'lite' file that has a significantly reduced set of properties is 
+available through the [data](https://github.com/51Degrees/data) submodule. To obtain a 
 file with a more complete set of device properties see the 
 [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=data-file). 
-If you want to use the lite file, you will need to install [GitLFS](https://git-lfs.github.com/).
-
-For Linux:
-```
-sudo apt-get install git-lfs
-git lfs install
-```
-
-Then, navigate to the device-detection-data directory and execute:
+To download the lite file into `data/device-detection`, run one of these from
+the repository root. The examples also download it when it is missing.
 
 ```
-git lfs pull
+sh data/get-data-files.sh 51Degrees-LiteV4.1.hash
+```
+
+```
+./data/get-data-files.ps1 51Degrees-LiteV4.1.hash
 ```
 
 ## Building and testing

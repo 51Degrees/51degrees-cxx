@@ -27,7 +27,7 @@
  * between data files with different properties.
  *
  * The reload tests move between the Enterprise data file and the small data
- * file committed to the data submodule, which has fewer properties, as the
+ * file in the data submodule, which has fewer properties, as the
  * Go reload cases moved between the Enterprise and Lite files.
  */
 
@@ -46,7 +46,7 @@
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
 
-/** The small data file committed to the data submodule. */
+/** The small data file, which the data repository's script downloads. */
 static const char smallFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 /** The Enterprise data file, which the CI fetches. */
@@ -160,7 +160,7 @@ protected:
 		smallPath = GetFilePath(_dataFolderName, smallFileName);
 		if (smallPath.empty()) {
 			GTEST_SKIP() << "The file '" << smallFileName << "' was not "
-				"found. Run 'git submodule update --init' to fetch it.";
+				"found. Run data/get-data-files.sh or .ps1 to download it.";
 		}
 		smallNames = fileNames(smallPath);
 		ASSERT_GE(smallNames.size(), (size_t)2);

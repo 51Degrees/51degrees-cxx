@@ -65,6 +65,18 @@ void ExampleBase::reportStatus(fiftyoneDegreesStatusCode status,
 	fiftyoneDegreesFree((void *)message);
 }
 
+fiftyoneDegreesStatusCode ExampleBase::getFilePath(
+	const char *dataFolderName,
+	const char *fileName,
+	char *destination,
+	size_t size) {
+	return fiftyoneDegreesExampleGetFilePath(
+		dataFolderName,
+		fileName,
+		destination,
+		size);
+}
+
 unsigned long ExampleBase::generateHash(unsigned char *value) {
 	unsigned long hashCode = 5381;
 	int i = *value++;
