@@ -160,18 +160,20 @@ describes.
 
 ### Pitfalls
 
-- **A Git LFS pointer instead of the data file.** The example then fails with
-  a status message about the data file. Check the file sizes as above.
+- **A data file that is not there.** `data` holds a `.link` for each file
+  rather than the file. An example whose file is missing runs the download
+  script for it, so it needs the network and the tools under "Prerequisites".
+  Check the file sizes as above.
 - **Missing submodules.** Without them the example cannot find a data file and
-  says so. A zip download of the repository has neither the submodules nor the
-  Git LFS files, so clone with Git.
+  says so. A zip download of the repository has no submodules, so clone with
+  Git.
 - **An example that seems to hang.** It is waiting for a key press. Give it
   empty input, as "Run" shows.
 - **Windows line endings.** Git for Windows usually checks files out with
-  `core.autocrlf=true`, and `ip-intelligence-data` has no `.gitattributes`, so
-  its shell script gets Windows line endings and the shell cannot run it. Use
-  the PowerShell script on Windows. For the same reason, do not build and test
-  in WSL from a checkout made on Windows, because the Linux tests then read IP
+  `core.autocrlf=true`. `data` keeps LF line endings for its shell script and
+  its links, so both work from a Windows checkout, but its IP Intelligence
+  evidence files get Windows line endings. So do not build and test in WSL
+  from a checkout made on Windows, because the Linux tests then read IP
   addresses ending in a carriage return and fail. Clone again inside WSL.
 - **Warnings are errors.** `CMakeLists.txt` sets
   `CMAKE_COMPILE_WARNING_AS_ERROR`, and the Device Detection examples build
