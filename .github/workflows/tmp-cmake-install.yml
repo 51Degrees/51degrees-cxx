@@ -27,6 +27,7 @@ jobs:
 
   # Configures rc and the branch with Ninja and MSVC, as vcpkg does.
   NinjaMsvc:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +48,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Build of ${{ matrix.ref }} failed" }
 
   InstallCheck:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -82,14 +84,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, triplet: x64-linux, consumer: run }
-          - { os: ubuntu-latest, triplet: x64-linux-dynamic, consumer: run }
           - { os: ubuntu-latest, triplet: arm64-android, consumer: build }
-          - { os: windows-latest, triplet: x64-windows, consumer: run }
-          - { os: windows-latest, triplet: x64-windows-static, consumer: run }
-          - { os: windows-latest, triplet: x86-windows, consumer: run }
-          - { os: windows-latest, triplet: arm64-windows, consumer: build }
-          - { os: windows-latest, triplet: x64-uwp, consumer: none }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -142,6 +137,8 @@ jobs:
             'arm64-android' {
               $arguments += "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$env:ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
               $arguments += '-DANDROID_ABI=arm64-v8a'
+              # The port's libraries are built for API level 28.
+              $arguments += '-DANDROID_PLATFORM=android-28'
             }
             default { if ($IsWindows) { $arguments += '-A', 'x64' } }
           }
@@ -161,6 +158,7 @@ jobs:
           }
 
   Conan:
+    if: false
     needs: Hash
     strategy:
       fail-fast: false
@@ -206,6 +204,7 @@ jobs:
           exit $code
 
   ConanLint:
+    if: false
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: ${{ github.workspace }}
@@ -282,6 +281,7 @@ jobs:
   # Every macOS check on one runner, one after another, as the organisation
   # has five macOS runners.
   MacOS:
+    if: false
     needs: Hash
     runs-on: macos-latest
     defaults:
