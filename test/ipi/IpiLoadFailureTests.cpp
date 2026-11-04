@@ -34,7 +34,7 @@
 #include "Constants.hpp"
 #include "../../src/ipi/ipi.h"
 
-/** The data file committed to the data submodule, so every build has it. */
+/** The free ASN data file, which the data repository's script downloads. */
 static const char asnFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 /** The allocations made so far by countingMalloc. */
@@ -58,7 +58,7 @@ protected:
 		const std::string found = GetFilePath(_dataFolderName, asnFileName);
 		if (found.empty()) {
 			GTEST_SKIP() << "The file '" << asnFileName << "' was not found. "
-				"Run 'git submodule update --init' to fetch it.";
+				"Run data/get-data-files.sh or .ps1 to download it.";
 		}
 		FILE *file = fopen(found.c_str(), "rb");
 		ASSERT_NE(nullptr, file) << "Could not open '" << found << "'.";

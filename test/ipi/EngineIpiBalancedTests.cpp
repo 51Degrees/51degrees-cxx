@@ -59,7 +59,7 @@ using namespace std;
 namespace Ipi = FiftyoneDegrees::IpIntelligence;
 namespace Common = FiftyoneDegrees::Common;
 
-// The data file committed to the data submodule, which is always available.
+// The free ASN data file, which the data repository's script downloads.
 static const char* balancedAsnFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 static const char* balancedMemoryType = "CollectionMemory";
@@ -324,7 +324,7 @@ public:
 		}
 		if (dataFilePath == "") {
 			GTEST_SKIP() << "No data file was found. Run "
-				"'git submodule update --init' to fetch one.";
+				"data/get-data-files.sh or .ps1 to download one.";
 		}
 		BalancedManager all(
 			dataFilePath,
