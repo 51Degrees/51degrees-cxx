@@ -10,15 +10,15 @@ The 51Degrees IP intelligence API is built on the 51Degrees [common API](../../s
 
 ### Data file
 
-In order to perform IP intelligence, you will need to obtain a 51Degrees data file.  Lite data file can be obtained for free as specified in the [`ip-intelligence-data/README`](https://github.com/51Degrees/ip-intelligence-data/). To obtain an Enterprise data file please [contact us](https://51degrees.com/contact-us?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=data-file).
+In order to perform IP intelligence, you will need to obtain a 51Degrees data file.  The free Lite data file is downloaded by `data/get-data-files.sh` or `data/get-data-files.ps1`, in the [data](https://github.com/51Degrees/data) submodule. To obtain an Enterprise data file please [contact us](https://51degrees.com/contact-us?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=data-file).
 
-By default, the downloaded data file has to be placed in the 'ip-intelligence-data' folder at the root of this repository for the tests and examples to work.
+By default, the data file has to be in the `data/ip-intelligence` folder of this repository for the tests and examples to work, which is where the scripts save it. The tests also need the free ASN data file, `51Degrees-IPIV4AsnIpiV41.ipi`, which the scripts download as well.
 
 The examples resolve the location of the data file in the following order:
 
 1. A path supplied as a command line argument to the example.
 2. The `51DEGREES_IPI_PATH` environment variable containing an explicit path to the data file.
-3. A search of the parent folder structure for the expected file name in the 'ip-intelligence-data' folder, where the free 'Lite' data file is expected to be placed.
+3. A search of the parent folder structure for the expected file name in the `data/ip-intelligence` folder, where the free 'Lite' data file is downloaded to. When it is missing there, the example runs the data repository's script to download it.
 
 Note that on Linux shells the `51DEGREES_IPI_PATH` variable name starts with a digit, so it must be set with the `env` command, for example `env 51DEGREES_IPI_PATH=/path/to/file.ipi ./GettingStarted`, rather than a plain `export`.
 
@@ -94,7 +94,7 @@ There are several examples available, the source files can be found in the [`exa
 
 ### ⚠️ Required files
 
-See `ip-intelligence-data/README` ([local](../../ip-intelligence-data/README.md) / [GitHub](https://github.com/51Degrees/ip-intelligence-data/)) on how to pull and/or generate necessary files.
+See the data repository README ([local](../../data/README.md) / [GitHub](https://github.com/51Degrees/data#get-the-data-files)) on how to download the necessary files.
 
 ### Running examples in Visual Studio
 
