@@ -50,3 +50,138 @@ jobs:
             $ours = @($all | Select-String -SimpleMatch 'fiftyoneDegrees')
             Write-Output "$file exports $($all.Count) names, $($ours.Count) of them 51Degrees names"
           }
+
+  Vcpkg:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, triplet: x64-linux, consumer: true }
+          - { os: ubuntu-latest, triplet: x64-linux-dynamic, consumer: true }
+          - { os: ubuntu-latest, triplet: arm64-android, consumer: false }
+          - { os: windows-latest, triplet: x64-windows, consumer: true }
+          - { os: windows-latest, triplet: x64-windows-static, consumer: true }
+          - { os: windows-latest, triplet: x86-windows, consumer: true }
+          - { os: windows-latest, triplet: arm64-windows, consumer: false }
+          - { os: windows-latest, triplet: x64-uwp, consumer: false }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+      - name: Get vcpkg
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$env:RUNNER_TEMP/vcpkg"
+          git -C "$env:RUNNER_TEMP/vcpkg" log -1 --format='vcpkg at %H %cs'
+          $bootstrap = $IsWindows ? 'bootstrap-vcpkg.bat' : 'bootstrap-vcpkg.sh'
+          & "$env:RUNNER_TEMP/vcpkg/$bootstrap" -disableMetrics
+      - name: Check the manifest is formatted
+        run: |
+          & "$env:RUNNER_TEMP/vcpkg/vcpkg" format-manifest packaging/vcpkg/51degrees/vcpkg.json
+          git diff --exit-code packaging/vcpkg
+      - name: Install the port
+        run: |
+          & "$env:RUNNER_TEMP/vcpkg/vcpkg" install 51degrees `
+            --overlay-ports=packaging/vcpkg --triplet ${{ matrix.triplet }}
+          Get-Content "$env:RUNNER_TEMP/vcpkg/installed/vcpkg/info/51degrees_*_${{ matrix.triplet }}.list"
+      - name: Show the build logs
+        if: failure()
+        run: |
+          Get-ChildItem -Recurse "$env:RUNNER_TEMP/vcpkg/buildtrees/51degrees" -Filter *.log |
+            ForEach-Object { Write-Output "=== $_"; Get-Content $_ -Tail 60 }
+      - name: Build test/install with the vcpkg toolchain
+        if: matrix.consumer
+        run: |
+          $arguments = @(
+            '-S', 'test/install', '-B', 'consumer'
+            "-DCMAKE_TOOLCHAIN_FILE=$env:RUNNER_TEMP/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            '-DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}'
+            '-DCMAKE_BUILD_TYPE=Release'
+            '-DEXPECTED_VERSION=4.5.102')
+          if ('${{ matrix.triplet }}' -eq 'x86-windows') { $arguments += '-A', 'Win32' }
+          elseif ($IsWindows) { $arguments += '-A', 'x64' }
+          if ('${{ matrix.triplet }}' -eq 'x64-windows-static') {
+            $arguments += '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>'
+          }
+          cmake @arguments
+          cmake --build consumer --config Release
+          $bin = $IsWindows ? 'consumer/Release' : 'consumer'
+          foreach ($program in 'dd-c', 'dd-cxx', 'ipi-c', 'ipi-cxx') {
+            Write-Output "Running $program"
+            & "$bin/$program"
+          }
+
+  Conan:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, args: '-s build_type=Release', invalid: false }
+          - { os: ubuntu-latest, args: '-s build_type=Debug', invalid: false }
+          - { os: ubuntu-latest, args: '-s build_type=Release -o "&:shared=True"', invalid: false }
+          - { os: windows-latest, args: '-s build_type=Release -s compiler.cppstd=17', invalid: false }
+          - { os: windows-latest, args: '-s build_type=Debug -s compiler.cppstd=17', invalid: false }
+          - { os: windows-latest, args: '-s build_type=Release -s compiler.cppstd=17 -o "&:shared=True"', invalid: true }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Conan
+        run: |
+          pip install "conan>=2.0.9,<3"
+          conan --version
+          conan profile detect
+          conan profile show
+      - name: Create the package
+        run: |
+          $output = conan create packaging/conan/51degrees/all `
+            --version 4.5.102.cci.20261104 --build=missing ${{ matrix.args }} 2>&1
+          $code = $LASTEXITCODE
+          $output | Write-Output
+          if ('${{ matrix.invalid }}' -eq 'true') {
+            if ($code -eq 0 -or !($output -match 'cannot be built as a shared library on Windows')) {
+              throw 'Expected the recipe to refuse a shared build on Windows'
+            }
+            Write-Output 'The recipe refused a shared build on Windows, as it should'
+            exit 0
+          }
+          exit $code
+
+  ConanLint:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      # The last linter Conan Center kept in its repository, removed on
+      # 4 November 2024 when the checks moved to its own service.
+      CCI: 2ee7947fd090162737149b7abdcd49302ba3821d
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+      - name: Get the linter
+        run: |
+          pip install pylint==2.14 conan==2.7.1 yamllint strictyaml
+          mkdir linter
+          for f in __init__.py check_import_tools.py check_layout_src_folder.py \
+            check_package_name.py check_version_attribute.py conandata_yaml_linter.py \
+            conanv2_transition.py config_yaml_linter.py pylintrc_recipe \
+            pylintrc_testpackage transform_conanfile.py transform_imports.py \
+            yaml_linting.py yamllint_rules.yml; do
+            curl -sSfL -o "linter/$f" \
+              "https://raw.githubusercontent.com/conan-io/conan-center-index/$CCI/linter/$f"
+          done
+      - name: Lint the recipe
+        run: |
+          pylint --rcfile=linter/pylintrc_recipe --output-format=parseable \
+            packaging/conan/51degrees/all/conanfile.py
+          pylint --rcfile=linter/pylintrc_testpackage --output-format=parseable \
+            packaging/conan/51degrees/all/test_package/conanfile.py
+          yamllint --config-file linter/yamllint_rules.yml -f standard \
+            packaging/conan/51degrees/config.yml packaging/conan/51degrees/all/conandata.yml
+          python3 linter/config_yaml_linter.py packaging/conan/51degrees/config.yml
+          python3 linter/conandata_yaml_linter.py packaging/conan/51degrees/all/conandata.yml
+          echo "The recipe passes every check of that linter"
