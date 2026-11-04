@@ -18,7 +18,7 @@ if ($BuildOnly) {
 
 $Products = Get-Products -Products $Products -RepoPath $RepoName
 $RepoPath = (Resolve-Path $RepoName).Path
-$EnterpriseHash = "$RepoPath/device-detection-data/TAC-HashV41.hash"
+$EnterpriseHash = "$RepoPath/data/device-detection/TAC-HashV41.hash"
 $failed = 0
 
 # Device Detection's tests run with the enterprise data file, then again with
