@@ -126,6 +126,9 @@ These options choose what is built:
 | `FIFTYONE_BUILD_IP_INTELLIGENCE` | `ON` | IP Intelligence libraries, examples and tests |
 | `BUILD_TESTING` | `ON` | All tests. Turn it off when cross compiling, for example arm64 on an x64 Mac, as the tests cannot run |
 | `FIFTYONE_COMMON_CXX_BUILD_TESTING` | `ON` | The common library's own tests |
+| `FIFTYONE_BUILD_EXAMPLES` | `ON` | The examples and the `js-snippet-export` tool. The tests use them, so they are built whenever `BUILD_TESTING` is on |
+| `FIFTYONE_INSTALL` | `ON` when this repository is the top level build | The install rules described in [Installing](#installing) |
+| `FIFTYONE_VERSION` | The nearest version tag in a Git clone, otherwise `0.0.0` | The version the installed package reports |
 
 The compile options of the common library, `MemoryOnly`, `NoThreading` and
 `ExceptionsDisabled`, apply to the whole build and are described in the
@@ -143,6 +146,40 @@ CMake file keeps the original names unless it sets
 Another CMake project can build these libraries as part of its own build by
 including this repository's `CMakeLists.txt`, with the options above set
 first.
+
+### Installing
+
+`cmake --install` installs the libraries of each product built, their headers
+and a CMake package. With the tests and examples off, the build needs neither
+the data files nor the network, so a source archive without the submodules is
+enough. A source archive has no Git history, so give it the version.
+
+```
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DFIFTYONE_BUILD_EXAMPLES=OFF -DFIFTYONE_VERSION=<version>
+cmake --build build --config Release
+cmake --install build --config Release --prefix <install folder>
+```
+
+Another CMake project then finds the package and links the library it uses,
+which brings the libraries that one needs.
+
+```
+find_package(51Degrees CONFIG REQUIRED)
+target_link_libraries(app PRIVATE 51Degrees::hash-cxx)
+```
+
+| Product | C | C++ |
+| --- | --- | --- |
+| Device Detection | `51Degrees::hash-c` | `51Degrees::hash-cxx` |
+| IP Intelligence | `51Degrees::ip-intelligence-c` | `51Degrees::ip-intelligence-cxx` |
+
+The headers are installed under `include/51degrees` with the layout of `src`,
+so a program includes, for example, `<51degrees/dd/hash/hash.h>` or
+`<51degrees/ipi/EngineIpi.hpp>`. The IP Intelligence targets carry the
+definitions their copy of common is compiled with. A program that uses both
+products in C++ needs libraries built with `-DFIFTYONE_CXX_BOTH_PRODUCTS=ON`.
+[`test/install`](test/install) is a small project that builds against an
+install, and `ci/check-install.ps1` runs it in CI.
 
 ## Building with Visual Studio
 

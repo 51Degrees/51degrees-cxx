@@ -237,6 +237,16 @@ includes `../../common/common.h`. The APIs for other languages compile these
 sources with their own build systems, so keep includes relative to the file
 rather than relying on include directories.
 
+## Installing
+
+`cmake/install.cmake` installs the libraries, a CMake package with the
+`51Degrees::` targets, and the headers under `include/51degrees` in the layout
+of `src`, which the relative includes need. A new library that an installed
+library links has to be added to its list, or the install fails to export the
+targets. Package managers build from a source archive, which has neither the
+submodules nor the Git history, so a build with `BUILD_TESTING` and
+`FIFTYONE_BUILD_EXAMPLES` off must not read `data` or download anything.
+
 ## Balanced and required properties
 
 Naming fewer properties than the data file has changes what the Balanced preset

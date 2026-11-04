@@ -84,6 +84,14 @@ and for the IP Intelligence C++ API, the following are needed in addition:
 
 The CMake project also builds a single shared library containing everything. This is named `fiftyone-ip-intelligence-complete` and can be referenced by any C or C++ project.
 
+A project that uses an installed copy of the libraries finds them with
+`find_package(51Degrees CONFIG REQUIRED)` and links
+`51Degrees::ip-intelligence-c` or `51Degrees::ip-intelligence-cxx`, which bring
+the libraries above and the definitions their copy of common is compiled with.
+The headers are then included as, for example, `<51degrees/ipi/ipi.h>`.
+[Installing](../../README.md#installing) in the repository README says how to
+install them.
+
 ### Adding references with Visual Studio
 
 The Visual Studio solution contains static libraries which have all the dependencies set up correctly, so referencing these in a Visual Studio solution should be fairly self explanatory.

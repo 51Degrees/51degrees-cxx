@@ -79,13 +79,3 @@ if (MSVC)
 else()
 	target_compile_options(fiftyone-device-detection-complete PRIVATE ${COMPILE_OPTION_DEBUG} "-Werror")
 endif()
-
-set_target_properties(fiftyone-device-detection-complete PROPERTIES PUBLIC_HEADER "${HASH}/hash.h")
-
-install(TARGETS fiftyone-device-detection-complete DESTINATION fiftyone-device-detection-complete
-	RUNTIME DESTINATION lib
-	ARCHIVE DESTINATION lib/static
-	PUBLIC_HEADER DESTINATION include
-	# Set this to optional, otherwise it will interfere with builds which
-	# include this CMake file.
-	OPTIONAL)
