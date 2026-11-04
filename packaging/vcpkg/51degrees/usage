@@ -1,0 +1,12 @@
+51degrees provides CMake targets:
+
+  find_package(51Degrees CONFIG REQUIRED)
+  # Device Detection in C or C++
+  target_link_libraries(main PRIVATE 51Degrees::hash-c)
+  target_link_libraries(main PRIVATE 51Degrees::hash-cxx)
+  # IP Intelligence in C or C++
+  target_link_libraries(main PRIVATE 51Degrees::ip-intelligence-c)
+  target_link_libraries(main PRIVATE 51Degrees::ip-intelligence-cxx)
+
+The data files are not included. The free Lite files are linked from
+https://github.com/51Degrees/data

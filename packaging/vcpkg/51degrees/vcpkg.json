@@ -1,0 +1,17 @@
+{
+  "name": "51degrees",
+  "version": "4.5.102",
+  "description": "Device Detection, User-Agent and Client Hints parsing, crawler detection, and IP geolocation for C and C++, on-premise.",
+  "homepage": "https://51degrees.com/device-detection",
+  "license": "EUPL-1.2",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}
