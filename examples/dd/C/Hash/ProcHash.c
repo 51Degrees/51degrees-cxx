@@ -24,6 +24,7 @@
 #include <string.h>
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
+#include "ExampleBase.h"
 
 static const char *dataDir = "data/device-detection";
 
@@ -158,7 +159,7 @@ int main(int argc, char* argv[]) {
 		strcpy(dataFilePath, argv[1]);
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,

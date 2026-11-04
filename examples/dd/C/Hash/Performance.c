@@ -981,7 +981,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (strlen(dataFilePath) == 0) {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,
@@ -997,7 +997,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (strlen(evidenceFilePath) == 0) {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			evidenceFileName,
 			evidenceFilePath,

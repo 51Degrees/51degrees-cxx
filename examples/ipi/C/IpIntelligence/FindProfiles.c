@@ -100,6 +100,7 @@ There are '1' countries in the data set with code 'gb'.
 #include <stdlib.h>
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
+#include "../../Base/ExampleBase.h"
 
 static const char* dataDir = "data/ip-intelligence";
 
@@ -230,7 +231,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,

@@ -363,7 +363,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,
@@ -378,7 +378,7 @@ int main(int argc, char* argv[]) {
 		strcpy(ipAddressFilePath, argv[2]);
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			ipAddressFileName,
 			ipAddressFilePath,

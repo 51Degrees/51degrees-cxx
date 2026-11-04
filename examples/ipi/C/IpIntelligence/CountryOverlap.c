@@ -146,6 +146,7 @@ CountryOverlap <data file> --probe <ip> [ip...]
 #include <time.h>
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
+#include "../../Base/ExampleBase.h"
 #include "../../../../src/ipi/ipi_weighted_results.h"
 
 /** Properties the analysis needs. */
@@ -2356,7 +2357,7 @@ int main(int argc, char* argv[]) {
 		for (int i = 0;
 			i < (int)(sizeof(dataFileNames) / sizeof(dataFileNames[0]));
 			i++) {
-			status = FileGetPath(
+			status = fiftyoneDegreesExampleGetFilePath(
 				dataDir,
 				dataFileNames[i],
 				dataFilePath,

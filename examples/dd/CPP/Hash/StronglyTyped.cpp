@@ -203,7 +203,7 @@ int main(int argc, char* argv[]) {
 		strcpy(dataFilePath, argv[1]);
 	}
 	else {
-		status = fiftyoneDegreesFileGetPath(
+		status = ExampleBase::getFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,
