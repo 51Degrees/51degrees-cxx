@@ -181,8 +181,9 @@ So small changes merge into `rc` rather than `main`. Pull requests target `rc`,
 and when a release is wanted one pull request merges `rc` into `main`, so the
 languages update once for all of them.
 
-- The nightly build here only builds and merges pull requests into `main`. Build
-  a pull request into `rc` before merging it, with common-ci's
+- The nightly builds and merges any pull request into `rc` that is not a draft
+  and has no review requested, so a pull request stays a draft until it has
+  been reviewed. To build a draft, use common-ci's
   [`nightly-pull-request.yml`](https://github.com/51Degrees/common-ci/blob/main/.github/workflows/nightly-pull-request.yml)
   started with `dryrun: 'true'` and `branch: rc`.
 - Data file updates still reach `main` every night. Merge `main` into
