@@ -276,6 +276,10 @@ tests. On a pull request, `ci/products.ps1` skips a product the change does
 not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
 docs and tools counts as touching every product.
 
+An entry with `InstallCheck` also runs `ci/check-install.ps1` after its build.
+It builds an archive of the commit with the tests and examples off, offline on
+Linux, installs it, and builds and runs `test/install` against the install.
+
 Pull requests target `rc`, not `main`, because every language takes
 each commit on `main` at its next nightly. The README's "Making changes" says
 how a change reaches `main`.
