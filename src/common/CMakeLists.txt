@@ -26,11 +26,13 @@ function(fiftyone_add_common suffix)
 		set(c fiftyone-common-c${suffix}${variant})
 		set(cxx fiftyone-common-cxx${suffix}${variant})
 		add_library(${c} ${COMC_SRC} ${COMC_H})
-		# An installed library names libatomic rather than the path found here.
-		target_link_libraries(${c} ${CMAKE_THREAD_LIBS_INIT}
-			"$<BUILD_INTERFACE:${GCCLIBATOMIC_LIBRARY}>")
+		target_link_libraries(${c} ${CMAKE_THREAD_LIBS_INIT})
+		# Links libatomic where it is found. An installed library names it
+		# rather than the path found here.
 		if (GCCLIBATOMIC_LIBRARY)
-			target_link_libraries(${c} "$<INSTALL_INTERFACE:atomic>")
+			target_link_libraries(${c}
+				"$<BUILD_INTERFACE:${GCCLIBATOMIC_LIBRARY}>"
+				"$<INSTALL_INTERFACE:atomic>")
 		endif()
 		target_compile_definitions(${c} PUBLIC ${ARGN})
 		add_library(${cxx} ${COMCPP_SRC} ${COMCPP_H})
