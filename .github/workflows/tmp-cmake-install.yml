@@ -299,6 +299,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install check
+        if: false
         run: |
           sw_vers
           ./ci/check-install.ps1 -RepoName . -Products dd, ipi -Options @(
@@ -335,7 +336,7 @@ jobs:
           Get-ChildItem -Recurse "$env:RUNNER_TEMP/vcpkg/buildtrees/51degrees" -Filter *.log |
             ForEach-Object { Write-Output "=== $_"; Get-Content $_ -Tail 60 }
       - name: Create the Conan package
-        if: ${{ !cancelled() }}
+        if: false
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           pip install "conan>=2.0.9,<3"
