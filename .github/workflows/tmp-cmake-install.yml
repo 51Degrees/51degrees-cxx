@@ -7,19 +7,44 @@ on:
 
 env:
   # The commit of feature/cmake-install that the port and the recipe build.
-  PINNED: 10076fe777930ef0ff23859a1f8837177835f229
+  PINNED: c7de2d1af76be53041726617a72ff266a475c399
 
 jobs:
   Hash:
     runs-on: ubuntu-latest
+    outputs:
+      sha512: ${{ steps.hash.outputs.sha512 }}
+      sha256: ${{ steps.hash.outputs.sha256 }}
     steps:
       - name: Hash the source archive of the pinned commit
+        id: hash
         run: |
           curl -sSfL -o src.tar.gz "https://github.com/51Degrees/51degrees-cxx/archive/$PINNED.tar.gz"
           ls -l src.tar.gz
-          echo "sha512 $(sha512sum src.tar.gz | cut -d' ' -f1)"
-          echo "sha256 $(sha256sum src.tar.gz | cut -d' ' -f1)"
+          echo "sha512=$(sha512sum src.tar.gz | cut -d' ' -f1)" | tee -a "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum src.tar.gz | cut -d' ' -f1)" | tee -a "$GITHUB_OUTPUT"
           tar -tzf src.tar.gz | head -5
+
+  # Configures rc and the branch with Ninja and MSVC, as vcpkg does.
+  NinjaMsvc:
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [rc, feature/cmake-install]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure with Ninja
+        shell: pwsh
+        run: |
+          cmake -S . -B ninja -G Ninja -DCMAKE_BUILD_TYPE=Release `
+            -DBUILD_TESTING=OFF -DFIFTYONE_BUILD_EXAMPLES=OFF
+          if ($LASTEXITCODE -ne 0) { throw "Configure of ${{ matrix.ref }} failed" }
+          cmake --build ninja
+          if ($LASTEXITCODE -ne 0) { throw "Build of ${{ matrix.ref }} failed" }
 
   InstallCheck:
     strategy:
@@ -52,6 +77,7 @@ jobs:
           }
 
   Vcpkg:
+    needs: Hash
     strategy:
       fail-fast: false
       matrix:
@@ -80,6 +106,13 @@ jobs:
         run: |
           & "$env:RUNNER_TEMP/vcpkg/vcpkg" format-manifest packaging/vcpkg/51degrees/vcpkg.json
           git diff --exit-code packaging/vcpkg
+      - name: Fill in the archive hash if the port has none yet
+        run: |
+          $portfile = 'packaging/vcpkg/51degrees/portfile.cmake'
+          (Get-Content -Raw $portfile).Replace(
+            'SHA512 0', 'SHA512 ${{ needs.Hash.outputs.sha512 }}') |
+            Set-Content -NoNewline $portfile
+          Select-String -Path $portfile -Pattern 'REF|SHA512'
       - name: Install the port
         run: |
           & "$env:RUNNER_TEMP/vcpkg/vcpkg" install 51degrees `
@@ -113,6 +146,7 @@ jobs:
           }
 
   Conan:
+    needs: Hash
     strategy:
       fail-fast: false
       matrix:
@@ -135,6 +169,12 @@ jobs:
           conan --version
           conan profile detect
           conan profile show
+      - name: Fill in the archive hash if the recipe has none yet
+        run: |
+          $data = 'packaging/conan/51degrees/all/conandata.yml'
+          (Get-Content -Raw $data).Replace(('0' * 64),
+            '${{ needs.Hash.outputs.sha256 }}') | Set-Content -NoNewline $data
+          Get-Content $data
       - name: Create the package
         run: |
           $output = conan create packaging/conan/51degrees/all `
