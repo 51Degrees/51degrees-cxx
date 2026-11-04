@@ -57,6 +57,15 @@ if ($IsWindows) {
 if ($IsLinux -and (Test-Path /proc/sys/kernel/apparmor_restrict_unprivileged_userns)) {
     sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0
 }
+if ($IsLinux) {
+    & {
+        $PSNativeCommandUseErrorActionPreference = $false
+        unshare --map-root-user --net curl -sS -m 10 -o /dev/null https://github.com 2>$null
+    }
+    if ($LASTEXITCODE -eq 0) { throw 'A download worked with no network' }
+    $global:LASTEXITCODE = 0
+    Write-Output 'The build runs where a download fails, as it has no network'
+}
 function Invoke-Offline([string[]]$Arguments) {
     if ($IsLinux) {
         unshare --map-root-user --net cmake @Arguments
