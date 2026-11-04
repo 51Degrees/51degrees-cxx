@@ -17,8 +17,7 @@ libraries work only on-premise, with a data file.
 
 ### Prerequisites
 
-- Git, and [Git LFS](https://git-lfs.github.com/) for the Device Detection
-  data file.
+- Git.
 - CMake 3.24 or later.
 - On Windows, Visual Studio 2019 or later, or the
   [C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/),
@@ -26,9 +25,9 @@ libraries work only on-premise, with a data file.
   stops with an error that names whichever is too old.
 - On Linux and macOS, a compiler that supports C11 and C++17. GCC must be 5.1
   or later. Linux builds link `libatomic`, which GCC 5 and later include.
-- For the IP Intelligence data file, PowerShell 7 (`pwsh`) on any system, or
-  `curl`, `gunzip` and `md5sum` (`md5` on macOS) for the shell script on Linux
-  and macOS.
+- To download the data files, `curl`, `gzip` and `md5sum` (`md5` on macOS)
+  for the shell script, or Windows PowerShell 5.1 or PowerShell 7 for the
+  PowerShell script.
 
 Clone the repository with its submodules.
 
@@ -45,65 +44,23 @@ git submodule update --init
 
 ### Data files
 
-The examples use the free Lite data files, which need no licence key. Look at
-the repository root to find out which layout your checkout has.
-
-- **No `data` folder.** This is the layout on `rc` and `main` today. The files
-  are in two submodules, `device-detection-data` and `ip-intelligence-data`.
-  Follow "Without a data folder".
-- **A `data` folder.** The draft pull request
-  [#96](https://github.com/51Degrees/51degrees-cxx/pull/96) adds the
-  [data](https://github.com/51Degrees/data) repository as the submodule
-  `data`, and moves the examples to `data/device-detection` and
-  `data/ip-intelligence`. Once it is merged, follow "With a data folder".
-
-#### Without a data folder
-
-The Device Detection Lite file is stored with Git LFS. Install Git LFS, for
-example with `sudo apt-get install git-lfs` on Ubuntu, then pull the file in
-its submodule.
-
-```
-git lfs install
-cd device-detection-data
-git lfs pull
-cd ..
-```
-
-A script in `ip-intelligence-data` downloads the IP Intelligence Lite file.
-Run it from inside that folder, because it saves the file in the folder it
-runs from.
-
-```
-cd ip-intelligence-data
-pwsh ./get-lite-file-from-azure.ps1
-cd ..
-```
-
-On Linux and macOS, `./get-lite-file-from-azure.sh` in the same folder does
-the same. Either script also downloads the Asn file over the copy committed in
-the submodule, so `git status` then shows the submodule as modified, which is
-expected.
-
-#### With a data folder
+The examples use the free Lite data files, which need no licence key. They are
+not stored in this repository. The `data` submodule, which is the
+[data](https://github.com/51Degrees/data) repository, holds a link to each
+file, and a script downloads them into `data/device-detection` and
+`data/ip-intelligence`.
 
 ```
 sh data/get-data-files.sh
 ```
 
 In PowerShell, run `./data/get-data-files.ps1` instead. Either script
-downloads every free file into `data/device-detection` and
-`data/ip-intelligence`, and keeps a file that is already there.
+downloads every free file, and keeps a file that is already there.
 
 #### Check the files
 
-- `device-detection-data/51Degrees-LiteV4.1.hash` is more than 10 MB. A file
-  of about 130 bytes that starts with `version https://git-lfs.github.com/spec/v1`
-  is a Git LFS pointer, which means Git LFS has not pulled the file.
-- `ip-intelligence-data/51Degrees-LiteV41.ipi` is more than 100 MB.
-
-With a `data` folder, the same files are in `data/device-detection` and
-`data/ip-intelligence`.
+- `data/device-detection/51Degrees-LiteV4.1.hash` is more than 10 MB.
+- `data/ip-intelligence/51Degrees-LiteV41.ipi` is more than 100 MB.
 
 ### Build
 
