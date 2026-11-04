@@ -1,7 +1,189 @@
 # Working in this repository
 
-Notes on what is not obvious from the code. Keep them short and current.
-Building, testing and the layout are described in the [README](README.md).
+If you have been asked to get an example running, follow
+[Run the examples](#run-the-examples). It gives every step in order, from a
+fresh clone to the output. The sections after it are notes on what is not
+obvious from the code, for changing it. Keep them short and current. The
+[README](README.md) describes the build options, the tests and the layout.
+
+## Run the examples
+
+Run each command from the repository root unless the step says otherwise.
+Device Detection's `GettingStartedHashC` is the quickest example to show,
+because its data file is about 35 MB. IP Intelligence's `GettingStartedC`
+needs a download of about 230 MB that unpacks to about 460 MB, so run it
+second. This repository has no cloud examples, because the C and C++
+libraries work only on-premise, with a data file.
+
+### Prerequisites
+
+- Git.
+- CMake 3.24 or later.
+- On Windows, Visual Studio 2019 or later, or the
+  [C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/),
+  with Platform Toolset `v142` and Windows SDK `10.0.18362.0` or later. CMake
+  stops with an error that names whichever is too old.
+- On Linux and macOS, a compiler that supports C11 and C++17. GCC must be 5.1
+  or later. Linux builds link `libatomic`, which GCC 5 and later include.
+- To download the data files, `curl`, `gzip` and `md5sum` (`md5` on macOS)
+  for the shell script, or Windows PowerShell 5.1 or PowerShell 7 for the
+  PowerShell script.
+
+Clone the repository with its submodules.
+
+```
+git clone --recurse-submodules https://github.com/51Degrees/51degrees-cxx.git
+cd 51degrees-cxx
+```
+
+In a clone made without `--recurse-submodules`, fetch the submodules.
+
+```
+git submodule update --init
+```
+
+### Data files
+
+The examples use the free Lite data files, which need no licence key. They are
+not stored in this repository. The `data` submodule, which is the
+[data](https://github.com/51Degrees/data) repository, holds a link to each
+file, and a script downloads them into `data/device-detection` and
+`data/ip-intelligence`.
+
+```
+sh data/get-data-files.sh
+```
+
+In PowerShell, run `./data/get-data-files.ps1` instead. Either script
+downloads every free file, and keeps a file that is already there.
+
+#### Check the files
+
+- `data/device-detection/51Degrees-LiteV4.1.hash` is more than 10 MB.
+- `data/ip-intelligence/51Degrees-LiteV41.ipi` is more than 100 MB.
+
+### Build
+
+Build in a folder named `build`. `-DBUILD_TESTING=OFF` leaves out the tests
+and the Google Test download, so the build is quicker, and every example is
+still built. To build one product only, also add
+`-DFIFTYONE_BUILD_IP_INTELLIGENCE=OFF` or `-DFIFTYONE_BUILD_DEVICE_DETECTION=OFF`
+to the first `cmake` command.
+
+On Linux and macOS, build with these commands.
+
+```
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+cmake --build . --config Release
+cd ..
+```
+
+On Windows, add `-A x64` for a 64 bit build.
+
+```
+mkdir build
+cd build
+cmake .. -A x64 -DBUILD_TESTING=OFF
+cmake --build . --config Release
+cd ..
+```
+
+The examples are built into `build/bin`. On Windows they are in
+`build\bin\Release`, because a Visual Studio build puts each configuration in
+a folder of its own.
+
+| Language | Device Detection | IP Intelligence |
+| --- | --- | --- |
+| C | `GettingStartedHashC` | `GettingStartedC` |
+| C++ | `GettingStartedHashCPP` | `GettingStartedCPP` |
+
+### Run
+
+An example finds its data file by searching the folder it runs in and each
+folder above it, so run it from the repository root. The getting-started
+examples, like most of the others, wait for a key press before they exit, so
+give them empty input or they will look as if they have hung.
+
+```
+./build/bin/GettingStartedHashC < /dev/null
+./build/bin/GettingStartedC < /dev/null
+```
+
+On Windows, in `cmd.exe`, run these.
+
+```
+build\bin\Release\GettingStartedHashC.exe < NUL
+build\bin\Release\GettingStartedC.exe < NUL
+```
+
+In PowerShell, pipe in an empty line instead, for example
+`'' | .\build\bin\Release\GettingStartedHashC.exe`.
+
+To use another data file, give its path as the first argument. The IP
+Intelligence examples also read a path from the `51DEGREES_IPI_PATH`
+environment variable. The name starts with a digit, so in a Linux shell set it
+with `env`, for example
+`env 51DEGREES_IPI_PATH=/path/to/file.ipi ./build/bin/GettingStartedC < /dev/null`.
+
+### Correct output
+
+`GettingStartedHashC` processes six sets of evidence. For each set it prints
+`Input values:` and the headers, then `Results:` with `Mobile Device`,
+`Platform Name`, `Platform Version`, `Browser Name`, `Browser Version`,
+`Device ID`, `JSON` and `GetHighEntropyValues JS`, and it ends the set with
+`---###---`. After the last set it names the data file, in lines like these.
+
+```
+Using a Lite data file created <date> from location <path>
+This example is using the "Lite" data file. This is used for illustration, ...
+```
+
+It may also print, in yellow, a warning that the data file is more than 30
+days old. The Lite file is updated less often than the paid files, so the
+warning is expected. The exit code is 0.
+
+`GettingStartedC` prints `Starting Getting Started Example.`, then looks up
+the IPv4 address `185.28.167.77` and then an IPv6 address. For each address it
+prints a line for each property, such as `- RegisteredCountry: ...`, and then,
+under `(Results using ResultsIpiGetValuesCollection):`, each value with its
+type and weight, as `- [<property>] (<type>) <x<weight>> <value>`. The Lite
+file has RegisteredCountry, RegisteredName and RegisteredOwner, so the lines
+for the properties it does not have, such as `Longitude`, are empty. The exit
+code is 0.
+
+The C++ examples print the same kind of values in a different layout. The paid
+data files have many more properties, as the
+[pricing page](https://51degrees.com/pricing?utm_source=github&utm_medium=docs&utm_campaign=51degrees-cxx&utm_content=agents.md&utm_term=correct-output)
+describes.
+
+### Pitfalls
+
+- **A Git LFS pointer instead of the data file.** The example then fails with
+  a status message about the data file. Check the file sizes as above.
+- **Missing submodules.** Without them the example cannot find a data file and
+  says so. A zip download of the repository has neither the submodules nor the
+  Git LFS files, so clone with Git.
+- **An example that seems to hang.** It is waiting for a key press. Give it
+  empty input, as "Run" shows.
+- **Windows line endings.** Git for Windows usually checks files out with
+  `core.autocrlf=true`, and `ip-intelligence-data` has no `.gitattributes`, so
+  its shell script gets Windows line endings and the shell cannot run it. Use
+  the PowerShell script on Windows. For the same reason, do not build and test
+  in WSL from a checkout made on Windows, because the Linux tests then read IP
+  addresses ending in a carriage return and fail. Clone again inside WSL.
+- **Warnings are errors.** `CMakeLists.txt` sets
+  `CMAKE_COMPILE_WARNING_AS_ERROR`, and the Device Detection examples build
+  with `-Werror` or `/WX`, so a compiler newer than the one CI uses can stop the
+  build on a new warning.
+- **Memory.** `GettingStartedC` loads the whole IP Intelligence data file into
+  memory (`IpiInMemoryConfig`), so it needs about 0.5 GB free.
+- **What CI does not test.** CI builds IP Intelligence on Windows and Linux,
+  not macOS (`ci/options.json`). It never runs the example programs, only the
+  tests that call each example's code. For IP Intelligence it links a paid data
+  file under the Lite file's name (`ci/fetch-assets.ps1`), so the Lite IP
+  Intelligence file itself is never used in CI.
 
 ## The two copies of common
 
