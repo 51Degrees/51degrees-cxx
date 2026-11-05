@@ -103,11 +103,32 @@ EXTERNAL void fiftyoneDegreesExampleMemCheck(
     fiftyoneDegreesExampleRunPtr run);
 
 /**
- * Check data file tier and published date.
+ * Reports the data file in use, and warns when it is old. On a free data
+ * file, says what the Enterprise data file adds and where to ask for a copy.
  * @param dataset pointer to the dataset structure
  */
 EXTERNAL void fiftyoneDegreesExampleCheckDataFile(
     fiftyoneDegreesDataSetIpi *dataset);
+
+/**
+ * Shown in place of a value for a property that the data file in use does
+ * not have. Every property the examples ask for is in the Enterprise data
+ * file.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE \
+    "needs the Enterprise data file"
+
+/**
+ * True when the data file has the property. The free data files leave out
+ * the properties only the Enterprise data file has. The data file's own list
+ * is read, so the answer does not depend on the required properties.
+ * @param dataset pointer to the dataset structure
+ * @param propertyName name of the property as the data file writes it
+ * @return true when the data file has the property
+ */
+EXTERNAL bool fiftyoneDegreesExampleHasProperty(
+    fiftyoneDegreesDataSetIpi *dataset,
+    const char *propertyName);
 
 /**
  * Finds a file in the data folder as fiftyoneDegreesFileGetPath does. When

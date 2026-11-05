@@ -67,15 +67,12 @@
 // The ip intelligence data folder from the sub module with lite ip intel data.
 static const char* dataDir = "data/ip-intelligence";
 
-// In this example, by default, the 51degrees "Lite" file needs to be in the
-// data/ip-intelligence folder, and is downloaded there when it is missing,
-// or you may specify another file as a command line parameter.
-//
-// Note that the Lite data file is only used for illustration, and has
-// limited accuracy and capabilities.
-// Find out about the Enterprise data file on our pricing page:
-// https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-performance.c&utm_term=datafilename
-static const char* dataFileName = "51Degrees-LiteV41.ipi";
+// The free ASN data file is used by default, as any data file will do for
+// this example and it is far smaller than the Lite file. It is downloaded
+// when it is missing, or another file may be given on the command line.
+// Contact us for a copy of the Enterprise data file:
+// https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-performance.c&utm_term=datafilename
+static const char* dataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 // This file contains the 20,000 random IP formatted as header values.
 static const char* evidenceFileName = "evidence.yml";
@@ -147,7 +144,7 @@ static performanceSettings settings = {
  * LowMemory - all data loaded from data file when needed. Slow.
  */
 performanceConfig performanceConfigs[] = {
-	{ &IpiInMemoryConfig, "RegisteredName" },
+	{ &IpiInMemoryConfig, "RegisteredName,AsnName" },
 	{ &IpiInMemoryConfig, NULL },
 };
 

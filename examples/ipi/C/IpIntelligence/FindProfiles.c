@@ -141,22 +141,22 @@ void run(ResourceManager* manager) {
 	IpiIterateProfilesForPropertyAndValue(
 		manager,
 		"RegisteredCountry",
-		"it",
+		"IT",
 		&isItaly,
 		count,
 		exception);
 	EXCEPTION_THROW;
-	printf("There are '%d' entries in the data set with code 'it'.\n", isItaly);
+	printf("There are '%d' entries in the data set with code 'IT'.\n", isItaly);
 
 	IpiIterateProfilesForPropertyAndValue(
 		manager,
 		"RegisteredCountry",
-		"gb",
+		"GB",
 		&isGreatBritian,
 		count,
 		exception);
 	EXCEPTION_THROW;
-	printf("There are '%d' entries in the data set with code 'gb'.\n",
+	printf("There are '%d' entries in the data set with code 'GB'.\n",
 		isGreatBritian);
 }
 
