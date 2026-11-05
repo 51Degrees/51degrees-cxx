@@ -206,12 +206,12 @@ int main(int argc, char* argv[]) {
 	else {
 		status = ExampleBase::getFilePath(
 			dataDir,
-			dataFileName,
+			asnDataFileName,
 			dataFilePath,
 			sizeof(dataFilePath));
 	}
 	if (status != FIFTYONE_DEGREES_STATUS_SUCCESS) {
-		ExampleBase::reportStatus(status, dataFileName);
+		ExampleBase::reportStatus(status, asnDataFileName);
 #ifndef TEST
 		fgetc(stdin);
 #endif

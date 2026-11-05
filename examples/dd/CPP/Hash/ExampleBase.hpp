@@ -138,6 +138,24 @@ namespace FiftyoneDegrees {
 
 			protected:
 				/**
+				 * True when the data file has the property. The free Lite data
+				 * file leaves out the properties only the Enterprise data file
+				 * has. The data file's own list is read, so the answer does not
+				 * depend on the required properties.
+				 * @param name of the property as the data file writes it
+				 * @return true when the data file has the property
+				 */
+				bool hasProperty(const char *name) const;
+
+				/**
+				 * On the free Lite data file, says what the Enterprise data
+				 * file adds and where to ask for a copy.
+				 * @param contactUs link to the contact page, tagged with the
+				 * example
+				 */
+				void offerEnterprise(const char *contactUs) const;
+
+				/**
 				 * State containing the states for all threads running in a
 				 * multi-threaded example .
 				 */
