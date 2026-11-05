@@ -475,8 +475,9 @@ namespace FiftyoneDegrees {
 			Value<int> getValueAsStrictInteger(int requiredPropertyIndex);
 
 			/**
-			 * Get the value as a double only if all of its text is a finite
-			 * number. Any other text, such as "Unknown", gives no value, where
+			 * Get the value as a double only if it is a finite number, held
+			 * as a number or as text that is all a finite number. Any other
+			 * text, such as "Unknown", gives no value, where
 			 * #getValueAsDouble(const char*) gives 0.
 			 * This is the remedy until version 5, as that accessor keeps its
 			 * behaviour for backwards compatibility.
@@ -491,8 +492,9 @@ namespace FiftyoneDegrees {
 			Value<double> getValueAsStrictDouble(const string &propertyName);
 
 			/**
-			 * Get the value as a double only if all of its text is a finite
-			 * number. Any other text, such as "Unknown", gives no value, where
+			 * Get the value as a double only if it is a finite number, held
+			 * as a number or as text that is all a finite number. Any other
+			 * text, such as "Unknown", gives no value, where
 			 * #getValueAsDouble(int) gives 0.
 			 * This is the remedy until version 5, as that accessor keeps its
 			 * behaviour for backwards compatibility.
@@ -571,6 +573,21 @@ namespace FiftyoneDegrees {
              */
 			virtual fiftyoneDegreesResultsNoValueReason getNoValueReasonInternal(
 				int requiredPropertyIndex) = 0;
+
+			/**
+			 * Get the one value of a property as a number, where the
+			 * extending class holds it as one, so that the double getters
+			 * do not read it back from the text of getValuesInternal, which
+			 * can round it. Only called when hasValuesInternal returns true.
+			 * The default holds no value as a number.
+			 * @param requiredPropertyIndex required property index of the property
+			 * @param value set to the value when true is returned
+			 * @return true if the property has one value and it was set,
+			 * or false to read the value from its text
+			 */
+			virtual bool getValueAsDoubleInternal(
+				int requiredPropertyIndex,
+				double &value);
 
 		private:
 			/** A shared pointer to the manager is passed around and referenced

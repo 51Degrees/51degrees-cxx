@@ -961,3 +961,42 @@ IpIntelligence::ResultsIpi::getNoValueReasonInternal(
 	EXCEPTION_THROW;
 	return reason;
 }
+
+bool IpIntelligence::ResultsIpi::getValueAsDoubleInternal(
+	int requiredPropertyIndex,
+	double &value) {
+	EXCEPTION_CREATE;
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	const int propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+		dataSet->b.b.available,
+		requiredPropertyIndex);
+	const PropertyValueType storedValueType = PropertyGetStoredTypeByIndex(
+		dataSet->propertyTypes,
+		propertyIndex,
+		exception);
+	EXCEPTION_THROW;
+	switch (storedValueType) {
+		case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER:
+		case FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT:
+		case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH:
+		case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION:
+		case FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE:
+			break;
+		default:
+			// Text, an IP address or a geometry, which are read as text.
+			return false;
+	}
+	const WeightedItem * const valuesItems = ResultsIpiGetValues(
+		results,
+		requiredPropertyIndex,
+		exception);
+	EXCEPTION_THROW;
+	if (valuesItems == NULL || results->values.count != 1) {
+		return false;
+	}
+	value = StoredBinaryValueToDoubleOrDefault(
+		(const StoredBinaryValue *)valuesItems[0].item.data.ptr,
+		storedValueType,
+		0);
+	return true;
+}

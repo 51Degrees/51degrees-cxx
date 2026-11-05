@@ -486,6 +486,15 @@ namespace FiftyoneDegrees {
 			fiftyoneDegreesResultsNoValueReason getNoValueReasonInternal(
 				int requiredPropertyIndex) override;
 
+			/**
+			 * Reads a value stored as a number, such as a latitude stored
+			 * as a declination, converted as the data file defines, where
+			 * its text has DefaultWktDecimalPlaces decimal places.
+			 */
+			bool getValueAsDoubleInternal(
+				int requiredPropertyIndex,
+				double &value) override;
+
 		private:
 			/**
 			 * Utility function to check the property value type

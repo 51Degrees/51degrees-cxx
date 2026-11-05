@@ -235,12 +235,16 @@ FiftyoneDegrees::Common::Value<double> ResultsBase::getValueAsDouble(
 FiftyoneDegrees::Common::Value<double> ResultsBase::valueAsDoubleAt(
 	int requiredPropertyIndex) {
 	Value<double> result;
+	double held = 0;
 	if (hasValuesInternal(requiredPropertyIndex) == false) {
 		fiftyoneDegreesResultsNoValueReason reason =
 			getNoValueReasonInternal(requiredPropertyIndex);
 		result.setNoValueReason(
 			reason,
 			getNoValueMessageInternal(reason));
+	}
+	else if (getValueAsDoubleInternal(requiredPropertyIndex, held)) {
+		result.setValue(held);
 	}
 	else {
 		vector<string> values;
@@ -381,7 +385,13 @@ FiftyoneDegrees::Common::Value<double> ResultsBase::valueAsStrictDoubleAt(
 	int requiredPropertyIndex) {
 	Value<double> result;
 	string text;
-	if (getOneValueText(requiredPropertyIndex, result, text)) {
+	double held = 0;
+	if (hasValuesInternal(requiredPropertyIndex) &&
+		getValueAsDoubleInternal(requiredPropertyIndex, held) &&
+		std::isfinite(held)) {
+		result.setValue(held);
+	}
+	else if (getOneValueText(requiredPropertyIndex, result, text)) {
 		char *end = nullptr;
 		const double number = strtod(text.c_str(), &end);
 		if (isAllNumber(text.c_str(), end) && std::isfinite(number)) {
@@ -454,4 +464,8 @@ int ResultsBase::getRequiredPropertyIndex(
 int ResultsBase::allowedRequiredPropertyIndex(
 	int requiredPropertyIndex) const {
 	return available->named != nullptr ? requiredPropertyIndex : -1;
+}
+
+bool ResultsBase::getValueAsDoubleInternal(int, double &) {
+	return false;
 }
