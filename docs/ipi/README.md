@@ -1,8 +1,8 @@
 # 51Degrees Ip Intelligence API
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api "Data rewards the curious") **IP Intelligence in C**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-cxx/main/.github/images/logo-160.png "Data rewards the curious") **IP Intelligence in C**
 
-[C Documentation](https://51degrees.com/documentation/apis/ip-intelligence-cxx/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api) and the [C++ Documentation](https://51degrees.com/documentation/apis/ip-intelligence-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api).
+[C Documentation](https://51degrees.com/documentation/apis/ip-intelligence-cxx/group___fifty_one_degrees_ip_intelligence_api.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api) and the [C++ Documentation](https://51degrees.com/documentation/apis/ip-intelligence-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api).
 
 The 51Degrees IP intelligence API is built on the 51Degrees [common API](../../src/common/README.md).
 
@@ -94,7 +94,7 @@ There are several examples available, the source files can be found in the [`exa
 
 ### ⚠️ Required files
 
-See the data repository README ([local](../../data/README.md) / [GitHub](https://github.com/51Degrees/data#get-the-data-files)) on how to download the necessary files.
+See the [data repository README](https://github.com/51Degrees/data#get-the-data-files) on how to download the necessary files.
 
 ### Running examples in Visual Studio
 
