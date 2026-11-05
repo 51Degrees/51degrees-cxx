@@ -304,8 +304,12 @@ static void reportEnterpriseProperties(
 		}
 		if (!fiftyoneDegreesExampleHasProperty(dataSet, name)) {
 			size_t used = strlen(missing);
-			snprintf(missing + used, sizeof(missing) - used, "%s%s",
-				used > 0 ? ", " : "", name);
+			int written = snprintf(missing + used, sizeof(missing) - used,
+				"%s%s", used > 0 ? ", " : "", name);
+			// Stop when the list is full.
+			if (written < 0 || (size_t)written >= sizeof(missing) - used) {
+				break;
+			}
 		}
 	}
 	if (missing[0] != '\0') {
