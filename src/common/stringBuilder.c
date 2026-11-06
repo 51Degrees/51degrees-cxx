@@ -24,69 +24,6 @@
 #include "fiftyone.h"
 
 /**
- * The fewest bytes a builder grows its data to.
- */
-#define STRING_BUILDER_MIN_GROWN_BYTES 256
-
-/**
- * Keeps grow out of the functions that add characters, which are called for
- * every number written, so a builder over a fixed buffer runs as quickly as
- * it did before builders could grow.
- */
-#ifdef _MSC_VER
-#define STRING_BUILDER_NO_INLINE __declspec(noinline)
-#else
-#define STRING_BUILDER_NO_INLINE __attribute__((noinline))
-#endif
-
-/**
- * Makes room in a builder whose data is set for the characters given and the
- * terminating null, keeping what it holds. The memory at least doubles, so a
- * long string needs few allocations.
- * @param builder to make room in
- * @param characters that must fit before the terminating null
- * @return true when there is room, or false when the builder has no data or
- * the memory could not be allocated, leaving the builder as it was
- */
-static STRING_BUILDER_NO_INLINE bool grow(
-	StringBuilder * const builder,
-	size_t const characters) {
-	Data * const data = builder->data;
-	if (data == NULL) {
-		return false;
-	}
-	const size_t used = builder->length - builder->remaining;
-	size_t length = builder->length * 2;
-	if (length < STRING_BUILDER_MIN_GROWN_BYTES) {
-		length = STRING_BUILDER_MIN_GROWN_BYTES;
-	}
-	if (length < used + characters + 1) {
-		length = used + characters + 1;
-	}
-	// The data counts its bytes in 32 bits.
-	if ((uint64_t)length > (uint64_t)UINT32_MAX) {
-		return false;
-	}
-	char * const ptr = (char*)Malloc(length);
-	if (ptr == NULL) {
-		return false;
-	}
-	if (used > 0) {
-		memcpy(ptr, builder->ptr, used);
-	}
-	if (data->allocated > 0) {
-		Free(data->ptr);
-	}
-	data->ptr = (byte*)ptr;
-	data->allocated = (uint32_t)length;
-	builder->ptr = ptr;
-	builder->length = length;
-	builder->current = ptr + used;
-	builder->remaining = length - used;
-	return true;
-}
-
-/**
  * Add IPv4 address (raw bytes) to string builder (as text)
  * @param ipAddress raw bytes of IPv4
  * @param stringBuilder destination
@@ -169,7 +106,7 @@ fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderInit(
 fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddChar(
 	fiftyoneDegreesStringBuilder* builder,
 	char const value) {
-	if (builder->remaining > 1 || grow(builder, 1)) {
+	if (builder->remaining > 1) {
 		*builder->current = value;
 		builder->current++;
 		builder->remaining--;
@@ -382,10 +319,7 @@ fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddChars(
 	fiftyoneDegreesStringBuilder* builder,
 	const char * const value,
 	size_t const length) {
-	bool fitsIn = length < builder->remaining;
-	if (fitsIn == false && grow(builder, length)) {
-		fitsIn = true;
-	}
+	const bool fitsIn = length < builder->remaining;
 	const size_t clippedLength = (
 		fitsIn ? length : (builder->remaining ? builder->remaining - 1 : 0));
 	if (0 < clippedLength &&
@@ -497,7 +431,7 @@ fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderComplete(
 
 	// Always ensures that the string is null terminated even if that means
 	// overwriting the last character to turn it into a null.
-	if (builder->remaining >= 1 || grow(builder, 0)) {
+	if (builder->remaining >= 1) {
 		*builder->current = '\0';
 		builder->current++;
 		builder->remaining--;

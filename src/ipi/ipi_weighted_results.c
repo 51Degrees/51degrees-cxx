@@ -335,13 +335,47 @@ typedef struct {
     Data * const tempData;                  /**< Temporary data structure for string operations */
 } StringConverterState;
 /**
+ * Bytes of text that hold any value which is neither a string nor a geometry,
+ * such as a number or an IP address, with its terminating null.
+ */
+#define SMALL_TEXT_BYTES 64
+
+/**
+ * @brief Bytes the text of a stored value is expected to need.
+ *
+ * Exact for a string, more than the data needs for a geometry, and enough for
+ * any other value, with the terminating null in each case.
+ *
+ * @param storedBinaryValue Pointer to the stored binary value
+ * @param propertyValueType Type of the property value
+ * @return The bytes of text expected
+ */
+static size_t TextBytesExpected(
+    const StoredBinaryValue * const storedBinaryValue,
+    const PropertyValueType propertyValueType) {
+    switch (propertyValueType) {
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
+            // The size counts the terminating null.
+            return storedBinaryValue->stringValue.size > 0
+                ? (size_t)storedBinaryValue->stringValue.size
+                : 1;
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB:
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R:
+            return (size_t)storedBinaryValue->byteArrayValue.size *
+                FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE + 1;
+        default:
+            return SMALL_TEXT_BYTES;
+    }
+}
+
+/**
  * @brief Saves a string value from a stored binary value.
- *
+ * 
  * Converts the stored binary value to a string and saves it in the weighted value.
- * This function handles memory allocation for the string. The builder grows
- * the temporary data when the text does not fit, so each value is converted
- * once, whatever the temporary data held before.
- *
+ * This function handles memory allocation for the string. The temporary data
+ * is made large enough for the text expected before converting, so each value
+ * is converted once, and only text longer than expected is converted again.
+ * 
  * @param header Pointer to the weighted value header
  * @param storedBinaryValue Pointer to the stored binary value
  * @param propertyValueType Type of the property value
@@ -356,11 +390,16 @@ static void SaveString(
     Exception * const exception) {
 
     StringConverterState * const state = (StringConverterState *)converterState;
+    const size_t expected = TextBytesExpected(
+        storedBinaryValue,
+        propertyValueType);
+    if (state->tempData->allocated < expected) {
+        DataMalloc(state->tempData, expected);
+    }
     StringBuilder builder = {
         (char *)state->tempData->ptr,
         state->tempData->allocated,
     };
-    builder.data = state->tempData;
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(
         &builder,
@@ -369,18 +408,35 @@ static void SaveString(
         state->decimalPlaces,
         exception);
     StringBuilderComplete(&builder);
+    // The characters added include the terminating null once it is written.
+    size_t added = builder.added;
     if (EXCEPTION_OKAY && builder.full) {
-        // The builder only fills when the temporary data could not grow.
-        EXCEPTION_SET(INSUFFICIENT_MEMORY);
+        // The builder counted the text that did not fit, so size for it.
+        DataMalloc(state->tempData, builder.added + 1);
+        StringBuilder builder2 = {
+            (char *)state->tempData->ptr,
+            state->tempData->allocated,
+        };
+        StringBuilderInit(&builder2);
+        StringBuilderAddStringValue(
+            &builder2,
+            storedBinaryValue,
+            propertyValueType,
+            state->decimalPlaces,
+            exception);
+        StringBuilderComplete(&builder2);
+        added = builder2.added;
+        if (EXCEPTION_OKAY && builder2.full) {
+            EXCEPTION_SET(INSUFFICIENT_MEMORY);
+        }
     }
     if (EXCEPTION_OKAY) {
-        // The characters added include the terminating null.
         WeightedString * const wString = (WeightedString*)header;
-        if (DataMalloc(&wString->stringData, builder.added) == NULL) {
+        if (DataMalloc(&wString->stringData, added) == NULL) {
             EXCEPTION_SET(INSUFFICIENT_MEMORY);
         }
         else {
-            memcpy(wString->stringData.ptr, builder.ptr, builder.added);
+            memcpy(wString->stringData.ptr, state->tempData->ptr, added);
             wString->value = (char*)wString->stringData.ptr;
         }
     }

@@ -28,8 +28,8 @@
  *
  * The text of a polygon is written again here from its well known binary, with
  * the numbers from DoubleText.hpp, and compared with the text from the library.
- * The text is also written by a builder that grows its memory, and the values
- * collection is read with and without a buffer, which must give the same text.
+ * Every polygon's text must also fit the bytes the values collection expects,
+ * and the collection must give the same text with and without a buffer.
  */
 
 #include <cstring>
@@ -398,59 +398,44 @@ TEST_F(IpiDoubleTextTests, EveryGeometryIsUnchanged) {
 		coordinates << " coordinates.\n";
 }
 
-TEST_F(IpiDoubleTextTests, EveryGeometryIsTheSameFromAGrowingBuilder) {
+TEST_F(IpiDoubleTextTests, EveryGeometryFitsTheTextExpected) {
 	const fiftyoneDegreesPropertyValueType types[] = {
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R };
 	uint32_t failures = 0;
+	double most = 0;
 	const uint32_t values = forEachValue(
 		types,
 		sizeof(types) / sizeof(types[0]),
 		[&](const fiftyoneDegreesStoredBinaryValue* stored,
 			fiftyoneDegreesPropertyValueType type,
 			uint32_t index) {
-			const bool reduced =
-				type == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R;
-			const unsigned char* wkb = &stored->byteArrayValue.firstByte;
-			DoubleTextWkt expected(wkb, reduced, doubleTextLookupPlaces);
+			DoubleTextWkt expected(
+				&stored->byteArrayValue.firstByte,
+				type == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R,
+				doubleTextLookupPlaces);
 			if (expected.write() == false) {
 				// EveryGeometryIsUnchanged reports a value it cannot read.
 				return;
 			}
-			// The builder starts with no memory, so every geometry grows it.
-			fiftyoneDegreesData data;
-			fiftyoneDegreesDataReset(&data);
-			fiftyoneDegreesStringBuilder builder = {
-				(char*)data.ptr,
-				data.allocated };
-			builder.data = &data;
-			fiftyoneDegreesStringBuilderInit(&builder);
-			EXCEPTION_CREATE;
-			fiftyoneDegreesWriteWkbAsWktToStringBuilder(
-				wkb,
-				reduced ?
-					FIFTYONE_DEGREES_WKBToT_REDUCTION_SHORT :
-					FIFTYONE_DEGREES_WKBToT_REDUCTION_NONE,
-				doubleTextLookupPlaces,
-				&builder,
-				exception);
-			fiftyoneDegreesStringBuilderComplete(&builder);
-			const string text = builder.full || builder.ptr == nullptr ?
-				string() : string(builder.ptr);
-			if (data.allocated > 0) {
-				fiftyoneDegreesFree(data.ptr);
-			}
-			EXCEPTION_THROW;
-			if ((builder.full || expected.text != text) && failures++ < 10) {
-				ADD_FAILURE() << "Value " << index << " gave '" <<
-					text.substr(0, 200) << "' rather than '" <<
-					expected.text.substr(0, 200) << "'";
+			const size_t bytes = stored->byteArrayValue.size;
+			const double perByte = (double)expected.text.size() / bytes;
+			most = perByte > most ? perByte : most;
+			if (expected.text.size() >
+				bytes * FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE &&
+				failures++ < 10) {
+				ADD_FAILURE() << "Value " << index << " of " << bytes <<
+					" bytes has " << expected.text.size() <<
+					" characters of text.";
 			}
 		});
 	if (values == 0) {
 		GTEST_SKIP() << "The data file has no geometries.";
 	}
 	EXPECT_EQ(0u, failures);
+	std::cout << "The most text for a byte of geometry was " << most <<
+		" characters.
+";
 }
 
 TEST_F(IpiDoubleTextTests, CollectionIsTheSameWithAndWithoutABuffer) {
