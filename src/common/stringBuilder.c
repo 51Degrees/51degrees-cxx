@@ -29,6 +29,17 @@
 #define STRING_BUILDER_MIN_GROWN_BYTES 256
 
 /**
+ * Keeps grow out of the functions that add characters, which are called for
+ * every number written, so a builder over a fixed buffer runs as quickly as
+ * it did before builders could grow.
+ */
+#ifdef _MSC_VER
+#define STRING_BUILDER_NO_INLINE __declspec(noinline)
+#else
+#define STRING_BUILDER_NO_INLINE __attribute__((noinline))
+#endif
+
+/**
  * Makes room in a builder whose data is set for the characters given and the
  * terminating null, keeping what it holds. The memory at least doubles, so a
  * long string needs few allocations.
@@ -37,7 +48,9 @@
  * @return true when there is room, or false when the builder has no data or
  * the memory could not be allocated, leaving the builder as it was
  */
-static bool grow(StringBuilder * const builder, size_t const characters) {
+static STRING_BUILDER_NO_INLINE bool grow(
+	StringBuilder * const builder,
+	size_t const characters) {
 	Data * const data = builder->data;
 	if (data == NULL) {
 		return false;
@@ -369,10 +382,10 @@ fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddChars(
 	fiftyoneDegreesStringBuilder* builder,
 	const char * const value,
 	size_t const length) {
-	if (length >= builder->remaining) {
-		grow(builder, length);
+	bool fitsIn = length < builder->remaining;
+	if (fitsIn == false && grow(builder, length)) {
+		fitsIn = true;
 	}
-	const bool fitsIn = length < builder->remaining;
 	const size_t clippedLength = (
 		fitsIn ? length : (builder->remaining ? builder->remaining - 1 : 0));
 	if (0 < clippedLength &&
