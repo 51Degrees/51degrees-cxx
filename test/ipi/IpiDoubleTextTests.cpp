@@ -434,8 +434,7 @@ TEST_F(IpiDoubleTextTests, EveryGeometryFitsTheTextExpected) {
 	}
 	EXPECT_EQ(0u, failures);
 	std::cout << "The most text for a byte of geometry was " << most <<
-		" characters.
-";
+		" characters.\n";
 }
 
 TEST_F(IpiDoubleTextTests, CollectionIsTheSameWithAndWithoutABuffer) {
