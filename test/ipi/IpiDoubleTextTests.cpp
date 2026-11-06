@@ -28,6 +28,8 @@
  *
  * The text of a polygon is written again here from its well known binary, with
  * the numbers from DoubleText.hpp, and compared with the text from the library.
+ * The text is also written by a builder that grows its memory, and the values
+ * collection is read with and without a buffer, which must give the same text.
  */
 
 #include <cstring>
@@ -394,6 +396,123 @@ TEST_F(IpiDoubleTextTests, EveryGeometryIsUnchanged) {
 	EXPECT_EQ(0u, failures);
 	std::cout << "Compared " << values << " geometries holding " <<
 		coordinates << " coordinates.\n";
+}
+
+TEST_F(IpiDoubleTextTests, EveryGeometryIsTheSameFromAGrowingBuilder) {
+	const fiftyoneDegreesPropertyValueType types[] = {
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R };
+	uint32_t failures = 0;
+	const uint32_t values = forEachValue(
+		types,
+		sizeof(types) / sizeof(types[0]),
+		[&](const fiftyoneDegreesStoredBinaryValue* stored,
+			fiftyoneDegreesPropertyValueType type,
+			uint32_t index) {
+			const bool reduced =
+				type == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R;
+			const unsigned char* wkb = &stored->byteArrayValue.firstByte;
+			DoubleTextWkt expected(wkb, reduced, doubleTextLookupPlaces);
+			if (expected.write() == false) {
+				// EveryGeometryIsUnchanged reports a value it cannot read.
+				return;
+			}
+			// The builder starts with no memory, so every geometry grows it.
+			fiftyoneDegreesData data;
+			fiftyoneDegreesDataReset(&data);
+			fiftyoneDegreesStringBuilder builder = {
+				(char*)data.ptr,
+				data.allocated };
+			builder.data = &data;
+			fiftyoneDegreesStringBuilderInit(&builder);
+			EXCEPTION_CREATE;
+			fiftyoneDegreesWriteWkbAsWktToStringBuilder(
+				wkb,
+				reduced ?
+					FIFTYONE_DEGREES_WKBToT_REDUCTION_SHORT :
+					FIFTYONE_DEGREES_WKBToT_REDUCTION_NONE,
+				doubleTextLookupPlaces,
+				&builder,
+				exception);
+			fiftyoneDegreesStringBuilderComplete(&builder);
+			const string text = builder.full || builder.ptr == nullptr ?
+				string() : string(builder.ptr);
+			if (data.allocated > 0) {
+				fiftyoneDegreesFree(data.ptr);
+			}
+			EXCEPTION_THROW;
+			if ((builder.full || expected.text != text) && failures++ < 10) {
+				ADD_FAILURE() << "Value " << index << " gave '" <<
+					text.substr(0, 200) << "' rather than '" <<
+					expected.text.substr(0, 200) << "'";
+			}
+		});
+	if (values == 0) {
+		GTEST_SKIP() << "The data file has no geometries.";
+	}
+	EXPECT_EQ(0u, failures);
+}
+
+TEST_F(IpiDoubleTextTests, CollectionIsTheSameWithAndWithoutABuffer) {
+	const char* addresses[] = {
+		"185.28.167.77",
+		"8.8.8.8",
+		"81.2.69.142",
+		"2001:4860:4860::8888",
+		"2a01:4f8:c0c:1b5b::1" };
+	fiftyoneDegreesResultsIpi* results =
+		fiftyoneDegreesResultsIpiCreate(&manager);
+	ASSERT_NE(nullptr, results);
+	fiftyoneDegreesData buffer;
+	fiftyoneDegreesDataReset(&buffer);
+	uint32_t compared = 0;
+	for (const char* address : addresses) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesResultsIpiFromIpAddressString(
+			results,
+			address,
+			strlen(address),
+			exception);
+		ASSERT_TRUE(EXCEPTION_OKAY) << address;
+		fiftyoneDegreesWeightedValuesCollection withNone =
+			fiftyoneDegreesResultsIpiGetValuesCollection(
+				results,
+				NULL,
+				0,
+				NULL,
+				exception);
+		fiftyoneDegreesWeightedValuesCollection withBuffer =
+			fiftyoneDegreesResultsIpiGetValuesCollection(
+				results,
+				NULL,
+				0,
+				&buffer,
+				exception);
+		EXPECT_TRUE(EXCEPTION_OKAY) << address;
+		EXPECT_EQ(withNone.itemsCount, withBuffer.itemsCount) << address;
+		for (uint32_t i = 0;
+			i < withNone.itemsCount && i < withBuffer.itemsCount;
+			i++) {
+			const fiftyoneDegreesWeightedValueHeader* none = withNone.items[i];
+			const fiftyoneDegreesWeightedValueHeader* held = withBuffer.items[i];
+			EXPECT_EQ(none->valueType, held->valueType) << address;
+			if (none->valueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING &&
+				held->valueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) {
+				EXPECT_STREQ(
+					((const fiftyoneDegreesWeightedString*)held)->value,
+					((const fiftyoneDegreesWeightedString*)none)->value) <<
+					address << ", item " << i;
+				compared++;
+			}
+		}
+		fiftyoneDegreesWeightedValuesCollectionRelease(&withNone);
+		fiftyoneDegreesWeightedValuesCollectionRelease(&withBuffer);
+	}
+	if (buffer.allocated > 0) {
+		fiftyoneDegreesFree(buffer.ptr);
+	}
+	fiftyoneDegreesResultsIpiFree(results);
+	EXPECT_GT(compared, 0u);
 }
 
 TEST_F(IpiDoubleTextTests, EveryNumberIsUnchanged) {

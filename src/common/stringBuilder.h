@@ -82,15 +82,25 @@ typedef union fiftyone_degrees_stored_binary_value_t fiftyoneDegreesStoredBinary
 struct fiftyone_degrees_var_length_byte_array_t;
 typedef struct fiftyone_degrees_var_length_byte_array_t fiftyoneDegreesVarLengthByteArray;
 
-/** String buffer for building strings with memory checks */
+/**
+ * String buffer for building strings with memory checks.
+ *
+ * A builder over a fixed buffer counts the characters that do not fit, so the
+ * caller can size a buffer and build again. A builder whose data is set grows
+ * that data when it is full, keeping what it holds, so one pass builds the
+ * whole string. Its ptr and length then follow the data, so nothing may keep
+ * a pointer into the buffer while the builder is in use.
+ */
 typedef struct fiftyone_degrees_string_builder_t {
-	char* const ptr; /**< Pointer to the memory used by the buffer */
-	size_t const length; /**< Length of buffer */
+	char* ptr; /**< Pointer to the memory used by the buffer */
+	size_t length; /**< Length of buffer */
 	char* current; /**</ Current position to add characters in the buffer */
 	size_t remaining; /**< Remaining characters in the buffer */
 	size_t added; /**< Characters added to the buffer or that would be
 					  added if the buffer were long enough */
 	bool full; /**< True if the buffer is full, otherwise false */
+	fiftyoneDegreesData* data; /**< The memory ptr points to, grown when the
+							   buffer is full, or NULL for a fixed buffer */
 } fiftyoneDegreesStringBuilder;
 
 /**
