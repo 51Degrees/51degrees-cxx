@@ -336,10 +336,12 @@ typedef struct {
 } StringConverterState;
 /**
  * @brief Saves a string value from a stored binary value.
- * 
+ *
  * Converts the stored binary value to a string and saves it in the weighted value.
- * This function handles memory allocation for the string.
- * 
+ * This function handles memory allocation for the string. The builder grows
+ * the temporary data when the text does not fit, so each value is converted
+ * once, whatever the temporary data held before.
+ *
  * @param header Pointer to the weighted value header
  * @param storedBinaryValue Pointer to the stored binary value
  * @param propertyValueType Type of the property value
@@ -358,6 +360,7 @@ static void SaveString(
         (char *)state->tempData->ptr,
         state->tempData->allocated,
     };
+    builder.data = state->tempData;
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(
         &builder,
@@ -366,31 +369,20 @@ static void SaveString(
         state->decimalPlaces,
         exception);
     StringBuilderComplete(&builder);
-    size_t added = builder.added;
-    if (EXCEPTION_OKAY && builder.added > builder.length) {
-        DataMalloc(state->tempData, builder.added + 2);
-        StringBuilder builder2 = {
-            (char *)state->tempData->ptr,
-            state->tempData->allocated,
-        };
-        StringBuilderInit(&builder2);
-        StringBuilderAddStringValue(
-            &builder2,
-            storedBinaryValue,
-            propertyValueType,
-            state->decimalPlaces,
-            exception);
-        StringBuilderComplete(&builder2);
-        added = builder.added;
+    if (EXCEPTION_OKAY && builder.full) {
+        // The builder only fills when the temporary data could not grow.
+        EXCEPTION_SET(INSUFFICIENT_MEMORY);
     }
     if (EXCEPTION_OKAY) {
+        // The characters added include the terminating null.
         WeightedString * const wString = (WeightedString*)header;
-        DataMalloc(&wString->stringData, added + 1);
-        memcpy(
-            wString->stringData.ptr,
-            state->tempData->ptr,
-            added + 1);
-        wString->value = (char*)wString->stringData.ptr;
+        if (DataMalloc(&wString->stringData, builder.added) == NULL) {
+            EXCEPTION_SET(INSUFFICIENT_MEMORY);
+        }
+        else {
+            memcpy(wString->stringData.ptr, builder.ptr, builder.added);
+            wString->value = (char*)wString->stringData.ptr;
+        }
     }
 }
 /**
