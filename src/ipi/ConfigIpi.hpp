@@ -92,14 +92,14 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Set the collections to use the high performance
-			 * configuration.
+			 * configuration. Naming some of the required properties loads
+			 * only what they read into memory.
 			 * See #fiftyoneDegreesIpiHighPerformanceConfig
 			 */
 			void setHighPerformance();
 
 			/**
-			 * Set the collections to use the balanced configuration. Naming
-			 * the required properties decides what this holds in memory.
+			 * Set the collections to use the balanced configuration.
 			 * See #fiftyoneDegreesIpiBalancedConfig
 			 */
 			void setBalanced();
