@@ -43,6 +43,7 @@
 
 static void poolWaitCreate(Pool *pool) {
 	pool->waiting = 0;
+	pool->waits = 0;
 	FIFTYONE_DEGREES_MUTEX_CREATE(pool->lock);
 #ifdef _MSC_VER
 	InitializeConditionVariable(&pool->released);
@@ -185,6 +186,7 @@ fiftyoneDegreesPoolItem* fiftyoneDegreesPoolItemGet(
 		FIFTYONE_DEGREES_MUTEX_LOCK(&pool->lock);
 		INTERLOCK_INC(&pool->waiting);
 		while ((item = poolPop(pool)) == NULL) {
+			pool->waits++;
 			poolWait(pool);
 		}
 		INTERLOCK_DEC(&pool->waiting);
