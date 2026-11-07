@@ -30,10 +30,7 @@ using namespace FiftyoneDegrees::IpIntelligence;
 PropertyMetaData* PropertyMetaDataBuilderIpi::build(
 	fiftyoneDegreesDataSetIpi *dataSet,
 	const fiftyoneDegreesProperty *property) {
-	string name = getValue(
-		dataSet->strings,
-		property->nameOffset,
-		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING); // name is string
+	string name = getString(dataSet->strings, property->nameOffset);
 	return new PropertyMetaData(
 		name,
 		getPropertyMap(
@@ -42,18 +39,12 @@ PropertyMetaData* PropertyMetaDataBuilderIpi::build(
 			property),
 		getPropertyType(property),
 		(int)property->categoryOffset != -1 ?
-		getValue(
-			dataSet->strings,
-			property->categoryOffset,
-			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) : // category is string
+		getString(dataSet->strings, property->categoryOffset) :
 		string(),
 		// A property with no URL points at offset 0, which holds the first
 		// string in the file rather than a URL.
 		(int)property->urlOffset > 0 ?
-		getValue(
-			dataSet->strings,
-			property->urlOffset,
-			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) : // URL is string
+		getString(dataSet->strings, property->urlOffset) :
 		string(),
 		propertyIsAvailable(dataSet, &name),
 		property->displayOrder,
@@ -63,12 +54,9 @@ PropertyMetaData* PropertyMetaDataBuilderIpi::build(
 		property->show,
 		property->showValues,
 		(int)property->descriptionOffset != -1 ?
-		getValue(
-			dataSet->strings,
-			property->descriptionOffset,
-			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) : // description is string
+		getString(dataSet->strings, property->descriptionOffset) :
 		string(),
-		getDefaultValue(dataSet, property->defaultValueIndex),
+		getDefaultValue(dataSet, property),
 		getComponentId(dataSet, property),
 		getEvidenceProperties(dataSet, property));
 }
@@ -117,33 +105,18 @@ vector<uint32_t> PropertyMetaDataBuilderIpi::getEvidenceProperties(
 }
 string PropertyMetaDataBuilderIpi::getDefaultValue(
 	fiftyoneDegreesDataSetIpi *dataSet,
-	uint32_t valueIndex) {
+	const fiftyoneDegreesProperty *property) {
 	EXCEPTION_CREATE;
-	string result;
-	Item item;
-	const Value *value;
-	if (valueIndex != UINT32_MAX) {
-		DataReset(&item.data);
-		value = ValueGet(
-			dataSet->values,
-			valueIndex,
-			&item,
-			exception);
-		EXCEPTION_THROW;
-		const PropertyValueType storedType = PropertyGetStoredTypeByIndex(
-			dataSet->propertyTypes,
-			value->propertyIndex,
-			exception);
-		EXCEPTION_THROW;
-		if (value != nullptr) {
-			result = getValue(
-				dataSet->strings,
-				value->nameOffset,
-				storedType);
-			COLLECTION_RELEASE(dataSet->values, &item);
-		}
-	}
-	return result;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const text = ValueGetDefaultText(
+		dataSet->values,
+		dataSet->strings,
+		dataSet->propertyTypes,
+		property,
+		buffer,
+		sizeof(buffer),
+		exception);
+	return takeText(text, buffer, exception);
 }
 
 bool PropertyMetaDataBuilderIpi::propertyIsAvailable(

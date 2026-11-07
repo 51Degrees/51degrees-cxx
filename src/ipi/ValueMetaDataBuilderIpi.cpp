@@ -20,12 +20,10 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-#include <sstream>
 #include "ValueMetaDataBuilderIpi.hpp"
 #include "../common/Exceptions.hpp"
 #include "constantsIpi.h"
 #include "fiftyone.h"
-#include "../common/string_pp.hpp"
 
 using namespace std;
 using namespace FiftyoneDegrees::Common;
@@ -38,7 +36,10 @@ using namespace FiftyoneDegrees::IpIntelligence;
 
 /**
  * Get the string representation of the data stored in
- * the strings collection
+ * the strings collection, with numbers written to DefaultWktDecimalPlaces.
+ * A value that is read but cannot be written as text gives an empty string,
+ * so the text is written here rather than taken from
+ * fiftyoneDegreesValueGetText, which fails for such a value.
  * @param stringsCollection the string collection
  * @param offset the offset in the string collection
  * @param storedValueType format of byte array representation.
@@ -59,20 +60,26 @@ static string getDynamicString(
 		&item,
 		exception);
 	EXCEPTION_THROW;
-
-	stringstream stream;
-	if (binaryValue != nullptr && EXCEPTION_OKAY) {
-		writeStoredBinaryValueToStringStream(
+	if (binaryValue != nullptr) {
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		char * const text = StoredBinaryValueToText(
 			binaryValue,
 			storedValueType,
-			stream,
 			DefaultWktDecimalPlaces,
+			buffer,
+			sizeof(buffer),
 			exception);
+		if (text != nullptr) {
+			result = text;
+			if (text != buffer) {
+				Free(text);
+			}
+		}
 		FIFTYONE_DEGREES_COLLECTION_RELEASE(
 			stringsCollection,
 			&item);
 	}
-	return stream.str();
+	return result;
 }
 
 
@@ -101,17 +108,11 @@ ValueMetaData* ValueMetaDataBuilderIpi::build(
 		// and if there is one, as offset 0 holds the first string in the file.
 		string url;
 		if (!ValueIsWeighted(value) && value->urlOffsetOrWeight > 0) {
-			url = getValue(
-				dataSet->strings,
-				value->urlOffsetOrWeight,
-				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING); // URL is string
+			url = getString(dataSet->strings, value->urlOffsetOrWeight);
 		}
 		result = new ValueMetaData(
 			ValueMetaDataKey(
-				getValue(
-					dataSet->strings,
-					property->nameOffset,
-					FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING), // name is string
+				getString(dataSet->strings, property->nameOffset),
 				getDynamicString(
 					dataSet->strings,
 					value->nameOffset,

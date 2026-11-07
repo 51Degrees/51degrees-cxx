@@ -79,3 +79,42 @@ ValueMetaData* ValueMetaDataCollectionBaseIpi::getByKey(
 	}
 	return result;
 }
+
+ValueMetaData* ValueMetaDataCollectionBaseIpi::getDefaultForProperty(
+	const string &propertyName) const {
+	EXCEPTION_CREATE;
+	Item propertyItem, valueItem;
+	ValueMetaData *result = nullptr;
+	DataReset(&propertyItem.data);
+	const Property *property = PropertyGetByName(
+		dataSet->properties,
+		dataSet->strings,
+		propertyName.c_str(),
+		&propertyItem,
+		exception);
+	EXCEPTION_THROW;
+	if (property != nullptr) {
+		const long index = ValueGetDefaultIndex(
+			dataSet->values,
+			dataSet->strings,
+			dataSet->propertyTypes,
+			property,
+			exception);
+		COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+		EXCEPTION_THROW;
+		if (index >= 0) {
+			DataReset(&valueItem.data);
+			const Value *value = ValueGet(
+				dataSet->values,
+				(uint32_t)index,
+				&valueItem,
+				exception);
+			EXCEPTION_THROW;
+			if (value != nullptr) {
+				result = ValueMetaDataBuilderIpi::build(dataSet, value);
+				COLLECTION_RELEASE(dataSet->values, &valueItem);
+			}
+		}
+	}
+	return result;
+}
