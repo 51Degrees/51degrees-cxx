@@ -206,6 +206,27 @@ static void cacheAddToHead(CacheNode *node) {
 }
 
 /**
+ * Adds the node at the end of the linked list so that it is the next to be
+ * reused.
+ * @param node to add
+ */
+static void cacheAddToTail(CacheNode *node) {
+	CacheShard *shard = node->shard;
+	assert(node->listNext == NULL);
+	assert(node->listPrevious == NULL);
+	node->listPrevious = shard->last;
+	if (shard->last != NULL) {
+		shard->last->listNext = node;
+	}
+
+	shard->last = node;
+
+	if (shard->first == NULL) {
+		shard->first = shard->last;
+	}
+}
+
+/**
  * Returns the next free node from the cache which can be used to add a
  * new entry to. Once the cache is full then the node returned is the one
  * at the end of the linked list which will contain the least recently used
@@ -238,15 +259,18 @@ static CacheNode *cacheGetNextFree(CacheShard *shard) {
 		assert(node->activeCount == 0);
 		cacheRemoveFromList(node);
 
-		// Remove the last result from the binary tree.
-		#ifdef FIFTYONE_DEGREES_CACHE_VALIDATE
-		countBefore = TreeCount(&shard->root);
-		#endif
-		TreeDelete(&node->tree);
-		#ifdef FIFTYONE_DEGREES_CACHE_VALIDATE
-		countAfter = TreeCount(&shard->root);
-		assert(countBefore - 1 == countAfter);
-		#endif
+		// Remove the last result from the binary tree. A node whose load
+		// failed was never added to the tree.
+		if (node->tree.parent != &shard->root.empty) {
+			#ifdef FIFTYONE_DEGREES_CACHE_VALIDATE
+			countBefore = TreeCount(&shard->root);
+			#endif
+			TreeDelete(&node->tree);
+			#ifdef FIFTYONE_DEGREES_CACHE_VALIDATE
+			countAfter = TreeCount(&shard->root);
+			assert(countBefore - 1 == countAfter);
+			#endif
+		}
 	}
 
 	// Set the pointers of the node to null indicating that the
@@ -261,8 +285,8 @@ static CacheNode *cacheGetNextFree(CacheShard *shard) {
  * if one is available.
  * @param shard dictated by the key
  * @param key to get or load
- * @return pointer to the node with data for the key, or NULL if there are no 
- * free nodes
+ * @return pointer to the node with data for the key, or NULL if there are no
+ * free nodes or the load failed
  */
 static CacheNode* cacheLoad(
 	CacheShard *shard,
@@ -287,6 +311,14 @@ static CacheNode* cacheLoad(
 		if (EXCEPTION_OKAY) {
 			node->tree.key = keyHash;
 			TreeInsert(&node->tree);
+		}
+		else {
+			// The node holds nothing, so it goes back to the shard to be
+			// reused first rather than staying in use forever.
+			node->activeCount = 0;
+			node->data.used = 0;
+			cacheAddToTail(node);
+			node = NULL;
 		}
 	}
 	return node;
