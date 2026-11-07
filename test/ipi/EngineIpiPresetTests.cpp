@@ -703,14 +703,17 @@ TEST_F(IpiPresetTests, HighPerformanceHoldsOnlyTheGraphsOfEachComponentOnItsOwn)
 	if (componentCount < 2) {
 		GTEST_SKIP() << "The data file has one component.";
 	}
+	// The properties named are printed before each check, rather than added
+	// with SCOPED_TRACE, whose memory the base class's memory check counts.
 	for (const string& names : eachComponent) {
-		SCOPED_TRACE(names.substr(0, 60));
+		printf("Naming %s\n", names.substr(0, 60).c_str());
 		PresetManager manager(
 			dataFilePath,
 			fiftyoneDegreesIpiHighPerformanceConfig,
 			names.c_str());
 		presetPrintMemory(&manager.manager);
-		EXPECT_GT(presetExpectGraphsOfRequiredComponents(&manager.manager), 0u);
+		EXPECT_GT(presetExpectGraphsOfRequiredComponents(&manager.manager), 0u) <<
+			names.substr(0, 60);
 		EXPECT_NO_FATAL_FAILURE(presetExpectNoWholeHeld(&manager.manager));
 		EXPECT_NO_FATAL_FAILURE(expectSameAnswers(&manager.manager, names.c_str()));
 	}
@@ -725,7 +728,6 @@ TEST_F(IpiPresetTests, HighPerformanceReadsNothingFromTheFileForTheNamedProperti
 	vector<string> sets = eachComponent;
 	sets.push_back(oneOfEach);
 	for (const string& names : sets) {
-		SCOPED_TRACE(names.substr(0, 60));
 		PresetManager manager(
 			dataFilePath,
 			fiftyoneDegreesIpiHighPerformanceConfig,
@@ -735,8 +737,10 @@ TEST_F(IpiPresetTests, HighPerformanceReadsNothingFromTheFileForTheNamedProperti
 			PresetDataSet dataSet(&manager.manager);
 			held = string(dataSet->values->typeName) == presetHeldType;
 		}
-		ASSERT_TRUE(held) << "The values of the named properties are not held.";
-		EXPECT_EQ(0u, presetLookupAllocations(&manager.manager));
+		ASSERT_TRUE(held) << "The values of the named properties are not held, "
+			"naming " << names.substr(0, 60);
+		EXPECT_EQ(0u, presetLookupAllocations(&manager.manager)) <<
+			"Naming " << names.substr(0, 60);
 	}
 }
 
