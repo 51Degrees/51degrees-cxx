@@ -1,0 +1,63 @@
+name: Temporary check of cache shard indexes for negative hashes
+
+on:
+  push:
+    branches:
+      - tmp/shard-check
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: ${{ matrix.label }} ${{ matrix.type }} on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        label: [red, fix]
+        include:
+          - os: ubuntu-latest
+            type: Debug
+            asan: 'ON'
+          - os: windows-latest
+            type: Debug
+            asan: 'OFF'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: b15a9cebf5ab81b45ad73278b94a7be9c042d5bc
+          path: cxx
+      - uses: actions/checkout@v4
+        with:
+          path: tmp-files
+      - name: Put the test in place
+        run: Copy-Item tmp-files/.github/tmp-shard/CacheTests.cpp cxx/test/common/
+      - name: Put the fix in place
+        if: matrix.label == 'fix'
+        run: Copy-Item tmp-files/.github/tmp-shard/cache.c cxx/src/common/
+      - name: Build
+        working-directory: cxx
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.type }} -DWITH_ASAN=${{ matrix.asan }} -D32bit=OFF | Out-Null
+          cmake --build build --config ${{ matrix.type }} --parallel 4 --target CommonTests *> build.txt
+          $code = $LASTEXITCODE
+          Select-String -Path build.txt -Pattern ': error|error C|warning C' -Context 2,6 | Select-Object -First 30 | ForEach-Object { $_.ToString() }
+          if ($code -ne 0) { throw 'The build failed' }
+      - name: Run the cache tests
+        working-directory: cxx
+        timeout-minutes: 10
+        run: |
+          $exe = (Get-ChildItem build -Recurse -File -Filter ($IsWindows ? 'CommonTests.exe' : 'CommonTests') | Select-Object -First 1).FullName
+          & $exe '--gtest_filter=CacheTest*' *> out.txt
+          $code = $LASTEXITCODE
+          "Exit code $code"
+          $lines = Get-Content out.txt
+          $lines | Select-String -Pattern 'NegativeHashes|FAILED|PASSED|Failure|Expected|Which is|ERROR: AddressSanitizer|SUMMARY|SEH|runtime error' | Select-Object -First 40 | ForEach-Object { $_.Line }
+          $lines | Select-Object -Last 8
+          exit $code
