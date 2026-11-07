@@ -48,6 +48,13 @@ and for the Hash C++ API, the following are needed in addition:
 
 The CMake project also builds a single shared library containing everything. This is named `fiftyone-device-detection-complete` and can be referenced by any C or C++ project.
 
+A project that uses an installed copy of the libraries finds them with
+`find_package(51Degrees CONFIG REQUIRED)` and links `51Degrees::hash-c` or
+`51Degrees::hash-cxx`, which bring the libraries above. The headers are then
+included as, for example, `<51degrees/dd/hash/hash.h>`.
+[Installing](../../README.md#installing) in the repository README says how to
+install them.
+
 ## Visual Studio
 
 The Visual Studio solution contains static libraries which have all the dependencies set up correctly, so referencing these in a Visual Studio solution should be fairly self explanatory.
