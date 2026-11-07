@@ -5597,6 +5597,126 @@ char* fiftyoneDegreesHashGetDeviceIdFromResults(
 	}
 }
 
+// The match metrics of one result, or of several taken together.
+typedef struct match_metrics_t {
+	HashMatchMethod method; // The highest method used
+	int32_t difference; // Sum of the differences
+	int32_t drift; // Sum of the drifts
+	int32_t iterations; // Sum of the iterations
+	int32_t matchedNodes; // Sum of the matched nodes
+} matchMetrics;
+
+// Adds the result's metrics to those taken so far, so that adding one result
+// to the zero metrics gives that result's.
+static void matchMetricsAdd(matchMetrics *metrics, const ResultHash *result) {
+	if (result->method > metrics->method) {
+		metrics->method = result->method;
+	}
+	metrics->difference += result->difference;
+	metrics->drift += result->drift;
+	metrics->iterations += result->iterations;
+	metrics->matchedNodes += result->matchedNodes;
+}
+
+// Sets each metric the caller asked for, being those whose pointer is not
+// NULL.
+static void matchMetricsCopy(
+	const matchMetrics *metrics,
+	HashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes) {
+	if (method != NULL) {
+		*method = metrics->method;
+	}
+	if (difference != NULL) {
+		*difference = metrics->difference;
+	}
+	if (drift != NULL) {
+		*drift = metrics->drift;
+	}
+	if (iterations != NULL) {
+		*iterations = metrics->iterations;
+	}
+	if (matchedNodes != NULL) {
+		*matchedNodes = metrics->matchedNodes;
+	}
+}
+
+void fiftyoneDegreesResultsHashGetMatchMetrics(
+	fiftyoneDegreesResultsHash *results,
+	fiftyoneDegreesHashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes,
+	fiftyoneDegreesException *exception) {
+	uint32_t i;
+	matchMetrics metrics = {
+		FIFTYONE_DEGREES_HASH_MATCH_METHOD_NONE, 0, 0, 0, 0 };
+	if (results != NULL) {
+
+		// The walk of each component's graph sets its result's metrics.
+		ResultsEvaluateAll(&results->b.b, exception);
+		if (EXCEPTION_OKAY) {
+			for (i = 0; i < results->count; i++) {
+				matchMetricsAdd(&metrics, &results->items[i]);
+			}
+		}
+	}
+	matchMetricsCopy(
+		&metrics,
+		method,
+		difference,
+		drift,
+		iterations,
+		matchedNodes);
+}
+
+bool fiftyoneDegreesResultsHashGetMatchMetricsForResult(
+	fiftyoneDegreesResultsHash *results,
+	uint32_t resultIndex,
+	fiftyoneDegreesHashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes,
+	fiftyoneDegreesException *exception) {
+	bool found = false;
+	matchMetrics metrics = {
+		FIFTYONE_DEGREES_HASH_MATCH_METHOD_NONE, 0, 0, 0, 0 };
+	if (results != NULL) {
+		ResultsEvaluateAll(&results->b.b, exception);
+		if (EXCEPTION_OKAY && resultIndex < results->count) {
+			matchMetricsAdd(&metrics, &results->items[resultIndex]);
+			found = true;
+		}
+	}
+	matchMetricsCopy(
+		&metrics,
+		method,
+		difference,
+		drift,
+		iterations,
+		matchedNodes);
+	return found;
+}
+
+const char* fiftyoneDegreesResultsHashGetMatchedUserAgent(
+	fiftyoneDegreesResultsHash *results,
+	uint32_t resultIndex,
+	fiftyoneDegreesException *exception) {
+	if (results == NULL) {
+		return NULL;
+	}
+	ResultsEvaluateAll(&results->b.b, exception);
+	if (EXCEPTION_FAILED || resultIndex >= results->count) {
+		return NULL;
+	}
+	return results->items[resultIndex].b.matchedUserAgent;
+}
+
 size_t fiftyoneDegreesResultsHashGetValuesJson(
 	fiftyoneDegreesResultsHash* results,
 	char* const buffer,

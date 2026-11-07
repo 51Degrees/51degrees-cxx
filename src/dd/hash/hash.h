@@ -923,6 +923,87 @@ EXTERNAL size_t fiftyoneDegreesResultsHashGetValuesStringAllProperties(
 	fiftyoneDegreesException* exception);
 
 /**
+ * Gets the match metrics of the results, taken across every result. The
+ * results hold one result for each component that had evidence, and the walk
+ * of a component's graph sets the metrics of its result, so every graph not
+ * yet walked is walked first. The method is the highest any result used, and
+ * the difference, drift, iterations and matched nodes are each the sum of
+ * every result's. Each is zero, and the method none, when the results are
+ * NULL, hold no result or a walk fails.
+ * @param results pointer to the results to get the metrics of, or NULL
+ * @param method set to the highest method any result used, or NULL if not
+ * needed
+ * @param difference set to the total difference in hash code values between
+ * the matched substrings and those of the evidence, or NULL if not needed
+ * @param drift set to the sum, over the results, of the largest number of
+ * characters a matched substring was from where it was expected, or NULL if
+ * not needed
+ * @param iterations set to the total number of graph nodes visited, or NULL
+ * if not needed
+ * @param matchedNodes set to the total number of hash nodes matched in the
+ * evidence, or NULL if not needed
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ */
+EXTERNAL void fiftyoneDegreesResultsHashGetMatchMetrics(
+	fiftyoneDegreesResultsHash *results,
+	fiftyoneDegreesHashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the match metrics of one result, being those
+ * #fiftyoneDegreesResultsHashGetMatchMetrics takes across every result.
+ * Every graph not yet walked is walked first, so the answer does not depend
+ * on what was read before. Each is zero, and the method none, when the
+ * results are NULL, the index is not that of a result or a walk fails.
+ * @param results pointer to the results to get the metrics of, or NULL
+ * @param resultIndex index of the result, less than the number of results
+ * @param method set to the method the result used, or NULL if not needed
+ * @param difference set to the result's difference, or NULL if not needed
+ * @param drift set to the result's drift, or NULL if not needed
+ * @param iterations set to the result's iterations, or NULL if not needed
+ * @param matchedNodes set to the result's matched nodes, or NULL if not
+ * needed
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return true if the metrics set are the result's, or false if they are the
+ * zeros given when there is no such result or a walk fails
+ */
+EXTERNAL bool fiftyoneDegreesResultsHashGetMatchMetricsForResult(
+	fiftyoneDegreesResultsHash *results,
+	uint32_t resultIndex,
+	fiftyoneDegreesHashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the matched User-Agent of one result, being the evidence value its
+ * component was matched from, with each character the match did not use
+ * replaced by '_'. It is recorded only when the updateMatchedUserAgent option
+ * is set, and holds at most maxMatchedUserAgentLength characters. Every graph
+ * not yet walked is walked first, as the walk of a component's graph sets the
+ * matched User-Agent of its result.
+ * @param results pointer to the results to get the User-Agent from, or NULL
+ * @param resultIndex index of the result, less than the number of results
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the matched User-Agent, which stays valid until the results are
+ * populated again or freed, or NULL when the results are NULL, the index is
+ * not that of a result, a walk fails or none was recorded
+ */
+EXTERNAL const char* fiftyoneDegreesResultsHashGetMatchedUserAgent(
+	fiftyoneDegreesResultsHash *results,
+	uint32_t resultIndex,
+	fiftyoneDegreesException *exception);
+
+/**
  * Reload the data set being used by the resource manager using the data file
  * location which was used when the manager was created. When initialising the
  * data, the configuration that manager was first created with is used.
