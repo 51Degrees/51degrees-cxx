@@ -49,10 +49,13 @@ static void poolWaitCreate(Pool *pool) {
 }
 
 static void poolWaitClose(Pool *pool) {
-#ifndef _MSC_VER
+#ifdef _MSC_VER
+	// Slim reader writer locks and condition variables hold no resources.
+	(void)pool;
+#else
 	pthread_cond_destroy(&pool->released);
-#endif
 	FIFTYONE_DEGREES_MUTEX_CLOSE(pool->lock);
+#endif
 }
 
 // Sleeps until a release wakes the thread. The lock must be held.
