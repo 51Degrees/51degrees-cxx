@@ -1105,13 +1105,15 @@ typedef struct held_collection_t {
 	heldRange* ranges; /* The ranges in the order of their keys */
 	uint32_t blockShift; /* Bits of a key below the number of its block */
 	uint32_t blockCount; /* Blocks up to the end of the last range */
+	byte** blockMemory; /* Memory of each block one range holds, or NULL */
 	uint32_t* blocks; /* The first range ending after each block starts */
 } heldCollection;
 
 /**
  * Gets an item from the range that holds it, or from the source when no range
- * does. The key's block gives the first range that could hold it. Each range
- * holds whole records, so an item that starts in a range ends in it.
+ * does. The key's block gives its memory when one range holds the whole block,
+ * and otherwise the first range that could hold it. Each range holds whole
+ * records, so an item that starts in a range ends in it.
  */
 static void* heldGet(
 	const Collection* collection,
@@ -1123,6 +1125,15 @@ static void* heldGet(
 	const uint32_t position = key->indexOrOffset.offset;
 	const uint32_t block = position >> state->blockShift;
 	if (block < state->blockCount) {
+		byte* const memory = state->blockMemory[block];
+		if (memory != NULL) {
+			byte* const ptr = memory + (size_t)((uint64_t)(position &
+				(((uint32_t)1 << state->blockShift) - 1)) * state->unitBytes);
+			item->data.ptr = ptr;
+			item->handle = NULL;
+			item->collection = collection;
+			return ptr;
+		}
 		const heldRange* const last = state->ranges + state->count;
 		for (const heldRange* range = state->ranges + state->blocks[block];
 			range < last && range->first <= position;
@@ -1232,7 +1243,7 @@ static StatusCode heldCreate(
 	heldCollection* const state = (heldCollection*)Malloc(
 		sizeof(heldCollection) +
 		count * sizeof(heldRange) +
-		blockCount * sizeof(uint32_t));
+		blockCount * (sizeof(byte*) + sizeof(uint32_t)));
 	if (state == NULL) {
 		return INSUFFICIENT_MEMORY;
 	}
@@ -1248,12 +1259,14 @@ static StatusCode heldCreate(
 	state->ranges = (heldRange*)(state + 1);
 	state->blockShift = shift;
 	state->blockCount = blockCount;
-	state->blocks = (uint32_t*)(state->ranges + count);
+	state->blockMemory = (byte**)(state->ranges + count);
+	state->blocks = (uint32_t*)(state->blockMemory + blockCount);
 	for (uint32_t b = 0, r = 0; b < blockCount; b++) {
 		while (r < count && ranges[r].end <= ((uint64_t)b << shift)) {
 			r++;
 		}
 		state->blocks[b] = r;
+		state->blockMemory[b] = NULL;
 	}
 	*held = **collection;
 	held->state = state;
@@ -1284,6 +1297,15 @@ static StatusCode heldCreate(
 		}
 		if (fread(memory, 1, (size_t)bytes, file) != (size_t)bytes) {
 			return COLLECTION_FILE_READ_FAIL;
+		}
+	}
+	for (uint32_t b = 0; b < blockCount; b++) {
+		const heldRange* const range = &state->ranges[state->blocks[b]];
+		const uint64_t start = (uint64_t)b << shift;
+		if (range->first <= start &&
+			(uint64_t)(b + 1) << shift <= range->end) {
+			state->blockMemory[b] = range->memory +
+				(size_t)((start - range->first) * unitBytes);
 		}
 	}
 	return SUCCESS;
