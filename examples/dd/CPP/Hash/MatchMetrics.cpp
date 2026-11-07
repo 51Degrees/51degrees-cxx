@@ -76,9 +76,10 @@ using namespace FiftyoneDegrees;
 DeviceDetection::Hash::DeviceDetection::Hash::ResultsHash *results = engine->process(evidence);
 ```
 
-5. Obtain drift: The maximum drift for a matched substring from the character
-position where it was expected to be found. The maximum drift to allow when
-finding a match can be set through the configuration structure.
+5. Obtain drift: the largest number of characters a matched substring of a
+result was from where it was expected to be found, added up over the results,
+one for each component. The maximum drift to allow when finding a match can
+be set through the configuration structure.
 ```
 int drift = results->getDrift();
 
