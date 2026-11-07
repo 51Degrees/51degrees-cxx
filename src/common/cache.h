@@ -189,9 +189,9 @@ typedef int64_t(*fiftyoneDegreesCacheHashCodeMethod)(const void* key);
  * methods used when being used as a loading cache.
  */
 typedef struct fiftyone_degrees_cache_t {
-	fiftyoneDegreesCacheShard *shards; /**< Array of shards / concurrency */
+	fiftyoneDegreesCacheShard *shards; /**< Array of shards / shardCount */
 	fiftyoneDegreesCacheNode *nodes; /**< Array of nodes / capacity */
-	uint16_t concurrency; /**< Expected concurrency and number of shards */
+	uint16_t shardCount; /**< Number of shards, each with its own lock */
 	int32_t capacity; /**< Capacity of the cache */
 	unsigned long hits; /**< The requests served from the cache */
 	unsigned long misses; /**< The requests NOT served from the cache */
@@ -202,14 +202,22 @@ typedef struct fiftyone_degrees_cache_t {
 } fiftyoneDegreesCache;
 
 /**
- * Creates a new cache.The cache must be destroyed with the
+ * Creates a new cache. The cache must be destroyed with the
  * #fiftyoneDegreesCacheFree method.
- * @param capacity maximum number of items that the cache should store
- * @param concurrency the expected number of parallel operations
+ *
+ * A node in use cannot be expelled and any operation can need any shard, so
+ * every shard holds at least one node for each operation that can use the
+ * cache at the same time. The cache has as many shards as the concurrency,
+ * or fewer where that is needed, and a capacity below the concurrency is
+ * raised to it.
+ * @param capacity number of items that the cache should store
+ * @param concurrency the expected number of parallel operations, where 0 is
+ * taken as 1
  * @param load pointer to method used to load an entry into the cache
  * @param hash pointer to a method used to hash the key into a int64_t
  * @param state pointer to state information to pass to the load method
- * @return a pointer to the cache created, or NULL if one was not created.
+ * @return a pointer to the cache created, or NULL if the memory could not be
+ * allocated.
  */
 EXTERNAL fiftyoneDegreesCache *fiftyoneDegreesCacheCreate(
 	uint32_t capacity,

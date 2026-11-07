@@ -29,6 +29,7 @@
 #include "hash.h"
 #include "fiftyone.h"
 #include "../../common/collectionKeyTypes.h"
+#include "../../common/threading.h"
 
 MAP_TYPE(Collection)
 
@@ -167,6 +168,10 @@ static unsigned int POWERS[129] = {
 
 #define MAX_CONCURRENCY(t) if (config->t.concurrency > concurrency) { \
 concurrency = config->t.concurrency; }
+
+/* A concurrency of 0 is one operation for each processor. */
+#define DEFAULT_CONCURRENCY(t) if (dataSet->config.t.concurrency == 0) { \
+dataSet->config.t.concurrency = ThreadingGetProcessorCount(); }
 
 #define COLLECTION_CREATE_MEMORY(t) \
 dataSet->t = CollectionCreateFromMemory( \
@@ -2526,10 +2531,19 @@ static void initDataSet(DataSetHash *dataSet, ConfigHash **config) {
 	// can freed.
 	resetDataSet(dataSet);
 
-	// Copy the configuration into the data set to ensure it's always 
+	// Copy the configuration into the data set to ensure it's always
 	// available in cases where the source configuration gets freed.
 	memcpy((void*)&dataSet->config, *config, sizeof(ConfigHash));
 	dataSet->b.b.config = &dataSet->config;
+	DEFAULT_CONCURRENCY(strings);
+	DEFAULT_CONCURRENCY(components);
+	DEFAULT_CONCURRENCY(maps);
+	DEFAULT_CONCURRENCY(properties);
+	DEFAULT_CONCURRENCY(values);
+	DEFAULT_CONCURRENCY(profiles);
+	DEFAULT_CONCURRENCY(rootNodes);
+	DEFAULT_CONCURRENCY(nodes);
+	DEFAULT_CONCURRENCY(profileOffsets);
 }
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY

@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include "ConfigHash.hpp"
+#include "../../common/threading.h"
 
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
@@ -29,6 +30,10 @@ ConfigHash::ConfigHash()
 	: ConfigDeviceDetection(&this->config.b) {
 	config = fiftyoneDegreesHashDefaultConfig;
 	initCollectionConfig();
+	// A concurrency of 0 is one operation for each processor.
+	if (getConcurrency() == 0) {
+		setConcurrency(fiftyoneDegreesThreadingGetProcessorCount());
+	}
 }
 
 ConfigHash::ConfigHash(fiftyoneDegreesConfigHash *config)
@@ -36,10 +41,16 @@ ConfigHash::ConfigHash(fiftyoneDegreesConfigHash *config)
 	this->config = config != nullptr ?
 		*config : fiftyoneDegreesHashBalancedConfig;
 	initCollectionConfig();
+	// A concurrency of 0 is one operation for each processor.
+	if (getConcurrency() == 0) {
+		setConcurrency(fiftyoneDegreesThreadingGetProcessorCount());
+	}
 }
 
 void ConfigHash::setPerformanceFromExistingConfig(
 	fiftyoneDegreesConfigHash *existing) {
+	// The profile sets how each collection is held, not the concurrency.
+	const uint16_t concurrency = getConcurrency();
 	config.strings = existing->strings;
 	config.properties = existing->properties;
 	config.values = existing->values;
@@ -49,6 +60,7 @@ void ConfigHash::setPerformanceFromExistingConfig(
 	config.maps = existing->maps;
 	config.components = existing->components;
 	config.b.b.allInMemory = existing->b.b.allInMemory;
+	setConcurrency(concurrency);
 }
 
 void ConfigHash::setHighPerformance() {

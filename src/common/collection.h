@@ -128,7 +128,8 @@
  * **capacity** : 0 if a cache should not be used, otherwise the capacity of
  * cache.
 
- * **concurrency** : the expected number of concurrent operations, 1 or greater.
+ * **concurrency** : the expected number of operations at the same time. A
+ * data set takes 0 as one for each processor.
  * 
  * The file create method will work out the different types of Collection(s)
  * needed and how to chain them based on the configuration provided.
@@ -296,8 +297,9 @@ typedef struct fiftyone_degrees_collection_config_t {
 	bool loaded; /**< Collection is loaded entirely into memory */
 	uint32_t capacity; /**< Number of items the cache should store, 0 for no
 	                       cache */
-	uint16_t concurrency; /**< Expected number of concurrent requests, 1 or
-						      greater */
+	uint16_t concurrency; /**< Expected number of operations at the same
+						      time, which a data set takes as one for each
+						      processor when 0 */
 } fiftyoneDegreesCollectionConfig;
 
 /** @cond FORWARD_DECLARATIONS */
