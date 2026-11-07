@@ -1017,6 +1017,40 @@ EXTERNAL fiftyoneDegreesDataSetHash* fiftyoneDegreesDataSetHashGet(
 EXTERNAL void fiftyoneDegreesDataSetHashRelease(
 	fiftyoneDegreesDataSetHash *dataSet);
 
+/**
+ * Writes the evidence keys the data set accepts, each with its prefix, with
+ * the separator between them. The keys are listed in this order.
+ *
+ * 1. For each unique header in the data set that is not a pseudo header, a
+ *    key under `header.` and then one under `query.`, with `HTTP_` before
+ *    the header name when the configuration's usesUpperPrefixedHeaders is
+ *    true. The header name is as the data set holds it.
+ * 2. For each property that can be overridden, a key under `cookie.` and
+ *    then one under `query.`, with `51D_` before the property name when the
+ *    overrides need that prefix.
+ * 3. `query.51D_deviceId`, `query.51D_gethighentropyvalues`,
+ *    `query.51D_structureduseragent`, `cookie.51D_gethighentropyvalues`,
+ *    `cookie.51D_structureduseragent`, `query.51D_ProfileIds` and
+ *    `cookie.51D_ProfileIds`.
+ *
+ * A key that is listed more than once is written where it is first listed.
+ * Call with a NULL buffer to find the length needed, then with a buffer one
+ * longer than that.
+ * @param dataSet the data set to list the keys of
+ * @param buffer to write the keys to, or NULL to only find their length
+ * @param length of the buffer, including room for the null terminator
+ * @param separator written between keys. A comma suits, as no HTTP header
+ * name holds one and property names are given as a comma separated list.
+ * @return the number of characters the keys and separators need, not
+ * counting the null terminator. When the buffer is shorter than that plus
+ * one, it holds as many characters as fit followed by a null terminator.
+ */
+EXTERNAL size_t fiftyoneDegreesHashGetEvidenceKeys(
+	fiftyoneDegreesDataSetHash *dataSet,
+	char *buffer,
+	size_t length,
+	const char *separator);
+
 
 /**
  * Iterates over the profiles in the data set calling the callback method for
