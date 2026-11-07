@@ -375,11 +375,12 @@ static void presetExpectEverythingInMemory(
 	}
 }
 
-// Checks no held collection holds all of the collection it reads from.
+// Checks no held collection holds all of the collection it reads from. The
+// strings are left out, as they stay held when all of them are needed.
 static void presetExpectNoWholeHeld(fiftyoneDegreesResourceManager* manager) {
 	PresetDataSet dataSet(manager);
 	const fiftyoneDegreesCollection* collections[] = {
-		dataSet->strings, dataSet->values, dataSet->profiles,
+		dataSet->values, dataSet->profiles,
 		dataSet->profileGroups, dataSet->profileOffsets };
 	for (const fiftyoneDegreesCollection* collection : collections) {
 		if (string(collection->typeName) == presetHeldType) {
@@ -794,6 +795,23 @@ TEST_F(IpiPresetTests, HighPerformanceLoadsACollectionNeededInFullAsAnyOther) {
 		presetHeldType,
 		PresetDataSet(&manager.manager)->values->typeName);
 	EXPECT_NO_FATAL_FAILURE(presetExpectNoWholeHeld(&manager.manager));
+}
+
+// The names of the required properties are read from the strings while the
+// data set is created, and released through them when it is freed, so the
+// strings stay held even when every one of them is needed.
+TEST_F(IpiPresetTests, HighPerformanceKeepsStringsNeededInFullHeld) {
+	const string smallFile = GetFilePath(_dataFolderName, presetAsnFileName);
+	if (smallFile.empty()) {
+		GTEST_SKIP() << "The small data file was not found.";
+	}
+	PresetManager manager(
+		smallFile,
+		fiftyoneDegreesIpiHighPerformanceConfig,
+		"AsnName");
+	PresetDataSet dataSet(&manager.manager);
+	ASSERT_STREQ(presetHeldType, dataSet->strings->typeName);
+	EXPECT_TRUE(presetHeldIsWhole(dataSet->strings));
 }
 
 TEST_F(IpiPresetTests, NamingNothingKeepsThePreset) {
