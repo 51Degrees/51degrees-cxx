@@ -247,12 +247,13 @@ targets. Package managers build from a source archive, which has neither the
 submodules nor the Git history, so a build with `BUILD_TESTING` and
 `FIFTYONE_BUILD_EXAMPLES` off must not read `data` or download anything.
 
-## Balanced and required properties
+## HighPerformance and required properties
 
-Naming fewer properties than the data file has changes what the Balanced preset
-holds in memory (`heldInit` in `src/ipi/ipi.c`). Anything not held reads from
-the file, so a mistake in what is held makes a lookup slower and never wrong.
-Memory must not rise above what naming nothing uses.
+Naming fewer properties than the data file has changes what the HighPerformance
+preset loads into memory (`heldInit` in `src/ipi/ipi.c`). Anything not loaded
+reads from the file, so a mistake in what is loaded makes a lookup slower and
+never wrong. A lookup that reads the named properties must read nothing from
+the file. Balanced holds the same whatever is named.
 
 ## Data files
 

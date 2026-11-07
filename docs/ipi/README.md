@@ -1,8 +1,8 @@
 # 51Degrees Ip Intelligence API
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api "Data rewards the curious") **IP Intelligence in C**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-cxx/main/.github/images/logo-160.png "Data rewards the curious") **IP Intelligence in C**
 
-[C Documentation](https://51degrees.com/documentation/apis/ip-intelligence-cxx/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api) and the [C++ Documentation](https://51degrees.com/documentation/apis/ip-intelligence-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api).
+[C Documentation](https://51degrees.com/documentation/apis/ip-intelligence-cxx/group___fifty_one_degrees_ip_intelligence_api.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api) and the [C++ Documentation](https://51degrees.com/documentation/apis/ip-intelligence-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-ip-intelligence-api).
 
 The 51Degrees IP intelligence API is built on the 51Degrees [common API](../../src/common/README.md).
 
@@ -30,25 +30,15 @@ same for every product in this repository, and are described in the
 
 ## Memory and the required properties
 
-The Balanced configuration (`fiftyoneDegreesIpiBalancedConfig`, or `setBalanced()` in C++) holds the strings, the graphs, the profile offsets and the property types in memory, and reads values and profiles through caches of 50,000 values and 10,000 profiles. The C API uses it when no configuration is given.
+The HighPerformance configuration (`fiftyoneDegreesIpiHighPerformanceConfig`, or `setHighPerformance()` in C++) loads the data file into memory. When the required properties name some but not all of the properties in the data file, it loads only what they read:
 
-Naming the required properties is all it takes to get more from it. There is no other setting. When fewer properties are named than the data file has, the parts of the file they do not read stay on file:
+- The graphs, profile offsets, profile groups and profiles of the components the named properties belong to.
+- The values of the named properties, with their default values.
+- The strings of those values, leaving on file any stretch of at least 64 KiB that no named property reads. For example, the polygons of `Areas` stay on file unless `Areas` is named.
 
-- The graphs of components with no required property.
-- Stretches of strings of at least 64 KiB that no required property reads. For example, the polygons of `Areas` stay on file unless `Areas` is named.
+The components, maps, properties and property types are always loaded. A lookup that reads the named properties reads nothing from the file. Anything else reads from the file, so it still works, more slowly and allocating memory. That covers a direct graph call for a component with no named property, and meta data for what was not named. A property that was not named gives no value, as it does with every other configuration. Naming no properties, or every one, loads everything.
 
-The memory that frees is then spent, in this order, as far as it lasts:
-
-1. The values of the required properties, smallest first.
-2. The profile groups.
-3. The profiles of the components with a required property, smallest first.
-4. A larger profile cache, then part of the next component's profiles if at least half of them fit.
-
-The memory used does not rise above what naming nothing uses, and the answers do not change. A caller who names nothing, or every property, gets the configuration as it is, with only the default value of each property held in memory. A lookup reads the default of each mandatory property its profile has no value for, so holding the defaults means those reads take no lock and read nothing from the file.
-
-Whatever is named, a profile read through a cache is read once for each lookup rather than once for each property, which uses 512 bytes for each component in each set of results.
-
-Anything not held reads from the file, so it still works, more slowly and allocating memory. That covers a direct graph call for a component with no required property, and meta data for what was not named. A property that was not named gives no value, as it does with every other configuration.
+The Balanced configuration (`fiftyoneDegreesIpiBalancedConfig`, or `setBalanced()` in C++) holds the strings, the graphs, the profile offsets and the property types in memory, and reads values, profiles and profile groups through caches of 100,000 values, 20,000 profiles and 50,000 profile groups. The default value of each required property is held in memory too, and the profile of each result is read through the cache once for each lookup rather than once for each property, which uses 512 bytes for each component in each set of results. A lookup reads the default of each mandatory property its profile has no value for, so holding the defaults means those reads take no lock and read nothing from the file. Naming the required properties does not change what Balanced holds. The C API uses Balanced when no configuration is given.
 
 ## Address forms
 
@@ -102,7 +92,7 @@ There are several examples available, the source files can be found in the [`exa
 
 ### ⚠️ Required files
 
-See the data repository README ([local](../../data/README.md) / [GitHub](https://github.com/51Degrees/data#get-the-data-files)) on how to download the necessary files.
+See the [data repository README](https://github.com/51Degrees/data#get-the-data-files) on how to download the necessary files.
 
 ### Running examples in Visual Studio
 
