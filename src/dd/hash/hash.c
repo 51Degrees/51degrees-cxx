@@ -2531,7 +2531,7 @@ static void initDataSet(DataSetHash *dataSet, ConfigHash **config) {
 	// can freed.
 	resetDataSet(dataSet);
 
-	// Copy the configuration into the data set to ensure it's always
+	// Copy the configuration into the data set to ensure it's always 
 	// available in cases where the source configuration gets freed.
 	memcpy((void*)&dataSet->config, *config, sizeof(ConfigHash));
 	dataSet->b.b.config = &dataSet->config;
