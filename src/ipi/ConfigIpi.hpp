@@ -126,9 +126,9 @@ namespace FiftyoneDegrees {
 			/**
 			 * Set the expected number of operations that use the engine at
 			 * the same time, which defaults to the number of processors. It
-			 * is the number of file handles in the pool, and an operation
-			 * that has to read the file when every handle is in use waits
-			 * for one. Each cache is split into as many parts as this, or
+			 * is the number of file handles in the pool, up to 64, and an
+			 * operation that has to read the file when every handle is in use
+			 * waits for one. Each cache is split into as many parts as this, or
 			 * fewer so that every part holds an item for each operation, and
 			 * a smaller cache is made that large. It has no effect when every
 			 * collection is held in memory, and choosing a performance

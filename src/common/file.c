@@ -1008,6 +1008,9 @@ fiftyoneDegreesStatusCode fiftyoneDegreesFilePoolInit(
 	if (concurrency <= 0) {
 		return INVALID_COLLECTION_CONFIG;
 	}
+	if (concurrency > FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES) {
+		concurrency = FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES;
+	}
 	if (PoolInit(
 			&filePool->pool,
 			concurrency,

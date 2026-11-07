@@ -24,9 +24,11 @@
  * @file IpiConcurrencyTests.cpp
  * @brief Checks that Concurrency defaults to the processor count, that a
  * performance profile keeps it, that the file pool has a handle for each
- * operation, and that no value of it stops the engine building.
+ * operation up to the most it opens, and that no value of it stops the
+ * engine building.
  */
 
+#include <algorithm>
 #include <string>
 #include "Constants.hpp"
 #include "../common/Base.hpp"
@@ -106,7 +108,7 @@ TEST_F(IpiConcurrencyTests, PerformanceProfile_KeepsTheConcurrency) {
 	EXPECT_EQ(setConcurrencyBeforeProfile, config.getConcurrency());
 }
 
-TEST_F(IpiConcurrencyTests, DefaultConfig_FilePoolHasAHandleForEachProcessor) {
+TEST_F(IpiConcurrencyTests, DefaultConfig_FilePoolFollowsTheProcessorCount) {
 	if (path.empty()) {
 		GTEST_SKIP() << "The ASN data file was not found.";
 	}
@@ -114,7 +116,9 @@ TEST_F(IpiConcurrencyTests, DefaultConfig_FilePoolHasAHandleForEachProcessor) {
 	ASSERT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, init(&config));
 	fiftyoneDegreesDataSetIpi* dataSet = fiftyoneDegreesDataSetIpiGet(&manager);
 	EXPECT_EQ(
-		fiftyoneDegreesThreadingGetProcessorCount(),
+		std::min<uint16_t>(
+			fiftyoneDegreesThreadingGetProcessorCount(),
+			FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES),
 		dataSet->b.b.filePool.pool.count);
 	EXPECT_EQ(
 		fiftyoneDegreesThreadingGetProcessorCount(),
@@ -141,6 +145,12 @@ TEST_F(IpiConcurrencyTests, HighConcurrency_Builds) {
 	config.propertyTypes.concurrency = highConcurrency;
 	config.graph.concurrency = highConcurrency;
 	ASSERT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, init(&config));
+	fiftyoneDegreesDataSetIpi* dataSet = fiftyoneDegreesDataSetIpiGet(&manager);
+	EXPECT_EQ(
+		FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES,
+		dataSet->b.b.filePool.pool.count) <<
+		"The file pool should open no more than the most handles.";
+	fiftyoneDegreesDataSetIpiRelease(dataSet);
 
 	fiftyoneDegreesResultsIpi* results =
 		fiftyoneDegreesResultsIpiCreate(&manager);
