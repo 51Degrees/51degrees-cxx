@@ -30,7 +30,7 @@
     <ClCompile Include="..\..\..\test\ipi\EngineIpiAddressAnswerTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\test\ipi\EngineIpiBalancedTests.cpp">
+    <ClCompile Include="..\..\..\test\ipi\EngineIpiPresetTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\EngineIpiGraphFilterTests.cpp">
