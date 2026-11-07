@@ -170,8 +170,8 @@ static unsigned int POWERS[129] = {
 concurrency = config->t.concurrency; }
 
 /* A concurrency of 0 is one operation for each processor. */
-#define DEFAULT_CONCURRENCY(t) if (dataSet->config.t.concurrency == 0) { \
-dataSet->config.t.concurrency = ThreadingGetProcessorCount(); }
+#define DEFAULT_CONCURRENCY(c,t) if ((c)->t.concurrency == 0) { \
+(c)->t.concurrency = ThreadingGetProcessorCount(); }
 
 #define COLLECTION_CREATE_MEMORY(t) \
 dataSet->t = CollectionCreateFromMemory( \
@@ -2535,15 +2535,16 @@ static void initDataSet(DataSetHash *dataSet, ConfigHash **config) {
 	// available in cases where the source configuration gets freed.
 	memcpy((void*)&dataSet->config, *config, sizeof(ConfigHash));
 	dataSet->b.b.config = &dataSet->config;
-	DEFAULT_CONCURRENCY(strings);
-	DEFAULT_CONCURRENCY(components);
-	DEFAULT_CONCURRENCY(maps);
-	DEFAULT_CONCURRENCY(properties);
-	DEFAULT_CONCURRENCY(values);
-	DEFAULT_CONCURRENCY(profiles);
-	DEFAULT_CONCURRENCY(rootNodes);
-	DEFAULT_CONCURRENCY(nodes);
-	DEFAULT_CONCURRENCY(profileOffsets);
+	ConfigHash *copy = (ConfigHash*)&dataSet->config;
+	DEFAULT_CONCURRENCY(copy, strings);
+	DEFAULT_CONCURRENCY(copy, components);
+	DEFAULT_CONCURRENCY(copy, maps);
+	DEFAULT_CONCURRENCY(copy, properties);
+	DEFAULT_CONCURRENCY(copy, values);
+	DEFAULT_CONCURRENCY(copy, profiles);
+	DEFAULT_CONCURRENCY(copy, rootNodes);
+	DEFAULT_CONCURRENCY(copy, nodes);
+	DEFAULT_CONCURRENCY(copy, profileOffsets);
 }
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
