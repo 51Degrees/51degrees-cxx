@@ -1069,6 +1069,13 @@ static StatusCode createProfilesFromFile(
 #define HELD_COMPONENT_IDS 256
 
 /**
+ * Blocks of keys for each range held. A read starts from the first range that
+ * ends after the start of the key's block, so more blocks mean fewer ranges
+ * checked.
+ */
+#define HELD_BLOCKS_PER_RANGE 16
+
+/**
  * A stretch of a collection held in memory, in the units of the collection's
  * keys.
  */
@@ -1088,12 +1095,15 @@ typedef struct held_collection_t {
 	uint32_t unitBytes; /* Bytes in each unit of a key */
 	uint32_t count; /* Number of ranges */
 	heldRange* ranges; /* The ranges in the order of their keys */
+	uint32_t blockShift; /* Bits of a key below the number of its block */
+	uint32_t blockCount; /* Blocks up to the end of the last range */
+	uint32_t* blocks; /* The first range ending after each block starts */
 } heldCollection;
 
 /**
  * Gets an item from the range that holds it, or from the source when no range
- * does. Each range holds whole records, so an item that starts in a range ends
- * in it.
+ * does. The key's block gives the first range that could hold it. Each range
+ * holds whole records, so an item that starts in a range ends in it.
  */
 static void* heldGet(
 	const Collection* collection,
@@ -1103,24 +1113,20 @@ static void* heldGet(
 	const heldCollection* const state =
 		(const heldCollection*)collection->state;
 	const uint32_t position = key->indexOrOffset.offset;
-	uint32_t low = 0;
-	uint32_t high = state->count;
-	while (low < high) {
-		const uint32_t middle = low + (high - low) / 2;
-		const heldRange* const range = &state->ranges[middle];
-		if (position < range->first) {
-			high = middle;
-		}
-		else if (position >= range->end) {
-			low = middle + 1;
-		}
-		else {
-			byte* const ptr = range->memory +
-				(size_t)((uint64_t)(position - range->first) * state->unitBytes);
-			item->data.ptr = ptr;
-			item->handle = NULL;
-			item->collection = collection;
-			return ptr;
+	const uint32_t block = position >> state->blockShift;
+	if (block < state->blockCount) {
+		const heldRange* const last = state->ranges + state->count;
+		for (const heldRange* range = state->ranges + state->blocks[block];
+			range < last && range->first <= position;
+			range++) {
+			if (position < range->end) {
+				byte* const ptr = range->memory + (size_t)(
+					(uint64_t)(position - range->first) * state->unitBytes);
+				item->data.ptr = ptr;
+				item->handle = NULL;
+				item->collection = collection;
+				return ptr;
+			}
 		}
 	}
 	void* const ptr = state->source->get(state->source, key, item, exception);
@@ -1209,8 +1215,16 @@ static StatusCode heldCreate(
 	if (count == 0) {
 		return SUCCESS;
 	}
+	const uint32_t end = ranges[count - 1].end;
+	uint32_t shift = 0;
+	while (((uint64_t)end >> shift) > (uint64_t)count * HELD_BLOCKS_PER_RANGE) {
+		shift++;
+	}
+	const uint32_t blockCount = ((end - 1) >> shift) + 1;
 	heldCollection* const state = (heldCollection*)Malloc(
-		sizeof(heldCollection) + count * sizeof(heldRange));
+		sizeof(heldCollection) +
+		count * sizeof(heldRange) +
+		blockCount * sizeof(uint32_t));
 	if (state == NULL) {
 		return INSUFFICIENT_MEMORY;
 	}
@@ -1224,6 +1238,15 @@ static StatusCode heldCreate(
 	state->unitBytes = unitBytes;
 	state->count = 0;
 	state->ranges = (heldRange*)(state + 1);
+	state->blockShift = shift;
+	state->blockCount = blockCount;
+	state->blocks = (uint32_t*)(state->ranges + count);
+	for (uint32_t b = 0, r = 0; b < blockCount; b++) {
+		while (r < count && ranges[r].end <= ((uint64_t)b << shift)) {
+			r++;
+		}
+		state->blocks[b] = r;
+	}
 	*held = **collection;
 	held->state = state;
 	held->get = heldGet;
