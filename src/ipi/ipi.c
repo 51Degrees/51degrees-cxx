@@ -1048,7 +1048,7 @@ static StatusCode createProfilesFromFile(
  * only reads part of the data file. Only that part is loaded into memory, and
  * the rest reads from the file. Each stretch held is made of whole records, so
  * a lookup that reads the named properties reads nothing from the file, and
- * anything else gets the same answer as before, more slowly.
+ * anything else still gets the same answer, more slowly.
  *
  * With the Balanced preset, the default value of each required property is
  * held, which a lookup reads for each mandatory property its profile has no
@@ -1284,9 +1284,9 @@ static StatusCode heldCreate(
 /**
  * Holds the ranges of a collection that reads from the file. A collection that
  * is needed in full is loaded into memory like any other if it can be
- * replaced, and one with nothing needed stays on file. A collection that items
- * read while the data set was created are still released through cannot be
- * replaced.
+ * replaced, and one with nothing needed stays on file. A collection cannot be
+ * replaced while items read from it when the data set was created are still to
+ * be released through it.
  */
 static StatusCode heldApply(
 	DataSetIpi* dataSet,
