@@ -31,6 +31,7 @@
     <ClCompile Include="..\..\..\test\dd\hash\HashSizeManagerFromMemoryTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashGettingStartedTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashReloadTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashConcurrentReadTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashFailedReadTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashLoadFailureTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashShortFileTests.cpp" />

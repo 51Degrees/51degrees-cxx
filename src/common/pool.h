@@ -210,6 +210,7 @@ typedef struct fiftyone_degrees_pool_t {
 	fiftyoneDegreesPoolResourceFree resourceFree; /**< Frees a resource */
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	volatile long waiting; /**< Number of threads waiting for an item */
+	long waits; /**< Times a get has slept for an item, under the lock */
 	fiftyoneDegreesMutex lock; /**< Guards the count and the wait for an item */
 #ifdef _MSC_VER
 	CONDITION_VARIABLE released; /**< Wakes a waiting thread */
