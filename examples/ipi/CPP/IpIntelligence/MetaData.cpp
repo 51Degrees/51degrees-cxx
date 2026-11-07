@@ -164,12 +164,20 @@ namespace FiftyoneDegrees {
 
 
 					cout << "\n\nGet specific property value\n";
+					if (!hasProperty("IpRangeStart")) {
+						cout << "IpRangeStart - " << needsEnterprise << "\n";
+					}
 					auto const values = std::unique_ptr<Collection<ValueMetaDataKey, ValueMetaData>>(engine->getMetaData()->getValues());
 					auto const value = std::unique_ptr<ValueMetaData>(values->getByKey(ValueMetaDataKey("IpRangeStart", "0.0.0.0")));
 					if (value != nullptr) {
 						cout << value->getKey().getPropertyName() << " - " << value->getName() 
 							<< " - " << value->getDescription() << "\n";
 					}
+
+					// On a free data file, say what the Enterprise data file
+					// adds and where to ask for a copy.
+					offerEnterprise(
+						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-ipintelligence-metadata.cpp&utm_term=free-data-file");
 				}
 			};
 		}

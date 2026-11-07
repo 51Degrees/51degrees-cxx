@@ -18,7 +18,9 @@ The examples resolve the location of the data file in the following order:
 
 1. A path supplied as a command line argument to the example.
 2. The `51DEGREES_IPI_PATH` environment variable containing an explicit path to the data file.
-3. A search of the parent folder structure for the expected file name in the `data/ip-intelligence` folder, where the free 'Lite' data file is downloaded to. When it is missing there, the example runs the data repository's script to download it.
+3. A search of the parent folder structure for the example's default file in the `data/ip-intelligence` folder, where the scripts save the free data files. Most examples default to the free Lite data file. The performance and reload examples default to the far smaller free ASN data file, as any data file will do for them. When the file is missing there, the example runs the data repository's script to download it.
+
+On a free data file, the examples show the properties only the Enterprise data file has as needing it, with a link to ask for a copy. The country overlap example needs properties only the Enterprise data file has, so on a free data file it says which, gives the link and stops.
 
 Note that on Linux shells the `51DEGREES_IPI_PATH` variable name starts with a digit, so it must be set with the `env` command, for example `env 51DEGREES_IPI_PATH=/path/to/file.ipi ./GettingStarted`, rather than a plain `export`.
 
@@ -95,11 +97,14 @@ All the examples are available to run in the `VisualStudio/IpIntelligence/IpInte
 |Example|Description|Language|
 |-------|-----------|--------|
 |Getting Started|This example shows how to get set up with an IP Intelligence engine and begin using it to process IP addresses.|C / C++|
+|Country Overlap|This example measures how often the likely area of an IPv4 address crosses a country border, and writes the results to a CSV file. It needs the Enterprise data file.|C|
+|Find Profiles|This example iterates over every profile in the data file that has a given property value, such as a registered country.|C|
 |Meta Data|This example shows how to interrogate the meta data associated with the contents of an IP Intelligence data file.|C++|
 |MemIpi|This example measures the memory usage of the IP Intelligence process.|C|
 |Offline Processing|This example shows how process data for later viewing using an IP Intelligence data file.|C|
 |PerfIpi|Command line performance evaluation program which takes a file of IP addresses and returns a performance score measured in lookups per second per CPU core.|C|
+|Performance|This example times looking up the IP addresses in an evidence file, first for a few properties and then for every property.|C|
 |ProcIpi|Command line process which takes an IP address via stdin and return IP intelligence properties via stdout.|C|
 |Reload From File|This example illustrates how to reload the data file from the data file on disk without restarting the application.|C / C++|
 |Reload From Memory|This example illustrates how to reload the data file from a continuous memory space that the data file was read into without restarting the application.|C / C++|
-|Strongly Typed|This example  takes some IP addresses and returns the value of the AverageLocation property as a coordinate which is a pair of float.|C / C++|
+|Strongly Typed|This example takes some IP addresses and returns the Longitude and Latitude properties as numbers, and the Areas property, which all need the Enterprise data file.|C++|

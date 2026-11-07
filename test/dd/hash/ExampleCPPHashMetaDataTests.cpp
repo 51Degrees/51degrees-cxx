@@ -36,9 +36,22 @@ public:
 		metaData->run();
 		delete metaData;
 
-		// Don't print the stdout
+		// Only on the free Lite data file does the example say what the
+		// Enterprise data file adds.
 		std::string output = testing::internal::GetCapturedStdout();
+		EXPECT_EQ(dataFilePath.find("Lite") != std::string::npos,
+			output.find("utm_term=lite-data-file") != std::string::npos) <<
+			output;
 	}
 };
 
 EXAMPLE_HASH_TESTS(ExampleCPPHashMetaDataTests)
+
+// A fresh clone has the free Lite data file, which the example runs on.
+TEST_F(ExampleCPPHashMetaDataTests, LiteDataFile) {
+	dataFilePath = getLiteDataFilePath();
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The Lite data file is not present.";
+	}
+	run(fiftyoneDegreesHashInMemoryConfig);
+}
