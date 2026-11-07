@@ -138,9 +138,10 @@ static performanceSettings settings = {
  * thus provide maximum performance can be used to further improve performance.
  * 
  * InMemory - all the data is loaded into memory and file closed. Fast.
+ * HighPerformance - all the data is loaded into memory from the data file, or
+ *   only what the required properties read when some are named. Fast.
  * Balanced - popular data is loaded into memory, other cached and loaded from 
- *   data file. Quite slow, but okay for web sites. Naming the required
- *   properties holds what they read in memory, which makes it much faster.
+ *   data file. Quite slow, but okay for web sites.
  * LowMemory - all data loaded from data file when needed. Slow.
  */
 performanceConfig performanceConfigs[] = {

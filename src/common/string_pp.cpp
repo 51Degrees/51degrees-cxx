@@ -31,10 +31,6 @@
 
 #include "fiftyone.h"
 
-// Bytes of text expected for each byte of a stored geometry. More than the
-// data needs, and a value which needs more only costs another conversion.
-static const size_t TEXT_PER_GEOMETRY_BYTE = 5;
-
 namespace FiftyoneDegrees::Common {
 FIFTYONE_DEGREES_COMMON_CXX_BEGIN
     void writeStoredBinaryValueToStringStream(
@@ -59,7 +55,8 @@ FIFTYONE_DEGREES_COMMON_CXX_BEGIN
         const size_t estimate =
             (valueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB ||
                 valueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R)
-            ? (size_t)binaryValue->byteArrayValue.size * TEXT_PER_GEOMETRY_BYTE
+            ? (size_t)binaryValue->byteArrayValue.size *
+                FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE
             : 0;
         if (estimate >= REASONABLE_WKT_STRING_LENGTH) {
             toWktResult = {

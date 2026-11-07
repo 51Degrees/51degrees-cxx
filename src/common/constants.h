@@ -41,6 +41,13 @@ static const uint8_t fiftyoneDegreesIpAddressStringMaxLength = 50;
 #define FIFTYONE_DEGREES_REASONABLE_WKT_STRING_LENGTH 128
 
 /**
+ * Bytes of text expected for each byte of a stored geometry. More than the
+ * data needs, so a buffer this many times the size of the geometry holds its
+ * text, and a value which needs more only costs another conversion.
+ */
+#define FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE 5
+
+/**
  * Max. number of decimal places to be printed for a double.
  */
 #define FIFTYONE_DEGREES_MAX_DOUBLE_DECIMAL_PLACES 15
