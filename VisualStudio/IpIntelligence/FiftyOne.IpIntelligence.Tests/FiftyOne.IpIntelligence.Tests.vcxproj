@@ -39,6 +39,7 @@
     <ClCompile Include="..\..\..\test\ipi\HeaderStatusTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\InvalidVersionTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiDoubleTextTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiFailedReadTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadFileTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadRuleTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadTests.cpp" />
