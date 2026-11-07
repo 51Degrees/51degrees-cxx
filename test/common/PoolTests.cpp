@@ -120,6 +120,16 @@ void freeResource(
 	resource->isSet = false;
 }
 
+// Shared by every item of a pool too large for a resource each.
+static testResource sharedResource;
+
+void* createSharedResource(
+	fiftyoneDegreesPool* pool,
+	void* state,
+	fiftyoneDegreesException* exception) {
+	return &sharedResource;
+}
+
 #ifdef _MSC_VER
 #pragma warning (default: 4100)
 #endif
@@ -148,6 +158,34 @@ TEST_F(Pool, PoolInit) {
 	// Assert
 	EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
 	ASSERT_EQ(result, &pool);
+}
+
+/**
+ * Check that a pool asked for more items than 16 bits can index, with room
+ * for the null marker, holds the most it can rather than none.
+ */
+TEST_F(Pool, PoolInitMostItems) {
+	// Arrange
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+
+	// Act
+	fiftyoneDegreesPoolInit(
+		&pool,
+		UINT16_MAX,
+		nullptr,
+		createSharedResource,
+		nullptr,
+		exception);
+
+	// Assert
+	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	EXPECT_EQ(UINT16_MAX - 1, pool.count);
+	fiftyoneDegreesPoolItem* item = fiftyoneDegreesPoolItemGet(
+		&pool,
+		exception);
+	ASSERT_NE(nullptr, item);
+	EXPECT_EQ((void*)&sharedResource, item->resource);
+	fiftyoneDegreesPoolItemRelease(item);
 }
 
 /**

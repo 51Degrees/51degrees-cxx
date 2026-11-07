@@ -120,8 +120,8 @@ public:
 	void verify(int minCapacity, int concurrency) {
 		ASSERT_LE(minCapacity, cache->capacity) <<
 			"The cache capacity was not set correctly.";
-		ASSERT_EQ(concurrency, cache->concurrency) <<
-			"The cache concurrency was not set correctly.";
+		ASSERT_EQ(concurrency, cache->shardCount) <<
+			"The cache should have a shard for each operation.";
 		ASSERT_EQ((void*)TEST_STRINGS, (void*)cache->loaderState) <<
 			"The cache parameters were not set correctly.";
 		ASSERT_EQ(&load, (void*)cache->load) <<
@@ -130,7 +130,7 @@ public:
 			"The cache hits were not initialised to zero.";
 		ASSERT_EQ(0, cache->misses) <<
 			"The cache misses were not initialised to zero.";
-		EXPECT_LE(cache->concurrency, minCapacity / cache->concurrency) <<
+		EXPECT_LE(cache->shardCount, minCapacity / cache->shardCount) <<
 			"Concurrency is too low for a successful test.";
 	}
 	
@@ -365,16 +365,58 @@ TEST_CACHE_METHODS(OneTwo, 2, 1, 0, TEST_STRINGS_COUNT * 2)
 TEST_CACHE_METHODS_BASIC(OneOne, 1, 1, 0, TEST_STRINGS_COUNT * 2)
 
 /**
- * Check that a cache is not returned when an attempt is made to create a cache
- * with a concurrency setting which is too high. When the concurrency is high
- * enough that the number of nodes in a single shard is greater than the
- * concurrency, then null should be returned as the cache would not be safe for
- * that many threads.
+ * Check that a cache too small for as many shards as the concurrency is still
+ * created, with fewer shards that each hold a node for every concurrent
+ * operation, and that it returns the right values.
  */
 TEST_CACHE(HighConcurrency, TEST_STRINGS_COUNT, 100);
-TEST_F(CacheTestHighConcurrency, FailHighConcurrency) {
-ASSERT_EQ((void*)cache, (void*)NULL) <<
-	"An unsafe cache was returned. Construction should have failed.";
+TEST_F(CacheTestHighConcurrency, FewerShards) {
+	ASSERT_NE(nullptr, cache) <<
+		"No concurrency should stop the cache being created.";
+	EXPECT_LT(cache->shardCount, 100) <<
+		"The cache is too small for a shard for each operation.";
+	for (uint16_t i = 0; i < cache->shardCount; i++) {
+		EXPECT_GE(cache->shards[i].capacity, 100u) <<
+			"Each shard should hold a node for every operation.";
+	}
+	random();
+}
+
+/**
+ * Check the shards for capacities and concurrencies either side of the point
+ * where the cache becomes too small for a shard for each operation, and that
+ * a cache smaller than the concurrency grows to it.
+ */
+TEST_F(CacheTest, ShardsFollowConcurrency) {
+	struct ShardCase {
+		uint32_t capacity;
+		uint16_t concurrency;
+		uint16_t shards;
+	};
+	const ShardCase cases[] = {
+		{ 500, 10, 10 },
+		{ 500, 32, 15 },
+		{ 50, 10, 5 },
+		{ 5, 10, 1 },
+		{ 10, 100, 1 },
+		{ 0, 0, 1 },
+	};
+	for (const ShardCase& c : cases) {
+		createCache(c.capacity, c.concurrency);
+		ASSERT_NE(nullptr, cache) <<
+			c.capacity << " items with concurrency " << c.concurrency;
+		const uint32_t operations = c.concurrency == 0 ? 1 : c.concurrency;
+		EXPECT_EQ(c.shards, cache->shardCount) <<
+			c.capacity << " items with concurrency " << c.concurrency;
+		EXPECT_GE((uint32_t)cache->capacity, operations) <<
+			c.capacity << " items with concurrency " << c.concurrency;
+		for (uint16_t i = 0; i < cache->shardCount; i++) {
+			EXPECT_GE(cache->shards[i].capacity, operations) <<
+				c.capacity << " items with concurrency " << c.concurrency;
+		}
+		fiftyoneDegreesCacheFree(cache);
+		cache = NULL;
+	}
 }
 TEST_F(CacheTestOneHalf, Evict) {
 	evict(TEST_STRINGS_COUNT / 2, TEST_STRINGS_COUNT / 2);

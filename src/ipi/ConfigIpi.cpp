@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include "ConfigIpi.hpp"
+#include "../common/threading.h"
 
 using namespace std;
 using namespace FiftyoneDegrees::IpIntelligence;
@@ -29,6 +30,10 @@ using namespace FiftyoneDegrees::IpIntelligence;
 ConfigIpi::ConfigIpi() : ConfigBase(&this->config.b) {
 	config = fiftyoneDegreesIpiInMemoryConfig;
 	initCollectionConfig();
+	// A concurrency of 0 is one operation for each processor.
+	if (getConcurrency() == 0) {
+		setConcurrency(fiftyoneDegreesThreadingGetProcessorCount());
+	}
 }
 
 ConfigIpi::ConfigIpi(fiftyoneDegreesConfigIpi *config) :
@@ -36,14 +41,21 @@ ConfigIpi::ConfigIpi(fiftyoneDegreesConfigIpi *config) :
 	this->config = config != nullptr ?
 		*config : fiftyoneDegreesIpiInMemoryConfig;
 	initCollectionConfig();
+	// A concurrency of 0 is one operation for each processor.
+	if (getConcurrency() == 0) {
+		setConcurrency(fiftyoneDegreesThreadingGetProcessorCount());
+	}
 }
 
 void ConfigIpi::setPerformanceFromExistingConfig(
 	const fiftyoneDegreesConfigIpi &existing) {
+	// The profile sets how each collection is held, not the concurrency.
+	const uint16_t concurrency = getConcurrency();
 	const fiftyoneDegreesConfigBase b = config.b;
 	config = existing;
 	config.b = b;
 	config.b.allInMemory = existing.b.allInMemory;
+	setConcurrency(concurrency);
 }
 
 void ConfigIpi::setHighPerformance() {

@@ -37,11 +37,12 @@
  *
  * The #fiftyoneDegreesFilePoolInit method is used to initialise a pointer to
  * a #fiftyoneDegreesFilePool. A concurrency value is provided to indicate the
- * number of file handles to open, which is the number of threads that can
- * read the file at the same time. Further threads wait until a handle is
- * released. When compiled in single threaded operation a pool is not strictly
- * required and the implementation maintains a simple stack for consistency of
- * interface and to minimise divergent code.
+ * number of file handles to open, up to
+ * #FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES, which is the number of threads
+ * that can read the file at the same time. Further threads wait until a
+ * handle is released. When compiled in single threaded operation a pool is
+ * not strictly required and the implementation maintains a simple stack for
+ * consistency of interface and to minimise divergent code.
  *
  * ## Get & Release
  *
@@ -215,6 +216,13 @@
 #else
 #define FIFTYONE_DEGREES_FILE_MAX_PATH 4096
 #endif
+
+/**
+ * The most file handles a file pool opens, whatever the concurrency. Further
+ * operations wait for a handle, which keeps a process within the limit its
+ * system puts on open files.
+ */
+#define FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES 64
 
 
 /**
@@ -437,11 +445,12 @@ EXTERNAL DEPRECATED fiftyoneDegreesStatusCode fiftyoneDegreesFileCreateTempFile(
 
 /**
  * Initialises the pool with a stack of open read only file handles all 
- * associated with the file name. The concurrency parameter determines the 
- * number of items in the stack.
+ * associated with the file name. The concurrency parameter determines the
+ * number of items in the stack, up to #FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES.
  * @param filePool to be initialised
  * @param fileName full path to the file to open
- * @param concurrency number of items in the stack
+ * @param concurrency number of operations expected to read the file at the
+ * same time
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the result of the open operation

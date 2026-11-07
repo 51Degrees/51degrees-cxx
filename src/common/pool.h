@@ -227,7 +227,8 @@ typedef struct fiftyone_degrees_pool_t {
  * pool which will be freed during when the release method is called on the
  * pool using the resourceFree method.
  * @param pool data structure to be initialised.
- * @param concurrency the number of resources the pool should contain.
+ * @param concurrency the number of resources the pool should contain, at most
+ * 65,534 as the items are indexed by 16 bits.
  * @param state passed to the create resource method.
  * @param resourceCreate method used to create the resource to be added to 
  * items in the pool.

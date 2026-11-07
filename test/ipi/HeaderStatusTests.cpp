@@ -221,20 +221,3 @@ TEST_F(HeaderStatusTests, ShiftedProfilesBeyondFile) {
 		"complete and uncompressed",
 		"configuration");
 }
-
-/**
- * A cache too small for its concurrency, on a file whose header is sound, is
- * still reported as a fault in the configuration.
- */
-TEST_F(HeaderStatusTests, CacheTooSmallForConcurrency) {
-	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiLowMemoryConfig;
-	config.strings.capacity = 1;
-	config.strings.concurrency = 2;
-	EXPECT_EQ(
-		FIFTYONE_DEGREES_STATUS_INVALID_COLLECTION_CONFIG,
-		initFromFile(config));
-	expectMessageContains(
-		FIFTYONE_DEGREES_STATUS_INVALID_COLLECTION_CONFIG,
-		"configuration",
-		"uncompressed");
-}
