@@ -21,9 +21,9 @@
  * ********************************************************************* */
 
 /**
- * @file EngineIpiBalancedTests.cpp
- * @brief Tests the Balanced preset, and how naming required properties decides
- * what it holds in memory.
+ * @file EngineIpiPresetTests.cpp
+ * @brief Tests what each preset holds in memory, and how naming the required
+ * properties changes it.
  *
  * Every answer is compared with the Low Memory preset naming the same
  * properties, which reads everything from the file. The tests use the largest
@@ -59,22 +59,18 @@ using namespace std;
 namespace Ipi = FiftyoneDegrees::IpIntelligence;
 namespace Common = FiftyoneDegrees::Common;
 
-// The data file committed to the data submodule, which is always available.
-static const char* balancedAsnFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
+// The free ASN data file, which the data repository's script downloads.
+static const char* presetAsnFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
-static const char* balancedMemoryType = "CollectionMemory";
-static const char* balancedFileType = "CollectionFile";
-static const char* balancedCacheType = "CollectionCache";
-static const char* balancedHeldType = "CollectionHeld";
+static const char* presetMemoryType = "CollectionMemory";
+static const char* presetFileType = "CollectionFile";
+static const char* presetCacheType = "CollectionCache";
+static const char* presetHeldType = "CollectionHeld";
 
-static const size_t balancedBufferBytes = 1024 * 1024;
-
-// The bytes that holding what is named keeps back for its own working, as
-// HELD_RESERVED_BYTES in src/ipi/ipi.c.
-static const size_t balancedReservedBytes = 131072;
+static const size_t presetBufferBytes = 1024 * 1024;
 
 // Sets of properties from the examples, the documentation and common uses.
-static const char* balancedCommonSets[] = {
+static const char* presetCommonSets[] = {
 	"IpRangeStart,IpRangeEnd,RegisteredCountry,RegisteredName,RegisteredOwner",
 	"Asn,AsnName,IsHosted,ConnectionType,Mcc,IsCellular,IsBroadband,IsVPN,"
 	"IsProxy,IsTor,IsPublicRouter,HumanProbability,BrowserDiversity,"
@@ -92,9 +88,9 @@ static const char* balancedCommonSets[] = {
  * A manager over a data file with the required properties given, or every
  * property when there are none, which is freed however the test ends.
  */
-class BalancedManager {
+class PresetManager {
 public:
-	BalancedManager(
+	PresetManager(
 		const string& dataFilePath,
 		fiftyoneDegreesConfigIpi config,
 		const char* required) {
@@ -103,13 +99,13 @@ public:
 		properties.string = required;
 		init(dataFilePath, config, properties);
 	}
-	BalancedManager(
+	PresetManager(
 		const string& dataFilePath,
 		fiftyoneDegreesConfigIpi config,
 		fiftyoneDegreesPropertiesRequired properties) {
 		init(dataFilePath, config, properties);
 	}
-	~BalancedManager() {
+	~PresetManager() {
 		fiftyoneDegreesResourceManagerFree(&manager);
 	}
 	fiftyoneDegreesResourceManager manager;
@@ -136,12 +132,12 @@ private:
 /**
  * The data set of a manager for the length of a scope.
  */
-class BalancedDataSet {
+class PresetDataSet {
 public:
-	explicit BalancedDataSet(fiftyoneDegreesResourceManager* manager) {
+	explicit PresetDataSet(fiftyoneDegreesResourceManager* manager) {
 		dataSet = fiftyoneDegreesDataSetIpiGet(manager);
 	}
-	~BalancedDataSet() {
+	~PresetDataSet() {
 		fiftyoneDegreesDataSetIpiRelease(dataSet);
 	}
 	fiftyoneDegreesDataSetIpi* operator->() const {
@@ -151,7 +147,7 @@ public:
 };
 
 // Addresses across the IPv4 space, and a few from IPv6.
-static vector<string> balancedAddresses() {
+static vector<string> presetAddresses() {
 	vector<string> result = {
 		"50.154.29.201",
 		"1.1.1.1",
@@ -170,7 +166,7 @@ static vector<string> balancedAddresses() {
 	return result;
 }
 
-static void balancedDetect(
+static void presetDetect(
 	fiftyoneDegreesResultsIpi* results,
 	const string& address) {
 	EXCEPTION_CREATE;
@@ -183,7 +179,7 @@ static void balancedDetect(
 }
 
 // Everything a caller reads for one property of the results.
-static string balancedAnswer(
+static string presetAnswer(
 	fiftyoneDegreesResultsIpi* results,
 	const int index,
 	vector<char>& buffer) {
@@ -207,10 +203,10 @@ static string balancedAnswer(
 }
 
 // The answers for every required property of every address.
-static vector<string> balancedAnswers(
+static vector<string> presetAnswers(
 	fiftyoneDegreesResourceManager* manager,
 	const vector<string>& addresses) {
-	vector<char> buffer(balancedBufferBytes);
+	vector<char> buffer(presetBufferBytes);
 	vector<string> answers;
 	fiftyoneDegreesResultsIpi* results =
 		fiftyoneDegreesResultsIpiCreate(manager);
@@ -218,9 +214,9 @@ static vector<string> balancedAnswers(
 		(const fiftyoneDegreesDataSetIpi*)results->b.dataSet;
 	const int count = (int)dataSet->b.b.available->count;
 	for (const string& address : addresses) {
-		balancedDetect(results, address);
+		presetDetect(results, address);
 		for (int i = 0; i < count; i++) {
-			answers.push_back(balancedAnswer(results, i, buffer));
+			answers.push_back(presetAnswer(results, i, buffer));
 		}
 	}
 	fiftyoneDegreesResultsIpiFree(results);
@@ -230,8 +226,8 @@ static vector<string> balancedAnswers(
 /**
  * The types of the collections of a data set which the tests check.
  */
-static string balancedTypes(fiftyoneDegreesResourceManager* manager) {
-	BalancedDataSet dataSet(manager);
+static string presetTypes(fiftyoneDegreesResourceManager* manager) {
+	PresetDataSet dataSet(manager);
 	return string(dataSet->strings->typeName) + " " +
 		dataSet->values->typeName + " " +
 		dataSet->profiles->typeName + " " +
@@ -239,18 +235,191 @@ static string balancedTypes(fiftyoneDegreesResourceManager* manager) {
 		dataSet->profileOffsets->typeName;
 }
 
-static uint32_t balancedCacheCapacity(const fiftyoneDegreesCollection* cached) {
+static uint32_t presetCacheCapacity(const fiftyoneDegreesCollection* cached) {
 	return ((const fiftyoneDegreesCollectionCache*)cached->state)
 		->cache->capacity;
+}
+
+// The state of a held collection, laid out as heldCollection in src/ipi/ipi.c,
+// which the tests read to report and check what is held.
+struct PresetHeldRange {
+	uint32_t first;
+	uint32_t end;
+	uint8_t* memory;
+};
+struct PresetHeldState {
+	fiftyoneDegreesCollection* source;
+	uint64_t bytes;
+	uint32_t unitBytes;
+	uint32_t count;
+	PresetHeldRange* ranges;
+};
+
+// The bytes a collection has in memory, which is none for one that reads the
+// file or a cache.
+static uint64_t presetBytesInMemory(const fiftyoneDegreesCollection* collection) {
+	const string type = collection->typeName;
+	if (type == presetMemoryType) {
+		const fiftyoneDegreesCollectionMemory* memory =
+			(const fiftyoneDegreesCollectionMemory*)collection->state;
+		return (uint64_t)(memory->lastByte - memory->firstByte);
+	}
+	if (type == presetHeldType) {
+		return ((const PresetHeldState*)collection->state)->bytes;
+	}
+	return 0;
+}
+
+// True for a held collection that holds all of the collection it reads from,
+// which should have been loaded into memory like any other.
+static bool presetHeldIsWhole(const fiftyoneDegreesCollection* collection) {
+	const PresetHeldState* held = (const PresetHeldState*)collection->state;
+	const fiftyoneDegreesCollection* source = held->source;
+	const uint64_t units = source->elementSize > 0 ?
+		source->count : source->size;
+	return held->count == 1 && held->ranges[0].first == 0 &&
+		held->ranges[0].end >= units;
+}
+
+// Prints where each collection reads from and the bytes it has in memory.
+static void presetPrintMemory(fiftyoneDegreesResourceManager* manager) {
+	PresetDataSet dataSet(manager);
+	const struct {
+		const char* name;
+		const fiftyoneDegreesCollection* collection;
+	} items[] = {
+		{ "strings", dataSet->strings },
+		{ "components", dataSet->components },
+		{ "maps", dataSet->maps },
+		{ "properties", dataSet->properties },
+		{ "values", dataSet->values },
+		{ "profiles", dataSet->profiles },
+		{ "graphs", dataSet->graphs },
+		{ "profileGroups", dataSet->profileGroups },
+		{ "profileOffsets", dataSet->profileOffsets },
+		{ "propertyTypes", dataSet->propertyTypes } };
+	uint64_t total = 0;
+	for (const auto& item : items) {
+		const uint64_t bytes = presetBytesInMemory(item.collection);
+		total += bytes;
+		printf("%-15s %-17s %14llu bytes\n",
+			item.name,
+			item.collection->typeName,
+			(unsigned long long)bytes);
+	}
+	for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+		const fiftyoneDegreesIpiCg& graph = dataSet->graphsArray->items[g];
+		const uint64_t bytes = presetBytesInMemory(graph.nodes) +
+			presetBytesInMemory(graph.spans) +
+			presetBytesInMemory(graph.spanBytes) +
+			presetBytesInMemory(graph.clusters);
+		total += bytes;
+		printf("graph %2u component %3u IPv%d %-17s %14llu bytes\n",
+			g,
+			(unsigned)graph.info.componentId,
+			(int)graph.info.version,
+			graph.nodes->typeName,
+			(unsigned long long)bytes);
+	}
+	printf("In all %llu bytes\n", (unsigned long long)total);
+}
+
+// Checks each graph is in memory when its component has a required property,
+// and reads the file otherwise. Returns the number in memory.
+static uint32_t presetExpectGraphsOfRequiredComponents(
+	fiftyoneDegreesResourceManager* manager) {
+	PresetDataSet dataSet(manager);
+	vector<bool> required(256, false);
+	for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
+		if (dataSet->componentsAvailable[c]) {
+			required[((const fiftyoneDegreesComponent*)dataSet->componentsList
+				.items[c].data.ptr)->componentId] = true;
+		}
+	}
+	uint32_t inMemory = 0;
+	for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+		const fiftyoneDegreesIpiCg& graph = dataSet->graphsArray->items[g];
+		const char* expected = required[graph.info.componentId] ?
+			presetMemoryType : presetFileType;
+		EXPECT_STREQ(expected, graph.nodes->typeName) << "Graph " << g;
+		EXPECT_STREQ(expected, graph.spans->typeName) << "Graph " << g;
+		EXPECT_STREQ(expected, graph.spanBytes->typeName) << "Graph " << g;
+		EXPECT_STREQ(expected, graph.clusters->typeName) << "Graph " << g;
+		if (string(graph.nodes->typeName) == presetMemoryType) {
+			inMemory++;
+		}
+	}
+	return inMemory;
+}
+
+// Checks every collection, and every graph, is in memory.
+static void presetExpectEverythingInMemory(
+	fiftyoneDegreesResourceManager* manager) {
+	PresetDataSet dataSet(manager);
+	const fiftyoneDegreesCollection* collections[] = {
+		dataSet->strings, dataSet->components, dataSet->maps,
+		dataSet->properties, dataSet->values, dataSet->profiles,
+		dataSet->graphs, dataSet->profileGroups, dataSet->profileOffsets,
+		dataSet->propertyTypes };
+	for (const fiftyoneDegreesCollection* collection : collections) {
+		EXPECT_STREQ(presetMemoryType, collection->typeName);
+	}
+	for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+		const fiftyoneDegreesIpiCg& graph = dataSet->graphsArray->items[g];
+		EXPECT_STREQ(presetMemoryType, graph.nodes->typeName) << "Graph " << g;
+		EXPECT_STREQ(presetMemoryType, graph.spans->typeName) << "Graph " << g;
+		EXPECT_STREQ(presetMemoryType, graph.spanBytes->typeName) <<
+			"Graph " << g;
+		EXPECT_STREQ(presetMemoryType, graph.clusters->typeName) <<
+			"Graph " << g;
+	}
+}
+
+// Checks no held collection holds all of the collection it reads from. The
+// strings are left out, as they stay held when all of them are needed.
+static void presetExpectNoWholeHeld(fiftyoneDegreesResourceManager* manager) {
+	PresetDataSet dataSet(manager);
+	const fiftyoneDegreesCollection* collections[] = {
+		dataSet->values, dataSet->profiles,
+		dataSet->profileGroups, dataSet->profileOffsets };
+	for (const fiftyoneDegreesCollection* collection : collections) {
+		if (string(collection->typeName) == presetHeldType) {
+			EXPECT_FALSE(presetHeldIsWhole(collection)) <<
+				"A held collection holds all of its source.";
+		}
+	}
+}
+
+// Where each collection of a data set reads from, with the size of each
+// cache, and each graph.
+static string presetLayout(fiftyoneDegreesResourceManager* manager) {
+	PresetDataSet dataSet(manager);
+	const fiftyoneDegreesCollection* collections[] = {
+		dataSet->strings, dataSet->components, dataSet->maps,
+		dataSet->properties, dataSet->values, dataSet->profiles,
+		dataSet->graphs, dataSet->profileGroups, dataSet->profileOffsets,
+		dataSet->propertyTypes };
+	string layout;
+	for (const fiftyoneDegreesCollection* collection : collections) {
+		layout += collection->typeName;
+		if (string(collection->typeName) == presetCacheType) {
+			layout += "(" + to_string(presetCacheCapacity(collection)) + ")";
+		}
+		layout += " ";
+	}
+	for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+		layout += string(dataSet->graphsArray->items[g].nodes->typeName) + " ";
+	}
+	return layout;
 }
 
 /**
  * Counts and refuses allocations, to check nothing is allocated during a lookup
  * and that everything is freed when an allocation fails.
  */
-class BalancedAllocations {
+class PresetAllocations {
 public:
-	BalancedAllocations() {
+	PresetAllocations() {
 		original = fiftyoneDegreesMalloc;
 		originalFree = fiftyoneDegreesFree;
 		calls = 0;
@@ -261,7 +430,7 @@ public:
 		fiftyoneDegreesMalloc = counting;
 		fiftyoneDegreesFree = freeing;
 	}
-	~BalancedAllocations() {
+	~PresetAllocations() {
 		fiftyoneDegreesMalloc = original;
 		fiftyoneDegreesFree = originalFree;
 	}
@@ -299,18 +468,50 @@ private:
 	static void (FIFTYONE_DEGREES_CALL_CONV *originalFree)(void*);
 };
 
-uint64_t BalancedAllocations::calls = 0;
-int64_t BalancedAllocations::live = 0;
-uint64_t BalancedAllocations::failAt = 0;
-size_t BalancedAllocations::failedSize = 0;
-size_t BalancedAllocations::fromSize = 0;
-vector<size_t>* BalancedAllocations::sizes = nullptr;
-void* (FIFTYONE_DEGREES_CALL_CONV *BalancedAllocations::original)(size_t) =
+uint64_t PresetAllocations::calls = 0;
+int64_t PresetAllocations::live = 0;
+uint64_t PresetAllocations::failAt = 0;
+size_t PresetAllocations::failedSize = 0;
+size_t PresetAllocations::fromSize = 0;
+vector<size_t>* PresetAllocations::sizes = nullptr;
+void* (FIFTYONE_DEGREES_CALL_CONV *PresetAllocations::original)(size_t) =
 	nullptr;
-void (FIFTYONE_DEGREES_CALL_CONV *BalancedAllocations::originalFree)(void*) =
+void (FIFTYONE_DEGREES_CALL_CONV *PresetAllocations::originalFree)(void*) =
 	nullptr;
 
-class IpiBalancedTests : public Base {
+// The allocations made by looking up each address and reading every required
+// property, after a first pass has given each list in the results the size it
+// needs. A read from the file allocates memory for what it reads, so none
+// means nothing was read from the file.
+static uint64_t presetLookupAllocations(fiftyoneDegreesResourceManager* manager) {
+	const vector<string> addresses = presetAddresses();
+	fiftyoneDegreesResultsIpi* results = fiftyoneDegreesResultsIpiCreate(manager);
+	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
+		results->b.dataSet)->b.b.available->count;
+	const auto pass = [&]() {
+		for (const string& address : addresses) {
+			presetDetect(results, address);
+			for (int i = 0; i < count; i++) {
+				EXCEPTION_CREATE;
+				fiftyoneDegreesResultsIpiGetHasValues(results, i, exception);
+				EXCEPTION_THROW;
+				fiftyoneDegreesResultsIpiGetValues(results, i, exception);
+				EXCEPTION_THROW;
+			}
+		}
+	};
+	pass();
+	uint64_t calls = 0;
+	{
+		PresetAllocations allocations;
+		pass();
+		calls = PresetAllocations::calls;
+	}
+	fiftyoneDegreesResultsIpiFree(results);
+	return calls;
+}
+
+class IpiPresetTests : public Base {
 public:
 	void SetUp() override {
 		Base::SetUp();
@@ -320,20 +521,21 @@ public:
 			dataFilePath = GetFilePath(_dataFolderName, _IpiFileNames[i]);
 		}
 		if (dataFilePath == "") {
-			dataFilePath = GetFilePath(_dataFolderName, balancedAsnFileName);
+			dataFilePath = GetFilePath(_dataFolderName, presetAsnFileName);
 		}
 		if (dataFilePath == "") {
 			GTEST_SKIP() << "No data file was found. Run "
-				"'git submodule update --init' to fetch one.";
+				"data/get-data-files.sh or .ps1 to download one.";
 		}
-		BalancedManager all(
+		PresetManager all(
 			dataFilePath,
 			fiftyoneDegreesIpiLowMemoryConfig,
 			nullptr);
-		BalancedDataSet dataSet(&all.manager);
+		PresetDataSet dataSet(&all.manager);
 		fiftyoneDegreesPropertiesAvailable* available =
 			dataSet->b.b.available;
 		vector<bool> seen(256, false);
+		vector<string> byComponent(256);
 		int index = fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 			available,
 			"RegisteredCountry");
@@ -346,6 +548,7 @@ public:
 					(int)i));
 			allNames.push_back(name);
 			const uint8_t c = available->items[i].componentIndex;
+			byComponent[c] += (byComponent[c].empty() ? "" : ",") + name;
 			if (c == component) {
 				oneComponent += (oneComponent.empty() ? "" : ",") + name;
 			}
@@ -356,6 +559,11 @@ public:
 			}
 			if (i + 1 < available->count) {
 				allButOne += (allButOne.empty() ? "" : ",") + name;
+			}
+		}
+		for (const string& names : byComponent) {
+			if (names.empty() == false) {
+				eachComponent.push_back(names);
 			}
 		}
 		// A file with one component still names fewer properties than it has.
@@ -371,6 +579,7 @@ public:
 		string().swap(oneOfEach);
 		string().swap(allButOne);
 		vector<string>().swap(allNames);
+		vector<string>().swap(eachComponent);
 		Base::TearDown();
 	}
 protected:
@@ -379,6 +588,8 @@ protected:
 	string oneOfEach = "";
 	string allButOne = "";
 	vector<string> allNames;
+	// The properties of each component, one list for each.
+	vector<string> eachComponent;
 	int componentCount = 0;
 
 	size_t sizeOf(
@@ -397,64 +608,59 @@ protected:
 		return size;
 	}
 
-	// Loads the data file with the memory tracked, setting the bytes still
-	// allocated once it is loaded and the most allocated while loading.
-	void loadTracked(
-		fiftyoneDegreesConfigIpi config,
-		const char* required,
-		size_t* loaded,
-		size_t* most) {
-		EXCEPTION_CREATE;
-		fiftyoneDegreesPropertiesRequired properties =
-			fiftyoneDegreesPropertiesDefault;
-		properties.string = required;
-		fiftyoneDegreesResourceManager manager;
-		fiftyoneDegreesMemoryTrackingReset();
-		fiftyoneDegreesMalloc = fiftyoneDegreesMemoryTrackingMalloc;
-		fiftyoneDegreesMallocAligned =
-			fiftyoneDegreesMemoryTrackingMallocAligned;
-		fiftyoneDegreesFree = fiftyoneDegreesMemoryTrackingFree;
-		fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryTrackingFreeAligned;
-		const fiftyoneDegreesStatusCode status =
-			fiftyoneDegreesIpiInitManagerFromFile(
-				&manager,
-				&config,
-				&properties,
-				dataFilePath.c_str(),
-				exception);
-		*loaded = fiftyoneDegreesMemoryTrackingGetAllocated();
-		*most = fiftyoneDegreesMemoryTrackingGetMax();
-		if (status == FIFTYONE_DEGREES_STATUS_SUCCESS) {
-			fiftyoneDegreesResourceManagerFree(&manager);
+	// The bytes of the graphs of the components with none of the properties
+	// named, which naming them leaves on file.
+	size_t graphBytesLeftOnFile(const char* required) {
+		PresetManager manager(
+			dataFilePath,
+			fiftyoneDegreesIpiLowMemoryConfig,
+			required);
+		PresetDataSet dataSet(&manager.manager);
+		vector<bool> named(256, false);
+		for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
+			if (dataSet->componentsAvailable[c]) {
+				named[((const fiftyoneDegreesComponent*)dataSet->componentsList
+					.items[c].data.ptr)->componentId] = true;
+			}
 		}
-		// Standard operation again, as the size functions leave it.
-		fiftyoneDegreesMalloc = fiftyoneDegreesMemoryStandardMalloc;
-		fiftyoneDegreesMallocAligned =
-			fiftyoneDegreesMemoryStandardMallocAligned;
-		fiftyoneDegreesFree = fiftyoneDegreesMemoryStandardFree;
-		fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryStandardFreeAligned;
-		fiftyoneDegreesMemoryTrackingReset();
-		ASSERT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, status);
-		EXCEPTION_THROW;
+		size_t bytes = 0;
+		for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+			const fiftyoneDegreesIpiCgInfo& info =
+				dataSet->graphsArray->items[g].info;
+			if (named[info.componentId] == false) {
+				bytes += (size_t)info.nodes.collection.length +
+					info.spans.length +
+					info.spanBytes.length +
+					info.clusters.length;
+			}
+		}
+		return bytes;
+	}
+
+	// The answers from a manager naming the properties match Low Memory.
+	void expectSameAnswers(
+		fiftyoneDegreesResourceManager* actual,
+		const char* required) {
+		const vector<string> addresses = presetAddresses();
+		PresetManager expected(
+			dataFilePath,
+			fiftyoneDegreesIpiLowMemoryConfig,
+			required);
+		EXPECT_EQ(
+			presetAnswers(&expected.manager, addresses),
+			presetAnswers(actual, addresses));
 	}
 
 	// The answers from the preset naming the properties match Low Memory.
 	void expectSameAnswers(
 		const fiftyoneDegreesConfigIpi& preset,
 		const char* required) {
-		const vector<string> addresses = balancedAddresses();
-		BalancedManager expected(
-			dataFilePath,
-			fiftyoneDegreesIpiLowMemoryConfig,
-			required);
-		BalancedManager actual(dataFilePath, preset, required);
-		EXPECT_EQ(
-			balancedAnswers(&expected.manager, addresses),
-			balancedAnswers(&actual.manager, addresses));
+		PresetManager actual(dataFilePath, preset, required);
+		expectSameAnswers(&actual.manager, required);
 	}
 };
 
-TEST_F(IpiBalancedTests, PresetHoldsPropertyTypesAndProfileOffsetsInMemory) {
+TEST_F(IpiPresetTests, PresetHoldsPropertyTypesAndProfileOffsetsInMemory) {
 	const fiftyoneDegreesConfigIpi* presets[] = {
 		&fiftyoneDegreesIpiBalancedConfig,
 		&fiftyoneDegreesIpiDefaultConfig,
@@ -467,60 +673,78 @@ TEST_F(IpiBalancedTests, PresetHoldsPropertyTypesAndProfileOffsetsInMemory) {
 		EXPECT_FALSE(preset->values.loaded);
 		EXPECT_FALSE(preset->profiles.loaded);
 	}
-	BalancedManager manager(
+	PresetManager manager(
 		dataFilePath,
 		fiftyoneDegreesIpiBalancedConfig,
 		nullptr);
-	BalancedDataSet dataSet(&manager.manager);
-	EXPECT_STREQ(balancedMemoryType, dataSet->propertyTypes->typeName);
-	EXPECT_STREQ(balancedMemoryType, dataSet->profileOffsets->typeName);
+	PresetDataSet dataSet(&manager.manager);
+	EXPECT_STREQ(presetMemoryType, dataSet->propertyTypes->typeName);
+	EXPECT_STREQ(presetMemoryType, dataSet->profileOffsets->typeName);
 }
 
-TEST_F(IpiBalancedTests, NamingNothingKeepsThePreset) {
-	BalancedManager manager(
+TEST_F(IpiPresetTests, HighPerformanceHoldsOnlyTheAsnGraphsWhenOnlyAsnIsNamed) {
+	const char* required = "Asn,AsnName";
+	if (componentCount < 2 ||
+		find(allNames.begin(), allNames.end(), "Asn") == allNames.end() ||
+		find(allNames.begin(), allNames.end(), "AsnName") == allNames.end()) {
+		GTEST_SKIP() << "The data file does not have Asn and AsnName with other "
+			"components.";
+	}
+	PresetManager manager(
 		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
-		nullptr);
-	{
-		BalancedDataSet dataSet(&manager.manager);
-		EXPECT_STREQ(balancedMemoryType, dataSet->strings->typeName);
-		// Only the default values are held, and the rest read through the
-		// cache of the preset.
-		EXPECT_STREQ(balancedHeldType, dataSet->values->typeName);
-		EXPECT_STREQ(balancedCacheType, dataSet->profiles->typeName);
-		EXPECT_EQ(
-			fiftyoneDegreesIpiBalancedConfig.profiles.capacity,
-			balancedCacheCapacity(dataSet->profiles));
-		for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
-			EXPECT_STREQ(
-				balancedMemoryType,
-				dataSet->graphsArray->items[g].nodes->typeName);
+		fiftyoneDegreesIpiHighPerformanceConfig,
+		required);
+	presetPrintMemory(&manager.manager);
+	EXPECT_EQ(2u, presetExpectGraphsOfRequiredComponents(&manager.manager));
+	EXPECT_NO_FATAL_FAILURE(expectSameAnswers(&manager.manager, required));
+}
+
+TEST_F(IpiPresetTests, HighPerformanceHoldsOnlyTheGraphsOfEachComponentOnItsOwn) {
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
+	}
+	// The properties named are printed before each check, rather than added
+	// with SCOPED_TRACE, whose memory the base class's memory check counts.
+	for (const string& names : eachComponent) {
+		printf("Naming %s\n", names.substr(0, 60).c_str());
+		PresetManager manager(
+			dataFilePath,
+			fiftyoneDegreesIpiHighPerformanceConfig,
+			names.c_str());
+		presetPrintMemory(&manager.manager);
+		EXPECT_GT(presetExpectGraphsOfRequiredComponents(&manager.manager), 0u) <<
+			names.substr(0, 60);
+		EXPECT_NO_FATAL_FAILURE(presetExpectNoWholeHeld(&manager.manager));
+		EXPECT_NO_FATAL_FAILURE(expectSameAnswers(&manager.manager, names.c_str()));
+	}
+}
+
+// The check that the values are held makes the test fail where nothing is
+// held, as there everything is in memory and nothing allocates either.
+TEST_F(IpiPresetTests, HighPerformanceReadsNothingFromTheFileForTheNamedProperties) {
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
+	}
+	vector<string> sets = eachComponent;
+	sets.push_back(oneOfEach);
+	for (const string& names : sets) {
+		PresetManager manager(
+			dataFilePath,
+			fiftyoneDegreesIpiHighPerformanceConfig,
+			names.c_str());
+		bool held = false;
+		{
+			PresetDataSet dataSet(&manager.manager);
+			held = string(dataSet->values->typeName) == presetHeldType;
 		}
+		ASSERT_TRUE(held) << "The values of the named properties are not held, "
+			"naming " << names.substr(0, 60);
+		EXPECT_EQ(0u, presetLookupAllocations(&manager.manager)) <<
+			"Naming " << names.substr(0, 60);
 	}
-	EXPECT_NO_FATAL_FAILURE(expectSameAnswers(
-		fiftyoneDegreesIpiBalancedConfig,
-		nullptr));
 }
 
-TEST_F(IpiBalancedTests, NamingEveryPropertyKeepsThePreset) {
-	vector<const char*> names;
-	for (const string& name : allNames) {
-		names.push_back(name.c_str());
-	}
-	fiftyoneDegreesPropertiesRequired properties =
-		fiftyoneDegreesPropertiesDefault;
-	properties.array = names.data();
-	properties.count = (int)names.size();
-	BalancedManager manager(
-		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
-		properties);
-	EXPECT_STREQ(
-		balancedMemoryType,
-		BalancedDataSet(&manager.manager)->strings->typeName);
-}
-
-TEST_F(IpiBalancedTests, DefaultValuesAreHeldWhenNothingIsNamed) {
+TEST_F(IpiPresetTests, HighPerformanceLoadsEverythingWhenNothingOrEveryPropertyIsNamed) {
 	vector<const char*> names;
 	for (const string& name : allNames) {
 		names.push_back(name.c_str());
@@ -531,13 +755,150 @@ TEST_F(IpiBalancedTests, DefaultValuesAreHeldWhenNothingIsNamed) {
 	const fiftyoneDegreesPropertiesRequired namings[] = {
 		fiftyoneDegreesPropertiesDefault,
 		every };
+	for (const fiftyoneDegreesPropertiesRequired& properties : namings) {
+		PresetManager manager(
+			dataFilePath,
+			fiftyoneDegreesIpiHighPerformanceConfig,
+			properties);
+		EXPECT_NO_FATAL_FAILURE(presetExpectEverythingInMemory(&manager.manager));
+	}
+}
+
+TEST_F(IpiPresetTests, HighPerformanceNamingOneComponentUsesLessMemoryThanNamingNone) {
+	if (componentCount < 2) {
+		GTEST_SKIP() << "The data file has one component.";
+	}
+	// Naming one component saves at least the memory of the other
+	// components' graphs, which stay on file.
+	const size_t none = sizeOf(fiftyoneDegreesIpiHighPerformanceConfig, nullptr);
+	printf("%14zu bytes naming none\n", none);
+	for (const string& names : eachComponent) {
+		const size_t named = sizeOf(
+			fiftyoneDegreesIpiHighPerformanceConfig,
+			names.c_str());
+		const size_t onFile = graphBytesLeftOnFile(names.c_str());
+		printf("%14zu bytes naming %s, %zu bytes of graphs on file\n",
+			named,
+			names.substr(0, 60).c_str(),
+			onFile);
+		EXPECT_LT(named + onFile, none) << names.substr(0, 60);
+	}
+}
+
+TEST_F(IpiPresetTests, HighPerformanceLoadsACollectionNeededInFullAsAnyOther) {
+	const string smallFile = GetFilePath(_dataFolderName, presetAsnFileName);
+	if (smallFile.empty()) {
+		GTEST_SKIP() << "The small data file was not found.";
+	}
+	PresetManager manager(
+		smallFile,
+		fiftyoneDegreesIpiHighPerformanceConfig,
+		"Asn");
+	presetPrintMemory(&manager.manager);
+	ASSERT_STREQ(
+		presetHeldType,
+		PresetDataSet(&manager.manager)->values->typeName);
+	EXPECT_NO_FATAL_FAILURE(presetExpectNoWholeHeld(&manager.manager));
+}
+
+// The names of the required properties are read from the strings while the
+// data set is created, and released through them when it is freed, so the
+// strings stay held even when every one of them is needed.
+TEST_F(IpiPresetTests, HighPerformanceKeepsStringsNeededInFullHeld) {
+	const string smallFile = GetFilePath(_dataFolderName, presetAsnFileName);
+	if (smallFile.empty()) {
+		GTEST_SKIP() << "The small data file was not found.";
+	}
+	PresetManager manager(
+		smallFile,
+		fiftyoneDegreesIpiHighPerformanceConfig,
+		"AsnName");
+	PresetDataSet dataSet(&manager.manager);
+	ASSERT_STREQ(presetHeldType, dataSet->strings->typeName);
+	EXPECT_TRUE(presetHeldIsWhole(dataSet->strings));
+}
+
+TEST_F(IpiPresetTests, NamingNothingKeepsThePreset) {
+	PresetManager manager(
+		dataFilePath,
+		fiftyoneDegreesIpiBalancedConfig,
+		nullptr);
+	{
+		PresetDataSet dataSet(&manager.manager);
+		EXPECT_STREQ(presetMemoryType, dataSet->strings->typeName);
+		// Only the default values are held, and the rest read through the
+		// cache of the preset.
+		EXPECT_STREQ(presetHeldType, dataSet->values->typeName);
+		EXPECT_STREQ(presetCacheType, dataSet->profiles->typeName);
+		EXPECT_EQ(
+			fiftyoneDegreesIpiBalancedConfig.profiles.capacity,
+			presetCacheCapacity(dataSet->profiles));
+		for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+			EXPECT_STREQ(
+				presetMemoryType,
+				dataSet->graphsArray->items[g].nodes->typeName);
+		}
+	}
+	EXPECT_NO_FATAL_FAILURE(expectSameAnswers(
+		fiftyoneDegreesIpiBalancedConfig,
+		nullptr));
+}
+
+TEST_F(IpiPresetTests, NamingEveryPropertyKeepsThePreset) {
+	vector<const char*> names;
+	for (const string& name : allNames) {
+		names.push_back(name.c_str());
+	}
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	properties.array = names.data();
+	properties.count = (int)names.size();
+	PresetManager manager(
+		dataFilePath,
+		fiftyoneDegreesIpiBalancedConfig,
+		properties);
+	EXPECT_STREQ(
+		presetMemoryType,
+		PresetDataSet(&manager.manager)->strings->typeName);
+}
+
+TEST_F(IpiPresetTests, BalancedNamingChangesNothing) {
+	PresetManager none(
+		dataFilePath,
+		fiftyoneDegreesIpiBalancedConfig,
+		nullptr);
+	const string expected = presetLayout(&none.manager);
+	const string sets[] = { oneComponent, oneOfEach, allButOne };
+	for (const string& set : sets) {
+		PresetManager manager(
+			dataFilePath,
+			fiftyoneDegreesIpiBalancedConfig,
+			set.c_str());
+		EXPECT_EQ(expected, presetLayout(&manager.manager)) << set.substr(0, 60);
+	}
+}
+
+TEST_F(IpiPresetTests, BalancedHoldsTheDefaultValuesWhateverIsNamed) {
+	vector<const char*> names;
+	for (const string& name : allNames) {
+		names.push_back(name.c_str());
+	}
+	fiftyoneDegreesPropertiesRequired every = fiftyoneDegreesPropertiesDefault;
+	every.array = names.data();
+	every.count = (int)names.size();
+	fiftyoneDegreesPropertiesRequired some = fiftyoneDegreesPropertiesDefault;
+	some.string = oneComponent.c_str();
+	const fiftyoneDegreesPropertiesRequired namings[] = {
+		fiftyoneDegreesPropertiesDefault,
+		some,
+		every };
 	const fiftyoneDegreesConfigIpi* presets[] = {
 		&fiftyoneDegreesIpiBalancedConfig,
 		&fiftyoneDegreesIpiDefaultConfig };
 	for (const fiftyoneDegreesConfigIpi* preset : presets) {
 		for (const fiftyoneDegreesPropertiesRequired& properties : namings) {
-			BalancedManager manager(dataFilePath, *preset, properties);
-			BalancedDataSet dataSet(&manager.manager);
+			PresetManager manager(dataFilePath, *preset, properties);
+			PresetDataSet dataSet(&manager.manager);
 			const fiftyoneDegreesPropertiesAvailable* available =
 				dataSet->b.b.available;
 			uint32_t defaults = 0;
@@ -576,81 +937,44 @@ TEST_F(IpiBalancedTests, DefaultValuesAreHeldWhenNothingIsNamed) {
 	}
 }
 
-TEST_F(IpiBalancedTests, OtherPresetsAreUnchangedByNaming) {
-	const string memory = string(balancedMemoryType) + " " + balancedMemoryType +
-		" " + balancedMemoryType + " " + balancedMemoryType + " " +
-		balancedMemoryType;
-	const string file = string(balancedFileType) + " " + balancedFileType + " " +
-		balancedFileType + " " + balancedFileType + " " + balancedFileType;
-	BalancedManager high(
-		dataFilePath,
-		fiftyoneDegreesIpiHighPerformanceConfig,
-		oneComponent.c_str());
-	EXPECT_EQ(memory, balancedTypes(&high.manager));
-	BalancedManager low(
+TEST_F(IpiPresetTests, OtherPresetsAreUnchangedByNaming) {
+	const string memory = string(presetMemoryType) + " " + presetMemoryType +
+		" " + presetMemoryType + " " + presetMemoryType + " " +
+		presetMemoryType;
+	const string file = string(presetFileType) + " " + presetFileType + " " +
+		presetFileType + " " + presetFileType + " " + presetFileType;
+	PresetManager low(
 		dataFilePath,
 		fiftyoneDegreesIpiLowMemoryConfig,
 		oneComponent.c_str());
-	EXPECT_EQ(file, balancedTypes(&low.manager));
-	const string smallFile = GetFilePath(_dataFolderName, balancedAsnFileName);
+	EXPECT_EQ(file, presetTypes(&low.manager));
+	const string smallFile = GetFilePath(_dataFolderName, presetAsnFileName);
 	if (smallFile.empty() == false) {
-		BalancedManager inMemory(
+		PresetManager inMemory(
 			smallFile,
 			fiftyoneDegreesIpiInMemoryConfig,
 			"Asn");
-		EXPECT_EQ(memory, balancedTypes(&inMemory.manager));
+		EXPECT_EQ(memory, presetTypes(&inMemory.manager));
 	}
 }
 
-TEST_F(IpiBalancedTests, NamedPropertiesGiveTheSameAnswers) {
-	EXPECT_NO_FATAL_FAILURE(expectSameAnswers(
-		fiftyoneDegreesIpiBalancedConfig,
-		oneComponent.c_str()));
-	EXPECT_NO_FATAL_FAILURE(expectSameAnswers(
-		fiftyoneDegreesIpiBalancedConfig,
-		oneOfEach.c_str()));
-	EXPECT_NO_FATAL_FAILURE(expectSameAnswers(
-		fiftyoneDegreesIpiBalancedConfig,
-		allButOne.c_str()));
-}
-
-TEST_F(IpiBalancedTests, NamingNeverUsesMoreMemory) {
-	const size_t nothing = sizeOf(fiftyoneDegreesIpiBalancedConfig, nullptr);
-	EXPECT_LE(
-		sizeOf(fiftyoneDegreesIpiBalancedConfig, oneComponent.c_str()),
-		nothing);
-	EXPECT_LE(
-		sizeOf(fiftyoneDegreesIpiBalancedConfig, oneOfEach.c_str()),
-		nothing);
-	EXPECT_LE(
-		sizeOf(fiftyoneDegreesIpiBalancedConfig, allButOne.c_str()),
-		nothing);
-}
-
-// What naming fewer properties holds is paid for by what it leaves on file,
-// less the bytes it keeps back for its own working. So the most used while
-// loading may pass what the data set keeps by no more than those bytes,
-// whatever the data file saves.
-TEST_F(IpiBalancedTests, NamingAddsNoMoreWhileLoadingThanItKeepsBack) {
-	const string sets[] = { oneComponent, oneOfEach, allButOne };
-	for (const string& set : sets) {
-		size_t loaded = 0;
-		size_t most = 0;
-		ASSERT_NO_FATAL_FAILURE(loadTracked(
-			fiftyoneDegreesIpiBalancedConfig,
-			set.c_str(),
-			&loaded,
-			&most));
-		EXPECT_LE(most - loaded, balancedReservedBytes) <<
-			"Most while loading " << most << ", loaded " << loaded <<
-			", naming " << set.substr(0, 60);
+TEST_F(IpiPresetTests, NamedPropertiesGiveTheSameAnswers) {
+	const fiftyoneDegreesConfigIpi* presets[] = {
+		&fiftyoneDegreesIpiHighPerformanceConfig,
+		&fiftyoneDegreesIpiBalancedConfig };
+	for (const fiftyoneDegreesConfigIpi* preset : presets) {
+		EXPECT_NO_FATAL_FAILURE(expectSameAnswers(*preset, oneComponent.c_str()));
+		EXPECT_NO_FATAL_FAILURE(expectSameAnswers(*preset, oneOfEach.c_str()));
+		EXPECT_NO_FATAL_FAILURE(expectSameAnswers(*preset, allButOne.c_str()));
 	}
 }
 
-TEST_F(IpiBalancedTests, CommonSetsGiveTheSameAnswersInNoMoreMemory) {
-	const size_t nothing = sizeOf(fiftyoneDegreesIpiBalancedConfig, nullptr);
+TEST_F(IpiPresetTests, CommonSetsGiveTheSameAnswersInLessMemory) {
+	const size_t nothing = sizeOf(
+		fiftyoneDegreesIpiHighPerformanceConfig,
+		nullptr);
 	int tested = 0;
-	for (const char* set : balancedCommonSets) {
+	for (const char* set : presetCommonSets) {
 		bool present = true;
 		const string names = string(set) + ",";
 		for (size_t start = 0, end = names.find(',');
@@ -665,10 +989,12 @@ TEST_F(IpiBalancedTests, CommonSetsGiveTheSameAnswersInNoMoreMemory) {
 		}
 		if (present) {
 			tested++;
-			EXPECT_LE(sizeOf(fiftyoneDegreesIpiBalancedConfig, set), nothing) <<
-				set;
+			EXPECT_LT(
+				sizeOf(fiftyoneDegreesIpiHighPerformanceConfig, set) +
+					graphBytesLeftOnFile(set),
+				nothing) << set;
 			EXPECT_NO_FATAL_FAILURE(expectSameAnswers(
-				fiftyoneDegreesIpiBalancedConfig,
+				fiftyoneDegreesIpiHighPerformanceConfig,
 				set));
 		}
 	}
@@ -677,52 +1003,7 @@ TEST_F(IpiBalancedTests, CommonSetsGiveTheSameAnswersInNoMoreMemory) {
 	}
 }
 
-TEST_F(IpiBalancedTests, ProfileCacheGrowsWhenProfilesStayOnFile) {
-	if (componentCount < 2) {
-		GTEST_SKIP() << "The data file has one component.";
-	}
-	// One property of the largest component, where the budget is plenty for a
-	// larger cache but not for the profiles.
-	const char* required = "Country";
-	if (fiftyoneDegreesIpiBalancedConfig.profiles.capacity == 0 ||
-		find(allNames.begin(), allNames.end(), required) == allNames.end()) {
-		GTEST_SKIP() << "The data file does not have the property.";
-	}
-	BalancedManager manager(
-		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
-		required);
-	BalancedDataSet dataSet(&manager.manager);
-	ASSERT_STREQ(balancedCacheType, dataSet->profiles->typeName);
-	EXPECT_GT(
-		balancedCacheCapacity(dataSet->profiles),
-		fiftyoneDegreesIpiBalancedConfig.profiles.capacity);
-}
-
-TEST_F(IpiBalancedTests, ProfileCacheOfTheCallerIsNotReduced) {
-	if (componentCount < 2) {
-		GTEST_SKIP() << "The data file has one component.";
-	}
-	const char* required = "Country";
-	if (find(allNames.begin(), allNames.end(), required) == allNames.end()) {
-		GTEST_SKIP() << "The data file does not have the property.";
-	}
-	fiftyoneDegreesConfigIpi larger = fiftyoneDegreesIpiBalancedConfig;
-	larger.profiles.capacity = 400000;
-	BalancedManager largerManager(dataFilePath, larger, required);
-	EXPECT_EQ(
-		larger.profiles.capacity,
-		balancedCacheCapacity(
-			BalancedDataSet(&largerManager.manager)->profiles));
-	fiftyoneDegreesConfigIpi none = fiftyoneDegreesIpiBalancedConfig;
-	none.profiles.capacity = 0;
-	BalancedManager noneManager(dataFilePath, none, required);
-	EXPECT_STREQ(
-		balancedFileType,
-		BalancedDataSet(&noneManager.manager)->profiles->typeName);
-}
-
-TEST_F(IpiBalancedTests, StringsOfAreasStayOnFileUnlessNamed) {
+TEST_F(IpiPresetTests, StringsOfAreasStayOnFileUnlessNamed) {
 	if (find(allNames.begin(), allNames.end(), "Areas") == allNames.end() ||
 		find(allNames.begin(), allNames.end(), "Country") == allNames.end()) {
 		GTEST_SKIP() << "The data file does not have the properties.";
@@ -730,16 +1011,16 @@ TEST_F(IpiBalancedTests, StringsOfAreasStayOnFileUnlessNamed) {
 	// Counts the strings of Areas from a sample of its values which came from
 	// memory, for a data set with the required properties given.
 	const auto inMemory = [&](const char* required, uint32_t& sampled) {
-		BalancedManager manager(
+		PresetManager manager(
 			dataFilePath,
-			fiftyoneDegreesIpiBalancedConfig,
+			fiftyoneDegreesIpiHighPerformanceConfig,
 			required);
-		BalancedManager all(
+		PresetManager all(
 			dataFilePath,
 			fiftyoneDegreesIpiLowMemoryConfig,
 			"Areas");
-		BalancedDataSet dataSet(&manager.manager);
-		BalancedDataSet allDataSet(&all.manager);
+		PresetDataSet dataSet(&manager.manager);
+		PresetDataSet allDataSet(&all.manager);
 		EXCEPTION_CREATE;
 		const uint32_t propertyIndex =
 			allDataSet->b.b.available->items[0].propertyIndex;
@@ -786,100 +1067,18 @@ TEST_F(IpiBalancedTests, StringsOfAreasStayOnFileUnlessNamed) {
 	EXPECT_EQ(sampled, named);
 }
 
-TEST_F(IpiBalancedTests, ProfilesAreOnlyKeptWhenReadThroughACache) {
-	const auto keeps = [&](const fiftyoneDegreesConfigIpi& config) {
-		BalancedManager manager(dataFilePath, config, nullptr);
-		fiftyoneDegreesResultsIpi* results =
-			fiftyoneDegreesResultsIpiCreate(&manager.manager);
-		const bool kept = results->keptProfiles != nullptr;
-		fiftyoneDegreesResultsIpiFree(results);
-		return kept;
-	};
-	EXPECT_TRUE(keeps(fiftyoneDegreesIpiBalancedConfig));
-	EXPECT_FALSE(keeps(fiftyoneDegreesIpiLowMemoryConfig));
-	EXPECT_FALSE(keeps(fiftyoneDegreesIpiHighPerformanceConfig));
-}
-
-TEST_F(IpiBalancedTests, ManyLiveResultsDoNotUseUpTheProfileCache) {
-	// A cache this small has ten entries in each of its ten shards, and the
-	// results below would use them all up if they each held on to their profiles.
-	const uint32_t resultsCount = 200;
-	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
-	config.profiles.capacity = 100;
-	config.profiles.concurrency = 10;
-	const vector<string> addresses = balancedAddresses();
-	BalancedManager expected(
-		dataFilePath,
-		fiftyoneDegreesIpiLowMemoryConfig,
-		nullptr);
-	BalancedManager actual(dataFilePath, config, nullptr);
-	vector<char> buffer(balancedBufferBytes);
-	fiftyoneDegreesResultsIpi* expectedResults =
-		fiftyoneDegreesResultsIpiCreate(&expected.manager);
-	vector<fiftyoneDegreesResultsIpi*> live;
-	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
-		expectedResults->b.dataSet)->b.b.available->count;
-	for (uint32_t i = 0; i < resultsCount; i++) {
-		live.push_back(fiftyoneDegreesResultsIpiCreate(&actual.manager));
-		balancedDetect(live[i], addresses[i % addresses.size()]);
-		for (int p = 0; p < count; p++) {
-			balancedAnswer(live[i], p, buffer);
-		}
-	}
-	for (uint32_t i = 0; i < resultsCount; i++) {
-		balancedDetect(expectedResults, addresses[i % addresses.size()]);
-		for (int p = 0; p < count; p++) {
-			EXPECT_EQ(
-				balancedAnswer(expectedResults, p, buffer),
-				balancedAnswer(live[i], p, buffer)) <<
-				"Required index " << p << " of results " << i;
-		}
-	}
-	for (fiftyoneDegreesResultsIpi* results : live) {
-		fiftyoneDegreesResultsIpiFree(results);
-	}
-	fiftyoneDegreesResultsIpiFree(expectedResults);
-}
-
-TEST_F(IpiBalancedTests, GraphsOfOtherComponentsStayOnFile) {
-	if (componentCount < 2) {
-		GTEST_SKIP() << "The data file has one component.";
-	}
-	BalancedManager manager(
-		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
-		oneComponent.c_str());
-	BalancedDataSet dataSet(&manager.manager);
-	vector<bool> required(256, false);
-	for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
-		if (dataSet->componentsAvailable[c]) {
-			required[((const fiftyoneDegreesComponent*)dataSet->componentsList
-				.items[c].data.ptr)->componentId] = true;
-		}
-	}
-	for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
-		const fiftyoneDegreesIpiCg& graph = dataSet->graphsArray->items[g];
-		const char* expected = required[graph.info.componentId] ?
-			balancedMemoryType : balancedFileType;
-		EXPECT_STREQ(expected, graph.nodes->typeName);
-		EXPECT_STREQ(expected, graph.spans->typeName);
-		EXPECT_STREQ(expected, graph.spanBytes->typeName);
-		EXPECT_STREQ(expected, graph.clusters->typeName);
-	}
-}
-
-TEST_F(IpiBalancedTests, EveryGraphCanStillBeEvaluated) {
-	BalancedManager expected(
+TEST_F(IpiPresetTests, EveryGraphCanStillBeEvaluated) {
+	PresetManager expected(
 		dataFilePath,
 		fiftyoneDegreesIpiLowMemoryConfig,
 		oneComponent.c_str());
-	BalancedManager actual(
+	PresetManager actual(
 		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
+		fiftyoneDegreesIpiHighPerformanceConfig,
 		oneComponent.c_str());
-	BalancedDataSet e(&expected.manager);
-	BalancedDataSet a(&actual.manager);
-	for (const string& address : balancedAddresses()) {
+	PresetDataSet e(&expected.manager);
+	PresetDataSet a(&actual.manager);
+	for (const string& address : presetAddresses()) {
 		fiftyoneDegreesIpAddress ip;
 		ASSERT_TRUE(fiftyoneDegreesIpAddressParse(
 			address.c_str(),
@@ -902,17 +1101,17 @@ TEST_F(IpiBalancedTests, EveryGraphCanStillBeEvaluated) {
 	}
 }
 
-TEST_F(IpiBalancedTests, EveryProfileCanStillBeRead) {
-	BalancedManager expected(
+TEST_F(IpiPresetTests, EveryProfileCanStillBeRead) {
+	PresetManager expected(
 		dataFilePath,
 		fiftyoneDegreesIpiLowMemoryConfig,
 		oneComponent.c_str());
-	BalancedManager actual(
+	PresetManager actual(
 		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
+		fiftyoneDegreesIpiHighPerformanceConfig,
 		oneComponent.c_str());
-	BalancedDataSet e(&expected.manager);
-	BalancedDataSet a(&actual.manager);
+	PresetDataSet e(&expected.manager);
+	PresetDataSet a(&actual.manager);
 	const uint32_t count = fiftyoneDegreesCollectionGetCount(a->profileOffsets);
 	const uint32_t step = count > 2000 ? count / 2000 : 1;
 	for (uint32_t i = 0; i < count; i += step) {
@@ -946,17 +1145,17 @@ TEST_F(IpiBalancedTests, EveryProfileCanStillBeRead) {
 	}
 }
 
-TEST_F(IpiBalancedTests, EveryValueAndStringCanStillBeRead) {
-	BalancedManager expected(
+TEST_F(IpiPresetTests, EveryValueAndStringCanStillBeRead) {
+	PresetManager expected(
 		dataFilePath,
 		fiftyoneDegreesIpiLowMemoryConfig,
 		oneComponent.c_str());
-	BalancedManager actual(
+	PresetManager actual(
 		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
+		fiftyoneDegreesIpiHighPerformanceConfig,
 		oneComponent.c_str());
-	BalancedDataSet e(&expected.manager);
-	BalancedDataSet a(&actual.manager);
+	PresetDataSet e(&expected.manager);
+	PresetDataSet a(&actual.manager);
 	const uint32_t count = fiftyoneDegreesCollectionGetCount(a->values);
 	const uint32_t step = count > 2000 ? count / 2000 : 1;
 	for (uint32_t i = 0; i < count; i += step) {
@@ -1012,63 +1211,65 @@ TEST_F(IpiBalancedTests, EveryValueAndStringCanStillBeRead) {
 	}
 }
 
-TEST_F(IpiBalancedTests, DefaultValuesReadForALookupOfNothing) {
-	BalancedManager expected(
+TEST_F(IpiPresetTests, DefaultValuesReadForALookupOfNothing) {
+	const fiftyoneDegreesConfigIpi* presets[] = {
+		&fiftyoneDegreesIpiHighPerformanceConfig,
+		&fiftyoneDegreesIpiBalancedConfig };
+	PresetManager expected(
 		dataFilePath,
 		fiftyoneDegreesIpiLowMemoryConfig,
 		oneComponent.c_str());
-	BalancedManager actual(
-		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
-		oneComponent.c_str());
-	vector<char> buffer(balancedBufferBytes);
-	fiftyoneDegreesResultsIpi* expectedResults =
-		fiftyoneDegreesResultsIpiCreate(&expected.manager);
-	fiftyoneDegreesResultsIpi* actualResults =
-		fiftyoneDegreesResultsIpiCreate(&actual.manager);
-	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
-		actualResults->b.dataSet)->b.b.available->count;
-	const string address = balancedAddresses()[0];
-	EXCEPTION_CREATE;
-	fiftyoneDegreesResultsIpiFromIpAddressString(
-		expectedResults, address.c_str(), address.size(), exception);
-	EXCEPTION_THROW;
-	fiftyoneDegreesResultsIpiFromIpAddressString(
-		actualResults, address.c_str(), address.size(), exception);
-	EXCEPTION_THROW;
-	// No graph is walked, so every property reads as for an address with no
-	// profile.
-	fiftyoneDegreesResultsPendingClear(&expectedResults->b);
-	fiftyoneDegreesResultsPendingClear(&actualResults->b);
-	for (int i = 0; i < count; i++) {
-		EXPECT_EQ(
-			balancedAnswer(expectedResults, i, buffer),
-			balancedAnswer(actualResults, i, buffer)) << "Required index " << i;
+	for (const fiftyoneDegreesConfigIpi* preset : presets) {
+		PresetManager actual(dataFilePath, *preset, oneComponent.c_str());
+		vector<char> buffer(presetBufferBytes);
+		fiftyoneDegreesResultsIpi* expectedResults =
+			fiftyoneDegreesResultsIpiCreate(&expected.manager);
+		fiftyoneDegreesResultsIpi* actualResults =
+			fiftyoneDegreesResultsIpiCreate(&actual.manager);
+		const int count = (int)((const fiftyoneDegreesDataSetIpi*)
+			actualResults->b.dataSet)->b.b.available->count;
+		const string address = presetAddresses()[0];
+		EXCEPTION_CREATE;
+		fiftyoneDegreesResultsIpiFromIpAddressString(
+			expectedResults, address.c_str(), address.size(), exception);
+		EXCEPTION_THROW;
+		fiftyoneDegreesResultsIpiFromIpAddressString(
+			actualResults, address.c_str(), address.size(), exception);
+		EXCEPTION_THROW;
+		// No graph is walked, so every property reads as for an address with
+		// no profile.
+		fiftyoneDegreesResultsPendingClear(&expectedResults->b);
+		fiftyoneDegreesResultsPendingClear(&actualResults->b);
+		for (int i = 0; i < count; i++) {
+			EXPECT_EQ(
+				presetAnswer(expectedResults, i, buffer),
+				presetAnswer(actualResults, i, buffer)) << "Required index " << i;
+		}
+		fiftyoneDegreesResultsIpiFree(expectedResults);
+		fiftyoneDegreesResultsIpiFree(actualResults);
 	}
-	fiftyoneDegreesResultsIpiFree(expectedResults);
-	fiftyoneDegreesResultsIpiFree(actualResults);
 }
 
-TEST_F(IpiBalancedTests, PropertyThatWasNotNamedGivesWhatItGaveBefore) {
+TEST_F(IpiPresetTests, PropertyThatWasNotNamedGivesWhatItGaveBefore) {
 	if (componentCount < 2) {
 		GTEST_SKIP() << "The data file has one component.";
 	}
-	BalancedManager expected(
+	PresetManager expected(
 		dataFilePath,
 		fiftyoneDegreesIpiLowMemoryConfig,
 		oneComponent.c_str());
-	BalancedManager actual(
+	PresetManager actual(
 		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
+		fiftyoneDegreesIpiHighPerformanceConfig,
 		oneComponent.c_str());
-	vector<char> buffer(balancedBufferBytes);
+	vector<char> buffer(presetBufferBytes);
 	fiftyoneDegreesResultsIpi* expectedResults =
 		fiftyoneDegreesResultsIpiCreate(&expected.manager);
 	fiftyoneDegreesResultsIpi* actualResults =
 		fiftyoneDegreesResultsIpiCreate(&actual.manager);
-	const string address = balancedAddresses()[0];
-	balancedDetect(expectedResults, address);
-	balancedDetect(actualResults, address);
+	const string address = presetAddresses()[0];
+	presetDetect(expectedResults, address);
+	presetDetect(actualResults, address);
 	for (const string& name : allNames) {
 		EXCEPTION_CREATE;
 		const size_t expectedAdded = fiftyoneDegreesResultsIpiGetValuesString(
@@ -1096,16 +1297,16 @@ TEST_F(IpiBalancedTests, PropertyThatWasNotNamedGivesWhatItGaveBefore) {
 	fiftyoneDegreesResultsIpiFree(actualResults);
 }
 
-TEST_F(IpiBalancedTests, ReloadHoldsTheSame) {
-	BalancedManager expected(
+TEST_F(IpiPresetTests, ReloadHoldsTheSame) {
+	PresetManager expected(
 		dataFilePath,
 		fiftyoneDegreesIpiLowMemoryConfig,
 		oneComponent.c_str());
-	BalancedManager actual(
+	PresetManager actual(
 		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
+		fiftyoneDegreesIpiHighPerformanceConfig,
 		oneComponent.c_str());
-	const string before = balancedTypes(&actual.manager);
+	const string before = presetTypes(&actual.manager);
 	EXCEPTION_CREATE;
 	const fiftyoneDegreesStatusCode status =
 		fiftyoneDegreesIpiReloadManagerFromOriginalFile(
@@ -1113,67 +1314,129 @@ TEST_F(IpiBalancedTests, ReloadHoldsTheSame) {
 			exception);
 	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, status);
 	EXCEPTION_THROW;
-	EXPECT_EQ(before, balancedTypes(&actual.manager));
-	const vector<string> addresses = balancedAddresses();
+	EXPECT_EQ(before, presetTypes(&actual.manager));
+	const vector<string> addresses = presetAddresses();
 	EXPECT_EQ(
-		balancedAnswers(&expected.manager, addresses),
-		balancedAnswers(&actual.manager, addresses));
+		presetAnswers(&expected.manager, addresses),
+		presetAnswers(&actual.manager, addresses));
 }
 
-TEST_F(IpiBalancedTests, TemporaryFilePresetHoldsTheSame) {
-	const string smallFile = GetFilePath(_dataFolderName, balancedAsnFileName);
+TEST_F(IpiPresetTests, TemporaryFileHoldsTheSame) {
+	const string smallFile = GetFilePath(_dataFolderName, presetAsnFileName);
 	if (smallFile.empty()) {
 		GTEST_SKIP() << "The small data file was not found.";
 	}
-	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedTempConfig;
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiHighPerformanceConfig;
+	config.b.useTempFile = true;
 	config.b.reuseTempFile = false;
-	BalancedManager expected(
+	PresetManager expected(
 		smallFile,
 		fiftyoneDegreesIpiLowMemoryConfig,
 		"Asn");
-	BalancedManager actual(smallFile, config, "Asn");
+	PresetManager actual(smallFile, config, "Asn");
 	EXPECT_STREQ(
-		balancedHeldType,
-		BalancedDataSet(&actual.manager)->strings->typeName);
-	const vector<string> addresses = balancedAddresses();
+		presetHeldType,
+		PresetDataSet(&actual.manager)->values->typeName);
+	const vector<string> addresses = presetAddresses();
 	EXPECT_EQ(
-		balancedAnswers(&expected.manager, addresses),
-		balancedAnswers(&actual.manager, addresses));
+		presetAnswers(&expected.manager, addresses),
+		presetAnswers(&actual.manager, addresses));
 }
 
-TEST_F(IpiBalancedTests, NamesThatMatchNothingFailAsBefore) {
-	fiftyoneDegreesResourceManager manager;
-	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
-	fiftyoneDegreesPropertiesRequired properties =
-		fiftyoneDegreesPropertiesDefault;
-	properties.string = "NotAProperty";
-	EXCEPTION_CREATE;
-	EXPECT_EQ(
-		FIFTYONE_DEGREES_STATUS_REQ_PROP_NOT_PRESENT,
-		fiftyoneDegreesIpiInitManagerFromFile(
-			&manager,
-			&config,
-			&properties,
-			dataFilePath.c_str(),
-			exception));
+TEST_F(IpiPresetTests, NamesThatMatchNothingFailAsBefore) {
+	const fiftyoneDegreesConfigIpi* presets[] = {
+		&fiftyoneDegreesIpiHighPerformanceConfig,
+		&fiftyoneDegreesIpiBalancedConfig };
+	for (const fiftyoneDegreesConfigIpi* preset : presets) {
+		fiftyoneDegreesResourceManager manager;
+		fiftyoneDegreesConfigIpi config = *preset;
+		fiftyoneDegreesPropertiesRequired properties =
+			fiftyoneDegreesPropertiesDefault;
+		properties.string = "NotAProperty";
+		EXCEPTION_CREATE;
+		EXPECT_EQ(
+			FIFTYONE_DEGREES_STATUS_REQ_PROP_NOT_PRESENT,
+			fiftyoneDegreesIpiInitManagerFromFile(
+				&manager,
+				&config,
+				&properties,
+				dataFilePath.c_str(),
+				exception));
+	}
 }
 
-TEST_F(IpiBalancedTests, PresetCachesFiftyThousandValues) {
+TEST_F(IpiPresetTests, PresetCachesValuesAndProfiles) {
 	const fiftyoneDegreesConfigIpi* presets[] = {
 		&fiftyoneDegreesIpiBalancedConfig,
 		&fiftyoneDegreesIpiDefaultConfig,
 		&fiftyoneDegreesIpiBalancedTempConfig };
 	for (const fiftyoneDegreesConfigIpi* preset : presets) {
-		EXPECT_EQ(50000u, preset->values.capacity);
+		EXPECT_EQ(100000u, preset->values.capacity);
+		EXPECT_EQ(20000u, preset->profiles.capacity);
 	}
 }
 
-TEST_F(IpiBalancedTests, EngineMetaDataMatches) {
+TEST_F(IpiPresetTests, ProfilesAreOnlyKeptWhenReadThroughACache) {
+	const auto keeps = [&](const fiftyoneDegreesConfigIpi& config) {
+		PresetManager manager(dataFilePath, config, nullptr);
+		fiftyoneDegreesResultsIpi* results =
+			fiftyoneDegreesResultsIpiCreate(&manager.manager);
+		const bool kept = results->keptProfiles != nullptr;
+		fiftyoneDegreesResultsIpiFree(results);
+		return kept;
+	};
+	EXPECT_TRUE(keeps(fiftyoneDegreesIpiBalancedConfig));
+	EXPECT_FALSE(keeps(fiftyoneDegreesIpiLowMemoryConfig));
+	EXPECT_FALSE(keeps(fiftyoneDegreesIpiHighPerformanceConfig));
+}
+
+TEST_F(IpiPresetTests, ManyLiveResultsDoNotUseUpTheProfileCache) {
+	// A cache this small has ten entries in each of its ten shards, and the
+	// results below would use them all up if they each held on to their profiles.
+	const uint32_t resultsCount = 200;
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+	config.profiles.capacity = 100;
+	config.profiles.concurrency = 10;
+	const vector<string> addresses = presetAddresses();
+	PresetManager expected(
+		dataFilePath,
+		fiftyoneDegreesIpiLowMemoryConfig,
+		nullptr);
+	PresetManager actual(dataFilePath, config, nullptr);
+	vector<char> buffer(presetBufferBytes);
+	fiftyoneDegreesResultsIpi* expectedResults =
+		fiftyoneDegreesResultsIpiCreate(&expected.manager);
+	vector<fiftyoneDegreesResultsIpi*> live;
+	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
+		expectedResults->b.dataSet)->b.b.available->count;
+	for (uint32_t i = 0; i < resultsCount; i++) {
+		live.push_back(fiftyoneDegreesResultsIpiCreate(&actual.manager));
+		presetDetect(live[i], addresses[i % addresses.size()]);
+		for (int p = 0; p < count; p++) {
+			presetAnswer(live[i], p, buffer);
+		}
+	}
+	for (uint32_t i = 0; i < resultsCount; i++) {
+		presetDetect(expectedResults, addresses[i % addresses.size()]);
+		for (int p = 0; p < count; p++) {
+			EXPECT_EQ(
+				presetAnswer(expectedResults, p, buffer),
+				presetAnswer(live[i], p, buffer)) <<
+				"Required index " << p << " of results " << i;
+		}
+	}
+	for (fiftyoneDegreesResultsIpi* results : live) {
+		fiftyoneDegreesResultsIpiFree(results);
+	}
+	fiftyoneDegreesResultsIpiFree(expectedResults);
+}
+
+TEST_F(IpiPresetTests, EngineMetaDataMatches) {
 	Common::RequiredPropertiesConfig properties(oneComponent);
 	Ipi::ConfigIpi expectedConfig;
 	expectedConfig.setLowMemory();
 	Ipi::ConfigIpi actualConfig;
-	actualConfig.setBalanced();
+	actualConfig.setHighPerformance();
 	Ipi::EngineIpi expected(dataFilePath, &expectedConfig, &properties);
 	Ipi::EngineIpi actual(dataFilePath, &actualConfig, &properties);
 	using Components = Common::Collection<::byte, Common::ComponentMetaData>;
@@ -1247,11 +1510,11 @@ TEST_F(IpiBalancedTests, EngineMetaDataMatches) {
 /**
  * Compares the answers of each thread with those from one thread.
  */
-class IpiBalancedThreadTests : public IpiBalancedTests {
+class IpiPresetThreadTests : public IpiPresetTests {
 public:
 	static void runThread(void* state) {
-		IpiBalancedThreadTests* const test = (IpiBalancedThreadTests*)state;
-		if (balancedAnswers(test->threadManager, test->threadAddresses) !=
+		IpiPresetThreadTests* const test = (IpiPresetThreadTests*)state;
+		if (presetAnswers(test->threadManager, test->threadAddresses) !=
 			test->threadExpected) {
 			test->threadFailures++;
 		}
@@ -1260,7 +1523,7 @@ public:
 	void TearDown() override {
 		vector<string>().swap(threadAddresses);
 		vector<string>().swap(threadExpected);
-		IpiBalancedTests::TearDown();
+		IpiPresetTests::TearDown();
 	}
 protected:
 	fiftyoneDegreesResourceManager* threadManager = nullptr;
@@ -1269,35 +1532,35 @@ protected:
 	atomic<int> threadFailures{ 0 };
 };
 
-TEST_F(IpiBalancedThreadTests, ThreadsGetTheSameAnswers) {
+TEST_F(IpiPresetThreadTests, ThreadsGetTheSameAnswers) {
 	if (fiftyoneDegreesThreadingGetIsThreadSafe() == false) {
 		GTEST_SKIP() << "Built without threading.";
 	}
-	BalancedManager manager(
+	PresetManager manager(
 		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
+		fiftyoneDegreesIpiHighPerformanceConfig,
 		oneOfEach.c_str());
 	threadManager = &manager.manager;
-	threadAddresses = balancedAddresses();
-	threadExpected = balancedAnswers(threadManager, threadAddresses);
+	threadAddresses = presetAddresses();
+	threadExpected = presetAnswers(threadManager, threadAddresses);
 	runThreads(
 		4,
-		(FIFTYONE_DEGREES_THREAD_ROUTINE)IpiBalancedThreadTests::runThread);
+		(FIFTYONE_DEGREES_THREAD_ROUTINE)IpiPresetThreadTests::runThread);
 	EXPECT_EQ(0, threadFailures.load());
 }
 
 #ifndef _WIN32
-TEST_F(IpiBalancedTests, ForkedProcessGetsTheSameAnswers) {
-	BalancedManager manager(
+TEST_F(IpiPresetTests, ForkedProcessGetsTheSameAnswers) {
+	PresetManager manager(
 		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
+		fiftyoneDegreesIpiHighPerformanceConfig,
 		oneComponent.c_str());
-	const vector<string> addresses = balancedAddresses();
-	const vector<string> expected = balancedAnswers(&manager.manager, addresses);
+	const vector<string> addresses = presetAddresses();
+	const vector<string> expected = presetAnswers(&manager.manager, addresses);
 	const pid_t child = fork();
 	ASSERT_NE(-1, child);
 	if (child == 0) {
-		const bool same = balancedAnswers(&manager.manager, addresses) == expected;
+		const bool same = presetAnswers(&manager.manager, addresses) == expected;
 		_exit(same ? 0 : 1);
 	}
 	int status = -1;
@@ -1312,7 +1575,7 @@ TEST_F(IpiBalancedTests, ForkedProcessGetsTheSameAnswers) {
  * the test uses from the small data file, or that count the allocations of the
  * data set.
  */
-class IpiBalancedFileTests : public IpiBalancedTests {
+class IpiPresetFileTests : public IpiPresetTests {
 public:
 	void TearDown() override {
 		if (tempFilePath.empty() == false) {
@@ -1321,7 +1584,7 @@ public:
 		}
 		std::vector<unsigned char>().swap(data);
 		string().swap(tempFilePath);
-		IpiBalancedTests::TearDown();
+		IpiPresetTests::TearDown();
 	}
 protected:
 	std::vector<unsigned char> data;
@@ -1345,7 +1608,7 @@ protected:
 		ASSERT_NE(0u, GetTempPathA(MAX_PATH, directory));
 		ASSERT_NE(0u, GetTempFileNameA(directory, "ipi", 0, path));
 #else
-		char path[] = "/tmp/ipi_balanced_test_XXXXXX";
+		char path[] = "/tmp/ipi_preset_test_XXXXXX";
 		const int descriptor = mkstemp(path);
 		ASSERT_NE(-1, descriptor);
 		close(descriptor);
@@ -1367,21 +1630,22 @@ protected:
 	 * manager fails and that everything it allocated was freed.
 	 */
 	void expectEachFailureFreesEverything(
+		const fiftyoneDegreesConfigIpi& preset,
 		const string& path,
 		const char* required,
 		const uint64_t firstCall,
 		const size_t fromSize) {
-		BalancedAllocations allocations;
-		BalancedAllocations::fromSize = fromSize;
+		PresetAllocations allocations;
+		PresetAllocations::fromSize = fromSize;
 		for (uint64_t call = firstCall; call > 0; call++) {
 			fiftyoneDegreesResourceManager manager;
-			fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+			fiftyoneDegreesConfigIpi config = preset;
 			fiftyoneDegreesPropertiesRequired properties =
 				fiftyoneDegreesPropertiesDefault;
 			properties.string = required;
-			BalancedAllocations::calls = 0;
-			BalancedAllocations::live = 0;
-			BalancedAllocations::failAt = call;
+			PresetAllocations::calls = 0;
+			PresetAllocations::live = 0;
+			PresetAllocations::failAt = call;
 			EXCEPTION_CREATE;
 			const fiftyoneDegreesStatusCode status =
 				fiftyoneDegreesIpiInitManagerFromFile(
@@ -1392,7 +1656,7 @@ protected:
 					exception);
 			const bool failed = status != FIFTYONE_DEGREES_STATUS_SUCCESS ||
 				EXCEPTION_FAILED;
-			if (BalancedAllocations::calls < call) {
+			if (PresetAllocations::calls < call) {
 				// Every allocation has been refused in turn.
 				ASSERT_FALSE(failed);
 				fiftyoneDegreesResourceManagerFree(&manager);
@@ -1402,15 +1666,15 @@ protected:
 				// The code carries on when it can do without the memory.
 				fiftyoneDegreesResourceManagerFree(&manager);
 			}
-			EXPECT_EQ(0, BalancedAllocations::live) <<
+			EXPECT_EQ(0, PresetAllocations::live) <<
 				"Leak when call " << call << " of " <<
-				BalancedAllocations::failedSize << " bytes was refused.";
+				PresetAllocations::failedSize << " bytes was refused.";
 		}
 	}
 };
 
-TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
-	const string smallFile = GetFilePath(_dataFolderName, balancedAsnFileName);
+TEST_F(IpiPresetFileTests, DefaultValueOutsideItsPropertyIsHeld) {
+	const string smallFile = GetFilePath(_dataFolderName, presetAsnFileName);
 	if (smallFile.empty()) {
 		GTEST_SKIP() << "The small data file was not found.";
 	}
@@ -1430,18 +1694,18 @@ TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
 	data[(size_t)properties + offsetof(fiftyoneDegreesProperty, isMandatory)] = 1;
 	ASSERT_NO_FATAL_FAILURE(writeTempFile());
 
-	{
-		BalancedManager expected(
+	const fiftyoneDegreesConfigIpi* presets[] = {
+		&fiftyoneDegreesIpiHighPerformanceConfig,
+		&fiftyoneDegreesIpiBalancedConfig };
+	for (const fiftyoneDegreesConfigIpi* preset : presets) {
+		PresetManager expected(
 			tempFilePath,
 			fiftyoneDegreesIpiLowMemoryConfig,
 			"Asn");
-		BalancedManager actual(
-			tempFilePath,
-			fiftyoneDegreesIpiBalancedConfig,
-			"Asn");
+		PresetManager actual(tempFilePath, *preset, "Asn");
 		{
-			BalancedDataSet dataSet(&actual.manager);
-			ASSERT_STREQ(balancedHeldType, dataSet->values->typeName);
+			PresetDataSet dataSet(&actual.manager);
+			ASSERT_STREQ(presetHeldType, dataSet->values->typeName);
 			EXCEPTION_CREATE;
 			fiftyoneDegreesCollectionItem item;
 			fiftyoneDegreesDataReset(&item.data);
@@ -1455,12 +1719,12 @@ TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
 				"The default value was read from the file.";
 			FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->values, &item);
 		}
-		vector<char> buffer(balancedBufferBytes);
+		vector<char> buffer(presetBufferBytes);
 		fiftyoneDegreesResultsIpi* expectedResults =
 			fiftyoneDegreesResultsIpiCreate(&expected.manager);
 		fiftyoneDegreesResultsIpi* actualResults =
 			fiftyoneDegreesResultsIpiCreate(&actual.manager);
-		const string address = balancedAddresses()[0];
+		const string address = presetAddresses()[0];
 		EXCEPTION_CREATE;
 		fiftyoneDegreesResultsIpiFromIpAddressString(
 			expectedResults,
@@ -1478,56 +1742,17 @@ TEST_F(IpiBalancedFileTests, DefaultValueOutsideItsPropertyIsHeld) {
 		// profile.
 		fiftyoneDegreesResultsPendingClear(&expectedResults->b);
 		fiftyoneDegreesResultsPendingClear(&actualResults->b);
-		const string answer = balancedAnswer(actualResults, 0, buffer);
+		const string answer = presetAnswer(actualResults, 0, buffer);
 		EXPECT_EQ(
 			"1", answer.substr(0, 1)) << "The default value was not found.";
-		EXPECT_EQ(balancedAnswer(expectedResults, 0, buffer), answer);
+		EXPECT_EQ(presetAnswer(expectedResults, 0, buffer), answer);
 		fiftyoneDegreesResultsIpiFree(expectedResults);
 		fiftyoneDegreesResultsIpiFree(actualResults);
 	}
 }
 
-TEST_F(IpiBalancedFileTests, NothingIsAllocatedDuringALookupOfHeldData) {
-	if (componentCount < 2) {
-		GTEST_SKIP() << "The data file has one component.";
-	}
-	BalancedManager manager(
-		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
-		oneComponent.c_str());
-	{
-		BalancedDataSet dataSet(&manager.manager);
-		if (string(dataSet->values->typeName) != balancedHeldType ||
-			string(dataSet->profiles->typeName) != balancedHeldType) {
-			GTEST_SKIP() << "The data file does not leave enough on file.";
-		}
-	}
-	const vector<string> addresses = balancedAddresses();
-	vector<char> buffer(balancedBufferBytes);
-	fiftyoneDegreesResultsIpi* results =
-		fiftyoneDegreesResultsIpiCreate(&manager.manager);
-	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
-		results->b.dataSet)->b.b.available->count;
-	// A first pass gives each list in the results the size it needs.
-	const auto pass = [&]() {
-		for (const string& address : addresses) {
-			balancedDetect(results, address);
-			for (int i = 0; i < count; i++) {
-				balancedAnswer(results, i, buffer);
-			}
-		}
-	};
-	pass();
-	{
-		BalancedAllocations allocations;
-		pass();
-		EXPECT_EQ(0u, BalancedAllocations::calls);
-	}
-	fiftyoneDegreesResultsIpiFree(results);
-}
-
-TEST_F(IpiBalancedFileTests, TruncatedFileFailsWhenStringsAreHeld) {
-	const string smallFile = GetFilePath(_dataFolderName, balancedAsnFileName);
+TEST_F(IpiPresetFileTests, TruncatedFileFailsWhenStringsAreHeld) {
+	const string smallFile = GetFilePath(_dataFolderName, presetAsnFileName);
 	if (smallFile.empty()) {
 		GTEST_SKIP() << "The small data file was not found.";
 	}
@@ -1537,7 +1762,7 @@ TEST_F(IpiBalancedFileTests, TruncatedFileFailsWhenStringsAreHeld) {
 	data.resize((size_t)header()->strings.startPosition + 1024);
 	ASSERT_NO_FATAL_FAILURE(writeTempFile());
 	fiftyoneDegreesResourceManager manager;
-	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiHighPerformanceConfig;
 	fiftyoneDegreesPropertiesRequired properties =
 		fiftyoneDegreesPropertiesDefault;
 	properties.string = "Asn";
@@ -1555,28 +1780,29 @@ TEST_F(IpiBalancedFileTests, TruncatedFileFailsWhenStringsAreHeld) {
 #ifdef NDEBUG
 // The cache asserts that its allocation worked, so these only run with asserts
 // compiled out.
-TEST_F(IpiBalancedFileTests, FailedLargeAllocationFreesEverything) {
+TEST_F(IpiPresetFileTests, FailedLargeAllocationFreesEverything) {
 	expectEachFailureFreesEverything(
+		fiftyoneDegreesIpiHighPerformanceConfig,
 		dataFilePath,
 		oneComponent.c_str(),
 		1,
 		1024 * 1024);
 }
 
-TEST_F(IpiBalancedFileTests, FailedAllocationAfterTheScanBeginsFreesEverything) {
+TEST_F(IpiPresetFileTests, FailedAllocationAfterTheScanBeginsFreesEverything) {
 	// The scan buffer is the first allocation of its size.
 	const size_t scanBufferBytes = 65536;
 	vector<size_t> sizes;
 	{
-		BalancedAllocations allocations;
-		BalancedAllocations::sizes = &sizes;
+		PresetAllocations allocations;
+		PresetAllocations::sizes = &sizes;
 		{
-			BalancedManager manager(
+			PresetManager manager(
 				dataFilePath,
-				fiftyoneDegreesIpiBalancedConfig,
+				fiftyoneDegreesIpiHighPerformanceConfig,
 				oneComponent.c_str());
 		}
-		BalancedAllocations::sizes = nullptr;
+		PresetAllocations::sizes = nullptr;
 	}
 	uint64_t scanBufferCall = 0;
 	for (size_t i = 0; i < sizes.size() && scanBufferCall == 0; i++) {
@@ -1587,20 +1813,11 @@ TEST_F(IpiBalancedFileTests, FailedAllocationAfterTheScanBeginsFreesEverything) 
 	vector<size_t>().swap(sizes);
 	ASSERT_GT(scanBufferCall, 0u);
 	expectEachFailureFreesEverything(
+		fiftyoneDegreesIpiHighPerformanceConfig,
 		dataFilePath,
 		oneComponent.c_str(),
 		scanBufferCall,
 		0);
 }
 
-TEST_F(IpiBalancedFileTests, FailedAllocationOfTheLargerCacheFreesEverything) {
-	// One property of a large component leaves its profiles on file, which
-	// enlarges the profile cache.
-	const string required = allNames.front();
-	expectEachFailureFreesEverything(
-		dataFilePath,
-		required.c_str(),
-		1,
-		64 * 1024 + 1);
-}
 #endif

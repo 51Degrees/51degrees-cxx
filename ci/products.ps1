@@ -5,7 +5,8 @@
 $AllProducts = @('common', 'dd', 'ipi')
 
 # Paths that belong to a single product. A change anywhere else, including
-# common, the CMake files and CI, affects every product.
+# common, the CMake files, CI and the data submodule, which holds the files
+# of both products, affects every product.
 $ProductPaths = @{
     dd = @('src/dd/', 'test/dd/', 'examples/dd/', 'docs/dd/', 'tools/dd/',
         'VisualStudio/DeviceDetection/', 'device-detection-data')

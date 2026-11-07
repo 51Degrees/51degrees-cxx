@@ -57,12 +57,12 @@ foreach ($product in $Products) {
             'common' { & "$BinPath/CachePerf$Exe" $output }
             'dd' {
                 & "$BinPath/PerformanceHashC$Exe" --json-output $output `
-                    --data-file "$RepoPath/device-detection-data/TAC-HashV41.hash"
+                    --data-file "$RepoPath/data/device-detection/TAC-HashV41.hash"
             }
             'ipi' {
                 & "$BinPath/PerformanceC$Exe" --json-output $output `
-                    --data-file "$RepoPath/ip-intelligence-data/51Degrees-LiteV41.ipi" `
-                    --ip-addresses-file "$RepoPath/ip-intelligence-data/evidence.yml"
+                    --data-file "$RepoPath/data/ip-intelligence/51Degrees-LiteV41.ipi" `
+                    --ip-addresses-file "$RepoPath/data/ip-intelligence/evidence.yml"
             }
         }
         $code = $LASTEXITCODE

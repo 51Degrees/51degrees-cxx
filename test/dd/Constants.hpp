@@ -23,7 +23,7 @@
 #ifndef FIFTYONE_DEGREES_DEVICE_DETECTION_CONSTANTS_HPP
 #define FIFTYONE_DEGREES_DEVICE_DETECTION_CONSTANTS_HPP
 
-const static char _dataFolderName[] = "device-detection-data";
+const static char _dataFolderName[] = "data/device-detection";
 
 const static char* _HashFileNames[] = { "TAC-HashV41.hash", "51Degrees-EnterpriseV4.1.hash", "51Degrees-LiteV4.1.hash" };
 

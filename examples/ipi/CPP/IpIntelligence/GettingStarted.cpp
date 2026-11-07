@@ -218,7 +218,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	else {
-		status = fiftyoneDegreesFileGetPath(
+		status = ExampleBase::getFilePath(
 				dataDir,
 				dataFileName,
 				dataFilePath,

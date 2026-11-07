@@ -1052,14 +1052,13 @@ static StatusCode createProfilesFromFile(
 /**
  * HOLDING WHAT THE REQUIRED PROPERTIES READ
  *
- * With the Balanced preset, a caller that names its required properties only
- * reads part of the data file. The parts it does not read stay on file, and
- * the memory that frees pays for holding more of the parts it does read, so
- * memory never rises and lookups need fewer locks, file reads and allocations.
- * Everything still reads from the file if it is not held, so this can only
- * change where an answer comes from and never the answer.
+ * With the HighPerformance preset, a caller that names some of the properties
+ * only reads part of the data file. Only that part is loaded into memory, and
+ * the rest reads from the file. Each stretch held is made of whole records, so
+ * a lookup that reads the named properties reads nothing from the file, and
+ * anything else still gets the same answer, more slowly.
  *
- * A caller who names nothing, or every property, has only the default values
+ * With the Balanced preset, the default value of each required property is
  * held, which a lookup reads for each mandatory property its profile has no
  * value for.
  */
@@ -1074,26 +1073,15 @@ static StatusCode createProfilesFromFile(
 /** Bytes read from the file at a time when scanning records. */
 #define HELD_SCAN_BUFFER_BYTES ((uint32_t)65536)
 
-/** Bytes kept back from the budget for the memory used to keep track. */
-#define HELD_RESERVED_BYTES ((uint64_t)131072)
-
-/**
- * The most entries the profile cache is enlarged to. When measured, ten times
- * this gave little on Linux and was usually slower on Windows.
- */
-#define HELD_PROFILE_CACHE_MAX_ENTRIES ((uint32_t)100000)
-
-/**
- * The least of a run of profiles worth holding when not all of it fits, as a
- * percentage of the run.
- */
-#define HELD_PROFILE_RUN_MIN_PERCENT 50
-
-/** Bytes the allocator uses for each block a cache entry allocates. */
-#define HELD_ALLOCATION_OVERHEAD_BYTES ((uint64_t)32)
-
 /** The number of values a component id, which is a byte, can have. */
 #define HELD_COMPONENT_IDS 256
+
+/**
+ * Blocks of keys for each range held. A read starts from the first range that
+ * ends after the start of the key's block, so more blocks mean fewer ranges
+ * checked.
+ */
+#define HELD_BLOCKS_PER_RANGE 16
 
 /**
  * A stretch of a collection held in memory, in the units of the collection's
@@ -1115,31 +1103,16 @@ typedef struct held_collection_t {
 	uint32_t unitBytes; /* Bytes in each unit of a key */
 	uint32_t count; /* Number of ranges */
 	heldRange* ranges; /* The ranges in the order of their keys */
+	uint32_t blockShift; /* Bits of a key below the number of its block */
+	uint32_t blockCount; /* Blocks up to the end of the last range */
+	uint32_t* blocks; /* The first range ending after each block starts */
 } heldCollection;
 
 /**
- * Checks all of an item is in the range. An item of variable length that starts
- * in a range might end beyond it, and is then read from the source.
+ * Gets an item from the range that holds it, or from the source when no range
+ * does. The key's block gives the first range that could hold it. Each range
+ * holds whole records, so an item that starts in a range ends in it.
  */
-static bool heldRangeHasItem(
-	const Collection* collection,
-	const heldCollection* state,
-	const heldRange* range,
-	const CollectionKey* key,
-	const byte* ptr,
-	Exception* exception) {
-	if (collection->elementSize > 0) {
-		return true;
-	}
-	const uint64_t available =
-		(uint64_t)(range->end - key->indexOrOffset.offset) * state->unitBytes;
-	if (key->keyType->initialBytesCount > available) {
-		return false;
-	}
-	return key->keyType->getFinalSizeMethod == NULL ||
-		key->keyType->getFinalSizeMethod(ptr, exception) <= available;
-}
-
 static void* heldGet(
 	const Collection* collection,
 	const CollectionKey* const key,
@@ -1148,33 +1121,20 @@ static void* heldGet(
 	const heldCollection* const state =
 		(const heldCollection*)collection->state;
 	const uint32_t position = key->indexOrOffset.offset;
-	uint32_t low = 0;
-	uint32_t high = state->count;
-	while (low < high) {
-		const uint32_t middle = low + (high - low) / 2;
-		const heldRange* const range = &state->ranges[middle];
-		if (position < range->first) {
-			high = middle;
-		}
-		else if (position >= range->end) {
-			low = middle + 1;
-		}
-		else {
-			byte* const ptr = range->memory +
-				(size_t)((uint64_t)(position - range->first) * state->unitBytes);
-			if (heldRangeHasItem(
-				collection,
-				state,
-				range,
-				key,
-				ptr,
-				exception)) {
+	const uint32_t block = position >> state->blockShift;
+	if (block < state->blockCount) {
+		const heldRange* const last = state->ranges + state->count;
+		for (const heldRange* range = state->ranges + state->blocks[block];
+			range < last && range->first <= position;
+			range++) {
+			if (position < range->end) {
+				byte* const ptr = range->memory + (size_t)(
+					(uint64_t)(position - range->first) * state->unitBytes);
 				item->data.ptr = ptr;
 				item->handle = NULL;
 				item->collection = collection;
 				return ptr;
 			}
-			break;
 		}
 	}
 	void* const ptr = state->source->get(state->source, key, item, exception);
@@ -1224,28 +1184,14 @@ static int heldRangeCompareFirst(const void* a, const void* b) {
 	return x < y ? -1 : (x > y ? 1 : 0);
 }
 
-static int heldRangeCompareLength(const void* a, const void* b) {
-	const uint32_t x = ((const heldRange*)a)->end - ((const heldRange*)a)->first;
-	const uint32_t y = ((const heldRange*)b)->end - ((const heldRange*)b)->first;
-	return x < y ? -1 : (x > y ? 1 : 0);
-}
-
 /**
- * Replaces the collection with one holding the ranges in memory, which reads
- * everything else from the collection replaced. The ranges are put in order
- * and joined where they meet. Anything allocated is freed with the data set if
- * this fails.
+ * Puts the ranges in the order of their keys and joins those that meet,
+ * returning the number left.
  */
-static StatusCode heldCreate(
-	Collection** collection,
-	FILE* file,
-	const uint64_t startPosition,
-	const uint32_t unitBytes,
-	heldRange* ranges,
-	const uint32_t rangeCount) {
+static uint32_t heldRangesMerge(heldRange* ranges, const uint32_t rangeCount) {
 	uint32_t count = 0;
 	if (rangeCount == 0) {
-		return SUCCESS;
+		return 0;
 	}
 	qsort(ranges, rangeCount, sizeof(heldRange), heldRangeCompareFirst);
 	for (uint32_t i = 0; i < rangeCount; i++) {
@@ -1258,9 +1204,35 @@ static StatusCode heldCreate(
 			ranges[count++] = ranges[i];
 		}
 	}
+	return count;
+}
 
+/**
+ * Replaces the collection with one holding the ranges in memory, which reads
+ * everything else from the collection replaced. Anything allocated is freed
+ * with the data set if this fails.
+ */
+static StatusCode heldCreate(
+	Collection** collection,
+	FILE* file,
+	const uint64_t startPosition,
+	const uint32_t unitBytes,
+	heldRange* ranges,
+	const uint32_t rangeCount) {
+	const uint32_t count = heldRangesMerge(ranges, rangeCount);
+	if (count == 0) {
+		return SUCCESS;
+	}
+	const uint32_t end = ranges[count - 1].end;
+	uint32_t shift = 0;
+	while (((uint64_t)end >> shift) > (uint64_t)count * HELD_BLOCKS_PER_RANGE) {
+		shift++;
+	}
+	const uint32_t blockCount = ((end - 1) >> shift) + 1;
 	heldCollection* const state = (heldCollection*)Malloc(
-		sizeof(heldCollection) + count * sizeof(heldRange));
+		sizeof(heldCollection) +
+		count * sizeof(heldRange) +
+		blockCount * sizeof(uint32_t));
 	if (state == NULL) {
 		return INSUFFICIENT_MEMORY;
 	}
@@ -1274,6 +1246,15 @@ static StatusCode heldCreate(
 	state->unitBytes = unitBytes;
 	state->count = 0;
 	state->ranges = (heldRange*)(state + 1);
+	state->blockShift = shift;
+	state->blockCount = blockCount;
+	state->blocks = (uint32_t*)(state->ranges + count);
+	for (uint32_t b = 0, r = 0; b < blockCount; b++) {
+		while (r < count && ranges[r].end <= ((uint64_t)b << shift)) {
+			r++;
+		}
+		state->blocks[b] = r;
+	}
 	*held = **collection;
 	held->state = state;
 	held->get = heldGet;
@@ -1306,6 +1287,66 @@ static StatusCode heldCreate(
 		}
 	}
 	return SUCCESS;
+}
+
+/**
+ * Holds the ranges of a collection that reads from the file. A collection that
+ * is needed in full is loaded into memory like any other if it can be
+ * replaced, and one with nothing needed stays on file. A collection cannot be
+ * replaced while items read from it when the data set was created are still to
+ * be released through it.
+ */
+static StatusCode heldApply(
+	DataSetIpi* dataSet,
+	FILE* file,
+	Collection** collection,
+	CollectionHeader header,
+	CollectionFileRead read,
+	const byte shift,
+	const bool replaceable,
+	heldRange* ranges,
+	const uint32_t rangeCount) {
+	static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
+	const uint32_t unitBytes = (*collection)->elementSize > 0 ?
+		(*collection)->elementSize : (uint32_t)1 << shift;
+	const uint32_t count = heldRangesMerge(ranges, rangeCount);
+	if (replaceable == false ||
+		count != 1 ||
+		ranges[0].first > 0 ||
+		(uint64_t)ranges[0].end * unitBytes <
+			((uint64_t)header.length << shift)) {
+		return heldCreate(
+			collection,
+			file,
+			(uint64_t)header.startPosition,
+			unitBytes,
+			ranges,
+			count);
+	}
+	// A collection of variable length records is created with no count.
+	if ((*collection)->elementSize == 0) {
+		header.count = 0;
+	}
+	Collection* const source = *collection;
+	FIFTYONE_DEGREES_COLLECTION_FREE(source);
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+	*collection = fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
+		file,
+		&dataSet->b.b.filePool,
+		&inMemory,
+		header,
+		read,
+		shift);
+#else
+	*collection = CollectionCreateFromFile(
+		file,
+		&dataSet->b.b.filePool,
+		&inMemory,
+		header,
+		read);
+#endif
+	return *collection == NULL ?
+		getCollectionFileStatus(dataSet, header, shift) : SUCCESS;
 }
 
 /**
@@ -1350,8 +1391,7 @@ typedef struct held_strings_bucket_t {
 } heldStringsBucket;
 
 /**
- * What is worked out before anything is held, so that nothing is allocated
- * until it is known that everything fits.
+ * What is worked out before anything is held.
  */
 typedef struct held_plan_t {
 	byte* buffer; /* Used to scan records */
@@ -1363,11 +1403,12 @@ typedef struct held_plan_t {
 	uint32_t stringsCount; /* Number of stretches of the strings */
 	heldRange* values; /* The stretches of the values to hold */
 	uint32_t valuesCount; /* Number of stretches of the values */
+	heldRange* profileOffsets; /* The stretches of the profile offsets */
+	uint32_t profileOffsetsCount; /* Number of stretches of profile offsets */
+	heldRange* profileGroups; /* The stretches of the profile groups */
+	uint32_t profileGroupsCount; /* Number of stretches of profile groups */
 	heldRange* profiles; /* The stretches of the profiles to hold */
 	uint32_t profilesCount; /* Number of stretches of the profiles */
-	bool holdProfileGroups; /* True to hold all the profile groups */
-	uint64_t budget; /* Bytes that can still be held */
-	uint32_t profileCacheCapacity; /* Entries for the profile cache */
 } heldPlan;
 
 static void heldFreeIfSet(void* memory) {
@@ -1381,28 +1422,9 @@ static void heldPlanFree(heldPlan* plan) {
 	heldFreeIfSet(plan->buckets);
 	heldFreeIfSet(plan->strings);
 	heldFreeIfSet(plan->values);
+	heldFreeIfSet(plan->profileOffsets);
+	heldFreeIfSet(plan->profileGroups);
 	heldFreeIfSet(plan->profiles);
-}
-
-/**
- * Keeps only the first count ranges, so that a list sized for the most there
- * could be is not still allocated while what it lists is held.
- */
-static StatusCode heldRangesTrim(heldRange** ranges, const uint32_t count) {
-	heldRange* trimmed = NULL;
-	if (*ranges == NULL) {
-		return SUCCESS;
-	}
-	if (count > 0) {
-		trimmed = (heldRange*)Malloc(sizeof(heldRange) * count);
-		if (trimmed == NULL) {
-			return INSUFFICIENT_MEMORY;
-		}
-		memcpy(trimmed, *ranges, sizeof(heldRange) * count);
-	}
-	Free(*ranges);
-	*ranges = trimmed;
-	return SUCCESS;
 }
 
 static void heldPlanScanValue(void* state, const byte* record) {
@@ -1422,13 +1444,12 @@ static void heldPlanScanValue(void* state, const byte* record) {
 }
 
 /**
- * Creates the graphs. Those of a component with no required property read from
- * the file, which adds the memory they would have used to the budget.
+ * Creates the graphs, with those of a component that has no required property
+ * reading from the file.
  */
 static StatusCode heldGraphsCreate(
 	DataSetIpi* dataSet,
 	FILE* file,
-	heldPlan* plan,
 	Exception* exception) {
 	bool requiredIds[HELD_COMPONENT_IDS];
 	memset(requiredIds, 0, sizeof(requiredIds));
@@ -1448,21 +1469,11 @@ static StatusCode heldGraphsCreate(
 	if (dataSet->graphsArray == NULL) {
 		return EXCEPTION_OKAY ? CORRUPT_DATA : SUCCESS;
 	}
-	for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
-		const fiftyoneDegreesIpiCgInfo* const info =
-			&dataSet->graphsArray->items[g].info;
-		if (requiredIds[info->componentId] == false) {
-			plan->budget += (uint64_t)info->nodes.collection.length +
-				info->spans.length +
-				info->spanBytes.length +
-				info->clusters.length;
-		}
-	}
 	return SUCCESS;
 }
 
 /**
- * Records the strings of a stretch of values and offers it for holding.
+ * Records the strings of a stretch of values and plans to hold it.
  */
 static StatusCode heldPlanValues(
 	const DataSetIpi* dataSet,
@@ -1485,7 +1496,7 @@ static StatusCode heldPlanValues(
 
 /**
  * Plans for the values of each required property. A default value is only
- * offered on its own if it is not in the range of its property.
+ * planned on its own if it is not in the range of its property.
  */
 static StatusCode heldPlanProperties(
 	DataSetIpi* dataSet,
@@ -1568,7 +1579,6 @@ static uint32_t heldStringEnd(
 /**
  * Works out the stretches of the strings to hold from the strings recorded,
  * which leaves on file any stretch long enough that holds no required string.
- * What that frees is added to the budget.
  */
 static StatusCode heldPlanStrings(
 	const DataSetIpi* dataSet,
@@ -1623,35 +1633,7 @@ static StatusCode heldPlanStrings(
 		}
 		heldRangeAdd(plan->strings, &plan->stringsCount, start, end);
 	}
-	uint64_t held = 0;
-	for (uint32_t i = 0; i < plan->stringsCount; i++) {
-		held += plan->strings[i].end - plan->strings[i].first;
-	}
-	plan->budget += size - held;
 	return SUCCESS;
-}
-
-/**
- * Keeps as many of the ranges as the budget allows, smallest first. A larger
- * range cannot fit once a smaller one has not.
- */
-static uint32_t heldPlanSpend(
-	heldPlan* plan,
-	heldRange* ranges,
-	const uint32_t count,
-	const uint32_t unitBytes) {
-	uint32_t kept = 0;
-	qsort(ranges, count, sizeof(heldRange), heldRangeCompareLength);
-	while (kept < count) {
-		const uint64_t bytes =
-			(uint64_t)(ranges[kept].end - ranges[kept].first) * unitBytes;
-		if (bytes > plan->budget) {
-			break;
-		}
-		plan->budget -= bytes;
-		kept++;
-	}
-	return kept;
 }
 
 /** The profiles of a component, which are next to each other in the file. */
@@ -1708,61 +1690,41 @@ static StatusCode heldProfileUnits(
 }
 
 /**
- * Plans for the required profiles that did not fit. The profile cache grows for
- * them, and then the next run is held in part if enough of it is left. A profile
- * that runs past the end of the part reads from the cache.
+ * Adds a range, cut to end at the limit of its collection.
  */
-static void heldPlanProfilesOnFile(
-	const DataSetIpi* dataSet,
-	heldPlan* plan,
-	heldRange* next,
-	const uint64_t averageProfileBytes) {
-	const byte shift = getProfilesFileShift(dataSet);
-	const uint32_t capacity = dataSet->config.profiles.capacity;
-	if (capacity > 0) {
-		// The data of an entry grows to the largest profile it has held.
-		const uint64_t entryBytes = sizeof(CacheNode) +
-			HELD_ALLOCATION_OVERHEAD_BYTES + 2 * averageProfileBytes;
-		const uint64_t entries = plan->budget / entryBytes;
-		plan->profileCacheCapacity = entries > HELD_PROFILE_CACHE_MAX_ENTRIES ?
-			HELD_PROFILE_CACHE_MAX_ENTRIES : (uint32_t)entries;
-		if (plan->profileCacheCapacity > capacity) {
-			plan->budget -= plan->profileCacheCapacity * entryBytes;
-		}
-	}
-	const uint64_t units = plan->budget >> shift;
-	const uint64_t runUnits = next->end - next->first;
-	if (units < runUnits && units * 100 >= runUnits * HELD_PROFILE_RUN_MIN_PERCENT) {
-		next->end = next->first + (uint32_t)units;
-		plan->budget -= units << shift;
-		plan->profilesCount++;
-	}
+static void heldRangeAddWithin(
+	heldRange* ranges,
+	uint32_t* count,
+	const uint32_t first,
+	const uint32_t length,
+	const uint32_t limit) {
+	const uint64_t end = (uint64_t)first + length;
+	heldRangeAdd(ranges, count, first, end < limit ? (uint32_t)end : limit);
 }
 
 /**
- * Offers the run of profiles of each component with a required property for
- * holding, smallest first.
+ * Plans for the profile offsets, the profile groups and the profiles of each
+ * component with a required property. A component's profiles are next to each
+ * other in the file, so they are held from the first to the end of the last.
  */
-static StatusCode heldPlanProfiles(
+static StatusCode heldPlanComponents(
 	const DataSetIpi* dataSet,
 	FILE* file,
 	heldPlan* plan,
 	Exception* exception) {
-	if (plan->budget == 0) {
-		return SUCCESS;
-	}
 	const uint32_t size = dataSet->header.profiles.length;
-	const byte shift = getProfilesFileShift(dataSet);
 	const uint64_t offsetsStart =
 		(uint64_t)dataSet->header.profileOffsets.startPosition;
 	const uint64_t groupsStart =
 		(uint64_t)dataSet->header.profileGroups.startPosition;
-	uint64_t totalBytes = 0;
-	uint64_t totalProfiles = 0;
-	uint32_t count = 0;
+	const uint32_t graphCount = dataSet->graphsArray->count;
+	plan->profileOffsets = (heldRange*)Malloc(sizeof(heldRange) * graphCount);
+	plan->profileGroups = (heldRange*)Malloc(sizeof(heldRange) * graphCount);
 	plan->profiles = (heldRange*)Malloc(
 		sizeof(heldRange) * dataSet->componentsList.count);
-	if (plan->profiles == NULL) {
+	if (plan->profileOffsets == NULL ||
+		plan->profileGroups == NULL ||
+		plan->profiles == NULL) {
 		return INSUFFICIENT_MEMORY;
 	}
 	for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
@@ -1771,17 +1733,24 @@ static StatusCode heldPlanProfiles(
 			continue;
 		}
 		heldProfileRun run = { UINT32_MAX, 0 };
-		uint32_t profiles = 0;
-		for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+		for (uint32_t g = 0; g < graphCount; g++) {
 			const fiftyoneDegreesIpiCgInfo* const info =
 				&dataSet->graphsArray->items[g].info;
 			if (info->componentId != component->componentId) {
 				continue;
 			}
-			// The graphs of each IP version share the profiles of a component.
-			if (info->profileCount > profiles) {
-				profiles = info->profileCount;
-			}
+			heldRangeAddWithin(
+				plan->profileOffsets,
+				&plan->profileOffsetsCount,
+				info->firstProfileIndex,
+				info->profileCount,
+				dataSet->header.profileOffsets.count);
+			heldRangeAddWithin(
+				plan->profileGroups,
+				&plan->profileGroupsCount,
+				info->firstProfileGroupIndex,
+				info->profileGroupCount,
+				dataSet->header.profileGroups.count);
 			StatusCode status = heldScan(
 				file,
 				plan->buffer,
@@ -1820,22 +1789,12 @@ static StatusCode heldPlanProfiles(
 			return status;
 		}
 		if (units <= size - run.last) {
-			heldRangeAdd(plan->profiles, &count, run.first, run.last + units);
-			totalBytes += (uint64_t)(run.last + units - run.first) << shift;
-			totalProfiles += profiles;
+			heldRangeAdd(
+				plan->profiles,
+				&plan->profilesCount,
+				run.first,
+				run.last + units);
 		}
-	}
-	plan->profilesCount = heldPlanSpend(
-		plan,
-		plan->profiles,
-		count,
-		(uint32_t)1 << shift);
-	if (plan->profilesCount < count) {
-		heldPlanProfilesOnFile(
-			dataSet,
-			plan,
-			&plan->profiles[plan->profilesCount],
-			totalProfiles > 0 ? totalBytes / totalProfiles : 0);
 	}
 	return SUCCESS;
 }
@@ -1848,19 +1807,7 @@ static StatusCode heldPlanCreate(
 	FILE* file,
 	heldPlan* plan,
 	Exception* exception) {
-	// A collection placed beyond the end of the file is a fault in the file,
-	// and the scans below would otherwise report it as a failed read.
-	if (getCollectionFileStatus(dataSet, dataSet->header.values, 0) ==
-			CORRUPT_DATA ||
-		getCollectionFileStatus(dataSet, dataSet->header.profileGroups, 0) ==
-			CORRUPT_DATA ||
-		getCollectionFileStatus(
-			dataSet,
-			dataSet->header.profiles,
-			getProfilesFileShift(dataSet)) == CORRUPT_DATA) {
-		return CORRUPT_DATA;
-	}
-	StatusCode status = heldGraphsCreate(dataSet, file, plan, exception);
+	StatusCode status = heldGraphsCreate(dataSet, file, exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		return status;
 	}
@@ -1885,42 +1832,7 @@ static StatusCode heldPlanCreate(
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		return status;
 	}
-	plan->budget = plan->budget > HELD_RESERVED_BYTES ?
-		plan->budget - HELD_RESERVED_BYTES : 0;
-	plan->valuesCount = heldPlanSpend(
-		plan,
-		plan->values,
-		plan->valuesCount,
-		dataSet->values->elementSize);
-
-	// Holding all the profile groups frees their cache, which is usually much
-	// larger than they are.
-	const uint64_t groupsBytes = dataSet->header.profileGroups.length;
-	const uint64_t groupsCacheBytes =
-		(uint64_t)dataSet->config.profileGroups.capacity * sizeof(CacheNode);
-	if (dataSet->config.profileGroups.loaded == false &&
-		groupsBytes <= plan->budget + groupsCacheBytes) {
-		plan->holdProfileGroups = true;
-		plan->budget = plan->budget + groupsCacheBytes - groupsBytes;
-	}
-	return heldPlanProfiles(dataSet, file, plan, exception);
-}
-
-/**
- * Replaces the profile cache with the larger one the plan has room for.
- */
-static StatusCode heldEnlargeProfileCache(
-	DataSetIpi* dataSet,
-	FILE* file,
-	const heldPlan* plan) {
-	fiftyoneDegreesCollectionConfig config = dataSet->config.profiles;
-	if (plan->profileCacheCapacity <= config.capacity) {
-		return SUCCESS;
-	}
-	config.capacity = plan->profileCacheCapacity;
-	FIFTYONE_DEGREES_COLLECTION_FREE(dataSet->profiles);
-	dataSet->profiles = NULL;
-	return createProfilesFromFile(dataSet, file, &config);
+	return heldPlanComponents(dataSet, file, plan, exception);
 }
 
 /**
@@ -1930,64 +1842,73 @@ static StatusCode heldEnlargeProfileCache(
 static StatusCode heldPlanApply(
 	DataSetIpi* dataSet,
 	FILE* file,
-	const heldPlan* plan) {
-	StatusCode status;
-	// Holding the profile groups frees their cache, so it comes before what
-	// adds to the memory used.
-	if (plan->holdProfileGroups) {
-		// With no profile groups there is nothing to hold or to read.
-		static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
-		static const fiftyoneDegreesCollectionConfig onFile = { false, 0, 0 };
-		FIFTYONE_DEGREES_COLLECTION_FREE(dataSet->profileGroups);
-		dataSet->profileGroups = CollectionCreateFromFile(
-			file,
-			&dataSet->b.b.filePool,
-			dataSet->header.profileGroups.length > 0 ? &inMemory : &onFile,
-			dataSet->header.profileGroups,
-			CollectionReadFileFixed);
-		if (dataSet->profileGroups == NULL) {
-			return getCollectionFileStatus(
-				dataSet,
-				dataSet->header.profileGroups,
-				0);
-		}
-	}
-	status = heldCreate(
-		&dataSet->strings,
+	heldPlan* plan) {
+	// The names of the required properties are read from the strings while the
+	// data set is created and released through them when it is freed, so the
+	// strings stay.
+	StatusCode status = heldApply(
+		dataSet,
 		file,
-		(uint64_t)dataSet->header.strings.startPosition,
-		1,
+		&dataSet->strings,
+		dataSet->header.strings,
+		fiftyoneDegreesStoredBinaryValueRead,
+		0,
+		false,
 		plan->strings,
 		plan->stringsCount);
-	if (status != SUCCESS) {
-		return status;
+	if (status == SUCCESS) {
+		status = heldApply(
+			dataSet,
+			file,
+			&dataSet->values,
+			dataSet->header.values,
+			CollectionReadFileFixed,
+			0,
+			true,
+			plan->values,
+			plan->valuesCount);
 	}
-	status = heldCreate(
-		&dataSet->values,
-		file,
-		(uint64_t)dataSet->header.values.startPosition,
-		dataSet->values->elementSize,
-		plan->values,
-		plan->valuesCount);
-	if (status != SUCCESS) {
-		return status;
+	if (status == SUCCESS) {
+		status = heldApply(
+			dataSet,
+			file,
+			&dataSet->profileOffsets,
+			dataSet->header.profileOffsets,
+			CollectionReadFileFixed,
+			0,
+			true,
+			plan->profileOffsets,
+			plan->profileOffsetsCount);
 	}
-	status = heldEnlargeProfileCache(dataSet, file, plan);
-	if (status != SUCCESS) {
-		return status;
+	if (status == SUCCESS) {
+		status = heldApply(
+			dataSet,
+			file,
+			&dataSet->profileGroups,
+			dataSet->header.profileGroups,
+			CollectionReadFileFixed,
+			0,
+			true,
+			plan->profileGroups,
+			plan->profileGroupsCount);
 	}
-	return heldCreate(
-		&dataSet->profiles,
-		file,
-		(uint64_t)dataSet->header.profiles.startPosition,
-		(uint32_t)1 << getProfilesFileShift(dataSet),
-		plan->profiles,
-		plan->profilesCount);
+	if (status == SUCCESS) {
+		status = heldApply(
+			dataSet,
+			file,
+			&dataSet->profiles,
+			dataSet->header.profiles,
+			fiftyoneDegreesProfileReadFromFile,
+			getProfilesFileShift(dataSet),
+			true,
+			plan->profiles,
+			plan->profilesCount);
+	}
+	return status;
 }
 
 /**
- * Creates the graphs and holds in memory what the required properties read, as
- * far as what is left on file pays for it.
+ * Creates the graphs and holds in memory what the required properties read.
  */
 static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
 	FILE* file;
@@ -1999,17 +1920,12 @@ static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
 	}
 	status = heldPlanCreate(dataSet, file, &plan, exception);
 	if (status == SUCCESS && EXCEPTION_OKAY) {
-		// The memory used to work out the plan goes first, and the stretches of
-		// the strings, listed with room for one in every 64 KB of them, keep
-		// only those found, so that neither adds to the most memory used.
+		// The memory used to work out the plan goes before anything is held.
 		heldFreeIfSet(plan.buffer);
 		plan.buffer = NULL;
 		heldFreeIfSet(plan.buckets);
 		plan.buckets = NULL;
-		status = heldRangesTrim(&plan.strings, plan.stringsCount);
-		if (status == SUCCESS) {
-			status = heldPlanApply(dataSet, file, &plan);
-		}
+		status = heldPlanApply(dataSet, file, &plan);
 	}
 	heldPlanFree(&plan);
 	fclose(file);
@@ -2089,8 +2005,7 @@ static uint32_t heldCountNames(const char* list) {
 
 /**
  * True for the shape of the Balanced preset, which holds the strings and the
- * graphs in memory and reads the values and the profiles from the file. The
- * other presets use the configuration as it is.
+ * graphs in memory and reads the values and the profiles from the file.
  */
 static bool heldIsBalanced(const ConfigIpi* config) {
 	return config->b.allInMemory == false &&
@@ -2101,13 +2016,33 @@ static bool heldIsBalanced(const ConfigIpi* config) {
 }
 
 /**
- * True for the shape of the Balanced preset when the caller has named fewer
- * properties than the data file has.
+ * True for the shape of the HighPerformance preset, which loads every
+ * collection into memory from the file.
+ */
+static bool heldIsHighPerformance(const ConfigIpi* config) {
+	return config->b.allInMemory == false &&
+		config->strings.loaded &&
+		config->components.loaded &&
+		config->maps.loaded &&
+		config->properties.loaded &&
+		config->values.loaded &&
+		config->profiles.loaded &&
+		config->graphs.loaded &&
+		config->profileGroups.loaded &&
+		config->profileOffsets.loaded &&
+		config->propertyTypes.loaded &&
+		config->graph.loaded;
+}
+
+/**
+ * True for the shape of the HighPerformance preset when the caller has named
+ * fewer properties than the data file has.
  */
 static bool heldIsWanted(
 	const DataSetIpi* dataSet,
 	const PropertiesRequired* properties) {
-	if (heldIsBalanced(&dataSet->config) == false || properties == NULL) {
+	if (heldIsHighPerformance(&dataSet->config) == false ||
+		properties == NULL) {
 		return false;
 	}
 	const uint32_t count = dataSet->header.properties.count;
@@ -2121,6 +2056,38 @@ static bool heldIsWanted(
 	return properties->string != NULL &&
 		strlen(properties->string) > 0 &&
 		heldCountNames(properties->string) < count;
+}
+
+/**
+ * Gets the configuration to create a collection with, which reads from the
+ * file when what the required properties read is to be held, as they are not
+ * known yet.
+ */
+static const fiftyoneDegreesCollectionConfig* heldConfig(
+	const fiftyoneDegreesCollectionConfig* config,
+	const bool hold) {
+	static const fiftyoneDegreesCollectionConfig readFromFile = { false, 0, 0 };
+	return hold ? &readFromFile : config;
+}
+
+/**
+ * Checks that each collection the hold reads from lies within the file, as one
+ * loaded into memory is checked when it is loaded.
+ */
+static StatusCode heldFileStatus(const DataSetIpi* dataSet) {
+	const DataSetIpiHeader* const header = &dataSet->header;
+	const bool beyond =
+		getCollectionFileStatus(dataSet, header->strings, 0) == CORRUPT_DATA ||
+		getCollectionFileStatus(dataSet, header->values, 0) == CORRUPT_DATA ||
+		getCollectionFileStatus(dataSet, header->profileGroups, 0) ==
+			CORRUPT_DATA ||
+		getCollectionFileStatus(dataSet, header->profileOffsets, 0) ==
+			CORRUPT_DATA ||
+		getCollectionFileStatus(
+			dataSet,
+			header->profiles,
+			getProfilesFileShift(dataSet)) == CORRUPT_DATA;
+	return beyond ? CORRUPT_DATA : SUCCESS;
 }
 
 static StatusCode readDataSetFromFile(
@@ -2143,26 +2110,22 @@ static StatusCode readDataSetFromFile(
 		return status;
 	}
 
-	// Create the strings collection. When only some of the strings will be
-	// held, the required properties have to be known first, so the strings read
-	// from the file until then.
+	// Create the strings collection. When only what the required properties
+	// read will be held, the collections it is held from read from the file
+	// until the required properties are known.
 	const bool hold = heldIsWanted(dataSet, properties);
-	const uint32_t stringsCount = dataSet->header.strings.count;
-	*(uint32_t*)(&dataSet->header.strings.count) = 0;
 	if (hold) {
-		static const fiftyoneDegreesCollectionConfig readFromFile = { false, 0, 0 };
-		COLLECTION_CREATE_FILE_WITH_CONFIG(
-			strings,
-			fiftyoneDegreesStoredBinaryValueRead,
-			&readFromFile);
-		if (getCollectionFileStatus(dataSet, dataSet->header.strings, 0) ==
-			CORRUPT_DATA) {
-			return CORRUPT_DATA;
+		status = heldFileStatus(dataSet);
+		if (status != SUCCESS) {
+			return status;
 		}
 	}
-	else {
-		COLLECTION_CREATE_FILE(strings, fiftyoneDegreesStoredBinaryValueRead);
-	}
+	const uint32_t stringsCount = dataSet->header.strings.count;
+	*(uint32_t*)(&dataSet->header.strings.count) = 0;
+	COLLECTION_CREATE_FILE_WITH_CONFIG(
+		strings,
+		fiftyoneDegreesStoredBinaryValueRead,
+		heldConfig(&dataSet->config.strings, hold));
 	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
 
 	// Override the header count so that the variable collection can work.
@@ -2173,18 +2136,30 @@ static StatusCode readDataSetFromFile(
 
 	COLLECTION_CREATE_FILE(maps, CollectionReadFileFixed);
 	COLLECTION_CREATE_FILE(properties, CollectionReadFileFixed);
-	COLLECTION_CREATE_FILE(values, CollectionReadFileFixed);
+	COLLECTION_CREATE_FILE_WITH_CONFIG(
+		values,
+		CollectionReadFileFixed,
+		heldConfig(&dataSet->config.values, hold));
 
-	status = createProfilesFromFile(dataSet, file, &dataSet->config.profiles);
+	status = createProfilesFromFile(
+		dataSet,
+		file,
+		heldConfig(&dataSet->config.profiles, hold));
 	if (status != SUCCESS) {
 		return status;
 	}
 
 	COLLECTION_CREATE_FILE(graphs, CollectionReadFileFixed);
 
-	COLLECTION_CREATE_FILE(profileGroups, CollectionReadFileFixed);
+	COLLECTION_CREATE_FILE_WITH_CONFIG(
+		profileGroups,
+		CollectionReadFileFixed,
+		heldConfig(&dataSet->config.profileGroups, hold));
 	COLLECTION_CREATE_FILE(propertyTypes, CollectionReadFileFixed);
-	COLLECTION_CREATE_FILE(profileOffsets, CollectionReadFileFixed);
+	COLLECTION_CREATE_FILE_WITH_CONFIG(
+		profileOffsets,
+		CollectionReadFileFixed,
+		heldConfig(&dataSet->config.profileOffsets, hold));
 
 	// Which graphs to hold is only known once the required properties are.
 	if (hold == false) {

@@ -56,7 +56,7 @@ This example is available in full on [GitHub](https://github.com/51Degrees/51deg
 #include "../../../../src/common/textfile.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
-static const char *dataDir = "device-detection-data";
+static const char *dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be somewhere in the
 // project space, or you may specify another file as a command line parameter.
@@ -84,8 +84,8 @@ static const size_t valueBufferLength = sizeof(valueBuffer) / sizeof(valueBuffer
 // example. See the documentation for more detail on this and other
 // configuration options:
 // https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-offlineprocessing.c&utm_term=top
-// https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-offlineprocessing.c&utm_term=top
-// https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-offlineprocessing.c&utm_term=top
+// https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-offlineprocessing.c&utm_term=top
+// https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-offlineprocessing.c&utm_term=top
 
 // #define CONFIG fiftyoneDegreesHashInMemoryConfig
 // #define CONFIG fiftyoneDegreesHashHighPerformanceConfig
@@ -399,16 +399,16 @@ int main(int argc, char* argv[]) {
 		strcpy(dataFilePath, argv[1]);
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,
 			sizeof(dataFilePath));
 		if (status != SUCCESS) {
 			printf(("Failed to find a device detection "
-				"data file. Make sure the device-detection-data "
-				"submodule has been updated by running "
-				"`git submodule update --recursive`"));
+				"data file. Make sure the data submodule is there, "
+				"by running `git submodule update --init data`, and "
+				"run this example again to download the file."));
 			fgetc(stdin);
 			return 1;
 		}
@@ -419,7 +419,7 @@ int main(int argc, char* argv[]) {
 		strcpy(evidenceFilePath, argv[2]);
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			evidenceFileName,
 			evidenceFilePath,

@@ -23,10 +23,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../../Base/ExampleBase.h"
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
 
-static const char* dataDir = "ip-intelligence-data";
+static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 
@@ -159,7 +160,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,

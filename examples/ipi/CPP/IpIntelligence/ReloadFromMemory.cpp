@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	else {
-		status = fiftyoneDegreesFileGetPath(
+		status = ExampleBase::getFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,
@@ -222,7 +222,7 @@ int main(int argc, char* argv[]) {
 		strcpy(ipAddressFilePath, argv[2]);
 	}
 	else {
-		status = fiftyoneDegreesFileGetPath(
+		status = ExampleBase::getFilePath(
 			dataDir,
 			ipAddressFileName,
 			ipAddressFilePath,

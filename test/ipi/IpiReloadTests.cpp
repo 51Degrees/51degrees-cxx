@@ -49,7 +49,7 @@
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
 
-/** The data file committed to the data submodule, so every build has it. */
+/** The free ASN data file, which the data repository's script downloads. */
 static const char asnFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 /** An address the data file has values for, which every lookup uses. */
@@ -119,7 +119,7 @@ protected:
 		const std::string path = GetFilePath(_dataFolderName, asnFileName);
 		if (path.empty()) {
 			GTEST_SKIP() << "The file '" << asnFileName << "' was not found. "
-				"Run 'git submodule update --init' to fetch it.";
+				"Run data/get-data-files.sh or .ps1 to download it.";
 		}
 		FILE *file = fopen(path.c_str(), "rb");
 		ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";

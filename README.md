@@ -33,9 +33,9 @@ cmake --build . --config Release
 
 | Product | Read first | Documentation |
 | --- | --- | --- |
-| Device Detection | [docs/dd/README.md](docs/dd/README.md) | [C](https://51degrees.com/documentation/apis/device-detection-cxx/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=device-detection-c) and [C++](https://51degrees.com/documentation/apis/device-detection-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=device-detection-cpp) |
-| IP Intelligence | [docs/ipi/README.md](docs/ipi/README.md) | [C](https://51degrees.com/documentation/apis/ip-intelligence-cxx/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=ip-intelligence-c) and [C++](https://51degrees.com/documentation/apis/ip-intelligence-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=ip-intelligence-cpp) |
-| Common library | [src/common/README.md](src/common/README.md) | |
+| Device Detection | [docs/dd/README.md](docs/dd/README.md) | [Guide](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=device-detection-guide), [C](https://51degrees.com/documentation/apis/device-detection-cxx/group___fifty_one_degrees_device_detection.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=device-detection-c) and [C++](https://51degrees.com/documentation/apis/device-detection-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=device-detection-cpp) |
+| IP Intelligence | [docs/ipi/README.md](docs/ipi/README.md) | [Guide](https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=ip-intelligence-guide), [C](https://51degrees.com/documentation/apis/ip-intelligence-cxx/group___fifty_one_degrees_ip_intelligence_api.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=ip-intelligence-c) and [C++](https://51degrees.com/documentation/apis/ip-intelligence-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=ip-intelligence-cpp) |
+| Common library | [src/common/README.md](src/common/README.md) | [C](https://51degrees.com/documentation/apis/device-detection-cxx/group___fifty_one_degrees_common.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=common-c) |
 
 ## What is where
 
@@ -49,7 +49,8 @@ cmake --build . --config Release
 | `docs/dd`, `docs/ipi` | Doxygen configuration for the reference documentation |
 | `tools/dd` | Command line tools, such as `js-snippet-export`, which exports the JavaScript snippets in a data file |
 | `VisualStudio` | Visual Studio solutions for each product |
-| `device-detection-data`, `ip-intelligence-data` | Data file submodules, used by the tests and examples |
+| `data` | The [data](https://github.com/51Degrees/data) submodule, whose `device-detection` and `ip-intelligence` folders hold the data files the tests and examples use |
+| `device-detection-data`, `ip-intelligence-data` | The earlier data submodules, kept for the other language APIs until they read `data`. Nothing here uses them |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
 
 ## Getting the code and data
@@ -66,16 +67,31 @@ If you have already cloned the repository, fetch them with:
 git submodule update --init
 ```
 
-The `device-detection-data` submodule holds a free Lite data file, stored with
-[Git LFS](https://git-lfs.github.com/). Install Git LFS (`sudo apt-get install
-git-lfs` then `git lfs install` on Linux) and run `git lfs pull` in that
-folder. The IP Intelligence Lite file is downloaded as described in the
-[ip-intelligence-data README](ip-intelligence-data/README.md). The tests and
-examples find the data files by searching upward from where they run for a
-folder with one of these two names.
+The data files themselves are not stored in a repository. The `data` submodule
+holds a `.link` file for each free one, where the file goes, and two scripts
+that download them. From the repository root, run
 
-A zip download of this repository contains neither the submodules nor the LFS
-files, so each has to be downloaded separately.
+```
+sh data/get-data-files.sh
+```
+
+or, in PowerShell,
+
+```
+./data/get-data-files.ps1
+```
+
+They download the Device Detection Lite file, the 20,000 User-Agents and
+evidence records, and the IP Intelligence Lite and ASN files. A file that is
+already there is kept, unless `-u` (`-Update`) asks for a newer one or `-f`
+(`-Force`) downloads it again. An example whose file is missing runs the script
+for that file itself.
+
+The tests and examples find the data files by searching upward from where they
+run for the folder `data/device-detection` or `data/ip-intelligence`.
+
+A zip download of this repository does not contain the submodules, so the data
+repository has to be downloaded separately.
 
 ## Build tools
 
@@ -144,7 +160,9 @@ configurations, which do not support multi threaded use.
 ## Tests
 
 The tests use the [Google Test framework](https://github.com/google/googletest),
-which CMake downloads. Run every test from the build folder with:
+which CMake downloads. Download the data files first, as described above,
+because many tests fail or are skipped without them. Run every test from the
+build folder with:
 
 ```
 ctest -C Release
@@ -183,8 +201,12 @@ languages update once for all of them.
 
 - The nightly build and the Pull Requests workflow build each pull request into
   `rc` on the configurations its changes need, which
-  [`ci/select-options.ps1`](ci/select-options.ps1) chooses, and merge it when
-  it passes. A change to documentation alone builds nothing.
+  [`ci/select-options.ps1`](ci/select-options.ps1) chooses, and merge one that
+  passes when it is not a draft and has no review requested, so a pull request
+  stays a draft until it has been reviewed. A change to documentation alone
+  builds nothing. To build a draft, use common-ci's
+  [`nightly-pull-request.yml`](https://github.com/51Degrees/common-ci/blob/main/.github/workflows/nightly-pull-request.yml)
+  started with `dryrun: 'true'` and `branch: rc`.
 - The release pull request from `rc` into `main` is built on every
   configuration by
   [`release-pull-request.yml`](.github/workflows/release-pull-request.yml).

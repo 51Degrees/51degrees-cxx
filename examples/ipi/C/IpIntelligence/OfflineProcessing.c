@@ -102,7 +102,7 @@ fiftyoneDegreesResourceManagerFree(&manager);
 
 Expected output:
 ```
-Output Written to [Full Path]/ip-intelligence-data/20000 IP Addresses.processed.csv
+Output Written to [Full Path]/data/ip-intelligence/20000 IP Addresses.processed.csv
 
 ```
 Expected content of output file:
@@ -129,7 +129,7 @@ Expected content of output file:
 #include "../../../../src/common/textfile.h"
 #include "../../../../src/ipi/fiftyone.h"
 
-static const char* dataDir = "ip-intelligence-data";
+static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 
@@ -363,7 +363,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,
@@ -378,7 +378,7 @@ int main(int argc, char* argv[]) {
 		strcpy(ipAddressFilePath, argv[2]);
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			ipAddressFileName,
 			ipAddressFilePath,

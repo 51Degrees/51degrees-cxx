@@ -22,9 +22,14 @@
 
 #include "ExampleBase.h"
 #include "../../../../src/dd/hash/fiftyone.h"
+#include <stdlib.h>
 #include <string.h>
 
 #define CONFIG_EQUALS(h) memcmp(&config, &h, sizeof(ConfigHash)) == 0
+
+// Sent with each download so that the downloads these examples make can be
+// counted.
+#define EXAMPLE_DOWNLOAD_SOURCE "examples-51degrees-cxx"
 
 const char* fiftyoneDegreesExampleGetConfigName(ConfigHash config) {
 	if (CONFIG_EQUALS(HashInMemoryConfig)) {
@@ -79,6 +84,84 @@ void fiftyoneDegreesExampleMemCheck(
 #endif
 }
 
+// Returns the last path separator in the path, or NULL if there is none.
+static char* exampleLastSeparator(char *path) {
+	char *last = NULL;
+	char *current;
+	for (current = path; *current != '\0'; current++) {
+		if (*current == '/' || *current == '\\') {
+			last = current;
+		}
+	}
+	return last;
+}
+
+fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
+	const char *dataFolderName,
+	const char *fileName,
+	char *destination,
+	size_t size) {
+	char linkName[FILE_MAX_PATH];
+	char dataPath[FILE_MAX_PATH];
+	char command[FILE_MAX_PATH * 2];
+	char *separator;
+	int i, written;
+	StatusCode status = FileGetPath(
+		dataFolderName,
+		fileName,
+		destination,
+		size);
+	if (status != FILE_NOT_FOUND) {
+		return status;
+	}
+
+	// A file the data repository downloads has <file>.link where the file
+	// goes, and the data repository is the folder above that one.
+	written = Snprintf(linkName, sizeof(linkName), "%s.link", fileName);
+	if (written < 0 || (size_t)written >= sizeof(linkName) ||
+		FileGetPath(
+			dataFolderName,
+			linkName,
+			dataPath,
+			sizeof(dataPath)) != SUCCESS) {
+		return status;
+	}
+	for (i = 0; i < 2; i++) {
+		separator = exampleLastSeparator(dataPath);
+		if (separator == NULL) {
+			return status;
+		}
+		*separator = '\0';
+	}
+
+#ifdef _WIN32
+	written = Snprintf(command, sizeof(command),
+		"powershell -NoProfile -ExecutionPolicy Bypass -File "
+		"\"%s\\get-data-files.ps1\" \"%s\" -Source %s",
+		dataPath, fileName, EXAMPLE_DOWNLOAD_SOURCE);
+#else
+	written = Snprintf(command, sizeof(command),
+		"sh \"%s/get-data-files.sh\" -s %s \"%s\"",
+		dataPath, EXAMPLE_DOWNLOAD_SOURCE, fileName);
+#endif
+	if (written < 0 || (size_t)written >= sizeof(command)) {
+		return status;
+	}
+
+	// Flushed first, as the script writes to the same output.
+	printf("%s is missing, so it is being downloaded by running\n%s\n",
+		fileName, command);
+	fflush(stdout);
+	if (system(command) == 0) {
+		status = FileGetPath(dataFolderName, fileName, destination, size);
+	}
+	if (status != SUCCESS) {
+		printf("%s could not be downloaded. Run this command to try "
+			"again.\n%s\n", fileName, command);
+	}
+	return status;
+}
+
 void fiftyoneDegreesExampleCheckDataFile(
 	fiftyoneDegreesDataSetHash *dataset) {
 	Item item;
@@ -126,9 +209,10 @@ void fiftyoneDegreesExampleCheckDataFile(
 			"that is more than %d days old. "
 			"A more recent data file may be needed to "
 			"correctly detect the latest devices, browsers, "
-			"etc. The latest lite data file is available from "
-			"the device-detection-data repository on GitHub "
-			"https://github.com/51Degrees/device-detection-data. "
+			"etc. Get the latest lite data file by running "
+			"data/get-data-files.sh -u 51Degrees-LiteV4.1.hash, "
+			"or data/get-data-files.ps1 51Degrees-LiteV4.1.hash "
+			"-Update on Windows. "
 			"Find out about the Enterprise data file, which "
 			"includes automatic daily updates, on our pricing "
 			"page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=data-file-age-warning\n"), DATA_FILE_AGE_WARNING);

@@ -22,10 +22,11 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "ExampleBase.h"
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
-static const char *dataDir = "device-detection-data";
+static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
@@ -158,7 +159,7 @@ int main(int argc, char* argv[]) {
 		strcpy(dataFilePath, argv[1]);
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,

@@ -28,6 +28,8 @@
  *
  * The text of a polygon is written again here from its well known binary, with
  * the numbers from DoubleText.hpp, and compared with the text from the library.
+ * Every polygon's text must also fit the bytes the values collection expects,
+ * and the collection must give the same text with and without a buffer.
  */
 
 #include <cstring>
@@ -394,6 +396,107 @@ TEST_F(IpiDoubleTextTests, EveryGeometryIsUnchanged) {
 	EXPECT_EQ(0u, failures);
 	std::cout << "Compared " << values << " geometries holding " <<
 		coordinates << " coordinates.\n";
+}
+
+TEST_F(IpiDoubleTextTests, EveryGeometryFitsTheTextExpected) {
+	const fiftyoneDegreesPropertyValueType types[] = {
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R };
+	uint32_t failures = 0;
+	double most = 0;
+	const uint32_t values = forEachValue(
+		types,
+		sizeof(types) / sizeof(types[0]),
+		[&](const fiftyoneDegreesStoredBinaryValue* stored,
+			fiftyoneDegreesPropertyValueType type,
+			uint32_t index) {
+			DoubleTextWkt expected(
+				&stored->byteArrayValue.firstByte,
+				type == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R,
+				doubleTextLookupPlaces);
+			if (expected.write() == false) {
+				// EveryGeometryIsUnchanged reports a value it cannot read.
+				return;
+			}
+			const size_t bytes = stored->byteArrayValue.size;
+			const double perByte = (double)expected.text.size() / bytes;
+			most = perByte > most ? perByte : most;
+			if (expected.text.size() >
+				bytes * FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE &&
+				failures++ < 10) {
+				ADD_FAILURE() << "Value " << index << " of " << bytes <<
+					" bytes has " << expected.text.size() <<
+					" characters of text.";
+			}
+		});
+	if (values == 0) {
+		GTEST_SKIP() << "The data file has no geometries.";
+	}
+	EXPECT_EQ(0u, failures);
+	std::cout << "The most text for a byte of geometry was " << most <<
+		" characters.\n";
+}
+
+TEST_F(IpiDoubleTextTests, CollectionIsTheSameWithAndWithoutABuffer) {
+	const char* addresses[] = {
+		"185.28.167.77",
+		"8.8.8.8",
+		"81.2.69.142",
+		"2001:4860:4860::8888",
+		"2a01:4f8:c0c:1b5b::1" };
+	fiftyoneDegreesResultsIpi* results =
+		fiftyoneDegreesResultsIpiCreate(&manager);
+	ASSERT_NE(nullptr, results);
+	fiftyoneDegreesData buffer;
+	fiftyoneDegreesDataReset(&buffer);
+	uint32_t compared = 0;
+	for (const char* address : addresses) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesResultsIpiFromIpAddressString(
+			results,
+			address,
+			strlen(address),
+			exception);
+		ASSERT_TRUE(EXCEPTION_OKAY) << address;
+		fiftyoneDegreesWeightedValuesCollection withNone =
+			fiftyoneDegreesResultsIpiGetValuesCollection(
+				results,
+				NULL,
+				0,
+				NULL,
+				exception);
+		fiftyoneDegreesWeightedValuesCollection withBuffer =
+			fiftyoneDegreesResultsIpiGetValuesCollection(
+				results,
+				NULL,
+				0,
+				&buffer,
+				exception);
+		EXPECT_TRUE(EXCEPTION_OKAY) << address;
+		EXPECT_EQ(withNone.itemsCount, withBuffer.itemsCount) << address;
+		for (uint32_t i = 0;
+			i < withNone.itemsCount && i < withBuffer.itemsCount;
+			i++) {
+			const fiftyoneDegreesWeightedValueHeader* none = withNone.items[i];
+			const fiftyoneDegreesWeightedValueHeader* held = withBuffer.items[i];
+			EXPECT_EQ(none->valueType, held->valueType) << address;
+			if (none->valueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING &&
+				held->valueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) {
+				EXPECT_STREQ(
+					((const fiftyoneDegreesWeightedString*)held)->value,
+					((const fiftyoneDegreesWeightedString*)none)->value) <<
+					address << ", item " << i;
+				compared++;
+			}
+		}
+		fiftyoneDegreesWeightedValuesCollectionRelease(&withNone);
+		fiftyoneDegreesWeightedValuesCollectionRelease(&withBuffer);
+	}
+	if (buffer.allocated > 0) {
+		fiftyoneDegreesFree(buffer.ptr);
+	}
+	fiftyoneDegreesResultsIpiFree(results);
+	EXPECT_GT(compared, 0u);
 }
 
 TEST_F(IpiDoubleTextTests, EveryNumberIsUnchanged) {

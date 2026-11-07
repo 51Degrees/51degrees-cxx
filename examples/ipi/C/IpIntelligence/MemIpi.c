@@ -42,7 +42,7 @@
 // Number of threads to start for performance analysis.
 #define THREAD_COUNT 4
 
-static const char* dataDir = "ip-intelligence-data";
+static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 
@@ -455,7 +455,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			dataFileName,
 			dataFilePath,
@@ -470,7 +470,7 @@ int main(int argc, char* argv[]) {
 		strcpy(ipAddressFilePath, argv[2]);
 	}
 	else {
-		status = FileGetPath(
+		status = fiftyoneDegreesExampleGetFilePath(
 			dataDir,
 			ipAddressFileName,
 			ipAddressFilePath,

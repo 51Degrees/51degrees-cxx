@@ -55,7 +55,7 @@ using namespace FiftyoneDegrees::IpIntelligence;
 
 namespace {
 
-/** The data file committed to the data submodule, so every build has it. */
+/** The free ASN data file, which the data repository's script downloads. */
 const char smallFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 /** Addresses the data files have answers for. */

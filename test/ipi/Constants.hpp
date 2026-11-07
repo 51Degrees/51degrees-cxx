@@ -23,7 +23,7 @@
 #ifndef FIFTYONE_DEGREES_IP_INTELLIGENCE_CONSTANTS_HPP
 #define FIFTYONE_DEGREES_IP_INTELLIGENCE_CONSTANTS_HPP
 
-const static char _dataFolderName[] = "ip-intelligence-data";
+const static char _dataFolderName[] = "data/ip-intelligence";
 
 const static char* _IpiFileNames[] = {"51Degrees-EnterpriseIpiV41.ipi", "51Degrees-LiteV41.ipi"};
 
