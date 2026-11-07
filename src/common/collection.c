@@ -932,9 +932,13 @@ fiftyoneDegreesFileHandle* fiftyoneDegreesCollectionReadFilePosition(
 		// Get the next free handle from the list of readers.
 		handle = FileHandleGet(file->reader, exception);
 
-		// The concurrency setting does not allow for another file handle, so 
-		// return NULL.
-		if (handle != NULL && EXCEPTION_OKAY) {
+		// A handle taken while an earlier failure is in the exception goes
+		// back, as the caller does not use it.
+		if (handle != NULL && EXCEPTION_FAILED) {
+			FileHandleRelease(handle);
+			handle = NULL;
+		}
+		if (handle != NULL) {
 
 			// Move to the start of the record in the file handling success or 
 			// failure of the operation via the status code.
@@ -1062,6 +1066,12 @@ void* fiftyoneDegreesCollectionReadFileFixed(
 			}
 
 			// Release the file handle.
+			FileHandleRelease(handle);
+		}
+		else if (handle != NULL) {
+
+			// A handle taken while an earlier failure is in the exception is
+			// not used.
 			FileHandleRelease(handle);
 		}
 	}
@@ -1192,6 +1202,12 @@ void* fiftyoneDegreesCollectionReadFileVariable(
 				key->keyType->initialBytesCount,
 				key->keyType->getFinalSizeMethod,
 				exception);
+			FileHandleRelease(handle);
+		}
+		else if (handle != NULL) {
+
+			// A handle taken while an earlier failure is in the exception is
+			// not used.
 			FileHandleRelease(handle);
 		}
 	}
