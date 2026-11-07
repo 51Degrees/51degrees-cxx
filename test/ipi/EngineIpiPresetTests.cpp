@@ -611,6 +611,35 @@ protected:
 		return size;
 	}
 
+	// The bytes of the graphs of the components with none of the properties
+	// named, which naming them leaves on file.
+	size_t graphBytesLeftOnFile(const char* required) {
+		PresetManager manager(
+			dataFilePath,
+			fiftyoneDegreesIpiLowMemoryConfig,
+			required);
+		PresetDataSet dataSet(&manager.manager);
+		vector<bool> named(256, false);
+		for (uint32_t c = 0; c < dataSet->componentsList.count; c++) {
+			if (dataSet->componentsAvailable[c]) {
+				named[((const fiftyoneDegreesComponent*)dataSet->componentsList
+					.items[c].data.ptr)->componentId] = true;
+			}
+		}
+		size_t bytes = 0;
+		for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+			const fiftyoneDegreesIpiCgInfo& info =
+				dataSet->graphsArray->items[g].info;
+			if (named[info.componentId] == false) {
+				bytes += (size_t)info.nodes.collection.length +
+					info.spans.length +
+					info.spanBytes.length +
+					info.clusters.length;
+			}
+		}
+		return bytes;
+	}
+
 	// Loads the data file with the memory tracked, setting the bytes still
 	// allocated once it is loaded and the most allocated while loading.
 	void loadTracked(
@@ -779,14 +808,20 @@ TEST_F(IpiPresetTests, HighPerformanceNamingOneComponentUsesLessMemoryThanNaming
 	if (componentCount < 2) {
 		GTEST_SKIP() << "The data file has one component.";
 	}
+	// Naming one component saves at least the memory of the other
+	// components' graphs, which stay on file.
 	const size_t none = sizeOf(fiftyoneDegreesIpiHighPerformanceConfig, nullptr);
 	printf("%14zu bytes naming none\n", none);
 	for (const string& names : eachComponent) {
 		const size_t named = sizeOf(
 			fiftyoneDegreesIpiHighPerformanceConfig,
 			names.c_str());
-		printf("%14zu bytes naming %s\n", named, names.substr(0, 60).c_str());
-		EXPECT_LT(named, none) << names.substr(0, 60);
+		const size_t onFile = graphBytesLeftOnFile(names.c_str());
+		printf("%14zu bytes naming %s, %zu bytes of graphs on file\n",
+			named,
+			names.substr(0, 60).c_str(),
+			onFile);
+		EXPECT_LT(named + onFile, none) << names.substr(0, 60);
 	}
 }
 
@@ -1011,7 +1046,8 @@ TEST_F(IpiPresetTests, CommonSetsGiveTheSameAnswersInLessMemory) {
 		if (present) {
 			tested++;
 			EXPECT_LT(
-				sizeOf(fiftyoneDegreesIpiHighPerformanceConfig, set),
+				sizeOf(fiftyoneDegreesIpiHighPerformanceConfig, set) +
+					graphBytesLeftOnFile(set),
 				nothing) << set;
 			EXPECT_NO_FATAL_FAILURE(expectSameAnswers(
 				fiftyoneDegreesIpiHighPerformanceConfig,
