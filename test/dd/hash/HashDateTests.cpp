@@ -238,7 +238,7 @@ TEST_F(HashDateTests, DataFile_HoldsValidDates) {
 TEST_F(HashDateTests, UnchangedFile_GivesTheHeaderDates) {
 	const fiftyoneDegreesDate published = getDate(publishedPosition);
 	const fiftyoneDegreesDate nextUpdate = getDate(nextUpdatePosition);
-	HeaderDates dates;
+	HeaderDates dates = {};
 	ASSERT_NO_FATAL_FAILURE(getDatesFromMemory(&dates));
 	EXPECT_TRUE(dates.publishedValid);
 	EXPECT_TRUE(dates.nextUpdateValid);
@@ -263,7 +263,7 @@ TEST_F(HashDateTests, LeapDay_IsGiven) {
 	const fiftyoneDegreesDate leapDay = makeDate(2024, 2, 29);
 	setDate(publishedPosition, leapDay);
 	setDate(nextUpdatePosition, leapDay);
-	HeaderDates dates;
+	HeaderDates dates = {};
 	ASSERT_NO_FATAL_FAILURE(getDatesFromMemory(&dates));
 	EXPECT_TRUE(dates.publishedValid);
 	EXPECT_TRUE(dates.nextUpdateValid);
@@ -282,7 +282,7 @@ TEST_F(HashDateTests, InvalidDate_IsNotValidAndGivenAsZeros) {
 	for (const InvalidDate &invalid : invalidDates) {
 		const fiftyoneDegreesDate date =
 			makeDate(invalid.year, invalid.month, invalid.day);
-		HeaderDates dates;
+		HeaderDates dates = {};
 
 		setDate(publishedPosition, date);
 		setDate(nextUpdatePosition, nextUpdate);
