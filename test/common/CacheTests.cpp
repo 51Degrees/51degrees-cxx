@@ -418,6 +418,50 @@ TEST_F(CacheTest, ShardsFollowConcurrency) {
 		cache = NULL;
 	}
 }
+// Keys, and the size of the cache that holds them.
+static const int negativeShardKeys = 30;
+
+// Whether hashNegative gives keys negative hashes, rather than hashes whose
+// low 32 bits are the most negative int.
+static bool negativeShardHashes = false;
+
+/**
+ * Gives each key its own hash. The low 32 bits are either the most negative
+ * int, which has no positive value, as for an offset of 2 GB, or the whole
+ * hash is negative.
+ */
+static int64_t hashNegative(const void *key) {
+	const int64_t k = *(const int*)key;
+	return negativeShardHashes ? -k - 1 : (int64_t)0x80000000 + (k << 32);
+}
+
+TEST_F(CacheTest, NegativeHashes_ChooseAShard) {
+	FIFTYONE_DEGREES_EXCEPTION_CREATE
+	for (bool negative : { false, true }) {
+		negativeShardHashes = negative;
+		cache = fiftyoneDegreesCacheCreate(
+			negativeShardKeys,
+			3,
+			load,
+			hashNegative,
+			TEST_STRINGS);
+		ASSERT_NE(nullptr, cache);
+		ASSERT_EQ((uint16_t)3, cache->shardCount);
+		for (int i = 0; i < negativeShardKeys; i++) {
+			fiftyoneDegreesCacheNode *node = fiftyoneDegreesCacheGet(
+				cache,
+				&i,
+				exception);
+			ASSERT_NE(nullptr, node) << "Key " << i;
+			EXPECT_STREQ(TEST_STRINGS[i], (const char*)node->data.ptr) <<
+				"Key " << i;
+			fiftyoneDegreesCacheRelease(node);
+		}
+		fiftyoneDegreesCacheFree(cache);
+		cache = NULL;
+	}
+}
+
 TEST_F(CacheTestOneHalf, Evict) {
 	evict(TEST_STRINGS_COUNT / 2, TEST_STRINGS_COUNT / 2);
 }

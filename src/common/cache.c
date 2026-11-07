@@ -429,7 +429,10 @@ fiftyoneDegreesCacheNode* fiftyoneDegreesCacheGet(
 	fiftyoneDegreesException *exception) {
 	CacheNode *node;
 	int64_t keyHash = cache->hash(key);
-	CacheShard *shard = &cache->shards[abs((int)keyHash) % cache->shardCount];
+	// Unsigned, as a negative hash, or one whose low 32 bits are the most
+	// negative int, would otherwise give a negative shard index.
+	CacheShard *shard =
+		&cache->shards[(uint64_t)keyHash % cache->shardCount];
 
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	FIFTYONE_DEGREES_MUTEX_LOCK(&shard->lock);
