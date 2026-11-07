@@ -31,6 +31,7 @@
 class EngineHashTests;
 class HashFirstReadRuleTests;
 class HashFirstReadTests;
+class HashMatchMetricsTests;
 
 namespace FiftyoneDegrees {
 	namespace DeviceDetection {
@@ -81,6 +82,7 @@ namespace FiftyoneDegrees {
 				friend class ::EngineHashTests;
 				friend class ::HashFirstReadRuleTests;
 				friend class ::HashFirstReadTests;
+				friend class ::HashMatchMetricsTests;
                 friend class ResultsHashSerializer;
 			public:
 				/**
