@@ -126,8 +126,10 @@ static FileOffset setLength(FilePool *reader, Exception *exception) {
 	FileHandle *handle;
 	reader->length = 0;
 	handle = FileHandleGet(reader, exception);
-	if (handle != NULL && EXCEPTION_OKAY) {
-		reader->length = fileGetSize(handle->file);
+	if (handle != NULL) {
+		if (EXCEPTION_OKAY) {
+			reader->length = fileGetSize(handle->file);
+		}
 		FileHandleRelease(handle);
 	}
 	return reader->length;
