@@ -1283,8 +1283,10 @@ static StatusCode heldCreate(
 
 /**
  * Holds the ranges of a collection that reads from the file. A collection that
- * is needed in full is loaded into memory like any other, and one with nothing
- * needed stays on file.
+ * is needed in full is loaded into memory like any other if it can be
+ * replaced, and one with nothing needed stays on file. A collection that items
+ * read while the data set was created are still released through cannot be
+ * replaced.
  */
 static StatusCode heldApply(
 	DataSetIpi* dataSet,
@@ -1293,13 +1295,15 @@ static StatusCode heldApply(
 	CollectionHeader header,
 	CollectionFileRead read,
 	const byte shift,
+	const bool replaceable,
 	heldRange* ranges,
 	const uint32_t rangeCount) {
 	static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
 	const uint32_t unitBytes = (*collection)->elementSize > 0 ?
 		(*collection)->elementSize : (uint32_t)1 << shift;
 	const uint32_t count = heldRangesMerge(ranges, rangeCount);
-	if (count != 1 ||
+	if (replaceable == false ||
+		count != 1 ||
 		ranges[0].first > 0 ||
 		(uint64_t)ranges[0].end * unitBytes <
 			((uint64_t)header.length << shift)) {
@@ -1831,6 +1835,9 @@ static StatusCode heldPlanApply(
 	DataSetIpi* dataSet,
 	FILE* file,
 	heldPlan* plan) {
+	// The names of the required properties are read from the strings while the
+	// data set is created and released through them when it is freed, so the
+	// strings stay.
 	StatusCode status = heldApply(
 		dataSet,
 		file,
@@ -1838,6 +1845,7 @@ static StatusCode heldPlanApply(
 		dataSet->header.strings,
 		fiftyoneDegreesStoredBinaryValueRead,
 		0,
+		false,
 		plan->strings,
 		plan->stringsCount);
 	if (status == SUCCESS) {
@@ -1848,6 +1856,7 @@ static StatusCode heldPlanApply(
 			dataSet->header.values,
 			CollectionReadFileFixed,
 			0,
+			true,
 			plan->values,
 			plan->valuesCount);
 	}
@@ -1859,6 +1868,7 @@ static StatusCode heldPlanApply(
 			dataSet->header.profileOffsets,
 			CollectionReadFileFixed,
 			0,
+			true,
 			plan->profileOffsets,
 			plan->profileOffsetsCount);
 	}
@@ -1870,6 +1880,7 @@ static StatusCode heldPlanApply(
 			dataSet->header.profileGroups,
 			CollectionReadFileFixed,
 			0,
+			true,
 			plan->profileGroups,
 			plan->profileGroupsCount);
 	}
@@ -1881,6 +1892,7 @@ static StatusCode heldPlanApply(
 			dataSet->header.profiles,
 			fiftyoneDegreesProfileReadFromFile,
 			getProfilesFileShift(dataSet),
+			true,
 			plan->profiles,
 			plan->profilesCount);
 	}
