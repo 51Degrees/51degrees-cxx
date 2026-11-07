@@ -139,10 +139,12 @@
 #endif
 /**
  * Default value for the profile cache size used in the default collection
- * configuration.
+ * configuration. The Balanced preset reads the profile of each result through
+ * this cache, so it holds enough of them that most reads find their profile
+ * there.
  */
 #ifndef FIFTYONE_DEGREES_PROFILE_CACHE_SIZE
-#define FIFTYONE_DEGREES_PROFILE_CACHE_SIZE 10000
+#define FIFTYONE_DEGREES_PROFILE_CACHE_SIZE 20000
 #endif
 /**
  * Default value for the profile cache loaded size used in the default
@@ -158,7 +160,7 @@
  * their value there.
  */
 #ifndef FIFTYONE_DEGREES_VALUE_CACHE_SIZE
-#define FIFTYONE_DEGREES_VALUE_CACHE_SIZE 50000
+#define FIFTYONE_DEGREES_VALUE_CACHE_SIZE 100000
 #endif
 /**
  * Default value for the value cache loaded size used in the default collection
@@ -431,10 +433,14 @@ typedef struct fiftyone_degrees_result_profile_index_t {
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiInMemoryConfig;
 
 /**
- * Highest performance configuration. Loads all the data into memory and does
- * not maintain a connection to the source data file used to build the data
- * set. The concurrency setting is ignored as there are no critical sections
- * with this configuration.
+ * Highest performance configuration that reads the data file. Loads all the
+ * data into memory, unless the required properties name some but not all of
+ * the properties in the data file. Then only what they read is loaded, being
+ * the graphs, profile offsets, profile groups and profiles of their
+ * components, their values and the strings of those values, and anything else
+ * reads from the file. A lookup that reads the named properties reads nothing
+ * from the file. A connection to the data file is kept, with as many readers
+ * as the highest concurrency setting.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiHighPerformanceConfig;
 
@@ -455,16 +461,12 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig;
  * number of concurrent operations to optimize file reads. This is the default
  * configuration.
  *
- * The strings, the graphs, the profile offsets and the property types are held
- * in memory. When the required properties name fewer properties than the data
- * file has, the graphs of components with no required property stay on file, as
- * do long stretches of strings that no required property reads. The memory that
- * frees holds the values of the required properties, smallest first, the profile
- * groups, the profiles of the components with a required property, smallest
- * first, then a larger profile cache and part of the next component's profiles
- * if at least half of them fit. The memory used does not rise above what naming
- * nothing uses and the answers do not change. Anything not held reads from the
- * file, which is slower and allocates memory.
+ * The strings, the graphs, the profile offsets, the property types and the
+ * default value of each required property are held in memory. The values,
+ * profiles and profile groups are read through caches, and the profile of each
+ * result is copied the first time a lookup reads it, so that each property
+ * does not read the cache again. Naming the required properties does not
+ * change what is held.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig;
 
