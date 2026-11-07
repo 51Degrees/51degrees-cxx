@@ -29,6 +29,7 @@
 #include "../../../../src/dd/hash/EngineHash.hpp"
 #include <string>
 #include <iostream>
+#include <memory>
 #include <thread>
 #include "../../../../src/common/textfile.h"
 
@@ -63,7 +64,8 @@ namespace FiftyoneDegrees {
 				 * data pointer provided.
 				 * @param data pointer to the data set in memory
 				 * @param length of the data in bytes
-				 * @param config to configure the engine with
+				 * @param config to configure the engine with, which the
+				 * example deletes, even if the engine cannot be created
 				 */
 				ExampleBase(
 					byte *data, 
@@ -81,7 +83,8 @@ namespace FiftyoneDegrees {
 				 * Construct a new instance of the example to be run using the
 				 * data file and configuration provided.
 				 * @param dataFilePath path to the data file to use
-				 * @param config to configure the engine with
+				 * @param config to configure the engine with, which the
+				 * example deletes, even if the engine cannot be created
 				 */
 				ExampleBase(
 					string dataFilePath, 
@@ -237,11 +240,12 @@ namespace FiftyoneDegrees {
 				static void processUserAgent(const char *userAgent, void *state);
 
 				/** Configuration for the Engine */
-				DeviceDetection::Hash::ConfigHash *config;
+				std::unique_ptr<DeviceDetection::Hash::ConfigHash> config;
 				/** Properties to initialise the Engine with */
-				RequiredPropertiesConfig *properties;
-				/** Hash Engine used for the example */
-				EngineHash *engine;
+				std::unique_ptr<RequiredPropertiesConfig> properties;
+				/** Hash Engine used for the example. Declared last, so it is
+				 * freed before the configuration and properties it uses. */
+				std::unique_ptr<EngineHash> engine;
 
 			private:
 				/**
