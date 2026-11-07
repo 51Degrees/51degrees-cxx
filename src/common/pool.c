@@ -23,6 +23,9 @@
 #include "pool.h"
 #include "fiftyone.h"
 
+/* The most items a pool holds, one fewer than 16 bits can index. */
+#define POOL_MAX_ITEMS (UINT16_MAX - 1)
+
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 
 /*
@@ -91,7 +94,11 @@ fiftyoneDegreesPool* fiftyoneDegreesPoolInit(
 
 	// Add one to the concurrency value so that a NULL marker can be
 	// written as the last item in the linked list that if returned
-	// indicates that every item is in use.
+	// indicates that every item is in use. Items are indexed by 16 bits, so
+	// the largest concurrency leaves room for the marker.
+	if (concurrency > POOL_MAX_ITEMS) {
+		concurrency = POOL_MAX_ITEMS;
+	}
 	uint16_t listItems = concurrency + 1;
 
 	// Set the stack and head of the linked list.
