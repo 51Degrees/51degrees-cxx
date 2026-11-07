@@ -139,10 +139,12 @@
 #endif
 /**
  * Default value for the profile cache size used in the default collection
- * configuration.
+ * configuration. The Balanced preset reads the profile of each result through
+ * this cache, so it holds enough of them that most reads find their profile
+ * there.
  */
 #ifndef FIFTYONE_DEGREES_PROFILE_CACHE_SIZE
-#define FIFTYONE_DEGREES_PROFILE_CACHE_SIZE 10000
+#define FIFTYONE_DEGREES_PROFILE_CACHE_SIZE 20000
 #endif
 /**
  * Default value for the profile cache loaded size used in the default
@@ -158,7 +160,7 @@
  * their value there.
  */
 #ifndef FIFTYONE_DEGREES_VALUE_CACHE_SIZE
-#define FIFTYONE_DEGREES_VALUE_CACHE_SIZE 50000
+#define FIFTYONE_DEGREES_VALUE_CACHE_SIZE 100000
 #endif
 /**
  * Default value for the value cache loaded size used in the default collection
@@ -342,6 +344,8 @@ typedef struct fiftyone_degrees_result_ipi_t {
 	int32_t componentIndex; /**< Index in the components list of the
 							component the result relates to, or -1 if the
 							result has not been populated */
+	const byte* keptProfile; /**< The profile of the result if it has been kept
+							 for the length of the lookup, otherwise NULL */
 } fiftyoneDegreesResultIpi;
 
 /**
@@ -355,7 +359,11 @@ typedef struct fiftyone_degrees_result_ipi_t {
 						  check if a property has values. Indexed by required \
 						  property index. Reset when the results are \
 						  repopulated. */ \
-	uint32_t hasValuesCacheCount; /**< Number of entries in hasValuesCache */
+	uint32_t hasValuesCacheCount; /**< Number of entries in hasValuesCache */ \
+	byte* keptProfiles; /**< Copies of profiles read through a cache, kept for \
+						the length of a lookup so that each property does not \
+						read the cache again. One slot for each result, or \
+						NULL if the profiles are not read through a cache. */
 
 FIFTYONE_DEGREES_ARRAY_TYPE(
 	fiftyoneDegreesResultIpi,
@@ -455,8 +463,10 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig;
  *
  * The strings, the graphs, the profile offsets, the property types and the
  * default value of each required property are held in memory. The values,
- * profiles and profile groups are read through caches. Naming the required
- * properties does not change what is held.
+ * profiles and profile groups are read through caches, and the profile of each
+ * result is copied the first time a lookup reads it, so that each property
+ * does not read the cache again. Naming the required properties does not
+ * change what is held.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig;
 

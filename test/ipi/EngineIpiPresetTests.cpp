@@ -1365,14 +1365,70 @@ TEST_F(IpiPresetTests, NamesThatMatchNothingFailAsBefore) {
 	}
 }
 
-TEST_F(IpiPresetTests, PresetCachesFiftyThousandValues) {
+TEST_F(IpiPresetTests, PresetCachesValuesAndProfiles) {
 	const fiftyoneDegreesConfigIpi* presets[] = {
 		&fiftyoneDegreesIpiBalancedConfig,
 		&fiftyoneDegreesIpiDefaultConfig,
 		&fiftyoneDegreesIpiBalancedTempConfig };
 	for (const fiftyoneDegreesConfigIpi* preset : presets) {
-		EXPECT_EQ(50000u, preset->values.capacity);
+		EXPECT_EQ(100000u, preset->values.capacity);
+		EXPECT_EQ(20000u, preset->profiles.capacity);
 	}
+}
+
+TEST_F(IpiPresetTests, ProfilesAreOnlyKeptWhenReadThroughACache) {
+	const auto keeps = [&](const fiftyoneDegreesConfigIpi& config) {
+		PresetManager manager(dataFilePath, config, nullptr);
+		fiftyoneDegreesResultsIpi* results =
+			fiftyoneDegreesResultsIpiCreate(&manager.manager);
+		const bool kept = results->keptProfiles != nullptr;
+		fiftyoneDegreesResultsIpiFree(results);
+		return kept;
+	};
+	EXPECT_TRUE(keeps(fiftyoneDegreesIpiBalancedConfig));
+	EXPECT_FALSE(keeps(fiftyoneDegreesIpiLowMemoryConfig));
+	EXPECT_FALSE(keeps(fiftyoneDegreesIpiHighPerformanceConfig));
+}
+
+TEST_F(IpiPresetTests, ManyLiveResultsDoNotUseUpTheProfileCache) {
+	// A cache this small has ten entries in each of its ten shards, and the
+	// results below would use them all up if they each held on to their profiles.
+	const uint32_t resultsCount = 200;
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+	config.profiles.capacity = 100;
+	config.profiles.concurrency = 10;
+	const vector<string> addresses = presetAddresses();
+	PresetManager expected(
+		dataFilePath,
+		fiftyoneDegreesIpiLowMemoryConfig,
+		nullptr);
+	PresetManager actual(dataFilePath, config, nullptr);
+	vector<char> buffer(presetBufferBytes);
+	fiftyoneDegreesResultsIpi* expectedResults =
+		fiftyoneDegreesResultsIpiCreate(&expected.manager);
+	vector<fiftyoneDegreesResultsIpi*> live;
+	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
+		expectedResults->b.dataSet)->b.b.available->count;
+	for (uint32_t i = 0; i < resultsCount; i++) {
+		live.push_back(fiftyoneDegreesResultsIpiCreate(&actual.manager));
+		presetDetect(live[i], addresses[i % addresses.size()]);
+		for (int p = 0; p < count; p++) {
+			presetAnswer(live[i], p, buffer);
+		}
+	}
+	for (uint32_t i = 0; i < resultsCount; i++) {
+		presetDetect(expectedResults, addresses[i % addresses.size()]);
+		for (int p = 0; p < count; p++) {
+			EXPECT_EQ(
+				presetAnswer(expectedResults, p, buffer),
+				presetAnswer(live[i], p, buffer)) <<
+				"Required index " << p << " of results " << i;
+		}
+	}
+	for (fiftyoneDegreesResultsIpi* results : live) {
+		fiftyoneDegreesResultsIpiFree(results);
+	}
+	fiftyoneDegreesResultsIpiFree(expectedResults);
 }
 
 TEST_F(IpiPresetTests, EngineMetaDataMatches) {
