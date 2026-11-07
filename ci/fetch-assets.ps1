@@ -6,7 +6,10 @@ param (
     # the asset cache is filled.
     [string[]]$Products,
     # A build only entry runs nothing, so it needs no data files.
-    [bool]$BuildOnly
+    [bool]$BuildOnly,
+    # The standard set of a pull request runs no IP Intelligence test, so it
+    # needs no IP Intelligence data file.
+    [string]$Depth
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
@@ -43,7 +46,7 @@ if ($Products -contains 'dd') {
     Get-DataFiles device-detection
 }
 
-if ($Products -contains 'ipi') {
+if ($Products -contains 'ipi' -and $Depth -ne 'standard') {
     $ipIntelligenceData = "$data/ip-intelligence"
 
     ./steps/fetch-assets.ps1 -IpIntelligenceUrl:$IpIntelligenceUrl -Assets '51Degrees-EnterpriseIpiV41.ipi'

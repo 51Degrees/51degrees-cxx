@@ -5,7 +5,14 @@ param(
     [string]$Configuration = "Release",
     [string]$BuildMethod = "cmake",
     [string[]]$Products,
-    [bool]$BuildOnly
+    [bool]$BuildOnly,
+    # The branch a pull request merges into, which its changes are measured
+    # against.
+    [string]$Branch = 'main',
+    # How deeply a pull request is tested, as select-options.ps1 chose.
+    # standard leaves out the IP Intelligence examples, which read the
+    # Enterprise data file.
+    [string]$Depth
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
@@ -21,7 +28,7 @@ if ($BuildMethod -ne "cmake") {
     exit 0
 }
 
-$Products = Get-Products -Products $Products -RepoPath $RepoName
+$Products = Get-Products -Products $Products -RepoPath $RepoName -Branch $Branch
 $RepoPath = (Resolve-Path $RepoName).Path
 $failed = 0
 
@@ -48,6 +55,10 @@ if ($IsWindows) {
 }
 
 foreach ($product in $Products) {
+    if ($product -eq 'ipi' -and $Depth -eq 'standard') {
+        Write-Output "The standard set leaves out the IP Intelligence examples"
+        continue
+    }
     $code = Invoke-ProductTests -BuildPath "$RepoPath/build" -Product $product `
         -Configuration $Configuration -TestsRegex '.*Integration|Example.*' `
         -ExcludeRegex ($Excludes[$product] -join '|') `

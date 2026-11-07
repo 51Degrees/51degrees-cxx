@@ -199,11 +199,18 @@ So small changes merge into `rc` rather than `main`. Pull requests target `rc`,
 and when a release is wanted one pull request merges `rc` into `main`, so the
 languages update once for all of them.
 
-- The nightly builds and merges any pull request into `rc` that is not a draft
-  and has no review requested, so a pull request stays a draft until it has
-  been reviewed. To build a draft, use common-ci's
+- The nightly build and the Pull Requests workflow build each pull request into
+  `rc` on the configurations its changes need, which
+  [`ci/select-options.ps1`](ci/select-options.ps1) chooses, and merge one that
+  passes when it is not a draft and has no review requested, so a pull request
+  stays a draft until it has been reviewed. A change to documentation alone
+  builds nothing. To build a draft, use common-ci's
   [`nightly-pull-request.yml`](https://github.com/51Degrees/common-ci/blob/main/.github/workflows/nightly-pull-request.yml)
   started with `dryrun: 'true'` and `branch: rc`.
+- The release pull request from `rc` into `main` is built on every
+  configuration by
+  [`release-pull-request.yml`](.github/workflows/release-pull-request.yml).
+  Wait for it to pass before merging.
 - Data file updates still reach `main` every night. Merge `main` into
   `rc` before opening the release pull request.
 - GitHub closes an issue only when its fix reaches `main`, so the release pull
