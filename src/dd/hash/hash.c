@@ -5067,12 +5067,20 @@ static bool resultsHashGetHasValues(
 		propertyIndex,
 		&results->propertyItem,
 		exception);
+	if (property == NULL || EXCEPTION_FAILED) {
+		// The property could not be read.
+		return false;
+	}
 
 	ResultHash *result = getResultFromResultsForComponentIndex(
 		dataSet,
 		results,
 		property->componentIndex,
 		exception);
+	if (EXCEPTION_FAILED) {
+		// The graph walk for the component could not read the data file.
+		return false;
+	}
 
 	if (result == NULL) {
 		// There is no result which contains values for the property.
@@ -5129,21 +5137,14 @@ static fiftyoneDegreesResultsNoValueReason resultsHashGetNoValueReason(
 		results,
 		availableIndex,
 		exception);
+	if (EXCEPTION_FAILED) {
+		// The property or the graph could not be read from the data file.
+		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
+	}
 
-	// Work out the property index from the available index.
-	uint32_t propertyIndex =
-		(uint32_t)PropertiesGetPropertyIndexFromAvailableIndex(
-		dataSet->b.b.available,
-		availableIndex);
-
-	// Set the property that will be available in the results structure. 
-	// This may also be needed to work out which of a selection of results 
-	// are used to obtain the values.
-	Property *property = PropertyGet(
-		dataSet->properties,
-		propertyIndex,
-		&results->propertyItem,
-		exception);
+	// The property was read into the results by the call above, and is set
+	// whenever a result is returned.
+	const Property *property = (const Property*)results->propertyItem.data.ptr;
 
 	if (result == NULL) {
 		// In the unified result shape (issue #362) value selection returns no
@@ -5168,6 +5169,9 @@ static fiftyoneDegreesResultsNoValueReason resultsHashGetNoValueReason(
 	if (dataSet->config.b.allowUnmatched == false &&
 		result->profileIsOverriden[property->componentIndex]) {
 		ResultsEvaluateAll(&results->b.b, exception);
+		if (EXCEPTION_FAILED) {
+			return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
+		}
 	}
 	if (ISUNMATCHED(dataSet, result)) {
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_MATCHED_NODES;
@@ -5280,6 +5284,12 @@ static Item* resultsHashGetValues(
 					}
 				}
 			}
+		}
+
+		// Values added before a read failed are incomplete, so none are
+		// returned.
+		if (EXCEPTION_FAILED) {
+			firstValue = NULL;
 		}
 
 		if (firstValue == NULL) {
