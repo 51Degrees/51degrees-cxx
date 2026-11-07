@@ -1292,7 +1292,8 @@ static StatusCode heldApply(
 	if ((*collection)->elementSize == 0) {
 		header.count = 0;
 	}
-	FIFTYONE_DEGREES_COLLECTION_FREE(*collection);
+	Collection* const source = *collection;
+	FIFTYONE_DEGREES_COLLECTION_FREE(source);
 #ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
 	*collection = fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
 		file,
