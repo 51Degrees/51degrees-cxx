@@ -1017,6 +1017,33 @@ EXTERNAL fiftyoneDegreesDataSetHash* fiftyoneDegreesDataSetHashGet(
 EXTERNAL void fiftyoneDegreesDataSetHashRelease(
 	fiftyoneDegreesDataSetHash *dataSet);
 
+/**
+ * Gets the date the data file in use was published, from its header.
+ * @param manager the resource manager containing a hash data set initialised
+ * by one of the Hash data set init methods
+ * @param date pointer to the date to set, to the header's date when that is
+ * valid (see #fiftyoneDegreesDateIsValid), otherwise to a year, month and day
+ * of zero
+ * @return true if the header holds a valid date, otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesHashGetPublished(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date);
+
+/**
+ * Gets the date 51Degrees expect to publish the next data file, from the
+ * header of the data file in use.
+ * @param manager the resource manager containing a hash data set initialised
+ * by one of the Hash data set init methods
+ * @param date pointer to the date to set, to the header's date when that is
+ * valid (see #fiftyoneDegreesDateIsValid), otherwise to a year, month and day
+ * of zero
+ * @return true if the header holds a valid date, otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesHashGetNextUpdate(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date);
+
 
 /**
  * Iterates over the profiles in the data set calling the callback method for

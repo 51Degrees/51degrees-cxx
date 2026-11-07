@@ -512,6 +512,33 @@ EXTERNAL fiftyoneDegreesDataSetIpi* fiftyoneDegreesDataSetIpiGet(
 EXTERNAL void fiftyoneDegreesDataSetIpiRelease(fiftyoneDegreesDataSetIpi* dataset);
 
 /**
+ * Gets the date the data file in use was published, from its header.
+ * @param manager the resource manager containing an IP Intelligence data set
+ * initialised by one of the IP Intelligence data set init methods
+ * @param date pointer to the date to set, to the header's date when that is
+ * valid (see #fiftyoneDegreesDateIsValid), otherwise to a year, month and day
+ * of zero
+ * @return true if the header holds a valid date, otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesIpiGetPublished(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date);
+
+/**
+ * Gets the date 51Degrees expect to publish the next data file, from the
+ * header of the data file in use.
+ * @param manager the resource manager containing an IP Intelligence data set
+ * initialised by one of the IP Intelligence data set init methods
+ * @param date pointer to the date to set, to the header's date when that is
+ * valid (see #fiftyoneDegreesDateIsValid), otherwise to a year, month and day
+ * of zero
+ * @return true if the header holds a valid date, otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesIpiGetNextUpdate(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date);
+
+/**
  * Gets the total size in bytes which will be allocated when intialising a
  * IP Intelligence resource and associated manager with the same parameters. If any of
  * the configuration options prevent the memory from being constant (i.e. more
