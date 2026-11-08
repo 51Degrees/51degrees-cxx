@@ -600,7 +600,7 @@ void executeBenchmark(
 
 	PropertiesRequired properties = PropertiesDefault;
 	if (config.allProperties == false) {
-		properties.string = "IsMobile,HardwareVendor";
+		properties.string = "IsMobile";
 	}
 
 	// Multi graph operation is being deprecated. There is only one graph.
