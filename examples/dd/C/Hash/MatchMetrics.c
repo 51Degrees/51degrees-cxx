@@ -84,27 +84,28 @@ fiftyoneDegreesResultsHashGetMatchMetrics(
 	exception);
 ```
 
-6. Drift: the largest number of characters a matched substring of a result
-was from where it was expected to be found, added up over the results. The
-maximum drift to allow when finding a match can be set through the
+6. The drift is the largest number of characters a matched substring of a
+result was from where it was expected to be found, added up over the results.
+The maximum drift to allow when finding a match can be set through the
 configuration structure.
 
-7. Difference: The total difference in hash code values between the matched
-substrings and the actual substrings. The maximum difference to allow when
-finding a match can be set through the configuration structure.
+7. The difference is the total difference in hash code values between the
+matched substrings and the actual substrings. The maximum difference to allow
+when finding a match can be set through the configuration structure.
 
-8. Iterations: The number of iterations required to get the device offset in
-the devices collection in the graph of nodes. This is indicative of the time
-taken to fetch the result.
+8. The iterations are the number of iterations required to get the device
+offset in the devices collection in the graph of nodes. This is indicative of
+the time taken to fetch the result.
 
-9. Method: the highest method any result used, which provides information
-about the algorithm that was used to perform detection for a particular
-User-Agent. For more information on what each method means please see:
+9. The method is the highest method any result used, which provides
+information about the algorithm that was used to perform detection for a
+particular User-Agent. For more information on what each method means please
+see:
 <a href="https://51degrees.com/support/documentation/hash?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-matchmetrics.c&utm_term=header">
 How device detection works</a>.
 
-10. Obtain the matched User-Agent of the first result: the matched substrings
-in the User-Agent separated with underscores.
+10. Obtain the matched User-Agent of the first result, which holds the matched
+substrings of the User-Agent separated with underscores.
 ```
 const char *matchedUserAgent =
 	fiftyoneDegreesResultsHashGetMatchedUserAgent(results, 0, exception);

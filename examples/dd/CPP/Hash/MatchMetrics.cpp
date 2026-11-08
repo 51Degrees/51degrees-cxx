@@ -76,40 +76,42 @@ using namespace FiftyoneDegrees;
 DeviceDetection::Hash::DeviceDetection::Hash::ResultsHash *results = engine->process(evidence);
 ```
 
-5. Obtain drift: the largest number of characters a matched substring of a
-result was from where it was expected to be found, added up over the results,
-one for each component. The maximum drift to allow when finding a match can
-be set through the configuration structure.
+5. Obtain the drift, which is the largest number of characters a matched
+substring of a result was from where it was expected to be found, added up
+over the results, one for each component. The maximum drift to allow when
+finding a match can be set through the configuration structure.
 ```
 int drift = results->getDrift();
 
 ```
 
-6. Obtain difference: The total difference in hash code values between the
-matched substrings and the actual substrings. The maximum difference to allow
-when finding a match can be set through the configuration structure.
+6. Obtain the difference, which is the total difference in hash code values
+between the matched substrings and the actual substrings. The maximum
+difference to allow when finding a match can be set through the configuration
+structure.
 ```
 int difference = results->getDifference();
 ```
 
-7. Obtain iteration count: The number of iterations required to get the device
-offset in the devices collection in the graph of nodes. This is indicative of
-the time taken to fetch the result.
+7. Obtain the iterations, which are the number of iterations required to get
+the device offset in the devices collection in the graph of nodes. This is
+indicative of the time taken to fetch the result.
 ```
 int iterations = results->getIterations();
 ```
 
-8. Obtain match method: provides information about the algorithm that was used
-to perform detection for a particular User-Agent. For more information on what
-each method means please see:
+8. Obtain the method, which is the highest method any result used and
+provides information about the algorithm that was used to perform detection
+for a particular User-Agent. For more information on what each method means
+please see:
 <a href="https://51degrees.com/support/documentation/hash?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-hash-matchmetrics.cpp&utm_term=header">
 How device detection works</a>.
 ```
 fiftyoneDegreesHashMatchMethod method = results->getMethod();
 ```
 
-9. Obtain the matched User-Agent: the matched substrings in the User-Agent
-separated with underscored.
+9. Obtain the matched User-Agent of the first result, which holds the matched
+substrings of the User-Agent separated with underscores.
 ```
 string matchedUserAgent = results->getUserAgent(0);
 ```
