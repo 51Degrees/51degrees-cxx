@@ -27,6 +27,17 @@ using namespace FiftyoneDegrees;
 
 #define RESULT(r,i) ((ResultHash*)r->b.b.items + i)
 
+/**
+ * The script the client runs for a value of JavascriptHardwareProfile.
+ */
+static string getHardwareProfileScript(const char *body) {
+	const size_t length = HashGetHardwareProfileScript(body, nullptr, 0);
+	string script(length + 1, '\0');
+	HashGetHardwareProfileScript(body, &script[0], script.size());
+	script.resize(length);
+	return script;
+}
+
 DeviceDetection::Hash::ResultsHash::ResultsHash(
 	fiftyoneDegreesResultsHash *results,
 	shared_ptr<fiftyoneDegreesResourceManager> manager)
@@ -70,17 +81,12 @@ void DeviceDetection::Hash::ResultsHash::getValuesInternal(
 	if (_jsHardwareProfileRequiredIndex >= 0 &&
 		(int)requiredPropertyIndex == _jsHardwareProfileRequiredIndex) {
 
-		// Add the values as JavaScript snippets to the result.
+		// Add each value as the script the client runs.
 		for (i = 0; i < results->values.count; i++) {
 			valueName = (String*)valuesItems[i].data.ptr;
 			if (valueName != nullptr) {
-				stringstream stream;
-				stream <<
-					"var profileIds = []\n" <<
-					STRING(valueName) <<
-					"\ndocument.cookie = \"51D_ProfileIds=\" + " <<
-					"profileIds.join(\"|\")";
-				values.push_back(stream.str());
+				values.push_back(
+					getHardwareProfileScript(STRING(valueName)));
 			}
 		}
 	}

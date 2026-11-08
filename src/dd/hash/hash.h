@@ -858,6 +858,30 @@ EXTERNAL size_t fiftyoneDegreesResultsHashGetValuesString(
 	fiftyoneDegreesException *exception);
 
 /**
+ * Writes the script the client runs for a value of the
+ * JavascriptHardwareProfile property. The values the results give for that
+ * property are the bodies of the script. A body pushes the ids of the
+ * profiles it finds onto an array named profileIds, which it does not
+ * declare, and sends them nowhere. The script declares the array, then runs
+ * the body, then writes the ids, separated by '|', to the 51D_ProfileIds
+ * cookie, which the engine reads as evidence that sets the profiles. An empty
+ * or NULL body is written in the same way.
+ * Call with a NULL buffer to find the length needed, then with a buffer one
+ * longer than that.
+ * @param body the value of the property, or NULL for an empty one
+ * @param buffer to write the script to, or NULL to only find its length
+ * @param length of the buffer, including room for the null terminator
+ * @return the number of characters the script needs, not counting the null
+ * terminator. When the buffer is shorter than that plus one, it holds as
+ * many characters as fit followed by a null terminator, and a buffer of
+ * length 0 is left as it is.
+ */
+EXTERNAL size_t fiftyoneDegreesHashGetHardwareProfileScript(
+	const char *body,
+	char *buffer,
+	size_t length);
+
+/**
  * Sets the buffer to a JSON string that represents all the available
  * properties and values in the results. Each property is read as
  * #fiftyoneDegreesResultsHashGetValues reads it, so when no properties were
