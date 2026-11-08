@@ -70,16 +70,34 @@ namespace FiftyoneDegrees {
 				fiftyoneDegreesDataSetIpi *dataSet,
 				uint32_t valueIndex,
 				const string &propertyName);
+
+			/**
+			 * Build a new instance of ValueMetaData from the value at the
+			 * index provided, taking its property's name from the names
+			 * given rather than reading it again.
+			 * @param dataSet pointer to the data set containing the value
+			 * @param valueIndex index of the value in the values
+			 * collection
+			 * @param propertyNames the name of each property, by the
+			 * property's index
+			 * @return the new instance, or nullptr when the data set gives
+			 * no value at the index
+			 */
+			static ValueMetaData* build(
+				fiftyoneDegreesDataSetIpi *dataSet,
+				uint32_t valueIndex,
+				const std::vector<std::string> &propertyNames);
 		private:
 			/**
 			 * Build a new instance of ValueMetaData from the value at the
-			 * index provided, reading the name of its property when no name
-			 * is given.
+			 * index provided, reading the name of its property when neither
+			 * its name nor the names of every property are given.
 			 */
 			static ValueMetaData* buildValue(
 				fiftyoneDegreesDataSetIpi *dataSet,
 				uint32_t valueIndex,
-				const string *propertyName);
+				const string *propertyName,
+				const std::vector<std::string> *propertyNames);
 		};
 	}
 }

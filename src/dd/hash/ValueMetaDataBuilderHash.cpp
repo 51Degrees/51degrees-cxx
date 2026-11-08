@@ -30,20 +30,28 @@ using namespace FiftyoneDegrees::DeviceDetection::Hash;
 ValueMetaData* ValueMetaDataBuilderHash::build(
 	fiftyoneDegreesDataSetHash *dataSet,
 	uint32_t valueIndex) {
-	return buildValue(dataSet, valueIndex, nullptr);
+	return buildValue(dataSet, valueIndex, nullptr, nullptr);
 }
 
 ValueMetaData* ValueMetaDataBuilderHash::build(
 	fiftyoneDegreesDataSetHash *dataSet,
 	uint32_t valueIndex,
 	const string &propertyName) {
-	return buildValue(dataSet, valueIndex, &propertyName);
+	return buildValue(dataSet, valueIndex, &propertyName, nullptr);
+}
+
+ValueMetaData* ValueMetaDataBuilderHash::build(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	const std::vector<std::string> &propertyNames) {
+	return buildValue(dataSet, valueIndex, nullptr, &propertyNames);
 }
 
 ValueMetaData* ValueMetaDataBuilderHash::buildValue(
 	fiftyoneDegreesDataSetHash *dataSet,
 	uint32_t valueIndex,
-	const string *propertyName) {
+	const string *propertyName,
+	const std::vector<std::string> *propertyNames) {
 	EXCEPTION_CREATE;
 	uint32_t propertyIndex = 0;
 	ValueTexts texts;
@@ -63,6 +71,10 @@ ValueMetaData* ValueMetaDataBuilderHash::buildValue(
 	string name;
 	if (propertyName != nullptr) {
 		name = *propertyName;
+	}
+	else if (propertyNames != nullptr &&
+		propertyIndex < propertyNames->size()) {
+		name = (*propertyNames)[propertyIndex];
 	}
 	else {
 		char buffer[REASONABLE_WKT_STRING_LENGTH];
