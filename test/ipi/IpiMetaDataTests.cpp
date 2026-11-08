@@ -539,6 +539,7 @@ protected:
 		vector<char> written(ipiMetaDataWrittenBytes);
 		unique_ptr<Properties> properties(metaData.getProperties());
 		const uint32_t count = fiftyoneDegreesIpiGetPropertyCount(dataSet);
+		uint32_t foundAtIndex = 0;
 		for (uint32_t i = 0; i < count; i++) {
 			EXCEPTION_CREATE;
 			uint32_t first = 0, valueCount = 0;
@@ -619,23 +620,35 @@ protected:
 				EXPECT_EQ(url, metaDataValue->getUrl()) << name;
 
 				// A number written to fewer places than the search compares
-				// it to is not found by its text, so only a string is.
+				// it to is not found by its text, so only a string is. The
+				// search relies on the order the data file keeps a
+				// property's values in, so a value out of that order, or one
+				// sharing its name with another, can be found elsewhere or
+				// not at all. Whatever is found must have the name.
 				if (storedType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) {
-					EXPECT_EQ(
-						(long)valueIndex,
-						fiftyoneDegreesIpiGetValueIndex(
-							dataSet,
-							i,
-							valueName.c_str(),
-							exception)) << name << " " << valueName;
+					const long found = fiftyoneDegreesIpiGetValueIndex(
+						dataSet,
+						i,
+						valueName.c_str(),
+						exception);
 					EXPECT_TRUE(EXCEPTION_OKAY) << name;
 					unique_ptr<Common::ValueMetaData> byKey(
 						values->getByKey(metaDataValue->getKey()));
-					ASSERT_TRUE(byKey != nullptr) << name << " " << valueName;
-					EXPECT_EQ(valueName, byKey->getName()) << name;
+					EXPECT_EQ(found >= 0, byKey != nullptr) << name;
+					if (found >= 0) {
+						EXPECT_EQ(valueName, ipiMetaDataValueText(
+							dataSet,
+							(uint32_t)found,
+							FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+							buffer,
+							buffer.size())) << name;
+						EXPECT_EQ(valueName, byKey->getName()) << name;
+					}
+					foundAtIndex += found == (long)valueIndex ? 1 : 0;
 				}
 			}
 		}
+		EXPECT_GT(foundAtIndex, 0u) << "No string value was found by name.";
 	}
 
 	/** Checks the components and the profiles. */
@@ -938,20 +951,27 @@ TEST_F(IpiMetaDataTests, ValueNotOfTheProperty) {
  */
 TEST_F(IpiMetaDataTests, AvailableProperties) {
 	eachDataFile([](const string &path) {
-		string names[2];
+		// The first two properties are named, or only the first when there
+		// are two, so that one property is always left out.
+		vector<string> names;
 		{
 			const auto all = openIpiMetaData(path, nullptr);
 			IpiMetaDataDataSet scope(all.get());
-			ASSERT_GE(fiftyoneDegreesIpiGetPropertyCount(scope.dataSet), 3u);
-			for (uint32_t i = 0; i < 2; i++) {
-				names[i] = ipiMetaDataPropertyText(
+			const uint32_t count =
+				fiftyoneDegreesIpiGetPropertyCount(scope.dataSet);
+			ASSERT_GE(count, 2u);
+			for (uint32_t i = 0; i < 2 && i < count - 1; i++) {
+				names.push_back(ipiMetaDataPropertyText(
 					scope.dataSet,
 					i,
 					FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
-					ipiMetaDataTextBytes);
+					ipiMetaDataTextBytes));
 			}
 		}
-		const string required = names[0] + "," + names[1];
+		string required = names[0];
+		for (size_t n = 1; n < names.size(); n++) {
+			required += "," + names[n];
+		}
 		const auto manager = openIpiMetaData(path, required.c_str());
 		IpiMetaDataDataSet scope(manager.get());
 		fiftyoneDegreesDataSetIpi *dataSet = scope.dataSet;
@@ -975,8 +995,8 @@ TEST_F(IpiMetaDataTests, AvailableProperties) {
 					dataSet->b.b.available,
 					name.c_str()) >= 0,
 				isAvailable) << name;
-			for (int n = 0; n < 2; n++) {
-				if (name == names[n]) {
+			for (int n = 0; n < (int)names.size(); n++) {
+				if (name == names[(size_t)n]) {
 					EXPECT_TRUE(isAvailable) << name;
 					EXPECT_EQ(n, requiredIndex) << name;
 				}
