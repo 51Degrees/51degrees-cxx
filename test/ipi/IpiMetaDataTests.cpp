@@ -770,20 +770,27 @@ TEST_F(IpiMetaDataTests, ValueNotOfTheProperty) {
  */
 TEST_F(IpiMetaDataTests, AvailableProperties) {
 	eachDataFile([](const string &path) {
-		string names[2];
+		// The first two properties are named, or only the first when there
+		// are two, so that one property is always left out.
+		vector<string> names;
 		{
 			const auto all = openIpiMetaData(path, nullptr);
 			IpiMetaDataDataSet scope(all.get());
-			ASSERT_GE(fiftyoneDegreesIpiGetPropertyCount(scope.dataSet), 3u);
-			for (uint32_t i = 0; i < 2; i++) {
-				names[i] = ipiMetaDataPropertyText(
+			const uint32_t count =
+				fiftyoneDegreesIpiGetPropertyCount(scope.dataSet);
+			ASSERT_GE(count, 2u);
+			for (uint32_t i = 0; i < 2 && i < count - 1; i++) {
+				names.push_back(ipiMetaDataPropertyText(
 					scope.dataSet,
 					i,
 					FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
-					ipiMetaDataTextBytes);
+					ipiMetaDataTextBytes));
 			}
 		}
-		const string required = names[0] + "," + names[1];
+		string required = names[0];
+		for (size_t n = 1; n < names.size(); n++) {
+			required += "," + names[n];
+		}
 		const auto manager = openIpiMetaData(path, required.c_str());
 		IpiMetaDataDataSet scope(manager.get());
 		fiftyoneDegreesDataSetIpi *dataSet = scope.dataSet;
@@ -807,8 +814,8 @@ TEST_F(IpiMetaDataTests, AvailableProperties) {
 					dataSet->b.b.available,
 					name.c_str()) >= 0,
 				isAvailable) << name;
-			for (int n = 0; n < 2; n++) {
-				if (name == names[n]) {
+			for (int n = 0; n < (int)names.size(); n++) {
+				if (name == names[(size_t)n]) {
 					EXPECT_TRUE(isAvailable) << name;
 					EXPECT_EQ(n, requiredIndex) << name;
 				}
