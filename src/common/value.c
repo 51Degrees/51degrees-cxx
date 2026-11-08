@@ -471,3 +471,91 @@ uint16_t fiftyoneDegreesValueGetWeight(
 	}
 	return 0;
 }
+
+/**
+ * Writes the string at `offset` in the strings collection as text, or an
+ * empty text when the offset is not above 0. A value with no description or
+ * URL points at offset 0, which holds the first string in the file, and a
+ * weighted value's URL offset holds its weight, which is negative. A string
+ * the collection gives nothing for is also an empty text.
+ */
+static char* getValueStringText(
+	const Collection * const strings,
+	const int32_t offset,
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	if (offset <= 0) {
+		return emptyText(buffer, bufferLength, exception);
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const value = StoredBinaryValueGet(
+		strings,
+		(uint32_t)offset,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		&item,
+		exception);
+	if (value == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: emptyText(buffer, bufferLength, exception);
+	}
+	char *text = NULL;
+	if (EXCEPTION_OKAY) {
+		// A string has no decimal places.
+		text = StoredBinaryValueToText(
+			value,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			0,
+			buffer,
+			bufferLength,
+			exception);
+	}
+	COLLECTION_RELEASE(strings, &item);
+	return text;
+}
+
+char* fiftyoneDegreesValueGetMetaDataText(
+	const fiftyoneDegreesCollection *strings,
+	const fiftyoneDegreesCollection *propertyTypes,
+	const fiftyoneDegreesValue *value,
+	fiftyoneDegreesValueText text,
+	uint8_t decimalPlaces,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	switch (text) {
+	case FIFTYONE_DEGREES_VALUE_TEXT_NAME:
+		return ValueGetText(
+			strings,
+			propertyTypes,
+			value,
+			decimalPlaces,
+			buffer,
+			bufferLength,
+			exception);
+	case FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION:
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+		// A reduced size data file does not contain value descriptions.
+		return emptyText(buffer, bufferLength, exception);
+#else
+		return getValueStringText(
+			strings,
+			value->descriptionOffset,
+			buffer,
+			bufferLength,
+			exception);
+#endif
+	case FIFTYONE_DEGREES_VALUE_TEXT_URL:
+		return getValueStringText(
+			strings,
+			value->urlOffsetOrWeight,
+			buffer,
+			bufferLength,
+			exception);
+	default:
+		EXCEPTION_SET(INVALID_INPUT);
+		return NULL;
+	}
+}

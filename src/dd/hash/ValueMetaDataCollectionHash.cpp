@@ -34,18 +34,7 @@ ValueMetaDataCollectionHash::ValueMetaDataCollectionHash(
 ValueMetaDataCollectionHash::~ValueMetaDataCollectionHash() {}
 
 ValueMetaData* ValueMetaDataCollectionHash::getByIndex(uint32_t index) const {
-	EXCEPTION_CREATE;
-	Item item;
-	const Value *value;
-	ValueMetaData *result = nullptr;
-	DataReset(&item.data);
-	value = ValueGet(dataSet->values, index, &item, exception);
-	EXCEPTION_THROW;
-	if (value != nullptr) {
-		result = ValueMetaDataBuilderHash::build(dataSet, value);
-		COLLECTION_RELEASE(dataSet->values, &item);
-	}
-	return result;
+	return ValueMetaDataBuilderHash::build(dataSet, index);
 }
 
 ValueMetaData* ValueMetaDataCollectionHash::getByKey(ValueMetaDataKey key) const {

@@ -375,6 +375,50 @@ EXTERNAL uint16_t fiftyoneDegreesValueGetWeight(
 	const fiftyoneDegreesValue *value);
 
 /**
+ * The text of a value that #fiftyoneDegreesValueGetMetaDataText gives.
+ */
+typedef enum e_fiftyone_degrees_value_text {
+	FIFTYONE_DEGREES_VALUE_TEXT_NAME = 0, /**< The value's name, as
+	                                      #fiftyoneDegreesValueGetText
+	                                      writes it */
+	FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION = 1, /**< The value's description,
+	                                             empty when it has none */
+	FIFTYONE_DEGREES_VALUE_TEXT_URL = 2 /**< The URL of more about the value,
+	                                    empty when it has none */
+} fiftyoneDegreesValueText;
+
+/**
+ * Gets a text of the value as the metadata gives it. A value with no
+ * description or URL, or whose description or URL the strings collection
+ * gives nothing for, has an empty one, as does a weighted value, whose URL
+ * offset holds its weight. The text is written into `buffer` when it fits,
+ * and otherwise into memory the caller frees, as
+ * #fiftyoneDegreesStoredBinaryValueToText describes.
+ * @param strings collection containing the value's strings
+ * @param propertyTypes collection of the type each property's values are
+ * stored as, or NULL when every value is stored as a string, which only
+ * #FIFTYONE_DEGREES_VALUE_TEXT_NAME reads
+ * @param value the value to get the text of
+ * @param text which text of the value to get
+ * @param decimalPlaces the most places to write a number in the name to
+ * @param buffer memory the text is written into when it fits
+ * @param bufferLength the bytes `buffer` holds
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the null terminated text, or NULL when it cannot be read or
+ * written or `text` is none of #fiftyoneDegreesValueText
+ */
+EXTERNAL char* fiftyoneDegreesValueGetMetaDataText(
+	const fiftyoneDegreesCollection *strings,
+	const fiftyoneDegreesCollection *propertyTypes,
+	const fiftyoneDegreesValue *value,
+	fiftyoneDegreesValueText text,
+	uint8_t decimalPlaces,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception);
+
+/**
  * @}
  */
 

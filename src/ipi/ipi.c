@@ -4243,3 +4243,214 @@ char* fiftyoneDegreesIpiGetPropertyMapText(
 	COLLECTION_RELEASE(dataSet->properties, &item);
 	return result;
 }
+
+/**
+ * Gets the value at `valueIndex` into `item` and returns it, or returns NULL,
+ * releasing a value read with an exception set.
+ */
+static const Value* ipiMetaDataValue(
+	DataSetIpi * const dataSet,
+	const uint32_t valueIndex,
+	Item * const item,
+	Exception * const exception) {
+	DataReset(&item->data);
+	const Value * const value = ValueGet(
+		dataSet->values,
+		valueIndex,
+		item,
+		exception);
+	if (value != NULL && EXCEPTION_FAILED) {
+		COLLECTION_RELEASE(dataSet->values, item);
+		return NULL;
+	}
+	return value;
+}
+
+/**
+ * An empty string, which is the text the metadata gives as the description
+ * of every IP Intelligence value. The size of a string counts its
+ * terminating null.
+ */
+static const StoredBinaryValue ipiNoText = { { 1, '\0' } };
+
+/**
+ * Writes the empty text, in `buffer` when it has room and otherwise in
+ * memory the caller frees.
+ */
+static char* ipiEmptyText(
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	return StoredBinaryValueToText(
+		&ipiNoText,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		0,
+		buffer,
+		bufferLength,
+		exception);
+}
+
+/**
+ * Writes the value's name as the type its property is stored as, with a
+ * number to DefaultWktDecimalPlaces places. A name that is read but cannot
+ * be written is an empty text, as is one the strings collection gives
+ * nothing for.
+ */
+static char* ipiValueNameText(
+	DataSetIpi * const dataSet,
+	const Value * const value,
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	const PropertyValueType storedValueType = PropertyGetStoredTypeByIndex(
+		dataSet->propertyTypes,
+		(uint32_t)value->propertyIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return NULL;
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const content = StoredBinaryValueGet(
+		dataSet->strings,
+		(uint32_t)value->nameOffset,
+		storedValueType,
+		&item,
+		exception);
+	if (content == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: ipiEmptyText(buffer, bufferLength, exception);
+	}
+	if (EXCEPTION_FAILED) {
+		COLLECTION_RELEASE(dataSet->strings, &item);
+		return NULL;
+	}
+	char *text = StoredBinaryValueToText(
+		content,
+		storedValueType,
+		DefaultWktDecimalPlaces,
+		buffer,
+		bufferLength,
+		exception);
+	COLLECTION_RELEASE(dataSet->strings, &item);
+	if (text == NULL) {
+		if (exception != NULL) {
+			EXCEPTION_CLEAR;
+		}
+		text = ipiEmptyText(buffer, bufferLength, exception);
+	}
+	return text;
+}
+
+bool fiftyoneDegreesIpiGetValue(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	uint32_t *propertyIndex,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const value = ipiMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (value == NULL) {
+		return false;
+	}
+	if (propertyIndex != NULL) {
+		*propertyIndex = (uint32_t)value->propertyIndex;
+	}
+	COLLECTION_RELEASE(dataSet->values, &item);
+	return true;
+}
+
+long fiftyoneDegreesIpiGetValueIndex(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t propertyIndex,
+	const char *valueName,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Property * const held = ipiMetaDataProperty(
+		dataSet,
+		propertyIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return -1;
+	}
+	// A copy, so only one item is held at a time during the search.
+	const Property property = *held;
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	const PropertyValueType storedValueType = PropertyGetStoredType(
+		dataSet->propertyTypes,
+		&property,
+		exception);
+	if (EXCEPTION_FAILED || (int32_t)property.firstValueIndex == -1) {
+		return -1;
+	}
+	const long index = ValueGetIndexByNameAndType(
+		dataSet->values,
+		dataSet->strings,
+		&property,
+		storedValueType,
+		valueName,
+		exception);
+	if (index < 0 || EXCEPTION_FAILED) {
+		return -1;
+	}
+	// The search answers as found when it reads nothing for a value, so the
+	// value is only found when it can be read.
+	const Value * const value = ipiMetaDataValue(
+		dataSet,
+		(uint32_t)index,
+		&item,
+		exception);
+	if (value == NULL) {
+		return -1;
+	}
+	COLLECTION_RELEASE(dataSet->values, &item);
+	return index;
+}
+
+char* fiftyoneDegreesIpiGetValueText(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	fiftyoneDegreesValueText text,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = ipiMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return NULL;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	switch (text) {
+	case FIFTYONE_DEGREES_VALUE_TEXT_NAME:
+		return ipiValueNameText(
+			dataSet,
+			&value,
+			buffer,
+			bufferLength,
+			exception);
+	case FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION:
+		return ipiEmptyText(buffer, bufferLength, exception);
+	default:
+		return ValueGetMetaDataText(
+			dataSet->strings,
+			dataSet->propertyTypes,
+			&value,
+			text,
+			DefaultWktDecimalPlaces,
+			buffer,
+			bufferLength,
+			exception);
+	}
+}

@@ -87,17 +87,6 @@ namespace FiftyoneDegrees {
 
 				/** The underlying profile collection item */
 				fiftyoneDegreesCollectionItem profileItem;
-
-				/**
-				 * Filter used when iterating over values. This returns only
-				 * values which relate to the profile in this instance.
-				 * @param state pointer to a #fiftyoneDegreesFilterResult to
-				 * use
-				 * @param item pointer to the item to store the values in
-				 */
-				static bool valueFilter(
-					void *state,
-					fiftyoneDegreesCollectionItem *item);
 			};
 		}
 	}

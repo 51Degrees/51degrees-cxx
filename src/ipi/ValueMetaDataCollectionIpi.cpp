@@ -34,18 +34,7 @@ ValueMetaDataCollectionIpi::ValueMetaDataCollectionIpi(
 ValueMetaDataCollectionIpi::~ValueMetaDataCollectionIpi() {}
 
 ValueMetaData* ValueMetaDataCollectionIpi::getByIndex(uint32_t index) const {
-	EXCEPTION_CREATE;
-	Item item;
-	const Value *value;
-	ValueMetaData *result = nullptr;
-	DataReset(&item.data);
-	value = ValueGet(dataSet->values, index, &item, exception);
-	EXCEPTION_THROW;
-	if (value != nullptr) {
-		result = ValueMetaDataBuilderIpi::build(dataSet, value);
-		COLLECTION_RELEASE(dataSet->values, &item);
-	}
-	return result;
+	return ValueMetaDataBuilderIpi::build(dataSet, index);
 }
 
 ValueMetaData* ValueMetaDataCollectionIpi::getByKey(ValueMetaDataKey key) const {

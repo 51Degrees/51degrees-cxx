@@ -22,104 +22,54 @@
 
 #include "ValueMetaDataBuilderIpi.hpp"
 #include "../common/Exceptions.hpp"
-#include "constantsIpi.h"
 #include "fiftyone.h"
 
 using namespace std;
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
 
-/* Maximum buffer length to hold an IP address string */
-#define IP_ADDRESS_STRING_MAX_LENGTH 50
-/* Coordinate floating point precision */
-#define COORDINATE_PRECISION 7
-
-/**
- * Get the string representation of the data stored in
- * the strings collection, with numbers written to DefaultWktDecimalPlaces.
- * A value that is read but cannot be written as text gives an empty string,
- * so the text is written here rather than taken from
- * fiftyoneDegreesValueGetText, which fails for such a value.
- * @param stringsCollection the string collection
- * @param offset the offset in the string collection
- * @param storedValueType format of byte array representation.
- */
-static string getDynamicString(
-	fiftyoneDegreesCollection *stringsCollection,
-	uint32_t offset,
-	fiftyoneDegreesPropertyValueType storedValueType) {
-	EXCEPTION_CREATE;
-	string result;
-	Item item;
-	const StoredBinaryValue *binaryValue;
-	DataReset(&item.data);
-	binaryValue = StoredBinaryValueGet(
-		stringsCollection,
-		offset,
-		storedValueType,
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	if (binaryValue != nullptr) {
-		char buffer[REASONABLE_WKT_STRING_LENGTH];
-		char * const text = StoredBinaryValueToText(
-			binaryValue,
-			storedValueType,
-			DefaultWktDecimalPlaces,
-			buffer,
-			sizeof(buffer),
-			exception);
-		if (text != nullptr) {
-			result = text;
-			if (text != buffer) {
-				Free(text);
-			}
-		}
-		FIFTYONE_DEGREES_COLLECTION_RELEASE(
-			stringsCollection,
-			&item);
-	}
-	return result;
-}
-
-
-
 ValueMetaData* ValueMetaDataBuilderIpi::build(
 	fiftyoneDegreesDataSetIpi *dataSet,
-	const fiftyoneDegreesValue *value) {
+	uint32_t valueIndex) {
 	EXCEPTION_CREATE;
-	ValueMetaData *result = nullptr;
-	Item item;
-	Property *property;
-	DataReset(&item.data);
-	property = PropertyGet(
-		dataSet->properties,
-		value->propertyIndex, 
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	PropertyValueType const storedValueType = PropertyGetStoredTypeByIndex(
-		dataSet->propertyTypes,
-		value->propertyIndex,
-		exception);
-	EXCEPTION_THROW;
-	if (property != nullptr) {
-		// Get URL only if not weighted (weighted values use urlOffsetOrWeight for weight)
-		// and if there is one, as offset 0 holds the first string in the file.
-		string url;
-		if (!ValueIsWeighted(value) && value->urlOffsetOrWeight > 0) {
-			url = getString(dataSet->strings, value->urlOffsetOrWeight);
-		}
-		result = new ValueMetaData(
-			ValueMetaDataKey(
-				getString(dataSet->strings, property->nameOffset),
-				getDynamicString(
-					dataSet->strings,
-					value->nameOffset,
-					storedValueType)),
-			"",
-			url);
-		COLLECTION_RELEASE(dataSet->properties, &item);
+	uint32_t propertyIndex = 0;
+	if (IpiGetValue(dataSet, valueIndex, &propertyIndex, exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
 	}
-	return result;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const propertyName = IpiGetPropertyText(
+		dataSet,
+		propertyIndex,
+		FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+		buffer,
+		sizeof(buffer),
+		exception);
+	if (propertyName == nullptr) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
+	const string name = takeText(propertyName, buffer, exception);
+	return new ValueMetaData(
+		ValueMetaDataKey(
+			name,
+			getText(dataSet, valueIndex, FIFTYONE_DEGREES_VALUE_TEXT_NAME)),
+		getText(dataSet, valueIndex, FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION),
+		getText(dataSet, valueIndex, FIFTYONE_DEGREES_VALUE_TEXT_URL));
+}
+
+string ValueMetaDataBuilderIpi::getText(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	fiftyoneDegreesValueText text) {
+	EXCEPTION_CREATE;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const result = IpiGetValueText(
+		dataSet,
+		valueIndex,
+		text,
+		buffer,
+		sizeof(buffer),
+		exception);
+	return takeText(result, buffer, exception);
 }

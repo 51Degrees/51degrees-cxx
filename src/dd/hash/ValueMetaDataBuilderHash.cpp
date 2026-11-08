@@ -28,32 +28,46 @@ using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
 ValueMetaData* ValueMetaDataBuilderHash::build(
 	fiftyoneDegreesDataSetHash *dataSet,
-	const fiftyoneDegreesValue *value) {
+	uint32_t valueIndex) {
 	EXCEPTION_CREATE;
-	ValueMetaData *result = nullptr;
-	Item item;
-	Property *property;
-	DataReset(&item.data);
-	property = PropertyGet(
-		dataSet->properties,
-		value->propertyIndex, 
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	if (property != nullptr) {
-		result = new ValueMetaData(
-			ValueMetaDataKey(
-				getString(dataSet->strings, property->nameOffset),
-				getString(dataSet->strings, value->nameOffset)),
-			// A value with no description points at offset 0, which holds
-			// the first string in the file rather than a description.
-			value->descriptionOffset <= 0 ?
-			"" :
-			getString(dataSet->strings, value->descriptionOffset),
-			value->urlOffsetOrWeight <= 0 ?
-			"" :
-			getString(dataSet->strings, value->urlOffsetOrWeight));
-		COLLECTION_RELEASE(dataSet->properties, &item);
+	uint32_t propertyIndex = 0;
+	if (HashGetValue(dataSet, valueIndex, &propertyIndex, exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
 	}
-	return result;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const propertyName = HashGetPropertyText(
+		dataSet,
+		propertyIndex,
+		FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+		buffer,
+		sizeof(buffer),
+		exception);
+	if (propertyName == nullptr) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
+	const string name = takeText(propertyName, buffer, exception);
+	return new ValueMetaData(
+		ValueMetaDataKey(
+			name,
+			getText(dataSet, valueIndex, FIFTYONE_DEGREES_VALUE_TEXT_NAME)),
+		getText(dataSet, valueIndex, FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION),
+		getText(dataSet, valueIndex, FIFTYONE_DEGREES_VALUE_TEXT_URL));
+}
+
+string ValueMetaDataBuilderHash::getText(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	fiftyoneDegreesValueText text) {
+	EXCEPTION_CREATE;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const result = HashGetValueText(
+		dataSet,
+		valueIndex,
+		text,
+		buffer,
+		sizeof(buffer),
+		exception);
+	return takeText(result, buffer, exception);
 }

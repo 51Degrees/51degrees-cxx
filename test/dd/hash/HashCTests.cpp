@@ -805,7 +805,7 @@ static void checkValueDescriptions(const char *fileName, ConfigHash config) {
 			dataSet->strings, value, &stringItem, exception);
 		ASSERT_TRUE(EXCEPTION_OKAY);
 		ASSERT_NE(nullptr, description);
-		auto metaData = ValueMetaDataBuilderHash::build(dataSet, value);
+		auto metaData = ValueMetaDataBuilderHash::build(dataSet, i);
 		ASSERT_NE(nullptr, metaData);
 		EXPECT_STREQ(&description->value, metaData->getDescription().c_str());
 		if (value->descriptionOffset <= 0) {

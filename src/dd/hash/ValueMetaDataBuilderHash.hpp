@@ -40,18 +40,32 @@ namespace FiftyoneDegrees {
 			class ValueMetaDataBuilderHash: EntityMetaDataBuilder {
 			public:
 				/**
-				 * Build a new instance of ValueMetaData from the underlying
-				 * value provided. The instance returned does not hold a
+				 * Build a new instance of ValueMetaData from the value at the
+				 * index provided. The instance returned does not hold a
 				 * reference to the data set or value, and contains a copy of
 				 * all meta data.
-				 * @param dataSet pointer to the data set containing the
-				 * component
-				 * @param value pointer to the underlying value to create the
-				 * meta data from
+				 * @param dataSet pointer to the data set containing the value
+				 * @param valueIndex index of the value in the values
+				 * collection
+				 * @return the new instance, or nullptr when the data set gives
+				 * no value at the index or no property for the value
 				 */
 				static ValueMetaData* build(
 					fiftyoneDegreesDataSetHash *dataSet,
-					const fiftyoneDegreesValue *value);
+					uint32_t valueIndex);
+			private:
+				/**
+				 * Get a copy of a text of the value, as
+				 * fiftyoneDegreesHashGetValueText gives it.
+				 * @param dataSet pointer to the data set containing the value
+				 * @param valueIndex index of the value
+				 * @param text which text to get
+				 * @return copy of the text
+				 */
+				static string getText(
+					fiftyoneDegreesDataSetHash *dataSet,
+					uint32_t valueIndex,
+					fiftyoneDegreesValueText text);
 			};
 		}
 	}

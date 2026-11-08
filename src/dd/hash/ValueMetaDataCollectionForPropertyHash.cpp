@@ -28,73 +28,58 @@ using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
 ValueMetaDataCollectionForPropertyHash::ValueMetaDataCollectionForPropertyHash(
 	fiftyoneDegreesResourceManager *manager,
-	PropertyMetaData *property) : ValueMetaDataCollectionBaseHash(manager) {
+	PropertyMetaData *property)
+	: ValueMetaDataCollectionBaseHash(manager),
+	propertyName(property->getName()),
+	propertyIndex(-1),
+	firstValueIndex(0),
+	valueCount(0) {
 	EXCEPTION_CREATE;
-	DataReset(&propertyItem.data);
-	PropertyGetByName(
-		dataSet->properties,
-		dataSet->strings,
-		property->getName().c_str(),
-		&propertyItem,
+	propertyIndex = HashGetPropertyIndex(
+		dataSet,
+		propertyName.c_str(),
 		exception);
 	EXCEPTION_THROW;
+	if (propertyIndex >= 0) {
+		HashGetPropertyValueIndexes(
+			dataSet,
+			(uint32_t)propertyIndex,
+			&firstValueIndex,
+			&valueCount,
+			nullptr,
+			exception);
+		EXCEPTION_THROW;
+	}
 }
 
 ValueMetaDataCollectionForPropertyHash::~ValueMetaDataCollectionForPropertyHash() {
-	COLLECTION_RELEASE(dataSet->properties, &propertyItem);
 }
 
 ValueMetaData* ValueMetaDataCollectionForPropertyHash::getByIndex(
 	uint32_t index) const {
-	EXCEPTION_CREATE;
-	Item item;
-	const Value *value;
-	ValueMetaData *result = nullptr;
-	DataReset(&item.data);
-	value = ValueGet(
-		dataSet->values, 
-		getProperty()->firstValueIndex + index, 
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	if (value != nullptr) {
-		result = ValueMetaDataBuilderHash::build(dataSet, value);
-		COLLECTION_RELEASE(dataSet->values, &item);
-	}
-	return result;
+	return propertyIndex < 0
+		? nullptr
+		: ValueMetaDataBuilderHash::build(dataSet, firstValueIndex + index);
 }
 
 ValueMetaData* ValueMetaDataCollectionForPropertyHash::getByKey(
 	ValueMetaDataKey key) const {
+	// Only a value of this collection's property is in it.
+	if (propertyIndex < 0 || key.getPropertyName() != propertyName) {
+		return nullptr;
+	}
 	EXCEPTION_CREATE;
-	Item item;
-	ValueMetaData *result = nullptr;
-	DataReset(&item.data);
-	const String * const name = PropertyGetName(
-		dataSet->strings, 
-		getProperty(), 
-		&item, 
+	const long valueIndex = HashGetValueIndex(
+		dataSet,
+		(uint32_t)propertyIndex,
+		key.getValueName().c_str(),
 		exception);
 	EXCEPTION_THROW;
-	if (name != nullptr) {
-		result = ValueMetaDataCollectionBaseHash::getByKey(key);
-		if (strcmp(
-			result->getKey().getPropertyName().c_str(), 
-			&name->value) != 0) {
-			delete result;
-			result = nullptr;
-		}
-		dataSet->strings->release(&item);
-	}
-	return result;
+	return valueIndex < 0
+		? nullptr
+		: ValueMetaDataBuilderHash::build(dataSet, (uint32_t)valueIndex);
 }
 
 uint32_t ValueMetaDataCollectionForPropertyHash::getSize() const {
-	return (int)getProperty()->firstValueIndex == -1 ?
-		0 :
-		getProperty()->lastValueIndex - getProperty()->firstValueIndex + 1;
-}
-
-fiftyoneDegreesProperty* ValueMetaDataCollectionForPropertyHash::getProperty() const {
-	return (Property*)propertyItem.data.ptr;
+	return valueCount;
 }
