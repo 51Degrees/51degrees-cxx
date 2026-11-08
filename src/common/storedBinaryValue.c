@@ -144,10 +144,10 @@ static size_t textBytesExpected(
 }
 
 /**
- * Writes the text of the value into the `length` bytes at `text` and returns
- * the bytes the whole text needs, counting its terminating null, which is
- * more than `length` when it did not fit. Returns 0 when the value cannot be
- * written.
+ * Writes the text of the value into the `length` bytes at `text`, where
+ * `length` is at least 1, and returns the bytes the whole text needs,
+ * counting its terminating null, which is more than `length` when it did not
+ * fit. Returns 0 when the value cannot be written.
  */
 static size_t writeText(
     const StoredBinaryValue * const value,
@@ -168,9 +168,10 @@ static size_t writeText(
     if (EXCEPTION_FAILED) {
         return 0;
     }
-    // A full builder has counted every character it could not write, so one
-    // more byte than it counted always holds the text.
-    return builder.full ? builder.added + 1 : builder.added;
+    // The builder counts every character, written or not, and always keeps a
+    // byte for the null, which Complete counts too, so the count is the bytes
+    // the text needs whether or not it fitted.
+    return builder.added;
 }
 
 char* fiftyoneDegreesStoredBinaryValueToText(
