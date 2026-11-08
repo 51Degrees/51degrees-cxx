@@ -892,6 +892,10 @@ EXTERNAL const fiftyoneDegreesProfilePercentage* fiftyoneDegreesResultsIpiGetVal
 /**
  * Adds to builder the values associated in the results for the property name.
  *
+ * Each value is written in double quotes followed by a colon and its weight,
+ * to the decimal places of fiftyoneDegreesDefaultWktDecimalPlaces, as in
+ * `"GB":0.5`.
+ *
  * When no properties were named, the first read of a property of a component
  * walks the component's graph for the results. If the walk fails the exception
  * is set, and the component is not walked again until the results are next
@@ -913,6 +917,9 @@ EXTERNAL void fiftyoneDegreesResultsIpiAddValuesString(
 
 /**
  * Sets the buffer the values associated in the results for the property name.
+ *
+ * The values are written as fiftyoneDegreesResultsIpiAddValuesString writes
+ * them.
  *
  * When no properties were named, the first read of a property of a component
  * walks the component's graph for the results. If the walk fails the exception
@@ -940,6 +947,9 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesString(
 /**
  * Sets the buffer the values associated in the results for the property name.
  *
+ * The values are written as fiftyoneDegreesResultsIpiAddValuesString writes
+ * them.
+ *
  * When no properties were named, the first read of a property of a component
  * walks the component's graph for the results. If the walk fails the exception
  * is set, and the component is not walked again until the results are next
@@ -964,6 +974,46 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
 	char* buffer,
 	size_t bufferLength,
 	const char* separator,
+	fiftyoneDegreesException* exception);
+
+/**
+ * Gets the text of each value the results hold for the property, in the form
+ * the C++ results give it to every language built on them. A value's text is
+ * followed by a colon and its weight when the property has more than one
+ * value or the weight is not whole, as in `GB:0.5`, and otherwise is
+ * the value alone. The weight is written to six significant figures, with no
+ * trailing zeros and with an exponent when it rounds to less than 0.0001, as
+ * a C++ stream writes a double. fiftyoneDegreesResultsIpiGetValuesString
+ * instead puts every value in quotes and always adds its weight.
+ *
+ * Each value's text ends with a null, so the text is `count` null terminated
+ * strings one after another. The text is written into `buffer` when it fits
+ * in `bufferLength` bytes, and otherwise into memory allocated with
+ * fiftyoneDegreesMalloc, which the caller frees with fiftyoneDegreesFree when
+ * the pointer returned is not `buffer`. A string or an area that would not
+ * fit is written straight into memory sized for it, as
+ * fiftyoneDegreesStoredBinaryValueToText writes it, so neither is written
+ * twice. `buffer` can be NULL with `bufferLength` 0.
+ * @param results pointer to the results to read the values from
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
+ * @param buffer memory the text is written into when it fits
+ * @param bufferLength the bytes `buffer` holds
+ * @param count set to the number of values in the text
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the text, or NULL when the results hold no values for the property,
+ * and NULL with the exception set when a value cannot be written or memory
+ * cannot be allocated
+ */
+EXTERNAL char* fiftyoneDegreesResultsIpiGetValueTexts(
+	fiftyoneDegreesResultsIpi* results,
+	int requiredPropertyIndex,
+	char* buffer,
+	size_t bufferLength,
+	uint32_t* count,
 	fiftyoneDegreesException* exception);
 
 /**

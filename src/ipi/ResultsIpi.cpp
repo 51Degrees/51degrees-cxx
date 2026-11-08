@@ -45,84 +45,39 @@ IpIntelligence::ResultsIpi::~ResultsIpi() {
 	ResultsIpiFree(results);
 }
 
-/* 
- * This is used to hold the string value of the item
- * Maximum size of an IP address string is 39
- * Maximum single precision floating point is ~ 3.4 * 10^38
- * 128 should be adequate to hold the string value
- * for a pair of coordinate:percentage
- * or ipaddress:percentage
- */
-#define MAX_PROFILE_PERCENTAGE_STRING_LENGTH 128
-
 /*
- * This will returns the profile percentages results
- * for a required property index in string form.
+ * Gives the text of each value of the property, as
+ * fiftyoneDegreesResultsIpiGetValueTexts writes it.
  * @param requiredPropertyIndex the required property index
  * @param values the array which will hold the returned value string
  */
 void 
 IpIntelligence::ResultsIpi::getValuesInternal(int requiredPropertyIndex, vector<string> &values) {
-    EXCEPTION_CREATE;
-	const WeightedItem *valuesItems;
-
-    // We should not have any undefined data type in the data file
-    // If there is, the data file is not good to use so terminates.
-    getPropertyValueType(requiredPropertyIndex, exception);
-    EXCEPTION_THROW;
-
-	// Get a pointer to the first value item for the property.
-	valuesItems = ResultsIpiGetValues(
+	EXCEPTION_CREATE;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	uint32_t count = 0;
+	char * const text = ResultsIpiGetValueTexts(
 		results,
 		requiredPropertyIndex,
+		buffer,
+		sizeof(buffer),
+		&count,
 		exception);
 	EXCEPTION_THROW;
-
-	if (valuesItems == NULL) {
-		// No pointer to values was returned. 
+	if (text == nullptr) {
 		throw NoValuesAvailableException();
 	}
+	const std::unique_ptr<char, void (*)(char*)> allocated(
+		text != buffer ? text : nullptr,
+		[](char *memory) { Free(memory); });
 
-    const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
-    const int propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
-        dataSet->b.b.available,
-        requiredPropertyIndex);
-    const PropertyValueType storedValueType = PropertyGetStoredTypeByIndex(
-        dataSet->propertyTypes,
-        propertyIndex,
-        exception);
-
-	// Set enough space in the vector for all the strings that will be 
-	// inserted.
-	values.reserve(results->values.count);
-
-    stringstream stream;
-	// Add the values in their original form to the result.
-	for (uint32_t i = 0, n = results->values.count; i < n; i++) {
-        // Clear the string stream
-        stream.str("");
-	    const StoredBinaryValue * const binaryValue = (StoredBinaryValue *)valuesItems[i].item.data.ptr;
-	    writeStoredBinaryValueToStringStream(
-	        binaryValue,
-	        storedValueType,
-	        stream,
-	        DefaultWktDecimalPlaces,
-	        exception);
-        if (EXCEPTION_OKAY) {
-            const uint32_t w = valuesItems[i].rawWeighting;
-            if (n > 1 || w != FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT) {
-                stream << ":";
-                stream << static_cast<double>(w) / static_cast<double>(FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT);
-            }
-            values.push_back(stream.str());
-        } else {
-            break;
-        }
+	// Each value's text ends with a null, and the next value follows it.
+	values.reserve(count);
+	const char *next = text;
+	for (uint32_t i = 0; i < count; i++) {
+		values.emplace_back(next);
+		next += values.back().size() + 1;
 	}
-    // The value format in the data file should never be
-    // in incorrect. If it happens the data file or
-    // the memory is corrupted and we should terminate
-    EXCEPTION_THROW
 }
 
 fiftyoneDegreesPropertyValueType
