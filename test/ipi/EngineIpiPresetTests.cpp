@@ -22,13 +22,13 @@
 
 /**
  * @file EngineIpiPresetTests.cpp
- * @brief Tests what each preset holds in memory, and how naming the required
- * properties changes it.
+ * @brief Tests what each preset and each holding flag holds in memory, and
+ * how naming the required properties changes it.
  *
  * Every answer is compared with the Low Memory preset naming the same
- * properties, which reads everything from the file. The tests use the largest
- * data file they find. The ones needing several components are skipped with a
- * smaller file.
+ * properties, which reads everything but the default values from the file.
+ * The tests use the largest data file they find. The ones needing several
+ * components are skipped with a smaller file.
  */
 
 #include <algorithm>
@@ -388,6 +388,94 @@ static void presetExpectNoWholeHeld(fiftyoneDegreesResourceManager* manager) {
 				"A held collection holds all of its source.";
 		}
 	}
+}
+
+// Checks whether reading the default value of each required property, its
+// property type and what it reads from the strings, comes from memory, as it
+// does when held. Returns the number of default values checked.
+static uint32_t presetExpectDefaultsInMemory(
+	fiftyoneDegreesResourceManager* manager,
+	const bool expected) {
+	PresetDataSet dataSet(manager);
+	const fiftyoneDegreesPropertiesAvailable* available =
+		dataSet->b.b.available;
+	uint32_t defaults = 0;
+	for (uint32_t i = 0; i < available->count; i++) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesCollectionItem item;
+		fiftyoneDegreesDataReset(&item.data);
+		const fiftyoneDegreesProperty* property = fiftyoneDegreesPropertyGet(
+			dataSet->properties,
+			available->items[i].propertyIndex,
+			&item,
+			exception);
+		EXCEPTION_THROW;
+		EXPECT_NE(nullptr, property);
+		if (property == nullptr) {
+			return defaults;
+		}
+		const uint32_t index = property->defaultValueIndex;
+		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->properties, &item);
+		if (index >= dataSet->values->count) {
+			continue;
+		}
+		fiftyoneDegreesDataReset(&item.data);
+		const fiftyoneDegreesValue* value = fiftyoneDegreesValueGet(
+			dataSet->values,
+			index,
+			&item,
+			exception);
+		EXCEPTION_THROW;
+		EXPECT_NE(nullptr, value);
+		if (value == nullptr) {
+			return defaults;
+		}
+		EXPECT_EQ(expected, item.handle == nullptr) <<
+			"The default value of required index " << i;
+		const uint32_t propertyIndex = (uint32_t)value->propertyIndex;
+		const uint32_t offset = (uint32_t)value->nameOffset;
+		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->values, &item);
+
+		const fiftyoneDegreesCollectionKey typeKey = {
+			{ propertyIndex },
+			CollectionKeyType_PropertyTypeRecord };
+		fiftyoneDegreesDataReset(&item.data);
+		const fiftyoneDegreesPropertyTypeRecord* record =
+			(const fiftyoneDegreesPropertyTypeRecord*)
+			dataSet->propertyTypes->get(
+				dataSet->propertyTypes,
+				&typeKey,
+				&item,
+				exception);
+		EXCEPTION_THROW;
+		EXPECT_NE(nullptr, record);
+		if (record == nullptr) {
+			return defaults;
+		}
+		EXPECT_EQ(expected, item.handle == nullptr) <<
+			"The property type of required index " << i;
+		const fiftyoneDegreesPropertyValueType type =
+			(fiftyoneDegreesPropertyValueType)record->storedValueType;
+		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->propertyTypes, &item);
+
+		fiftyoneDegreesDataReset(&item.data);
+		const void* text = fiftyoneDegreesStoredBinaryValueGet(
+			dataSet->strings,
+			offset,
+			type,
+			&item,
+			exception);
+		EXCEPTION_THROW;
+		EXPECT_NE(nullptr, text);
+		if (text == nullptr) {
+			return defaults;
+		}
+		EXPECT_EQ(expected, item.handle == nullptr) <<
+			"The string of the default value of required index " << i;
+		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->strings, &item);
+		defaults++;
+	}
+	return defaults;
 }
 
 // Where each collection of a data set reads from, with the size of each
@@ -943,10 +1031,10 @@ TEST_F(IpiPresetTests, OtherPresetsAreUnchangedByNaming) {
 		presetMemoryType;
 	const string file = string(presetFileType) + " " + presetFileType + " " +
 		presetFileType + " " + presetFileType + " " + presetFileType;
-	PresetManager low(
-		dataFilePath,
-		fiftyoneDegreesIpiLowMemoryConfig,
-		oneComponent.c_str());
+	// Low Memory holds the default values, which are checked on their own.
+	fiftyoneDegreesConfigIpi lowMemory = fiftyoneDegreesIpiLowMemoryConfig;
+	lowMemory.defaultValuesInMemory = false;
+	PresetManager low(dataFilePath, lowMemory, oneComponent.c_str());
 	EXPECT_EQ(file, presetTypes(&low.manager));
 	const string smallFile = GetFilePath(_dataFolderName, presetAsnFileName);
 	if (smallFile.empty() == false) {
@@ -956,6 +1044,195 @@ TEST_F(IpiPresetTests, OtherPresetsAreUnchangedByNaming) {
 			"Asn");
 		EXPECT_EQ(memory, presetTypes(&inMemory.manager));
 	}
+}
+
+// The answers for every required property of a lookup that walks no graph, so
+// each reads as for an address with no profile, which is its default value
+// where it has one.
+static vector<string> presetAnswersWithNoProfile(
+	fiftyoneDegreesResourceManager* manager) {
+	vector<char> buffer(presetBufferBytes);
+	vector<string> answers;
+	fiftyoneDegreesResultsIpi* results =
+		fiftyoneDegreesResultsIpiCreate(manager);
+	const int count = (int)((const fiftyoneDegreesDataSetIpi*)
+		results->b.dataSet)->b.b.available->count;
+	presetDetect(results, presetAddresses()[0]);
+	fiftyoneDegreesResultsPendingClear(&results->b);
+	for (int i = 0; i < count; i++) {
+		answers.push_back(presetAnswer(results, i, buffer));
+	}
+	fiftyoneDegreesResultsIpiFree(results);
+	return answers;
+}
+
+TEST_F(IpiPresetTests, HighPerformanceShapeWithoutTheFlagLoadsEverything) {
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiHighPerformanceConfig;
+	config.loadRequiredPropertiesOnly = false;
+	const string sets[] = { oneComponent, oneOfEach };
+	for (const string& set : sets) {
+		printf("Naming %s\n", set.substr(0, 60).c_str());
+		PresetManager manager(dataFilePath, config, set.c_str());
+		EXPECT_NO_FATAL_FAILURE(presetExpectEverythingInMemory(&manager.manager));
+		EXPECT_NO_FATAL_FAILURE(expectSameAnswers(&manager.manager, set.c_str()));
+	}
+}
+
+TEST_F(IpiPresetTests, BalancedShapeWithTheFlagHoldsOnlyTheAsnGraphsWhenOnlyAsnIsNamed) {
+	const char* required = "Asn,AsnName";
+	if (componentCount < 2 ||
+		find(allNames.begin(), allNames.end(), "Asn") == allNames.end() ||
+		find(allNames.begin(), allNames.end(), "AsnName") == allNames.end()) {
+		GTEST_SKIP() << "The data file does not have Asn and AsnName with other "
+			"components.";
+	}
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+	config.loadRequiredPropertiesOnly = true;
+	PresetManager manager(dataFilePath, config, required);
+	presetPrintMemory(&manager.manager);
+	EXPECT_EQ(2u, presetExpectGraphsOfRequiredComponents(&manager.manager));
+	{
+		// What the named properties read is held with no cache, and the other
+		// collections are held as Balanced holds them.
+		PresetDataSet dataSet(&manager.manager);
+		const fiftyoneDegreesCollection* held[] = {
+			dataSet->strings, dataSet->values, dataSet->profiles,
+			dataSet->profileGroups, dataSet->profileOffsets };
+		for (const fiftyoneDegreesCollection* collection : held) {
+			EXPECT_STRNE(presetCacheType, collection->typeName);
+		}
+		EXPECT_STREQ(presetHeldType, dataSet->values->typeName);
+		EXPECT_STREQ(presetMemoryType, dataSet->properties->typeName);
+		EXPECT_STREQ(presetMemoryType, dataSet->propertyTypes->typeName);
+	}
+	EXPECT_NO_FATAL_FAILURE(presetExpectNoWholeHeld(&manager.manager));
+	EXPECT_NO_FATAL_FAILURE(expectSameAnswers(&manager.manager, required));
+}
+
+TEST_F(IpiPresetTests, BalancedShapeWithoutTheDefaultsFlagHoldsNoDefaults) {
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+	config.defaultValuesInMemory = false;
+	PresetManager manager(dataFilePath, config, nullptr);
+	EXPECT_STREQ(
+		presetCacheType,
+		PresetDataSet(&manager.manager)->values->typeName);
+	EXPECT_NO_FATAL_FAILURE(expectSameAnswers(&manager.manager, nullptr));
+}
+
+TEST_F(IpiPresetTests, LowMemoryHoldsTheDefaultValues) {
+	const char* namings[] = { oneComponent.c_str(), nullptr };
+	for (const char* required : namings) {
+		PresetManager manager(
+			dataFilePath,
+			fiftyoneDegreesIpiLowMemoryConfig,
+			required);
+		EXPECT_GT(presetExpectDefaultsInMemory(&manager.manager, true), 0u);
+		// Nothing else is held, and naming does not change that.
+		PresetDataSet dataSet(&manager.manager);
+		EXPECT_STREQ(presetFileType, dataSet->profiles->typeName);
+		EXPECT_STREQ(presetFileType, dataSet->profileGroups->typeName);
+		EXPECT_STREQ(presetFileType, dataSet->profileOffsets->typeName);
+		for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
+			EXPECT_STREQ(
+				presetFileType,
+				dataSet->graphsArray->items[g].nodes->typeName);
+		}
+	}
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiLowMemoryConfig;
+	config.defaultValuesInMemory = false;
+	PresetManager manager(dataFilePath, config, oneComponent.c_str());
+	EXPECT_GT(presetExpectDefaultsInMemory(&manager.manager, false), 0u);
+}
+
+TEST_F(IpiPresetTests, LowMemoryGivesTheSameAnswersWithTheDefaultValuesHeld) {
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiLowMemoryConfig;
+	config.defaultValuesInMemory = false;
+	const vector<string> addresses = presetAddresses();
+	const char* namings[] = { oneComponent.c_str(), oneOfEach.c_str(), nullptr };
+	for (const char* required : namings) {
+		PresetManager expected(dataFilePath, config, required);
+		PresetManager actual(
+			dataFilePath,
+			fiftyoneDegreesIpiLowMemoryConfig,
+			required);
+		EXPECT_EQ(
+			presetAnswers(&expected.manager, addresses),
+			presetAnswers(&actual.manager, addresses));
+		EXPECT_EQ(
+			presetAnswersWithNoProfile(&expected.manager),
+			presetAnswersWithNoProfile(&actual.manager));
+	}
+}
+
+/**
+ * Tests of the flags of each preset, which need no data file.
+ */
+class IpiPresetFlagTests : public Base {
+};
+
+TEST_F(IpiPresetFlagTests, PresetsSetTheFlags) {
+	const struct {
+		const char* name;
+		const fiftyoneDegreesConfigIpi* config;
+		bool loadRequiredPropertiesOnly;
+	} presets[] = {
+		{ "InMemory", &fiftyoneDegreesIpiInMemoryConfig, false },
+		{ "HighPerformance", &fiftyoneDegreesIpiHighPerformanceConfig, true },
+		{ "LowMemory", &fiftyoneDegreesIpiLowMemoryConfig, false },
+		{ "Balanced", &fiftyoneDegreesIpiBalancedConfig, false },
+		{ "BalancedTemp", &fiftyoneDegreesIpiBalancedTempConfig, false },
+		{ "Default", &fiftyoneDegreesIpiDefaultConfig, false } };
+	for (const auto& preset : presets) {
+		EXPECT_EQ(
+			preset.loadRequiredPropertiesOnly,
+			preset.config->loadRequiredPropertiesOnly) << preset.name;
+		EXPECT_TRUE(preset.config->defaultValuesInMemory) << preset.name;
+	}
+}
+
+TEST_F(IpiPresetFlagTests, EachProfileSetsTheFlagsInCpp) {
+	Ipi::ConfigIpi config;
+	EXPECT_FALSE(config.getLoadRequiredPropertiesOnly());
+	EXPECT_TRUE(config.getDefaultValuesInMemory());
+	Ipi::ConfigIpi fromNull(nullptr);
+	EXPECT_FALSE(fromNull.getLoadRequiredPropertiesOnly());
+	EXPECT_TRUE(fromNull.getDefaultValuesInMemory());
+	const struct {
+		const char* name;
+		void (Ipi::ConfigIpi::*set)();
+		bool loadRequiredPropertiesOnly;
+	} profiles[] = {
+		{ "setMaxPerformance", &Ipi::ConfigIpi::setMaxPerformance, false },
+		{ "setHighPerformance", &Ipi::ConfigIpi::setHighPerformance, true },
+		{ "setLowMemory", &Ipi::ConfigIpi::setLowMemory, false },
+		{ "setBalanced", &Ipi::ConfigIpi::setBalanced, false },
+		{ "setBalancedTemp", &Ipi::ConfigIpi::setBalancedTemp, false } };
+	for (const auto& profile : profiles) {
+		Ipi::ConfigIpi profiled;
+		// Choosing a profile replaces whatever was set before.
+		profiled.setLoadRequiredPropertiesOnly(
+			profile.loadRequiredPropertiesOnly == false);
+		profiled.setDefaultValuesInMemory(false);
+		(profiled.*profile.set)();
+		EXPECT_EQ(
+			profile.loadRequiredPropertiesOnly,
+			profiled.getLoadRequiredPropertiesOnly()) << profile.name;
+		EXPECT_TRUE(profiled.getDefaultValuesInMemory()) << profile.name;
+	}
+}
+
+TEST_F(IpiPresetFlagTests, SettersReachTheConfigurationInCpp) {
+	Ipi::ConfigIpi config;
+	config.setLoadRequiredPropertiesOnly(true);
+	config.setDefaultValuesInMemory(false);
+	EXPECT_TRUE(config.getLoadRequiredPropertiesOnly());
+	EXPECT_FALSE(config.getDefaultValuesInMemory());
+	EXPECT_TRUE(config.getConfig().loadRequiredPropertiesOnly);
+	EXPECT_FALSE(config.getConfig().defaultValuesInMemory);
+	config.setLoadRequiredPropertiesOnly(false);
+	config.setDefaultValuesInMemory(true);
+	EXPECT_FALSE(config.getConfig().loadRequiredPropertiesOnly);
+	EXPECT_TRUE(config.getConfig().defaultValuesInMemory);
 }
 
 TEST_F(IpiPresetTests, NamedPropertiesGiveTheSameAnswers) {
@@ -1694,14 +1971,14 @@ TEST_F(IpiPresetFileTests, DefaultValueOutsideItsPropertyIsHeld) {
 	data[(size_t)properties + offsetof(fiftyoneDegreesProperty, isMandatory)] = 1;
 	ASSERT_NO_FATAL_FAILURE(writeTempFile());
 
+	fiftyoneDegreesConfigIpi fromFile = fiftyoneDegreesIpiLowMemoryConfig;
+	fromFile.defaultValuesInMemory = false;
 	const fiftyoneDegreesConfigIpi* presets[] = {
 		&fiftyoneDegreesIpiHighPerformanceConfig,
-		&fiftyoneDegreesIpiBalancedConfig };
+		&fiftyoneDegreesIpiBalancedConfig,
+		&fiftyoneDegreesIpiLowMemoryConfig };
 	for (const fiftyoneDegreesConfigIpi* preset : presets) {
-		PresetManager expected(
-			tempFilePath,
-			fiftyoneDegreesIpiLowMemoryConfig,
-			"Asn");
+		PresetManager expected(tempFilePath, fromFile, "Asn");
 		PresetManager actual(tempFilePath, *preset, "Asn");
 		{
 			PresetDataSet dataSet(&actual.manager);
