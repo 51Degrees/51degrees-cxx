@@ -80,8 +80,10 @@ static int run(fiftyoneDegreesResourceManager *manager) {
 	int count = 0;
 	ResultsIpi *results = ResultsIpiCreate(manager);
 	while (fgets(ipAddress, sizeof(ipAddress), stdin) != 0) {
+		// The line ending is not part of the address.
+		ipAddress[strcspn(ipAddress, "\r\n")] = '\0';
 		if (!strlen(ipAddress)) {
-			break;
+			continue;
 		}
 		StringBuilder builder = { output, sizeof(output) };
 		StringBuilderInit(&builder);
