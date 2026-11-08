@@ -39,10 +39,12 @@
 
 #include "../../common/pch.h"
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
 #include "../Constants.hpp"
 #include "../../common/Base.hpp"
@@ -618,6 +620,54 @@ TEST_F(HashEvidenceKeysTests, Refresh_GivesTheKeysOfTheNewDataFile) {
 	EXPECT_EQ(
 		FIFTYONE_DEGREES_STATUS_SUCCESS,
 		fiftyoneDegreesFileDelete(copy));
+}
+
+/**
+ * Threads read every key of the list getKeys() gives while another thread
+ * refreshes the engine between the Lite and TAC files, which have different
+ * keys. A list that is changed or freed during a refresh is read after it is
+ * freed, which the address sanitizer reports.
+ */
+TEST_F(HashEvidenceKeysTests, Refresh_WhileKeysAreRead_LeavesEachListValid) {
+	const string lite = GetFilePath(_dataFolderName, "51Degrees-LiteV4.1.hash");
+	const string tac = GetFilePath(_dataFolderName, "TAC-HashV41.hash");
+	if (lite.empty() || tac.empty()) {
+		GTEST_SKIP() << "The Lite and TAC data files are both needed.";
+	}
+	const int readerCount = 4;
+	const int refreshCount = 20;
+	ConfigHash config;
+	config.setMaxPerformance();
+	config.setUseUpperPrefixHeaders(false);
+	RequiredPropertiesConfig properties;
+	EngineHash engine(lite, &config, &properties);
+	std::atomic<bool> refreshing(true);
+	std::atomic<size_t> totalLength(0);
+	vector<std::thread> readers;
+	for (int i = 0; i < readerCount; i++) {
+		readers.emplace_back([&engine, &refreshing, &totalLength]() {
+			size_t length = 0;
+			while (refreshing.load()) {
+				const vector<string> *keys = engine.getKeys();
+				for (size_t k = 0; k < keys->size(); k++) {
+					const string &key = (*keys)[k];
+					for (size_t c = 0; c < key.size(); c++) {
+						length += (size_t)key[c];
+					}
+				}
+			}
+			totalLength += length;
+		});
+	}
+	for (int i = 0; i < refreshCount; i++) {
+		engine.refreshData(((i % 2) == 0 ? tac : lite).c_str());
+	}
+	refreshing.store(false);
+	for (size_t i = 0; i < readers.size(); i++) {
+		readers[i].join();
+	}
+	EXPECT_EQ(listOf(liteKeysOff), *engine.getKeys());
+	EXPECT_GT(totalLength.load(), (size_t)0);
 }
 
 /**
