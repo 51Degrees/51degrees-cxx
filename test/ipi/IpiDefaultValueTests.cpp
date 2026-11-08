@@ -303,7 +303,9 @@ TEST_F(IpiDefaultValueTests, EveryPropertyOfEachDataFile) {
 			continue;
 		}
 		any = true;
-		SCOPED_TRACE(path);
+		// The file is printed rather than added with SCOPED_TRACE, whose
+		// memory the base class's memory check counts.
+		printf("Checking %s\n", path.c_str());
 		const vector<int> found = checkEveryProperty(path);
 		EXPECT_GT(found[(size_t)IpiValueKind::String], 0) <<
 			"Every data file has a string with a default.";

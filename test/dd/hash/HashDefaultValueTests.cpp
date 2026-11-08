@@ -263,7 +263,9 @@ TEST_F(HashDefaultValueTests, EveryPropertyOfEachDataFile) {
 			continue;
 		}
 		any = true;
-		SCOPED_TRACE(path);
+		// The file is printed rather than added with SCOPED_TRACE, whose
+		// memory the base class's memory check counts.
+		printf("Checking %s\n", path.c_str());
 		EXPECT_GT(checkEveryProperty(path), 0) <<
 			"Every data file has a property with a default.";
 	}
