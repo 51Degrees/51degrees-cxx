@@ -140,10 +140,11 @@ namespace FiftyoneDegrees {
 				/**
 				 * Returns the drift for a matched substring from the character
 				 * position where it was expected to be found. The higher this
-				 * value, the lass accurate the results should be considered.
+				 * value, the less accurate the results should be considered.
 				 * @param resultIndex index of the individual User-Agent in the
 				 * results
-				 * @return individual drift
+				 * @return individual drift, or 0 when there is no result at
+				 * the index
 				 */
 				int getDrift(uint32_t resultIndex) const;
 
@@ -168,7 +169,8 @@ namespace FiftyoneDegrees {
 				 * target User-Agent.
 				 * @param resultIndex index of the individual User-Agent in the
 				 * results
-				 * @return individual difference
+				 * @return individual difference, or 0 when there is no result
+				 * at the index
 				 */
 				int getDifference(uint32_t resultIndex) const;
 
