@@ -415,6 +415,11 @@ EXTERNAL_VAR fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig;
  * with this configuration.
  * In this configuration, only the performance optimised graph is enabled for
  * processing to give the fastest operation.
+ *
+ * It sets loadRequiredPropertiesOnly, so when the required properties name
+ * some but not all of the properties in the data file, only the values they
+ * read and the strings those values use are kept in memory, and the rest of
+ * the values and strings read from the data file.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig;
 
