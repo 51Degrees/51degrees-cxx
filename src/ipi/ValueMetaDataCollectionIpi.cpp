@@ -34,7 +34,31 @@ ValueMetaDataCollectionIpi::ValueMetaDataCollectionIpi(
 ValueMetaDataCollectionIpi::~ValueMetaDataCollectionIpi() {}
 
 ValueMetaData* ValueMetaDataCollectionIpi::getByIndex(uint32_t index) const {
-	return ValueMetaDataBuilderIpi::build(dataSet, index);
+	std::call_once(propertyNamesRead, [this]() { readPropertyNames(); });
+	return ValueMetaDataBuilderIpi::build(dataSet, index, propertyNames);
+}
+
+void ValueMetaDataCollectionIpi::readPropertyNames() const {
+	const uint32_t count = IpiGetPropertyCount(dataSet);
+	std::vector<std::string> names;
+	names.reserve(count);
+	for (uint32_t i = 0; i < count; i++) {
+		EXCEPTION_CREATE;
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		char * const text = IpiGetPropertyText(
+			dataSet,
+			i,
+			FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+			buffer,
+			sizeof(buffer),
+			exception);
+		EXCEPTION_THROW;
+		names.push_back(text == nullptr ? std::string() : std::string(text));
+		if (text != nullptr && text != buffer) {
+			Free(text);
+		}
+	}
+	propertyNames = std::move(names);
 }
 
 ValueMetaData* ValueMetaDataCollectionIpi::getByKey(ValueMetaDataKey key) const {

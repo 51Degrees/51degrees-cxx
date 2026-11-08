@@ -34,7 +34,31 @@ ValueMetaDataCollectionHash::ValueMetaDataCollectionHash(
 ValueMetaDataCollectionHash::~ValueMetaDataCollectionHash() {}
 
 ValueMetaData* ValueMetaDataCollectionHash::getByIndex(uint32_t index) const {
-	return ValueMetaDataBuilderHash::build(dataSet, index);
+	std::call_once(propertyNamesRead, [this]() { readPropertyNames(); });
+	return ValueMetaDataBuilderHash::build(dataSet, index, propertyNames);
+}
+
+void ValueMetaDataCollectionHash::readPropertyNames() const {
+	const uint32_t count = HashGetPropertyCount(dataSet);
+	std::vector<std::string> names;
+	names.reserve(count);
+	for (uint32_t i = 0; i < count; i++) {
+		EXCEPTION_CREATE;
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		char * const text = HashGetPropertyText(
+			dataSet,
+			i,
+			FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+			buffer,
+			sizeof(buffer),
+			exception);
+		EXCEPTION_THROW;
+		names.push_back(text == nullptr ? std::string() : std::string(text));
+		if (text != nullptr && text != buffer) {
+			Free(text);
+		}
+	}
+	propertyNames = std::move(names);
 }
 
 ValueMetaData* ValueMetaDataCollectionHash::getByKey(ValueMetaDataKey key) const {

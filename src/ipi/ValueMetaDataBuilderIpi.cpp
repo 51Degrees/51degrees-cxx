@@ -32,20 +32,28 @@ using namespace FiftyoneDegrees::IpIntelligence;
 ValueMetaData* ValueMetaDataBuilderIpi::build(
 	fiftyoneDegreesDataSetIpi *dataSet,
 	uint32_t valueIndex) {
-	return buildValue(dataSet, valueIndex, nullptr);
+	return buildValue(dataSet, valueIndex, nullptr, nullptr);
 }
 
 ValueMetaData* ValueMetaDataBuilderIpi::build(
 	fiftyoneDegreesDataSetIpi *dataSet,
 	uint32_t valueIndex,
 	const string &propertyName) {
-	return buildValue(dataSet, valueIndex, &propertyName);
+	return buildValue(dataSet, valueIndex, &propertyName, nullptr);
+}
+
+ValueMetaData* ValueMetaDataBuilderIpi::build(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	const std::vector<std::string> &propertyNames) {
+	return buildValue(dataSet, valueIndex, nullptr, &propertyNames);
 }
 
 ValueMetaData* ValueMetaDataBuilderIpi::buildValue(
 	fiftyoneDegreesDataSetIpi *dataSet,
 	uint32_t valueIndex,
-	const string *propertyName) {
+	const string *propertyName,
+	const std::vector<std::string> *propertyNames) {
 	EXCEPTION_CREATE;
 	uint32_t propertyIndex = 0;
 	ValueTexts texts;
@@ -65,6 +73,10 @@ ValueMetaData* ValueMetaDataBuilderIpi::buildValue(
 	string name;
 	if (propertyName != nullptr) {
 		name = *propertyName;
+	}
+	else if (propertyNames != nullptr &&
+		propertyIndex < propertyNames->size()) {
+		name = (*propertyNames)[propertyIndex];
 	}
 	else {
 		char buffer[REASONABLE_WKT_STRING_LENGTH];
