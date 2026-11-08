@@ -36,7 +36,9 @@ PropertyMetaData* PropertyMetaDataBuilderHash::build(
 			dataSet->strings,
 			dataSet->maps,
 			property),
-		getPropertyType(property),
+		PropertyValueTypeGetName(
+			(PropertyValueType)property->valueType,
+			property->isList != 0),
 		(int)property->categoryOffset != -1 ?
 		getString(dataSet->strings, property->categoryOffset) :
 		string(),
@@ -131,27 +133,6 @@ bool PropertyMetaDataBuilderHash::propertyIsAvailable(
 	return PropertiesGetPropertyIndexFromName(
 		dataSet->b.b.available,
 		name->c_str()) >= 0;
-}
-
-string PropertyMetaDataBuilderHash::getPropertyType(
-	const fiftyoneDegreesProperty *property) {
-	switch (property->valueType) {
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER:
-		return string("int");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN:
-		return string("bool");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE:
-		return string("double");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT:
-		return string("javascript");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
-		if (property->isList != 0) {
-			return string("string[]");
-		}
-		return string("string");
-	default:
-		return string("string");
-	}
 }
 
 vector<string> PropertyMetaDataBuilderHash::getPropertyMap(
