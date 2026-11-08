@@ -35,6 +35,7 @@
     <ClCompile Include="..\..\..\test\dd\hash\HashConcurrentReadTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashFailedReadTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashLoadFailureTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashPresetTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashShortFileTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashMatchMetricsTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ExampleCPPHashMetaDataTests.cpp" />
