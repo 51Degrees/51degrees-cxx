@@ -106,10 +106,14 @@ from.
 Either way the values are the same whatever is read first, and the evidence
 can be freed once the results are populated.
 
-The match metrics, such as the iterations and the drift, and the device id
-are worked out from every component, so reading them walks every graph not yet
-walked. The C++ API does this itself. A C caller that reads the result items
-directly calls `fiftyoneDegreesResultsEvaluateAll` first.
+The match metrics, such as the iterations and the drift, the matched
+User-Agents and the device id are worked out from every component, so reading
+them walks every graph not yet walked. The C++ API does this itself, and so
+do the C functions `fiftyoneDegreesResultsHashGetMatchMetrics`,
+`fiftyoneDegreesResultsHashGetMatchMetricsForResult`,
+`fiftyoneDegreesResultsHashGetMatchedUserAgent` and
+`fiftyoneDegreesHashGetDeviceIdFromResults`, so a C caller reads them through
+those functions rather than from the result items.
 
 # Threads
 
