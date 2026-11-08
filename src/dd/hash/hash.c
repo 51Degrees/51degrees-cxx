@@ -271,6 +271,15 @@ typedef struct detection_component_state_t {
 } detectionComponentState;
 
 /**
+ * State for iterating the evidence that holds special values such as GHEV
+ * or SUA, which records whether any value gave headers.
+ */
+typedef struct special_headers_state_t {
+	detectionComponentState* state; /* Component state to add headers to */
+	bool set; /* True if a value gave at least one header */
+} specialHeadersState;
+
+/**
  * Used to find an existing evidence pair for the header.
  */
 typedef struct set_special_headers_find_state_t {
@@ -3583,13 +3592,14 @@ static bool setStructuredUserAgentHeader(
 }
 
 // Checks for special evidence headers and tries to add additional headers to
-// the headers array.
+// the headers array. Stops iterating once a value has given headers.
 static bool setSpecialHeaders(
 	void* state,
 	EvidenceKeyValuePair* pair) {
-	detectionComponentState* s = (detectionComponentState*)state;
-	if(setGetHighEntropyValuesHeader(s, pair) || 
-		setStructuredUserAgentHeader(s, pair)) {
+	specialHeadersState* s = (specialHeadersState*)state;
+	if(setGetHighEntropyValuesHeader(s->state, pair) || 
+		setStructuredUserAgentHeader(s->state, pair)) {
+		s->set = true;
 		return false; // stop iterating
 	}
 	return true; // continue iterating
@@ -3918,16 +3928,24 @@ static void resultsHashFromEvidence_handleComponentEvidence(
 }
 
 // If there are GHEV or SUA headers then these need to be transformed into 
-// additional headers in the evidence array.
+// additional headers in the evidence array. Query evidence is used in
+// preference to cookie evidence whatever order the pairs were added in, so
+// the cookie is only considered when no query value gave a header.
 static void resultsHashFromEvidence_setSpecialHeaders(
 	detectionComponentState* state) {
 	Exception* exception = state->exception;
+	specialHeadersState special = { state, false };
 	do {
 		EvidenceIterate(
 			state->evidence,
-			FIFTYONE_DEGREES_EVIDENCE_QUERY |
+			FIFTYONE_DEGREES_EVIDENCE_QUERY,
+			&special,
+			setSpecialHeaders);
+		if (EXCEPTION_FAILED || special.set) { break; }
+		EvidenceIterate(
+			state->evidence,
 			FIFTYONE_DEGREES_EVIDENCE_COOKIE,
-			state,
+			&special,
 			setSpecialHeaders);
 		if (EXCEPTION_FAILED) { break; }
 	} while (false); // once
