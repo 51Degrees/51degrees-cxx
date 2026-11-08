@@ -1959,6 +1959,9 @@ static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
 	}
 	heldPlanFree(&plan);
 	fclose(file);
+	if (status == SUCCESS && EXCEPTION_FAILED) {
+		status = COLLECTION_FAILURE;
+	}
 	return status;
 }
 
@@ -1994,6 +1997,9 @@ static StatusCode heldDefaultsPlan(
 		&item,
 		exception);
 	if (property == NULL || EXCEPTION_FAILED) {
+		if (property != NULL) {
+			COLLECTION_RELEASE(dataSet->properties, &item);
+		}
 		return COLLECTION_FAILURE;
 	}
 	const uint32_t index = property->defaultValueIndex;
@@ -2018,6 +2024,9 @@ static StatusCode heldDefaultsPlan(
 		&item,
 		exception);
 	if (value == NULL || EXCEPTION_FAILED) {
+		if (value != NULL) {
+			COLLECTION_RELEASE(dataSet->values, &item);
+		}
 		return COLLECTION_FAILURE;
 	}
 	const uint32_t typeIndex = (uint32_t)value->propertyIndex;
@@ -2044,12 +2053,16 @@ static StatusCode heldDefaultsPlan(
 		return COLLECTION_FAILURE;
 	}
 	DataReset(&item.data);
-	if (StoredBinaryValueGet(
+	const StoredBinaryValue* const stored = StoredBinaryValueGet(
 		dataSet->strings,
 		offset,
 		type,
 		&item,
-		exception) == NULL || EXCEPTION_FAILED) {
+		exception);
+	if (stored == NULL || EXCEPTION_FAILED) {
+		if (stored != NULL) {
+			COLLECTION_RELEASE(dataSet->strings, &item);
+		}
 		return COLLECTION_FAILURE;
 	}
 	heldRangeAdd(
@@ -2130,6 +2143,9 @@ static StatusCode heldDefaultsInit(DataSetIpi* dataSet, Exception* exception) {
 		}
 	}
 	Free(ranges);
+	if (status == SUCCESS && EXCEPTION_FAILED) {
+		status = COLLECTION_FAILURE;
+	}
 	return status;
 }
 
