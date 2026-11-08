@@ -40,21 +40,31 @@ namespace FiftyoneDegrees {
 		class ProfileMetaDataBuilderIpi : EntityMetaDataBuilder {
 		public:
 			/**
-			 * Build a new instance of ProfileMetaData from the underlying
-			 * profile provided. The instance returned does not hold a
-			 * reference to the data set or profile, and contains a copy of
-			 * all the meta data.
-			 * @param dataSet pointer to the data set containing the
-			 * component
-			 * @param profile pointer to the underlying profile to create
-			 * the meta data from
-			 * @param profileOffset the offset of the profile in the profiles
-			 * collection. This acts as the unique key
+			 * Build a new instance of ProfileMetaData from the profile at the
+			 * index provided among the data file's profiles. The profile's
+			 * offset in the profiles collection is its key, as an IP
+			 * Intelligence data file holds no profile ids.
+			 * @param dataSet pointer to the data set containing the profile
+			 * @param profileIndex index of the profile
+			 * @return the new instance, or nullptr when the data set gives no
+			 * profile at the index
 			 */
-			static ProfileMetaData* build(
+			static ProfileMetaData* buildByIndex(
 				fiftyoneDegreesDataSetIpi *dataSet,
-				const fiftyoneDegreesProfile *profile,
-				const uint32_t profileOffset);
+				uint32_t profileIndex);
+
+			/**
+			 * Build a new instance of ProfileMetaData from the profile at the
+			 * offset provided, which is its key.
+			 * @param dataSet pointer to the data set containing the profile
+			 * @param profileOffset offset of the profile in the profiles
+			 * collection
+			 * @return the new instance, or nullptr when the offset is
+			 * UINT32_MAX or the data set gives no profile at it
+			 */
+			static ProfileMetaData* buildByOffset(
+				fiftyoneDegreesDataSetIpi *dataSet,
+				uint32_t profileOffset);
 		};
 	}
 }

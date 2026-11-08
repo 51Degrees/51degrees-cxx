@@ -33,54 +33,21 @@ ProfileMetaDataCollectionHash::ProfileMetaDataCollectionHash(
 	if (dataSet == nullptr) {
 		throw runtime_error("Data set pointer can not be null");
 	}
-	profiles = dataSet->profiles;
-	profileOffsets = dataSet->profileOffsets;
 }
 
 ProfileMetaDataCollectionHash::~ProfileMetaDataCollectionHash() {
 	DataSetHashRelease(dataSet);
 }
 
-ProfileMetaData* ProfileMetaDataCollectionHash::getByIndex(uint32_t index) const {
-	EXCEPTION_CREATE;
-	Item item;
-	ProfileMetaData *result = nullptr;
-	Profile *profile;
-	DataReset(&item.data);
-	profile = ProfileGetByIndex(
-		profileOffsets,
-		profiles,
-		index,
-		&item,
-		exception);
-	EXCEPTION_THROW
-	if (profile != nullptr) {
-		result = ProfileMetaDataBuilderHash::build(dataSet, profile);
-		COLLECTION_RELEASE(item.collection, &item);
-	}
-	return result;
+ProfileMetaData* ProfileMetaDataCollectionHash::getByIndex(
+	uint32_t index) const {
+	return ProfileMetaDataBuilderHash::buildByIndex(dataSet, index);
 }
 
 ProfileMetaData* ProfileMetaDataCollectionHash::getByKey(uint32_t key) const {
-	EXCEPTION_CREATE;
-	Item item;
-	ProfileMetaData *result = nullptr;
-	Profile *profile;
-	DataReset(&item.data);
-	profile = ProfileGetByProfileId(
-		profileOffsets,
-		profiles,
-		key,
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	if (profile != nullptr) {
-		result = ProfileMetaDataBuilderHash::build(dataSet, profile);
-		COLLECTION_RELEASE(item.collection, &item);
-	}
-	return result;
+	return ProfileMetaDataBuilderHash::buildById(dataSet, key);
 }
 
 uint32_t ProfileMetaDataCollectionHash::getSize() const {
-	return CollectionGetCount(profileOffsets);
+	return HashGetProfileCount(dataSet);
 }

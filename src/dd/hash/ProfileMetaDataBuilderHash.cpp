@@ -23,15 +23,40 @@
 #include "ProfileMetaDataBuilderHash.hpp"
 
 #include "fiftyone.h"
+#include "../../common/Exceptions.hpp"
 
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
-ProfileMetaData* ProfileMetaDataBuilderHash::build(
+ProfileMetaData* ProfileMetaDataBuilderHash::buildByIndex(
 	fiftyoneDegreesDataSetHash *dataSet,
-	fiftyoneDegreesProfile *profile) {
-	byte componentId = ((Component*)dataSet->componentsList
-		.items[profile->componentIndex].data.ptr)->componentId;
-	return new ProfileMetaData(
-		profile->profileId,
-		componentId);
+	uint32_t profileIndex) {
+	EXCEPTION_CREATE;
+	uint32_t profileId = 0;
+	uint8_t componentId = 0;
+	if (HashGetProfile(
+		dataSet,
+		profileIndex,
+		&profileId,
+		&componentId,
+		exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
+	return new ProfileMetaData(profileId, componentId);
+}
+
+ProfileMetaData* ProfileMetaDataBuilderHash::buildById(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t profileId) {
+	EXCEPTION_CREATE;
+	uint8_t componentId = 0;
+	if (HashGetProfileById(
+		dataSet,
+		profileId,
+		&componentId,
+		exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
+	return new ProfileMetaData(profileId, componentId);
 }

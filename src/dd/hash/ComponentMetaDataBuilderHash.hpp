@@ -41,17 +41,20 @@ namespace FiftyoneDegrees {
 			public:
 				/**
 				 * Build a new instance of ComponentMetaData from the
-				 * underlying component provided. The instance returned does
-				 * not hold a reference to the data set or component, and
+				 * component at the index provided. The instance returned
+				 * does not hold a reference to the data set or component, and
 				 * contains a copy of all the meta data.
 				 * @param dataSet pointer to the data set containing the
 				 * component
-				 * @param component pointer to the underlying component to
-				 * create the meta data from
+				 * @param componentIndex index of the component in the data
+				 * set's list of components
+				 * @return the new instance, or nullptr when the index is not
+				 * less than the number of components or the data set gives
+				 * no default profile for the component
 				 */
 				static ComponentMetaData* build(
 					fiftyoneDegreesDataSetHash *dataSet,
-					fiftyoneDegreesComponent *component);
+					uint32_t componentIndex);
 			};
 		}
 	}

@@ -24,34 +24,33 @@
 
 #include "fiftyone.h"
 #include "../../common/Exceptions.hpp"
-#include "../../common/collectionKeyTypes.h"
 
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
 ComponentMetaData* ComponentMetaDataBuilderHash::build(
 	fiftyoneDegreesDataSetHash *dataSet,
-	fiftyoneDegreesComponent *component) {
+	uint32_t componentIndex) {
 	EXCEPTION_CREATE;
-	ComponentMetaData *result = nullptr;
-	Item item;
-	Profile *profile;
-	DataReset(&item.data);
-	const CollectionKey profileKey {
-		{(uint32_t)component->defaultProfileOffset},
-		CollectionKeyType_Profile,
-	};
-	profile = (Profile*)dataSet->profiles->get(
-		dataSet->profiles,
-		&profileKey,
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	if (profile != nullptr) {
-		result = new ComponentMetaData(
-			component->componentId,
-			getString(dataSet->strings, component->nameOffset),
-			profile->profileId);
-		COLLECTION_RELEASE(dataSet->profiles, &item);
+	uint8_t componentId = 0;
+	uint32_t defaultProfileId = 0;
+	if (HashGetComponent(
+		dataSet,
+		componentIndex,
+		&componentId,
+		&defaultProfileId,
+		exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
 	}
-	return result;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const name = HashGetComponentName(
+		dataSet,
+		componentIndex,
+		buffer,
+		sizeof(buffer),
+		exception);
+	return new ComponentMetaData(
+		componentId,
+		takeText(name, buffer, exception),
+		defaultProfileId);
 }

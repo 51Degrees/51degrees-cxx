@@ -51,48 +51,6 @@ namespace FiftyoneDegrees {
 			 */
 
 			/**
-			 * Get a copy of a string from the strings collection at the offset
-			 * provided.
-			 * @param stringsCollection pointer to the collection to copy the
-			 * string from
-			 * @param offset offset in the strings collection of the string to
-			 * copy
-			 * @return string copy of the string at the offset provided
-			 */
-			static string getString(
-				fiftyoneDegreesCollection *stringsCollection,
-				uint32_t offset) {
-				FIFTYONE_DEGREES_EXCEPTION_CREATE;
-				string result;
-				fiftyoneDegreesCollectionItem item;
-				fiftyoneDegreesDataReset(&item.data);
-				const fiftyoneDegreesStoredBinaryValue * const value =
-					fiftyoneDegreesStoredBinaryValueGet(
-						stringsCollection,
-						offset,
-						FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
-						&item,
-						exception);
-				FIFTYONE_DEGREES_EXCEPTION_THROW;
-				if (value != nullptr) {
-					char buffer[FIFTYONE_DEGREES_REASONABLE_WKT_STRING_LENGTH];
-					// A string has no decimal places.
-					char * const text = fiftyoneDegreesStoredBinaryValueToText(
-						value,
-						FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
-						0,
-						buffer,
-						sizeof(buffer),
-						exception);
-					FIFTYONE_DEGREES_COLLECTION_RELEASE(
-						stringsCollection,
-						&item);
-					result = takeText(text, buffer, exception);
-				}
-				return result;
-			}
-
-			/**
 			 * Get a copy of the text a C function wrote into the buffer
 			 * provided or into memory it allocated, freeing that memory.
 			 * @param text the text the C function returned, or nullptr

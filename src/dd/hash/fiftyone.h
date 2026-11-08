@@ -90,6 +90,12 @@ MAP_TYPE(HashValueProfiles)
 #define HashGetValue fiftyoneDegreesHashGetValue /**< Synonym for #fiftyoneDegreesHashGetValue function. */
 #define HashGetValueIndex fiftyoneDegreesHashGetValueIndex /**< Synonym for #fiftyoneDegreesHashGetValueIndex function. */
 #define HashGetValueText fiftyoneDegreesHashGetValueText /**< Synonym for #fiftyoneDegreesHashGetValueText function. */
+#define HashGetComponentCount fiftyoneDegreesHashGetComponentCount /**< Synonym for #fiftyoneDegreesHashGetComponentCount function. */
+#define HashGetComponent fiftyoneDegreesHashGetComponent /**< Synonym for #fiftyoneDegreesHashGetComponent function. */
+#define HashGetComponentName fiftyoneDegreesHashGetComponentName /**< Synonym for #fiftyoneDegreesHashGetComponentName function. */
+#define HashGetProfileCount fiftyoneDegreesHashGetProfileCount /**< Synonym for #fiftyoneDegreesHashGetProfileCount function. */
+#define HashGetProfile fiftyoneDegreesHashGetProfile /**< Synonym for #fiftyoneDegreesHashGetProfile function. */
+#define HashGetProfileById fiftyoneDegreesHashGetProfileById /**< Synonym for #fiftyoneDegreesHashGetProfileById function. */
 #define ResultsHashGetValuesJson fiftyoneDegreesResultsHashGetValuesJson /**< Synonym for #fiftyoneDegreesResultsHashGetValuesJson function. */
 
 #define HashInMemoryConfig fiftyoneDegreesHashInMemoryConfig /**< Synonym for #fiftyoneDegreesHashInMemoryConfig config. */

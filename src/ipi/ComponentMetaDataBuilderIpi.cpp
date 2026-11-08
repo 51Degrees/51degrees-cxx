@@ -23,7 +23,6 @@
 #include "ComponentMetaDataBuilderIpi.hpp"
 
 #include "fiftyone.h"
-#include "../common/collectionKeyTypes.h"
 #include "../common/Exceptions.hpp"
 
 using namespace FiftyoneDegrees::Common;
@@ -31,10 +30,27 @@ using namespace FiftyoneDegrees::IpIntelligence;
 
 ComponentMetaData* ComponentMetaDataBuilderIpi::build(
 	fiftyoneDegreesDataSetIpi *dataSet,
-	fiftyoneDegreesComponent *component) {
+	uint32_t componentIndex) {
+	uint8_t componentId = 0;
+	uint32_t defaultProfileOffset = 0;
+	if (IpiGetComponent(
+		dataSet,
+		componentIndex,
+		&componentId,
+		&defaultProfileOffset) == false) {
+		return nullptr;
+	}
+	EXCEPTION_CREATE;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const name = IpiGetComponentName(
+		dataSet,
+		componentIndex,
+		buffer,
+		sizeof(buffer),
+		exception);
+	// The key used for profiles is the offset, as there is no profile id.
 	return new ComponentMetaData(
-		component->componentId,
-		getString(dataSet->strings, component->nameOffset),
-		// The key used for profiles is the offset, as there is no profile id.
-		component->defaultProfileOffset);
+		componentId,
+		takeText(name, buffer, exception),
+		defaultProfileOffset);
 }

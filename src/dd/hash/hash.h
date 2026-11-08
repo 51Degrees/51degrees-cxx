@@ -1313,6 +1313,103 @@ EXTERNAL char* fiftyoneDegreesHashGetValueText(
 	fiftyoneDegreesException *exception);
 
 /**
+ * Gets the number of components the data file defines.
+ * @param dataSet the data set to read
+ * @return the number of components
+ */
+EXTERNAL uint32_t fiftyoneDegreesHashGetComponentCount(
+	fiftyoneDegreesDataSetHash *dataSet);
+
+/**
+ * Gets the id of the component and the profile id of its default profile.
+ * Either output pointer can be NULL, and the default profile is read only
+ * when `defaultProfileId` is not.
+ * @param dataSet the data set to read
+ * @param componentIndex index of the component, less than
+ * #fiftyoneDegreesHashGetComponentCount
+ * @param componentId set to the id of the component
+ * @param defaultProfileId set to the profile id of the component's default
+ * profile
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return true when the component was read, otherwise false. False with no
+ * exception set means the index is not less than the number of components,
+ * or the profiles collection gave nothing for the default profile, and the
+ * metadata then has no such component.
+ */
+EXTERNAL bool fiftyoneDegreesHashGetComponent(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t componentIndex,
+	uint8_t *componentId,
+	uint32_t *defaultProfileId,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the name of the component, such as "HardwarePlatform". A name the
+ * strings collection gives nothing for is an empty text.
+ * @param dataSet the data set to read
+ * @param componentIndex index of the component
+ * @param buffer memory the name is written into when it fits
+ * @param bufferLength the bytes `buffer` holds
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the null terminated name, or NULL when the index is not less than
+ * the number of components or the name cannot be read or written
+ */
+EXTERNAL char* fiftyoneDegreesHashGetComponentName(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t componentIndex,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the number of profiles the data file holds.
+ * @param dataSet the data set to read
+ * @return the number of profiles
+ */
+EXTERNAL uint32_t fiftyoneDegreesHashGetProfileCount(
+	fiftyoneDegreesDataSetHash *dataSet);
+
+/**
+ * Gets the id of the profile at the index among the data file's profiles,
+ * which are in order of profile id, and the id of the component it belongs
+ * to. Either output pointer can be NULL.
+ * @param dataSet the data set to read
+ * @param profileIndex index of the profile, less than
+ * #fiftyoneDegreesHashGetProfileCount
+ * @param profileId set to the id of the profile
+ * @param componentId set to the id of the profile's component
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return true when the profile was read, otherwise false. False with no
+ * exception set means the profiles collection gave nothing for the profile.
+ */
+EXTERNAL bool fiftyoneDegreesHashGetProfile(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t profileIndex,
+	uint32_t *profileId,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the id of the component the profile with the id provided belongs to.
+ * @param dataSet the data set to read
+ * @param profileId id of the profile
+ * @param componentId set to the id of the profile's component, or NULL
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return true when the data file holds the profile and it was read,
+ * otherwise false. False with no exception set means the data file holds no
+ * profile with that id.
+ */
+EXTERNAL bool fiftyoneDegreesHashGetProfileById(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t profileId,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception);
+
+/**
  * @}
  */
 

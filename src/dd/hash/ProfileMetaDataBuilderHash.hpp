@@ -40,18 +40,31 @@ namespace FiftyoneDegrees {
 			class ProfileMetaDataBuilderHash : EntityMetaDataBuilder {
 			public:
 				/**
-				 * Build a new instance of ProfileMetaData from the underlying
-				 * profile provided. The instance returned does not hold a
-				 * reference to the data set or profile, and contains a copy of
-				 * all the meta data.
+				 * Build a new instance of ProfileMetaData from the profile at
+				 * the index provided among the data file's profiles, which
+				 * are in order of profile id.
 				 * @param dataSet pointer to the data set containing the
-				 * component
-				 * @param profile pointer to the underlying profile to create
-				 * the meta data from
+				 * profile
+				 * @param profileIndex index of the profile
+				 * @return the new instance, or nullptr when the data set
+				 * gives no profile at the index
 				 */
-				static ProfileMetaData* build(
+				static ProfileMetaData* buildByIndex(
 					fiftyoneDegreesDataSetHash *dataSet,
-					fiftyoneDegreesProfile *profile);
+					uint32_t profileIndex);
+
+				/**
+				 * Build a new instance of ProfileMetaData from the profile
+				 * with the id provided.
+				 * @param dataSet pointer to the data set containing the
+				 * profile
+				 * @param profileId id of the profile
+				 * @return the new instance, or nullptr when the data set has
+				 * no profile with the id
+				 */
+				static ProfileMetaData* buildById(
+					fiftyoneDegreesDataSetHash *dataSet,
+					uint32_t profileId);
 			};
 		}
 	}
