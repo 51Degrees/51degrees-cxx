@@ -23,7 +23,7 @@
 /**
  * @file IpiMetaDataTests.cpp
  * @brief Checks the metadata the IP Intelligence C functions give for every
- * property of each data file found against
+ * property and value of each data file found against
  * the data set's own records, and that the C++ metadata gives the same
  * answers.
  *
@@ -46,6 +46,8 @@ namespace Ipi = FiftyoneDegrees::IpIntelligence;
 namespace Common = FiftyoneDegrees::Common;
 
 using Properties = Common::Collection<string, Common::PropertyMetaData>;
+using Values =
+	Common::Collection<Common::ValueMetaDataKey, Common::ValueMetaData>;
 
 /** The free ASN data file, which the data repository's script downloads. */
 static const char ipiMetaDataAsnFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
@@ -53,8 +55,17 @@ static const char ipiMetaDataAsnFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
 /** Bytes that hold most texts, so the C functions write them in place. */
 static const size_t ipiMetaDataTextBytes = 1024;
 
+/** Bytes that hold the text of any value, an area included. */
+static const size_t ipiMetaDataWrittenBytes = 32 * 1024 * 1024;
+
 /** Bytes too few for most texts, so the C functions allocate the text. */
 static const size_t ipiMetaDataShortBytes = 2;
+
+/** Every value of a property with at most this many is checked. */
+static const uint32_t ipiMetaDataAllValues = 500;
+
+/** The values of a larger property checked, spread across them. */
+static const uint32_t ipiMetaDataSampledValues = 200;
 
 /** A name no property or value has. */
 static const char *ipiMetaDataNoName = "NoSuchName51Degrees";
@@ -140,6 +151,49 @@ static string ipiMetaDataStored(
 	return result;
 }
 
+/**
+ * The value's name written as the type its property is stored as, with a
+ * number to FIFTYONE_DEGREES_WKT_DECIMAL_PLACES places, or empty when the
+ * name cannot be written.
+ */
+static string ipiMetaDataWrittenName(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	const fiftyoneDegreesValue &value,
+	vector<char> &buffer) {
+	EXCEPTION_CREATE;
+	const fiftyoneDegreesPropertyValueType type =
+		fiftyoneDegreesPropertyGetStoredTypeByIndex(
+			dataSet->propertyTypes,
+			(uint32_t)value.propertyIndex,
+			exception);
+	EXCEPTION_THROW;
+	fiftyoneDegreesCollectionItem item;
+	fiftyoneDegreesDataReset(&item.data);
+	const fiftyoneDegreesStoredBinaryValue *name =
+		fiftyoneDegreesStoredBinaryValueGet(
+			dataSet->strings,
+			(uint32_t)value.nameOffset,
+			type,
+			&item,
+			exception);
+	EXCEPTION_THROW;
+	if (name == nullptr) {
+		return string();
+	}
+	fiftyoneDegreesStringBuilder builder = { buffer.data(), buffer.size() };
+	fiftyoneDegreesStringBuilderInit(&builder);
+	fiftyoneDegreesStringBuilderAddStringValue(
+		&builder,
+		name,
+		type,
+		FIFTYONE_DEGREES_WKT_DECIMAL_PLACES,
+		exception);
+	fiftyoneDegreesStringBuilderComplete(&builder);
+	FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->strings, &item);
+	EXPECT_FALSE(builder.full);
+	return EXCEPTION_OKAY ? string(buffer.data()) : string();
+}
+
 /** A copy of the property at the index, as stored. */
 static fiftyoneDegreesProperty ipiMetaDataStoredProperty(
 	fiftyoneDegreesDataSetIpi *dataSet,
@@ -156,6 +210,24 @@ static fiftyoneDegreesProperty ipiMetaDataStoredProperty(
 	const fiftyoneDegreesProperty property = *stored;
 	FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->properties, &item);
 	return property;
+}
+
+/** A copy of the value at the index, as stored. */
+static fiftyoneDegreesValue ipiMetaDataStoredValue(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t index) {
+	EXCEPTION_CREATE;
+	fiftyoneDegreesCollectionItem item;
+	fiftyoneDegreesDataReset(&item.data);
+	const fiftyoneDegreesValue *stored = fiftyoneDegreesValueGet(
+		dataSet->values,
+		index,
+		&item,
+		exception);
+	EXCEPTION_THROW;
+	const fiftyoneDegreesValue value = *stored;
+	FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->values, &item);
+	return value;
 }
 
 /** A text of the property, read with a buffer of the length given. */
@@ -190,6 +262,24 @@ static string ipiMetaDataMapText(
 		mapIndex,
 		buffer.data(),
 		buffer.size(),
+		exception);
+	return ipiMetaDataTake(result, buffer.data(), exception);
+}
+
+/** A text of the value, read with the buffer given. */
+static string ipiMetaDataValueText(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t index,
+	fiftyoneDegreesValueText text,
+	vector<char> &buffer,
+	size_t length) {
+	EXCEPTION_CREATE;
+	char *result = fiftyoneDegreesIpiGetValueText(
+		dataSet,
+		index,
+		text,
+		buffer.data(),
+		length,
 		exception);
 	return ipiMetaDataTake(result, buffer.data(), exception);
 }
@@ -417,10 +507,123 @@ protected:
 			EXPECT_EQ(name, byName->getName());
 		}
 	}
+
+	/** Checks the values of every property. */
+	void checkValues(const string &path) {
+		const auto manager = openIpiMetaData(path, nullptr);
+		Ipi::MetaDataIpi metaData(manager);
+		IpiMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetIpi *dataSet = scope.dataSet;
+		vector<char> buffer(ipiMetaDataTextBytes);
+		vector<char> written(ipiMetaDataWrittenBytes);
+		unique_ptr<Properties> properties(metaData.getProperties());
+		const uint32_t count = fiftyoneDegreesIpiGetPropertyCount(dataSet);
+		for (uint32_t i = 0; i < count; i++) {
+			EXCEPTION_CREATE;
+			uint32_t first = 0, valueCount = 0;
+			ASSERT_TRUE(fiftyoneDegreesIpiGetPropertyValueIndexes(
+				dataSet,
+				i,
+				&first,
+				&valueCount,
+				nullptr,
+				exception));
+			const fiftyoneDegreesProperty stored =
+				ipiMetaDataStoredProperty(dataSet, i);
+			const fiftyoneDegreesPropertyValueType storedType =
+				fiftyoneDegreesPropertyGetStoredType(
+					dataSet->propertyTypes,
+					&stored,
+					exception);
+			EXCEPTION_THROW;
+			unique_ptr<Common::PropertyMetaData> property(
+				properties->getByIndex(i));
+			const string &name = property->getName();
+			unique_ptr<Values> values(
+				metaData.getValuesForProperty(property.get()));
+			EXPECT_EQ(valueCount, values->getSize()) << name;
+			const uint32_t step = valueCount <= ipiMetaDataAllValues
+				? 1
+				: valueCount / ipiMetaDataSampledValues;
+			for (uint32_t v = 0; v < valueCount; v += step) {
+				const uint32_t valueIndex = first + v;
+				const fiftyoneDegreesValue value =
+					ipiMetaDataStoredValue(dataSet, valueIndex);
+				uint32_t propertyIndex = UINT32_MAX;
+				ASSERT_TRUE(fiftyoneDegreesIpiGetValue(
+					dataSet,
+					valueIndex,
+					&propertyIndex,
+					exception)) << name;
+				EXPECT_EQ(i, propertyIndex) << name;
+				const string valueName =
+					ipiMetaDataWrittenName(dataSet, value, written);
+				// A weighted value's URL offset holds its weight.
+				const string url = value.urlOffsetOrWeight <= 0 ||
+					fiftyoneDegreesValueIsWeighted(&value)
+					? string()
+					: ipiMetaDataStored(
+						dataSet,
+						(uint32_t)value.urlOffsetOrWeight);
+				for (size_t length : {
+					buffer.size(),
+					ipiMetaDataShortBytes }) {
+					EXPECT_EQ(valueName, ipiMetaDataValueText(
+						dataSet,
+						valueIndex,
+						FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+						buffer,
+						length)) << name;
+					EXPECT_EQ(string(), ipiMetaDataValueText(
+						dataSet,
+						valueIndex,
+						FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION,
+						buffer,
+						length)) << name;
+					EXPECT_EQ(url, ipiMetaDataValueText(
+						dataSet,
+						valueIndex,
+						FIFTYONE_DEGREES_VALUE_TEXT_URL,
+						buffer,
+						length)) << name;
+				}
+
+				// The C++ metadata gives the same answers.
+				unique_ptr<Common::ValueMetaData> metaDataValue(
+					values->getByIndex(v));
+				ASSERT_TRUE(metaDataValue != nullptr) << name;
+				EXPECT_EQ(name, metaDataValue->getKey().getPropertyName());
+				EXPECT_EQ(valueName, metaDataValue->getName()) << name;
+				EXPECT_EQ(string(), metaDataValue->getDescription()) << name;
+				EXPECT_EQ(url, metaDataValue->getUrl()) << name;
+
+				// A number written to fewer places than the search compares
+				// it to is not found by its text, so only a string is.
+				if (storedType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) {
+					EXPECT_EQ(
+						(long)valueIndex,
+						fiftyoneDegreesIpiGetValueIndex(
+							dataSet,
+							i,
+							valueName.c_str(),
+							exception)) << name << " " << valueName;
+					EXPECT_TRUE(EXCEPTION_OKAY) << name;
+					unique_ptr<Common::ValueMetaData> byKey(
+						values->getByKey(metaDataValue->getKey()));
+					ASSERT_TRUE(byKey != nullptr) << name << " " << valueName;
+					EXPECT_EQ(valueName, byKey->getName()) << name;
+				}
+			}
+		}
+	}
 };
 
 TEST_F(IpiMetaDataTests, PropertiesOfEachDataFile) {
 	eachDataFile([this](const string &path) { checkProperties(path); });
+}
+
+TEST_F(IpiMetaDataTests, ValuesOfEachDataFile) {
+	eachDataFile([this](const string &path) { checkValues(path); });
 }
 
 /**
@@ -479,6 +682,84 @@ TEST_F(IpiMetaDataTests, NoPropertyPastTheEnd) {
 				exception));
 			EXPECT_TRUE(EXCEPTION_OKAY);
 		}
+	});
+}
+
+/**
+ * Reading past the last value, or for a text a value does not have, gives
+ * no answer rather than another value.
+ */
+TEST_F(IpiMetaDataTests, NoValuePastTheEnd) {
+	eachDataFile([](const string &path) {
+		const auto manager = openIpiMetaData(path, nullptr);
+		IpiMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetIpi *dataSet = scope.dataSet;
+		{
+			EXCEPTION_CREATE;
+			const uint32_t values =
+				fiftyoneDegreesCollectionGetCount(dataSet->values);
+			uint32_t propertyIndex = 0;
+			EXPECT_FALSE(fiftyoneDegreesIpiGetValue(
+				dataSet,
+				values,
+				&propertyIndex,
+				exception));
+			EXPECT_FALSE(EXCEPTION_OKAY);
+		}
+		{
+			EXCEPTION_CREATE;
+			char buffer[8];
+			EXPECT_EQ(nullptr, fiftyoneDegreesIpiGetValueText(
+				dataSet,
+				0,
+				(fiftyoneDegreesValueText)99,
+				buffer,
+				sizeof(buffer),
+				exception));
+			EXPECT_TRUE(EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_INVALID_INPUT));
+		}
+	});
+}
+
+/**
+ * A property's values have no value of a name the property does not have,
+ * nor a value of another property.
+ */
+TEST_F(IpiMetaDataTests, ValueNotOfTheProperty) {
+	eachDataFile([](const string &path) {
+		const auto manager = openIpiMetaData(path, nullptr);
+		Ipi::MetaDataIpi metaData(manager);
+		unique_ptr<Properties> properties(metaData.getProperties());
+		vector<unique_ptr<Common::PropertyMetaData>> withValues;
+		for (uint32_t i = 0;
+			i < properties->getSize() && withValues.size() < 2;
+			i++) {
+			unique_ptr<Common::PropertyMetaData> property(
+				properties->getByIndex(i));
+			unique_ptr<Values> values(
+				metaData.getValuesForProperty(property.get()));
+			if (values->getSize() > 0) {
+				withValues.push_back(std::move(property));
+			}
+		}
+		ASSERT_EQ(2u, withValues.size());
+		unique_ptr<Values> first(
+			metaData.getValuesForProperty(withValues[0].get()));
+		unique_ptr<Values> second(
+			metaData.getValuesForProperty(withValues[1].get()));
+		unique_ptr<Common::ValueMetaData> secondValue(second->getByIndex(0));
+		ASSERT_TRUE(secondValue != nullptr);
+		unique_ptr<Common::ValueMetaData> none(first->getByKey(
+			Common::ValueMetaDataKey(
+				withValues[0]->getName(),
+				ipiMetaDataNoName)));
+		EXPECT_TRUE(none == nullptr);
+		unique_ptr<Common::ValueMetaData> other(first->getByKey(
+			secondValue->getKey()));
+		EXPECT_TRUE(other == nullptr);
+		unique_ptr<Common::ValueMetaData> unknown(first->getByKey(
+			Common::ValueMetaDataKey(ipiMetaDataNoName, "0")));
+		EXPECT_TRUE(unknown == nullptr);
 	});
 }
 

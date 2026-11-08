@@ -22,8 +22,8 @@
 
 /**
  * @file HashMetaDataTests.cpp
- * @brief Checks the metadata the Hash C functions give for every property of
- * each data file found against the data
+ * @brief Checks the metadata the Hash C functions give for every property
+ * and value of each data file found against the data
  * set's own records, and that the C++ metadata gives the same answers.
  *
  * Each text is read twice, into a buffer that holds it and into one too
@@ -45,12 +45,20 @@ namespace Hash = FiftyoneDegrees::DeviceDetection::Hash;
 namespace Common = FiftyoneDegrees::Common;
 
 using Properties = Common::Collection<string, Common::PropertyMetaData>;
+using Values =
+	Common::Collection<Common::ValueMetaDataKey, Common::ValueMetaData>;
 
 /** Bytes that hold most texts, so the C functions write them in place. */
 static const size_t hashMetaDataTextBytes = 1024;
 
 /** Bytes too few for most texts, so the C functions allocate the text. */
 static const size_t hashMetaDataShortBytes = 2;
+
+/** Every value of a property with at most this many is checked. */
+static const uint32_t hashMetaDataAllValues = 2000;
+
+/** The values of a larger property checked, spread across them. */
+static const uint32_t hashMetaDataSampledValues = 500;
 
 /** A name no property or value has. */
 static const char *hashMetaDataNoName = "NoSuchName51Degrees";
@@ -154,6 +162,24 @@ static fiftyoneDegreesProperty hashMetaDataStoredProperty(
 	return property;
 }
 
+/** A copy of the value at the index, as stored. */
+static fiftyoneDegreesValue hashMetaDataStoredValue(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t index) {
+	EXCEPTION_CREATE;
+	fiftyoneDegreesCollectionItem item;
+	fiftyoneDegreesDataReset(&item.data);
+	const fiftyoneDegreesValue *stored = fiftyoneDegreesValueGet(
+		dataSet->values,
+		index,
+		&item,
+		exception);
+	EXCEPTION_THROW;
+	const fiftyoneDegreesValue value = *stored;
+	FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->values, &item);
+	return value;
+}
+
 /** A text of the property, read with a buffer of the length given. */
 static string hashMetaDataPropertyText(
 	fiftyoneDegreesDataSetHash *dataSet,
@@ -184,6 +210,24 @@ static string hashMetaDataMapText(
 		dataSet,
 		index,
 		mapIndex,
+		buffer.data(),
+		buffer.size(),
+		exception);
+	return hashMetaDataTake(result, buffer.data(), exception);
+}
+
+/** A text of the value, read with a buffer of the length given. */
+static string hashMetaDataValueText(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t index,
+	fiftyoneDegreesValueText text,
+	size_t length) {
+	EXCEPTION_CREATE;
+	vector<char> buffer(length);
+	char *result = fiftyoneDegreesHashGetValueText(
+		dataSet,
+		index,
+		text,
 		buffer.data(),
 		buffer.size(),
 		exception);
@@ -417,10 +461,110 @@ protected:
 			EXPECT_EQ(name, byName->getName());
 		}
 	}
+
+	/** Checks the values of every property. */
+	void checkValues(const string &path) {
+		const auto manager = openHashMetaData(path, nullptr);
+		Hash::MetaDataHash metaData(manager);
+		HashMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetHash *dataSet = scope.dataSet;
+		unique_ptr<Properties> properties(metaData.getProperties());
+		const uint32_t count = fiftyoneDegreesHashGetPropertyCount(dataSet);
+		for (uint32_t i = 0; i < count; i++) {
+			EXCEPTION_CREATE;
+			uint32_t first = 0, valueCount = 0;
+			ASSERT_TRUE(fiftyoneDegreesHashGetPropertyValueIndexes(
+				dataSet,
+				i,
+				&first,
+				&valueCount,
+				nullptr,
+				exception));
+			unique_ptr<Common::PropertyMetaData> property(
+				properties->getByIndex(i));
+			const string &name = property->getName();
+			unique_ptr<Values> values(
+				metaData.getValuesForProperty(property.get()));
+			EXPECT_EQ(valueCount, values->getSize()) << name;
+			const uint32_t step = valueCount <= hashMetaDataAllValues
+				? 1
+				: valueCount / hashMetaDataSampledValues;
+			for (uint32_t v = 0; v < valueCount; v += step) {
+				const uint32_t valueIndex = first + v;
+				const fiftyoneDegreesValue stored =
+					hashMetaDataStoredValue(dataSet, valueIndex);
+				uint32_t propertyIndex = UINT32_MAX;
+				ASSERT_TRUE(fiftyoneDegreesHashGetValue(
+					dataSet,
+					valueIndex,
+					&propertyIndex,
+					exception)) << name;
+				EXPECT_EQ((uint32_t)stored.propertyIndex, propertyIndex);
+				EXPECT_EQ(i, propertyIndex) << name;
+				const string valueName = hashMetaDataStored(
+					dataSet,
+					(uint32_t)stored.nameOffset);
+				const string description = stored.descriptionOffset <= 0
+					? string()
+					: hashMetaDataStored(
+						dataSet,
+						(uint32_t)stored.descriptionOffset);
+				const string url = stored.urlOffsetOrWeight <= 0
+					? string()
+					: hashMetaDataStored(
+						dataSet,
+						(uint32_t)stored.urlOffsetOrWeight);
+				for (size_t length : {
+					hashMetaDataTextBytes,
+					hashMetaDataShortBytes }) {
+					EXPECT_EQ(valueName, hashMetaDataValueText(
+						dataSet,
+						valueIndex,
+						FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+						length)) << name;
+					EXPECT_EQ(description, hashMetaDataValueText(
+						dataSet,
+						valueIndex,
+						FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION,
+						length)) << name;
+					EXPECT_EQ(url, hashMetaDataValueText(
+						dataSet,
+						valueIndex,
+						FIFTYONE_DEGREES_VALUE_TEXT_URL,
+						length)) << name;
+				}
+				EXPECT_EQ(
+					(long)valueIndex,
+					fiftyoneDegreesHashGetValueIndex(
+						dataSet,
+						i,
+						valueName.c_str(),
+						exception)) << name << " " << valueName;
+				EXPECT_TRUE(EXCEPTION_OKAY) << name;
+
+				// The C++ metadata gives the same answers.
+				unique_ptr<Common::ValueMetaData> value(
+					values->getByIndex(v));
+				ASSERT_TRUE(value != nullptr) << name;
+				EXPECT_EQ(name, value->getKey().getPropertyName());
+				EXPECT_EQ(valueName, value->getName()) << name;
+				EXPECT_EQ(description, value->getDescription()) << name;
+				EXPECT_EQ(url, value->getUrl()) << name;
+				unique_ptr<Common::ValueMetaData> byKey(
+					values->getByKey(value->getKey()));
+				ASSERT_TRUE(byKey != nullptr) << name << " " << valueName;
+				EXPECT_EQ(valueName, byKey->getName()) << name;
+			}
+		}
+	}
 };
 
 TEST_F(HashMetaDataTests, PropertiesOfEachDataFile) {
 	eachDataFile([this](const string &path) { checkProperties(path); });
+}
+
+TEST_F(HashMetaDataTests, ValuesOfEachDataFile) {
+	eachDataFile([this](const string &path) { checkValues(path); });
 }
 
 /**
@@ -491,6 +635,94 @@ TEST_F(HashMetaDataTests, NoPropertyPastTheEnd) {
 				exception));
 			EXPECT_TRUE(EXCEPTION_OKAY);
 		}
+	});
+}
+
+/**
+ * Reading past the last value, or for a name the property does not have,
+ * gives no answer rather than another value.
+ */
+TEST_F(HashMetaDataTests, NoValuePastTheEnd) {
+	eachDataFile([](const string &path) {
+		const auto manager = openHashMetaData(path, nullptr);
+		HashMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetHash *dataSet = scope.dataSet;
+		{
+			EXCEPTION_CREATE;
+			const int isMobile = fiftyoneDegreesHashGetPropertyIndex(
+				dataSet,
+				"IsMobile",
+				exception);
+			ASSERT_GE(isMobile, 0);
+			EXPECT_EQ(-1, fiftyoneDegreesHashGetValueIndex(
+				dataSet,
+				(uint32_t)isMobile,
+				hashMetaDataNoName,
+				exception));
+			EXPECT_TRUE(EXCEPTION_OKAY);
+		}
+		{
+			EXCEPTION_CREATE;
+			const uint32_t values =
+				fiftyoneDegreesCollectionGetCount(dataSet->values);
+			uint32_t propertyIndex = 0;
+			EXPECT_FALSE(fiftyoneDegreesHashGetValue(
+				dataSet,
+				values,
+				&propertyIndex,
+				exception));
+			EXPECT_FALSE(EXCEPTION_OKAY);
+		}
+	});
+}
+
+/**
+ * A property's values have no value of a name the property does not have,
+ * nor a value of another property, which the C++ collection read through a
+ * null pointer for.
+ */
+TEST_F(HashMetaDataTests, ValueNotOfTheProperty) {
+	eachDataFile([](const string &path) {
+		const auto manager = openHashMetaData(path, nullptr);
+		Hash::MetaDataHash metaData(manager);
+		unique_ptr<Properties> properties(metaData.getProperties());
+		unique_ptr<Common::PropertyMetaData> isMobile(
+			properties->getByKey("IsMobile"));
+		ASSERT_TRUE(isMobile != nullptr);
+		unique_ptr<Common::PropertyMetaData> browser(
+			properties->getByKey("BrowserName"));
+		ASSERT_TRUE(browser != nullptr);
+		unique_ptr<Values> isMobileValues(
+			metaData.getValuesForProperty(isMobile.get()));
+		unique_ptr<Values> browserValues(
+			metaData.getValuesForProperty(browser.get()));
+		ASSERT_GT(browserValues->getSize(), 0u);
+		unique_ptr<Common::ValueMetaData> browserValue(
+			browserValues->getByIndex(0));
+		ASSERT_TRUE(browserValue != nullptr);
+
+		unique_ptr<Common::ValueMetaData> none(isMobileValues->getByKey(
+			Common::ValueMetaDataKey("IsMobile", hashMetaDataNoName)));
+		EXPECT_TRUE(none == nullptr);
+		unique_ptr<Common::ValueMetaData> other(isMobileValues->getByKey(
+			browserValue->getKey()));
+		EXPECT_TRUE(other == nullptr);
+		unique_ptr<Common::ValueMetaData> unknown(isMobileValues->getByKey(
+			Common::ValueMetaDataKey(hashMetaDataNoName, "True")));
+		EXPECT_TRUE(unknown == nullptr);
+		unique_ptr<Common::ValueMetaData> own(isMobileValues->getByKey(
+			Common::ValueMetaDataKey("IsMobile", "True")));
+		ASSERT_TRUE(own != nullptr);
+		EXPECT_EQ("True", own->getName());
+		unique_ptr<Common::ValueMetaData> mine(browserValues->getByKey(
+			browserValue->getKey()));
+		ASSERT_TRUE(mine != nullptr);
+		EXPECT_EQ(browserValue->getName(), mine->getName());
+
+		unique_ptr<Values> all(metaData.getValues());
+		unique_ptr<Common::ValueMetaData> nowhere(all->getByKey(
+			Common::ValueMetaDataKey("IsMobile", hashMetaDataNoName)));
+		EXPECT_TRUE(nowhere == nullptr);
 	});
 }
 
