@@ -43,83 +43,65 @@ namespace FiftyoneDegrees {
 		class PropertyMetaDataBuilderIpi : EntityMetaDataBuilder {
 		public:
 			/**
-			 * Build a new instance of PropertyMetaData from the underlying
-			 * property provided. The instance returned does not hold a
-			 * reference to the data set or property, and contains a copy
-			 * of all values.
-			 * @param dataSet pointer to the data set containing the
-			 * component
-			 * @param property pointer to the underlying property to create
-			 * the meta data from
+			 * Build a new instance of PropertyMetaData from the property at
+			 * the index provided. The instance returned does not hold a
+			 * reference to the data set or property, and contains a copy of
+			 * all values.
+			 * @param dataSet pointer to the data set containing the property
+			 * @param propertyIndex index of the property in the data file
+			 * @return the new instance, or nullptr when the data set gives no
+			 * property at the index
 			 */
 			static PropertyMetaData* build(
 				fiftyoneDegreesDataSetIpi *dataSet,
-				const fiftyoneDegreesProperty *property);
+				uint32_t propertyIndex);
 		private:
 			/**
-			 * Get a copy of the default value string from the underlying
-			 * property, as fiftyoneDegreesValueGetDefaultText gives it.
-			 * @param dataSet pointer to the data set containing the
-			 * property
-			 * @param property pointer to the property to get the default
-			 * value of
-			 * @return copy of the value string
+			 * Get a copy of a text of the property, as
+			 * fiftyoneDegreesIpiGetPropertyText gives it.
+			 * @param dataSet pointer to the data set containing the property
+			 * @param propertyIndex index of the property
+			 * @param text which text to get
+			 * @return copy of the text
 			 */
-			static string getDefaultValue(
+			static string getText(
 				fiftyoneDegreesDataSetIpi *dataSet,
-				const fiftyoneDegreesProperty *property);
+				uint32_t propertyIndex,
+				fiftyoneDegreesPropertyText text);
 
 			/**
-			 * Determine whether the a property with the name provided is
-			 * available.
-			 * @param dataSet pointer to the data set to find the property
-			 * in
-			 * @param name of the property to look for
-			 */
-			static bool propertyIsAvailable(
-				fiftyoneDegreesDataSetIpi *dataSet,
-				string *name);
-
-			/**
-			 * Get a copy of the type name for the underlying property
-			 * provided.
-			 * @param property pointer to the property to get the type of
+			 * Get a copy of the type name for a property.
+			 * @param valueType the type of the property's values
+			 * @param isList true when the property can have more than one
+			 * value
 			 * @return copy of the type string
 			 */
-			static string getPropertyType(const fiftyoneDegreesProperty *property);
+			static string getPropertyType(uint8_t valueType, bool isList);
 
 			/**
-			 * Get the list of data set maps which contain the requested
-			 * property.
-			 * @param strings collection of strings containing the map
-			 * names
-			 * @param maps collection of maps containing maps for the
-			 * property
-			 * @param property pointer to the property to get the maps for
-			 * @return a new vector containing copies of the maps name
-			 * strings
+			 * Get the names of the maps the property is in, leaving out a map
+			 * the data set gives no name for.
+			 * @param dataSet pointer to the data set containing the property
+			 * @param propertyIndex index of the property
+			 * @param mapCount the number of maps the property is in
+			 * @return a new vector containing copies of the map names
 			 */
 			static vector<string> getPropertyMap(
-				const fiftyoneDegreesCollection *strings,
-				const fiftyoneDegreesCollection *maps,
-				const fiftyoneDegreesProperty *property);
+				fiftyoneDegreesDataSetIpi *dataSet,
+				uint32_t propertyIndex,
+				uint32_t mapCount);
 
 			/**
-			 * Get the unique id of the component which the property
-			 * relates to.
-			 * @param dataSet pointer to the data set containing the
-			 * properties and components
-			 * @param property pointer to the property to get the component
-			 * id of
-			 * @return unique component id
+			 * Get the indexes of the properties whose values are evidence for
+			 * the property with the name provided, when the data set was
+			 * created with it.
+			 * @param dataSet pointer to the data set containing the property
+			 * @param name of the property
+			 * @return the indexes of the evidence properties
 			 */
-			static ::byte getComponentId(
-				fiftyoneDegreesDataSetIpi *dataSet,
-				const fiftyoneDegreesProperty *property);
-
 			static vector<uint32_t> getEvidenceProperties(
 				fiftyoneDegreesDataSetIpi *dataSet,
-				const fiftyoneDegreesProperty *property);
+				const string &name);
 		};
 	}
 }
