@@ -2636,8 +2636,10 @@ static uint32_t heldStringEnd(
 		offset,
 		&item,
 		exception);
-	if (string != NULL && EXCEPTION_OKAY) {
-		end += (uint32_t)(sizeof(uint16_t) + string->size);
+	if (string != NULL) {
+		if (EXCEPTION_OKAY) {
+			end += (uint32_t)(sizeof(uint16_t) + string->size);
+		}
 		COLLECTION_RELEASE(dataSet->strings, &item);
 	}
 	return end;
@@ -2669,6 +2671,9 @@ static StatusCode heldPlanProperties(
 			&item,
 			exception);
 		if (property == NULL || EXCEPTION_FAILED) {
+			if (property != NULL) {
+				COLLECTION_RELEASE(dataSet->properties, &item);
+			}
 			return COLLECTION_FAILURE;
 		}
 		const uint32_t first = property->firstValueIndex;
@@ -2810,6 +2815,9 @@ static StatusCode heldInit(DataSetHash* dataSet, Exception* exception) {
 	}
 	heldPlanFree(&plan);
 	fclose(file);
+	if (status == SUCCESS && EXCEPTION_FAILED) {
+		status = COLLECTION_FAILURE;
+	}
 	return status;
 }
 
