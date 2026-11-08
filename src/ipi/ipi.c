@@ -3987,9 +3987,10 @@ size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
 
 /**
  * Bytes kept after the text of a value for a colon, its weight and the null
- * that ends it. The longest weight is 11 characters, such as 2.32835e-10.
+ * that ends it. The longest weight is 11 characters, such as 2.32838e-10 for
+ * a raw weighting of 1.
  */
-#define VALUE_TEXT_WEIGHT_BYTES 16
+#define VALUE_TEXT_WEIGHT_BYTES 13
 
 /**
  * Writes the weight, being the raw weighting over
