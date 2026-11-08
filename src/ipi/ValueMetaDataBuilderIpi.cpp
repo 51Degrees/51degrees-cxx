@@ -33,9 +33,19 @@ ValueMetaData* ValueMetaDataBuilderIpi::build(
 	uint32_t valueIndex) {
 	EXCEPTION_CREATE;
 	uint32_t propertyIndex = 0;
-	if (IpiGetValue(dataSet, valueIndex, &propertyIndex, exception) == false) {
+	ValueTexts texts;
+	if (IpiGetValue(
+		dataSet,
+		valueIndex,
+		&propertyIndex,
+		&texts,
+		addValueText,
+		exception) == false) {
 		EXCEPTION_THROW;
 		return nullptr;
+	}
+	if (texts.failed) {
+		throw StatusCodeException(INSUFFICIENT_MEMORY);
 	}
 	char buffer[REASONABLE_WKT_STRING_LENGTH];
 	char * const propertyName = IpiGetPropertyText(
@@ -51,25 +61,7 @@ ValueMetaData* ValueMetaDataBuilderIpi::build(
 	}
 	const string name = takeText(propertyName, buffer, exception);
 	return new ValueMetaData(
-		ValueMetaDataKey(
-			name,
-			getText(dataSet, valueIndex, FIFTYONE_DEGREES_VALUE_TEXT_NAME)),
-		getText(dataSet, valueIndex, FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION),
-		getText(dataSet, valueIndex, FIFTYONE_DEGREES_VALUE_TEXT_URL));
-}
-
-string ValueMetaDataBuilderIpi::getText(
-	fiftyoneDegreesDataSetIpi *dataSet,
-	uint32_t valueIndex,
-	fiftyoneDegreesValueText text) {
-	EXCEPTION_CREATE;
-	char buffer[REASONABLE_WKT_STRING_LENGTH];
-	char * const result = IpiGetValueText(
-		dataSet,
-		valueIndex,
-		text,
-		buffer,
-		sizeof(buffer),
-		exception);
-	return takeText(result, buffer, exception);
+		ValueMetaDataKey(name, texts.name),
+		texts.description,
+		texts.url);
 }

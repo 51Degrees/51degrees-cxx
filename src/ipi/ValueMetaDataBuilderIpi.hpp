@@ -55,19 +55,6 @@ namespace FiftyoneDegrees {
 			static ValueMetaData* build(
 				fiftyoneDegreesDataSetIpi *dataSet,
 				uint32_t valueIndex);
-		private:
-			/**
-			 * Get a copy of a text of the value, as
-			 * fiftyoneDegreesIpiGetValueText gives it.
-			 * @param dataSet pointer to the data set containing the value
-			 * @param valueIndex index of the value
-			 * @param text which text to get
-			 * @return copy of the text
-			 */
-			static string getText(
-				fiftyoneDegreesDataSetIpi *dataSet,
-				uint32_t valueIndex,
-				fiftyoneDegreesValueText text);
 		};
 	}
 }

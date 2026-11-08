@@ -271,6 +271,22 @@ static string ipiMetaDataMapText(
 	return ipiMetaDataTake(result, buffer.data(), exception);
 }
 
+/** The texts a value gives its method, in the order they were given. */
+struct IpiMetaDataValueTexts {
+	vector<fiftyoneDegreesValueText> order;
+	vector<string> texts;
+};
+
+/** Records a text of a value in the IpiMetaDataValueTexts given. */
+static void ipiMetaDataAddText(
+	void *state,
+	fiftyoneDegreesValueText text,
+	const char *value) {
+	IpiMetaDataValueTexts * const texts = (IpiMetaDataValueTexts*)state;
+	texts->order.push_back(text);
+	texts->texts.push_back(value);
+}
+
 /** A text of the value, read with the buffer given. */
 static string ipiMetaDataValueText(
 	fiftyoneDegreesDataSetIpi *dataSet,
@@ -572,12 +588,24 @@ protected:
 				const fiftyoneDegreesValue value =
 					ipiMetaDataStoredValue(dataSet, valueIndex);
 				uint32_t propertyIndex = UINT32_MAX;
+				IpiMetaDataValueTexts texts;
 				ASSERT_TRUE(fiftyoneDegreesIpiGetValue(
 					dataSet,
 					valueIndex,
 					&propertyIndex,
+					&texts,
+					ipiMetaDataAddText,
 					exception)) << name;
 				EXPECT_EQ(i, propertyIndex) << name;
+				uint32_t indexOnly = UINT32_MAX;
+				ASSERT_TRUE(fiftyoneDegreesIpiGetValue(
+					dataSet,
+					valueIndex,
+					&indexOnly,
+					nullptr,
+					nullptr,
+					exception)) << name;
+				EXPECT_EQ(i, indexOnly) << name;
 				const string valueName =
 					ipiMetaDataWrittenName(dataSet, value, written);
 				// A weighted value's URL offset holds its weight.
@@ -587,6 +615,15 @@ protected:
 					: ipiMetaDataStored(
 						dataSet,
 						(uint32_t)value.urlOffsetOrWeight);
+				// The three texts from one read are the texts read one by one.
+				const vector<fiftyoneDegreesValueText> order = {
+					FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+					FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION,
+					FIFTYONE_DEGREES_VALUE_TEXT_URL };
+				EXPECT_EQ(order, texts.order) << name;
+				EXPECT_EQ(
+					vector<string>({ valueName, string(), url }),
+					texts.texts) << name;
 				for (size_t length : {
 					buffer.size(),
 					ipiMetaDataShortBytes }) {
@@ -836,12 +873,16 @@ TEST_F(IpiMetaDataTests, NoValuePastTheEnd) {
 			const uint32_t values =
 				fiftyoneDegreesCollectionGetCount(dataSet->values);
 			uint32_t propertyIndex = 0;
+			IpiMetaDataValueTexts texts;
 			EXPECT_FALSE(fiftyoneDegreesIpiGetValue(
 				dataSet,
 				values,
 				&propertyIndex,
+				&texts,
+				ipiMetaDataAddText,
 				exception));
 			EXPECT_FALSE(EXCEPTION_OKAY);
+			EXPECT_TRUE(texts.texts.empty());
 		}
 		{
 			EXCEPTION_CREATE;

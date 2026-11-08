@@ -5687,20 +5687,51 @@ bool fiftyoneDegreesHashGetValue(
 	fiftyoneDegreesDataSetHash *dataSet,
 	uint32_t valueIndex,
 	uint32_t *propertyIndex,
+	void *state,
+	fiftyoneDegreesValueTextMethod method,
 	fiftyoneDegreesException *exception) {
 	Item item;
-	const Value * const value = hashMetaDataValue(
+	const Value * const held = hashMetaDataValue(
 		dataSet,
 		valueIndex,
 		&item,
 		exception);
-	if (value == NULL) {
+	if (held == NULL) {
 		return false;
 	}
-	if (propertyIndex != NULL) {
-		*propertyIndex = (uint32_t)value->propertyIndex;
-	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
 	COLLECTION_RELEASE(dataSet->values, &item);
+	if (propertyIndex != NULL) {
+		*propertyIndex = (uint32_t)value.propertyIndex;
+	}
+	if (method == NULL) {
+		return true;
+	}
+	for (int text = FIFTYONE_DEGREES_VALUE_TEXT_NAME;
+		text <= FIFTYONE_DEGREES_VALUE_TEXT_URL;
+		text++) {
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		// Every Hash value is stored as a string, so there are no property
+		// types and no decimal places.
+		char * const written = ValueGetMetaDataText(
+			dataSet->strings,
+			NULL,
+			&value,
+			(ValueText)text,
+			0,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (written == NULL) {
+			return false;
+		}
+		method(state, (ValueText)text, written);
+		if (written != buffer) {
+			Free(written);
+		}
+	}
 	return true;
 }
 

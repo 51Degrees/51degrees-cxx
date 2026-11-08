@@ -1215,19 +1215,28 @@ EXTERNAL char* fiftyoneDegreesIpiGetPropertyMapText(
 	fiftyoneDegreesException *exception);
 
 /**
- * Gets the index of the property the value belongs to.
+ * Gets the index of the property the value belongs to and each of the
+ * value's texts, from one read of the value. The method is called with the
+ * name, the description and then the URL, each as
+ * #fiftyoneDegreesIpiGetValueText gives it.
  * @param dataSet the data set to read
  * @param valueIndex index of the value in the values collection
- * @param propertyIndex set to the index of the value's property
+ * @param propertyIndex set to the index of the value's property, or NULL
+ * @param state pointer passed to the method
+ * @param method called with each text of the value, or NULL when only the
+ * property index is wanted
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h
- * @return true when the value was read, otherwise false. False with no
- * exception set means the values collection gave nothing at the index.
+ * @return true when the value was read and each text given, otherwise
+ * false. False with no exception set means the values collection gave
+ * nothing at the index.
  */
 EXTERNAL bool fiftyoneDegreesIpiGetValue(
 	fiftyoneDegreesDataSetIpi *dataSet,
 	uint32_t valueIndex,
 	uint32_t *propertyIndex,
+	void *state,
+	fiftyoneDegreesValueTextMethod method,
 	fiftyoneDegreesException *exception);
 
 /**
