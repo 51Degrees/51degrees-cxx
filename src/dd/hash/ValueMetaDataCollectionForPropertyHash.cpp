@@ -59,7 +59,10 @@ ValueMetaData* ValueMetaDataCollectionForPropertyHash::getByIndex(
 	uint32_t index) const {
 	return propertyIndex < 0
 		? nullptr
-		: ValueMetaDataBuilderHash::build(dataSet, firstValueIndex + index);
+		: ValueMetaDataBuilderHash::build(
+			dataSet,
+			firstValueIndex + index,
+			propertyName);
 }
 
 ValueMetaData* ValueMetaDataCollectionForPropertyHash::getByKey(
@@ -77,7 +80,10 @@ ValueMetaData* ValueMetaDataCollectionForPropertyHash::getByKey(
 	EXCEPTION_THROW;
 	return valueIndex < 0
 		? nullptr
-		: ValueMetaDataBuilderHash::build(dataSet, (uint32_t)valueIndex);
+		: ValueMetaDataBuilderHash::build(
+			dataSet,
+			(uint32_t)valueIndex,
+			propertyName);
 }
 
 uint32_t ValueMetaDataCollectionForPropertyHash::getSize() const {

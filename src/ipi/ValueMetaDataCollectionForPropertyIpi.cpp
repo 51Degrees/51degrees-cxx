@@ -60,7 +60,10 @@ ValueMetaData* ValueMetaDataCollectionForPropertyIpi::getByIndex(
 	uint32_t index) const {
 	return propertyIndex < 0
 		? nullptr
-		: ValueMetaDataBuilderIpi::build(dataSet, firstValueIndex + index);
+		: ValueMetaDataBuilderIpi::build(
+			dataSet,
+			firstValueIndex + index,
+			propertyName);
 }
 
 ValueMetaData* ValueMetaDataCollectionForPropertyIpi::getByKey(
@@ -78,7 +81,10 @@ ValueMetaData* ValueMetaDataCollectionForPropertyIpi::getByKey(
 	EXCEPTION_THROW;
 	return valueIndex < 0
 		? nullptr
-		: ValueMetaDataBuilderIpi::build(dataSet, (uint32_t)valueIndex);
+		: ValueMetaDataBuilderIpi::build(
+			dataSet,
+			(uint32_t)valueIndex,
+			propertyName);
 }
 
 uint32_t ValueMetaDataCollectionForPropertyIpi::getSize() const {
