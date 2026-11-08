@@ -354,9 +354,19 @@ TEST_F(HashPresetTests, HighPerformanceNamingSomeHoldsOnlyWhatTheyRead) {
 			EXPECT_LT(
 				bytesInMemory(held->values),
 				bytesInMemory(dataSet->values)) << path;
-			EXPECT_LT(
-				bytesInMemory(held->strings),
-				bytesInMemory(dataSet->strings)) << path;
+			// A stretch of strings is only left on file when it is at least
+			// 64 KiB, so a file with fewer strings than that holds them all.
+			if (bytesInMemory(dataSet->strings) >
+				4 * FIFTYONE_DEGREES_COLLECTION_HELD_STRINGS_GAP_BYTES) {
+				EXPECT_LT(
+					bytesInMemory(held->strings),
+					bytesInMemory(dataSet->strings)) << path;
+			}
+			else {
+				EXPECT_LE(
+					bytesInMemory(held->strings),
+					bytesInMemory(dataSet->strings)) << path;
+			}
 			// The profiles and nodes every lookup walks follow their own
 			// settings, which load them into memory in this preset.
 			EXPECT_STREQ(memoryType, held->profiles->typeName) << path;
