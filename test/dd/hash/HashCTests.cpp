@@ -1571,3 +1571,41 @@ TEST_F(HashSpecialEvidencePrecedenceTests, CookieSuaUsedAlone) {
 		"51D_StructuredUserAgent",
 		windows11Sua } }));
 }
+
+// A query value that cannot be decoded gives no header, so the cookie value
+// is still used, whichever order the two were added in.
+TEST_F(HashSpecialEvidencePrecedenceTests, InvalidQueryGhevLeavesTheCookie) {
+	const Item query = {
+		FIFTYONE_DEGREES_EVIDENCE_QUERY,
+		"51D_GetHighEntropyValues",
+		"!!not a base64 value!!" };
+	const Item cookie = {
+		FIFTYONE_DEGREES_EVIDENCE_COOKIE,
+		"51D_GetHighEntropyValues",
+		windows11Ghev };
+	ASSERT_NE(windows11Version, platformVersion({ query })) <<
+		"The invalid query value alone must not give the Windows 11 "
+		"version.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ query, cookie })) <<
+		"Invalid query added before the cookie, the cookie should be used.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ cookie, query })) <<
+		"Cookie added before the invalid query, the cookie should be used.\n";
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, InvalidQuerySuaLeavesTheCookie) {
+	const Item query = {
+		FIFTYONE_DEGREES_EVIDENCE_QUERY,
+		"51D_StructuredUserAgent",
+		"{not valid json" };
+	const Item cookie = {
+		FIFTYONE_DEGREES_EVIDENCE_COOKIE,
+		"51D_StructuredUserAgent",
+		windows11Sua };
+	ASSERT_NE(windows11Version, platformVersion({ query })) <<
+		"The invalid query value alone must not give the Windows 11 "
+		"version.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ query, cookie })) <<
+		"Invalid query added before the cookie, the cookie should be used.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ cookie, query })) <<
+		"Cookie added before the invalid query, the cookie should be used.\n";
+}
