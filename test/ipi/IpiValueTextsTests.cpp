@@ -58,10 +58,7 @@ static const size_t valueTextsLargeBytes = 1024 * 1024;
 static const size_t valueTextsBufferSizes[] = {
 	0, 1, 17, valueTextsStackBytes, valueTextsLargeBytes };
 
-/**
- * An IP address read as a string when key is null, and otherwise one or two
- * items of evidence.
- */
+/** One or two items of evidence. */
 struct ValueTextsCase {
 	const char* key;
 	const char* value;
@@ -70,31 +67,30 @@ struct ValueTextsCase {
 };
 
 /**
- * The IP addresses of the cases in 51Degrees/51degrees-rust
- * parity/corpus/evidence.json, and its two cases that name the query key,
- * with the server key named as the C library reads it.
+ * The IP address evidence of the cases in 51Degrees/51degrees-rust
+ * parity/corpus/evidence.json.
  */
 static const ValueTextsCase valueTextsParityCases[] = {
-	{ nullptr, "185.28.167.77", nullptr, nullptr },
-	{ nullptr, "81.2.69.142", nullptr, nullptr },
-	{ nullptr, "102.89.32.1", nullptr, nullptr },
-	{ nullptr, "1.1.1.1", nullptr, nullptr },
-	{ nullptr, "8.8.8.8", nullptr, nullptr },
-	{ nullptr, "2a00:23c5:a1a6:a01::1", nullptr, nullptr },
-	{ nullptr, "2001:4860:4860::8888", nullptr, nullptr },
-	{ nullptr, "::ffff:1.1.1.1", nullptr, nullptr },
-	{ nullptr, "[2a00:23c5:a1a6:a01::1]", nullptr, nullptr },
-	{ nullptr, "127.0.0.1", nullptr, nullptr },
-	{ nullptr, "::1", nullptr, nullptr },
-	{ nullptr, "10.0.0.1", nullptr, nullptr },
-	{ nullptr, "192.168.1.1", nullptr, nullptr },
-	{ nullptr, "0.0.0.0", nullptr, nullptr },
-	{ nullptr, "255.255.255.255", nullptr, nullptr },
-	{ nullptr, "not-an-ip", nullptr, nullptr },
-	{ nullptr, "", nullptr, nullptr },
+	{ "server.client-ip", "185.28.167.77", nullptr, nullptr },
+	{ "server.client-ip", "81.2.69.142", nullptr, nullptr },
+	{ "server.client-ip", "102.89.32.1", nullptr, nullptr },
+	{ "server.client-ip", "1.1.1.1", nullptr, nullptr },
+	{ "server.client-ip", "8.8.8.8", nullptr, nullptr },
+	{ "server.client-ip", "2a00:23c5:a1a6:a01::1", nullptr, nullptr },
+	{ "server.client-ip", "2001:4860:4860::8888", nullptr, nullptr },
+	{ "server.client-ip", "::ffff:1.1.1.1", nullptr, nullptr },
+	{ "server.client-ip", "[2a00:23c5:a1a6:a01::1]", nullptr, nullptr },
+	{ "server.client-ip", "127.0.0.1", nullptr, nullptr },
+	{ "server.client-ip", "::1", nullptr, nullptr },
+	{ "server.client-ip", "10.0.0.1", nullptr, nullptr },
+	{ "server.client-ip", "192.168.1.1", nullptr, nullptr },
+	{ "server.client-ip", "0.0.0.0", nullptr, nullptr },
+	{ "server.client-ip", "255.255.255.255", nullptr, nullptr },
+	{ "server.client-ip", "not-an-ip", nullptr, nullptr },
+	{ "server.client-ip", "", nullptr, nullptr },
 	{ "query.client-ip-51d", "81.2.69.142", nullptr, nullptr },
 	{
-		"server.client-ip-51d", "1.1.1.1",
+		"server.client-ip", "1.1.1.1",
 		"query.client-ip-51d", "81.2.69.142"
 	},
 };
@@ -298,42 +294,23 @@ protected:
 		}
 	}
 
-	/** C results for the case, which the caller frees. */
+	/** C results for the evidence, which the caller frees. */
 	fiftyoneDegreesResultsIpi* lookUp(const ValueTextsCase& item) {
+		Ipi::EvidenceIpi evidence;
+		addEvidence(evidence, item);
 		FIFTYONE_DEGREES_EXCEPTION_CREATE;
 		fiftyoneDegreesResultsIpi* results =
 			fiftyoneDegreesResultsIpiCreate(&manager);
-		if (item.key == nullptr) {
-			fiftyoneDegreesResultsIpiFromIpAddressString(
-				results,
-				item.value,
-				strlen(item.value),
-				exception);
-		}
-		else {
-			Ipi::EvidenceIpi evidence;
-			addEvidence(evidence, item);
-			fiftyoneDegreesResultsIpiFromEvidence(
-				results,
-				evidence.get(),
-				exception);
-		}
+		fiftyoneDegreesResultsIpiFromEvidence(
+			results,
+			evidence.get(),
+			exception);
 		// The C++ engine reads an address it cannot parse as no address.
 		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY ||
 			FIFTYONE_DEGREES_EXCEPTION_CHECK(
 				FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT)) <<
 			item.value;
 		return results;
-	}
-
-	/** C++ results for the case. */
-	Ipi::ResultsIpi* lookUpCpp(const ValueTextsCase& item) {
-		if (item.key == nullptr) {
-			return engine->process(item.value);
-		}
-		Ipi::EvidenceIpi evidence;
-		addEvidence(evidence, item);
-		return engine->process(&evidence);
 	}
 
 	static int requiredCount(fiftyoneDegreesResultsIpi* results) {
@@ -358,7 +335,9 @@ protected:
 		const ValueTextsCase& item,
 		ValueTextsCounts& counts) {
 		fiftyoneDegreesResultsIpi* results = lookUp(item);
-		std::unique_ptr<Ipi::ResultsIpi> cppResults(lookUpCpp(item));
+		Ipi::EvidenceIpi evidence;
+		addEvidence(evidence, item);
+		std::unique_ptr<Ipi::ResultsIpi> cppResults(engine->process(&evidence));
 		counts.lookups++;
 		const int count = requiredCount(results);
 		for (int i = 0; i < count; i++) {
@@ -374,7 +353,10 @@ protected:
 				inBuffer)) << item.value << " " << nameOf(results, i);
 			EXPECT_EQ(expected, actual) << item.value << " " <<
 				nameOf(results, i);
-			Common::Value<vector<string>> values = cppResults->getValues(i);
+			// Read by name, as a read by index gives no value when the
+			// engine named no properties.
+			Common::Value<vector<string>> values =
+				cppResults->getValues(nameOf(results, i));
 			if (values.hasValue()) {
 				EXPECT_EQ(expected, values.getValue()) << item.value << " " <<
 					nameOf(results, i);
@@ -397,11 +379,12 @@ TEST_F(IpiValueTextsTests, EveryValueHasTheStreamForm) {
 			".1";
 		const string text = address.str();
 		const ValueTextsCase item = {
-			nullptr, text.c_str(), nullptr, nullptr };
+			"server.client-ip", text.c_str(), nullptr, nullptr };
 		expectStreamForm(item, counts);
 	}
 	for (const char* address : valueTextsIpv6Addresses) {
-		const ValueTextsCase item = { nullptr, address, nullptr, nullptr };
+		const ValueTextsCase item = {
+			"server.client-ip", address, nullptr, nullptr };
 		expectStreamForm(item, counts);
 	}
 	EXPECT_GT(counts.values, 0u) << "Some property should have a value.";
