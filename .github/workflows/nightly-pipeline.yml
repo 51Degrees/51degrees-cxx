@@ -18,8 +18,11 @@ on:
 
 jobs:
   # The publish builds main, which the pull requests into rc do not change, so
-  # it runs first and has the runners before the pull request builds do.
+  # it runs before the pull request builds and has the runners first. It waits
+  # for the submodule update, which can change main.
   Publish:
+    if: ${{ !cancelled() }}
+    needs: SubmoduleUpdate
     name: Nightly Publish
     uses: 51Degrees/common-ci/.github/workflows/nightly-publish.yml@main
     with:
