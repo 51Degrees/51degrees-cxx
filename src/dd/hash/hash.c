@@ -4649,8 +4649,8 @@ typedef struct evidence_key_t {
 } evidenceKey;
 
 /**
- * The keys a data set accepts that do not come from the data file. They
- * follow the keys that do.
+ * The keys a data set accepts that do not come from the data file, when it
+ * processes special evidence. They follow the keys that do.
  */
 static const evidenceKey fixedEvidenceKeys[] = {
 	{ "query.", "", FIFTYONE_DEGREES_EVIDENCE_DEVICE_ID },
@@ -4666,7 +4666,9 @@ static const evidenceKey fixedEvidenceKeys[] = {
  * Gets the evidence key at the index, counting a key under header. and then
  * query. for each unique header, then a key under cookie. and then query.
  * for each overridable property, then the fixed keys. A pseudo header gives
- * no key, as a request never carries one, so its name is set to NULL.
+ * no key, as a request never carries one, so its name is set to NULL. The
+ * override and fixed keys are only read when the data set processes special
+ * evidence, so they are only counted then.
  * @return false if the index is past the last key
  */
 static bool getEvidenceKey(
@@ -4677,8 +4679,12 @@ static bool getEvidenceKey(
 	static const char * const overridePrefixes[] = { "cookie.", "query." };
 	Headers * const headers = dataSet->b.b.uniqueHeaders;
 	OverridePropertyArray * const overrides = dataSet->b.b.overridable;
+	const bool special = dataSet->config.b.processSpecialEvidence;
 	const uint32_t headerKeys = headers == NULL ? 0 : headers->count * 2;
-	const uint32_t overrideKeys = overrides == NULL ? 0 : overrides->count * 2;
+	const uint32_t overrideKeys = special == false || overrides == NULL ?
+		0 : overrides->count * 2;
+	const uint32_t fixedKeys = special == false ? 0 :
+		(uint32_t)(sizeof(fixedEvidenceKeys) / sizeof(fixedEvidenceKeys[0]));
 	const char *name;
 	if (index < headerKeys) {
 		name = headers->items[index / 2].name;
@@ -4700,7 +4706,7 @@ static bool getEvidenceKey(
 		return true;
 	}
 	index -= overrideKeys;
-	if (index < sizeof(fixedEvidenceKeys) / sizeof(fixedEvidenceKeys[0])) {
+	if (index < fixedKeys) {
 		*key = fixedEvidenceKeys[index];
 		return true;
 	}

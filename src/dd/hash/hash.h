@@ -1033,6 +1033,10 @@ EXTERNAL void fiftyoneDegreesDataSetHashRelease(
  *    `cookie.51D_structureduseragent`, `query.51D_ProfileIds` and
  *    `cookie.51D_ProfileIds`.
  *
+ * The keys in 2 and 3 are listed only when the configuration's
+ * processSpecialEvidence is true, as the data set reads none of them
+ * otherwise.
+ *
  * A key that is listed more than once is written where it is first listed.
  * Call with a NULL buffer to find the length needed, then with a buffer one
  * longer than that.
