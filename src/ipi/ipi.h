@@ -990,10 +990,10 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
  * strings one after another. The text is written into `buffer` when it fits
  * in `bufferLength` bytes, and otherwise into memory allocated with
  * fiftyoneDegreesMalloc, which the caller frees with fiftyoneDegreesFree when
- * the pointer returned is not `buffer`. A string or an area that would not
- * fit is written straight into memory sized for it, as
- * fiftyoneDegreesStoredBinaryValueToText writes it, so neither is written
- * twice. `buffer` can be NULL with `bufferLength` 0.
+ * the pointer returned is not `buffer`. Each value is written by
+ * fiftyoneDegreesStoredBinaryValueToText, which writes a string or an area
+ * that would not fit straight into memory sized for it, and says which
+ * values it writes twice. `buffer` can be NULL with `bufferLength` 0.
  * @param results pointer to the results to read the values from
  * @param requiredPropertyIndex index of the property in the names given
  * when the data set was created, which a reload does not change. With no
