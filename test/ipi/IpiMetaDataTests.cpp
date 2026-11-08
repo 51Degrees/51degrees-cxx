@@ -31,6 +31,9 @@
  * small, so both the written and the allocated text are checked.
  */
 
+#include <algorithm>
+#include <cstring>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -157,6 +160,29 @@ static string ipiMetaDataStored(
 }
 
 /**
+ * A name as stored, written as the type given, with a number to
+ * FIFTYONE_DEGREES_WKT_DECIMAL_PLACES places, or empty when it cannot be
+ * written.
+ */
+static string ipiMetaDataWrittenStored(
+	const fiftyoneDegreesStoredBinaryValue *name,
+	fiftyoneDegreesPropertyValueType type,
+	vector<char> &buffer) {
+	EXCEPTION_CREATE;
+	fiftyoneDegreesStringBuilder builder = { buffer.data(), buffer.size() };
+	fiftyoneDegreesStringBuilderInit(&builder);
+	fiftyoneDegreesStringBuilderAddStringValue(
+		&builder,
+		name,
+		type,
+		FIFTYONE_DEGREES_WKT_DECIMAL_PLACES,
+		exception);
+	fiftyoneDegreesStringBuilderComplete(&builder);
+	EXPECT_FALSE(builder.full);
+	return EXCEPTION_OKAY ? string(buffer.data()) : string();
+}
+
+/**
  * The value's name written as the type its property is stored as, with a
  * number to FIFTYONE_DEGREES_WKT_DECIMAL_PLACES places, or empty when the
  * name cannot be written.
@@ -185,18 +211,9 @@ static string ipiMetaDataWrittenName(
 	if (name == nullptr) {
 		return string();
 	}
-	fiftyoneDegreesStringBuilder builder = { buffer.data(), buffer.size() };
-	fiftyoneDegreesStringBuilderInit(&builder);
-	fiftyoneDegreesStringBuilderAddStringValue(
-		&builder,
-		name,
-		type,
-		FIFTYONE_DEGREES_WKT_DECIMAL_PLACES,
-		exception);
-	fiftyoneDegreesStringBuilderComplete(&builder);
+	const string written = ipiMetaDataWrittenStored(name, type, buffer);
 	FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->strings, &item);
-	EXPECT_FALSE(builder.full);
-	return EXCEPTION_OKAY ? string(buffer.data()) : string();
+	return written;
 }
 
 /** A copy of the property at the index, as stored. */
@@ -1049,5 +1066,197 @@ TEST_F(IpiMetaDataTests, AvailableProperties) {
 		}
 		EXPECT_EQ(dataSet->b.b.available->count, available);
 		EXPECT_LT(available, count);
+	});
+}
+
+/** Addresses whose results find the profiles the next test checks. */
+static const char *ipiMetaDataAddresses[] = {
+	"8.8.8.8",
+	"1.1.1.1",
+	"81.2.69.142",
+	"185.28.167.77",
+	"51.140.0.1",
+	"194.168.4.100",
+	"212.58.244.20",
+	"17.253.144.10",
+	"13.107.42.14",
+	"103.21.244.1",
+	"41.0.0.1",
+	"200.160.2.3",
+	"45.33.32.156",
+	"2001:4860:4860::8888",
+	"2a00:1450:4009:81f::200e",
+	"2606:4700:4700::1111"
+};
+
+/** The names of a profile's values, by the name of their property. */
+using IpiMetaDataNames = std::map<string, vector<string>>;
+
+/** The most characters of a name a failure message shows. */
+static const size_t ipiMetaDataShownLength = 40;
+
+/**
+ * The count of the names and the start of the first few, as a failure
+ * message shows them, since an area's name can be millions of characters.
+ */
+static string ipiMetaDataShown(const vector<string> &names) {
+	string shown = std::to_string(names.size()) + " values";
+	for (size_t i = 0; i < names.size() && i < 3; i++) {
+		shown += i == 0 ? ", " : "; ";
+		shown += "'" + names[i].substr(0, ipiMetaDataShownLength) + "'";
+	}
+	return shown;
+}
+
+/**
+ * Adds the values the results give for each available property to the
+ * names of the profile the results found for the property's component,
+ * when the results found one profile rather than a group of them. Adds the
+ * name of the default value of each mandatory property to the defaults.
+ */
+static void ipiMetaDataResultsProfiles(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDataSetIpi *dataSet,
+	const char *address,
+	vector<char> &written,
+	std::map<uint32_t, IpiMetaDataNames> &profiles,
+	std::map<string, string> &defaults) {
+	EXCEPTION_CREATE;
+	fiftyoneDegreesResultsIpi *results =
+		fiftyoneDegreesResultsIpiCreate(manager);
+	fiftyoneDegreesResultsIpiFromIpAddressString(
+		results,
+		address,
+		strlen(address),
+		exception);
+	EXPECT_TRUE(EXCEPTION_OKAY) << address;
+	const fiftyoneDegreesPropertiesAvailable * const available =
+		dataSet->b.b.available;
+	for (uint32_t r = 0; r < available->count && EXCEPTION_OKAY; r++) {
+		const uint32_t propertyIndex = available->items[r].propertyIndex;
+		const fiftyoneDegreesProperty property =
+			ipiMetaDataStoredProperty(dataSet, propertyIndex);
+		const string name = ipiMetaDataPropertyText(
+			dataSet,
+			propertyIndex,
+			FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+			ipiMetaDataTextBytes);
+		if (property.isMandatory &&
+			property.defaultValueIndex != UINT32_MAX) {
+			defaults[name] = ipiMetaDataWrittenName(
+				dataSet,
+				ipiMetaDataStoredValue(dataSet, property.defaultValueIndex),
+				written);
+		}
+		fiftyoneDegreesResultsIpiGetValues(results, (int)r, exception);
+		EXPECT_TRUE(EXCEPTION_OKAY) << address << " " << name;
+		const fiftyoneDegreesPropertyValueType type =
+			fiftyoneDegreesPropertyGetStoredTypeByIndex(
+				dataSet->propertyTypes,
+				propertyIndex,
+				exception);
+		EXPECT_TRUE(EXCEPTION_OKAY) << name;
+		// The results hold each value's name as stored, not the value.
+		vector<string> names;
+		for (uint32_t v = 0; v < results->values.count; v++) {
+			names.push_back(ipiMetaDataWrittenStored(
+				(const fiftyoneDegreesStoredBinaryValue*)
+					results->values.items[v].item.data.ptr,
+				type,
+				written));
+		}
+		for (uint32_t i = 0; i < results->count; i++) {
+			const fiftyoneDegreesResultIpi &result = results->items[i];
+			if (result.componentIndex != (int32_t)property.componentIndex ||
+				result.graphResult.rawOffset == UINT32_MAX ||
+				result.graphResult.isGroupOffset) {
+				continue;
+			}
+			const uint32_t offset =
+				(uint32_t)fiftyoneDegreesCollectionGetInteger32(
+					dataSet->profileOffsets,
+					result.graphResult.offset,
+					exception);
+			EXPECT_TRUE(EXCEPTION_OKAY) << address << " " << name;
+			profiles[offset][name] = names;
+		}
+	}
+	fiftyoneDegreesResultsIpiFree(results);
+}
+
+/**
+ * The values the C++ metadata gives for a profile are the values the
+ * results give for the same profile, for the profiles of each component
+ * that the addresses find. A property the profile has no value for is given
+ * its default value by the results when it is mandatory.
+ */
+TEST_F(IpiMetaDataTests, ValuesForProfileMatchResults) {
+	eachDataFile([](const string &path) {
+		const auto manager = openIpiMetaData(path, nullptr);
+		Ipi::MetaDataIpi metaData(manager);
+		IpiMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetIpi *dataSet = scope.dataSet;
+		vector<char> written(ipiMetaDataWrittenBytes);
+		std::map<uint32_t, IpiMetaDataNames> fromResults;
+		std::map<string, string> defaults;
+		for (const char *address : ipiMetaDataAddresses) {
+			ipiMetaDataResultsProfiles(
+				manager.get(),
+				dataSet,
+				address,
+				written,
+				fromResults,
+				defaults);
+		}
+		ASSERT_GT(fromResults.size(), 1u) << "Too few profiles were found.";
+		unique_ptr<Profiles> profiles(metaData.getProfiles());
+		for (auto &profileNames : fromResults) {
+			const uint32_t offset = profileNames.first;
+			unique_ptr<Common::ProfileMetaData> profile(
+				profiles->getByKey(offset));
+			ASSERT_TRUE(profile != nullptr) << offset;
+			IpiMetaDataNames fromMetaData;
+			try {
+				unique_ptr<Values> values(
+					metaData.getValuesForProfile(profile.get()));
+				for (uint32_t v = 0; v < values->getSize(); v++) {
+					unique_ptr<Common::ValueMetaData> value(
+						values->getByIndex(v));
+					ASSERT_TRUE(value != nullptr) << offset;
+					fromMetaData[value->getKey().getPropertyName()]
+						.push_back(value->getName());
+				}
+			}
+			catch (std::exception &e) {
+				ADD_FAILURE() << "The values of the profile at offset " <<
+					offset << " could not be read. " << e.what();
+				continue;
+			}
+			for (auto &property : profileNames.second) {
+				vector<string> expected = property.second;
+				const auto found = fromMetaData.find(property.first);
+				vector<string> actual = found == fromMetaData.end()
+					? vector<string>()
+					: found->second;
+				std::sort(expected.begin(), expected.end());
+				std::sort(actual.begin(), actual.end());
+				const auto mandatory = defaults.find(property.first);
+				if (actual.empty() &&
+					mandatory != defaults.end() &&
+					expected == vector<string>({ mandatory->second })) {
+					continue;
+				}
+				EXPECT_TRUE(expected == actual) << "The profile at offset " <<
+					offset << ", property " << property.first <<
+					". The results give " << ipiMetaDataShown(expected) <<
+					", and the metadata gives " << ipiMetaDataShown(actual);
+			}
+			for (auto &property : fromMetaData) {
+				EXPECT_TRUE(profileNames.second.count(property.first) == 1) <<
+					"The profile at offset " << offset << " has a value of " <<
+					property.first << ", which the results do not give.";
+			}
+		}
+		printf("Checked %d profiles.\n", (int)fromResults.size());
 	});
 }
