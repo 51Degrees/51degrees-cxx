@@ -217,6 +217,22 @@ typedef struct fiftyone_degrees_config_hash_t {
                      during processing. The trace can then be printed to debug
                      the matching after the fact. Note that this option is only
                      considered when compiled in debug mode. */
+	/**
+	 * When true, and the required properties are some but not all of the
+	 * properties in the data file, only the data they read is loaded into
+	 * memory. That is the values of the required properties and the strings
+	 * those values use, in whole records, with the rest of the values and
+	 * strings read from the file when needed with no cache. Other collections,
+	 * including the profiles and nodes every lookup walks, follow their own
+	 * settings. It has no effect when no property or every property is
+	 * required, or when allInMemory is true. True in the HighPerformance
+	 * configuration only.
+	 *
+	 * IP Intelligence also has defaultValuesInMemory. Device Detection does
+	 * not, because a Hash lookup uses no default value, and a property that a
+	 * profile has no value for returns no value.
+	 */
+	bool loadRequiredPropertiesOnly;
 } fiftyoneDegreesConfigHash;
 
 /**

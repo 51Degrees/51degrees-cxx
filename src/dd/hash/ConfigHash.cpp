@@ -60,6 +60,7 @@ void ConfigHash::setPerformanceFromExistingConfig(
 	config.maps = existing->maps;
 	config.components = existing->components;
 	config.b.b.allInMemory = existing->b.b.allInMemory;
+	config.loadRequiredPropertiesOnly = existing->loadRequiredPropertiesOnly;
 	setConcurrency(concurrency);
 }
 
@@ -101,6 +102,14 @@ void ConfigHash::setUsePredictiveGraph(bool use) {
 
 void ConfigHash::setTraceRoute(bool shouldTrace) {
 	config.traceRoute = shouldTrace;
+}
+
+void ConfigHash::setLoadRequiredPropertiesOnly(bool load) {
+	config.loadRequiredPropertiesOnly = load;
+}
+
+bool ConfigHash::getLoadRequiredPropertiesOnly() const {
+	return config.loadRequiredPropertiesOnly;
 }
 
 void ConfigHash::setIndexedProperties(std::vector<std::string> names) {

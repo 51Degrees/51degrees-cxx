@@ -316,7 +316,8 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig = {
 	0,
 	false, // Performance graph
 	true, // Predictive graph
-	false // Trace
+	false, // Trace
+	false // Load required properties only
 };
 #undef FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY
 #define FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY \
@@ -337,7 +338,8 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig = {
 	0,
 	false, // Performance graph
 	true, // Predictive graph
-	false // Trace
+	false, // Trace
+	true // Load required properties only
 };
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
@@ -355,7 +357,8 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
 	0,
 	false, // Performance graph
 	true, // Predictive graph
-	false // Trace
+	false, // Trace
+	false // Load required properties only
 };
 
 #define FIFTYONE_DEGREES_HASH_CONFIG_BALANCED \
