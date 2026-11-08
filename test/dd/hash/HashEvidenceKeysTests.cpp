@@ -39,6 +39,7 @@
 
 #include "../../common/pch.h"
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -297,6 +298,20 @@ vector<string> listOf(const char * const (&keys)[N]) {
 	return vector<string>(keys, keys + N);
 }
 
+/** The bytes of the file, or none if it cannot be read. */
+vector<unsigned char> readFile(const string &path) {
+	vector<unsigned char> data;
+	FILE *file = fopen(path.c_str(), "rb");
+	if (file != nullptr) {
+		fseek(file, 0, SEEK_END);
+		data.resize((size_t)ftell(file));
+		rewind(file);
+		data.resize(fread(data.data(), 1, data.size(), file));
+		fclose(file);
+	}
+	return data;
+}
+
 /** Adds the key unless the list already holds it. */
 void addKey(vector<string> &keys, const string &key) {
 	if (std::find(keys.begin(), keys.end(), key) == keys.end()) {
@@ -544,6 +559,65 @@ TEST_F(HashEvidenceKeysTests, TacDataFile_GivesTheListedKeys) {
 		"TAC-HashV41.hash",
 		listOf(tacKeysOff),
 		listOf(tacKeysOn));
+}
+
+/**
+ * A refresh gives the keys of the data file it loads, whether the engine is
+ * refreshed from another file, from memory or from its original file. The
+ * Lite and TAC files have different overridable properties, so each refresh
+ * moves the keys from one listed list to the other.
+ */
+TEST_F(HashEvidenceKeysTests, Refresh_GivesTheKeysOfTheNewDataFile) {
+	const string lite = GetFilePath(_dataFolderName, "51Degrees-LiteV4.1.hash");
+	const string tac = GetFilePath(_dataFolderName, "TAC-HashV41.hash");
+	if (lite.empty() || tac.empty()) {
+		GTEST_SKIP() << "The Lite and TAC data files are both needed.";
+	}
+	const vector<string> liteListed = listOf(liteKeysOff);
+	const vector<string> tacListed = listOf(tacKeysOff);
+	ConfigHash config;
+	config.setMaxPerformance();
+	config.setUseUpperPrefixHeaders(false);
+	RequiredPropertiesConfig properties;
+
+	{
+		EngineHash engine(lite, &config, &properties);
+		ASSERT_EQ(liteListed, *engine.getKeys());
+		engine.refreshData(tac.c_str());
+		EXPECT_EQ(tacListed, *engine.getKeys()) << "refreshData(fileName)";
+		engine.refreshData(lite.c_str());
+		EXPECT_EQ(liteListed, *engine.getKeys()) << "refreshData(fileName) "
+			"back to the Lite file";
+	}
+
+	{
+		EngineHash engine(tac, &config, &properties);
+		ASSERT_EQ(tacListed, *engine.getKeys());
+		vector<unsigned char> data = readFile(lite);
+		ASSERT_FALSE(data.empty()) << "Could not read '" << lite << "'.";
+		engine.refreshData((void*)data.data(), (long)data.size());
+		EXPECT_EQ(liteListed, *engine.getKeys()) <<
+			"refreshData(data, length)";
+	}
+
+	// The engine holds its data in memory, so the file it was created from
+	// can be replaced before it is refreshed from that file.
+	const char copy[] = "evidence-keys-refresh.hash";
+	ASSERT_EQ(
+		FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileCopy(lite.c_str(), copy));
+	{
+		EngineHash engine(copy, &config, &properties);
+		EXPECT_EQ(liteListed, *engine.getKeys());
+		EXPECT_EQ(
+			FIFTYONE_DEGREES_STATUS_SUCCESS,
+			fiftyoneDegreesFileCopy(tac.c_str(), copy));
+		engine.refreshData();
+		EXPECT_EQ(tacListed, *engine.getKeys()) << "refreshData()";
+	}
+	EXPECT_EQ(
+		FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileDelete(copy));
 }
 
 /**
