@@ -272,7 +272,9 @@ EXTERNAL long fiftyoneDegreesValueGetIndexByName(
  * as a string has no property types and passes NULL. The text is written
  * into `buffer` when it fits, and otherwise into memory the caller frees, as
  * #fiftyoneDegreesStoredBinaryValueToText describes. A name the strings
- * collection gives no value for has an empty text.
+ * collection gives no value for has an empty text. So does a name that is
+ * read but cannot be written, such as an IP address of a length no address
+ * has or an area of an unknown geometry, and no exception is then set.
  * @param strings collection containing the value names
  * @param propertyTypes collection of the type each property's values are
  * stored as, or NULL when every value is stored as a string
@@ -283,7 +285,7 @@ EXTERNAL long fiftyoneDegreesValueGetIndexByName(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h
  * @return the null terminated text, or NULL when the type or the name cannot
- * be read or written
+ * be read or memory cannot be allocated
  */
 EXTERNAL char* fiftyoneDegreesValueGetText(
 	const fiftyoneDegreesCollection *strings,
@@ -302,9 +304,10 @@ EXTERNAL char* fiftyoneDegreesValueGetText(
  * places the search in #fiftyoneDegreesValueGetDefaultIndex writes a number
  * to, so a default stored with more places than the metadata shows for a
  * value is still found. A property with no default value index has an empty
- * text. The text is written into `buffer` when it fits, and otherwise into
- * memory the caller frees, as #fiftyoneDegreesStoredBinaryValueToText
- * describes.
+ * text. A default that is read but cannot be written gives NULL rather than
+ * an empty text, as the property metadata fails for it. The text is written
+ * into `buffer` when it fits, and otherwise into memory the caller frees, as
+ * #fiftyoneDegreesStoredBinaryValueToText describes.
  * @param values collection containing the property's values
  * @param strings collection containing the value names
  * @param propertyTypes collection of the type each property's values are

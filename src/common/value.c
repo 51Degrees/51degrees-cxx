@@ -318,11 +318,17 @@ static char* emptyText(
 	return text;
 }
 
-char* fiftyoneDegreesValueGetText(
+/**
+ * Gets the text of the value's name, as fiftyoneDegreesValueGetText does,
+ * except that a name which is read but cannot be written gives an empty text
+ * only when `emptyWhenUnwritable` is true, and NULL otherwise.
+ */
+static char* getNameText(
 	const Collection * const strings,
 	const Collection * const propertyTypes,
 	const Value * const value,
 	const uint8_t decimalPlaces,
+	const bool emptyWhenUnwritable,
 	char * const buffer,
 	const size_t bufferLength,
 	Exception * const exception) {
@@ -362,7 +368,33 @@ char* fiftyoneDegreesValueGetText(
 		bufferLength,
 		exception);
 	COLLECTION_RELEASE(strings, &item);
+	// Memory that cannot be allocated is a failure, not an unwritable name.
+	if (text == NULL &&
+		emptyWhenUnwritable &&
+		!EXCEPTION_CHECK(INSUFFICIENT_MEMORY)) {
+		EXCEPTION_CLEAR;
+		return emptyText(buffer, bufferLength, exception);
+	}
 	return text;
+}
+
+char* fiftyoneDegreesValueGetText(
+	const Collection * const strings,
+	const Collection * const propertyTypes,
+	const Value * const value,
+	const uint8_t decimalPlaces,
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	return getNameText(
+		strings,
+		propertyTypes,
+		value,
+		decimalPlaces,
+		true,
+		buffer,
+		bufferLength,
+		exception);
 }
 
 char* fiftyoneDegreesValueGetDefaultText(
@@ -396,11 +428,14 @@ char* fiftyoneDegreesValueGetDefaultText(
 	// item is held at a time.
 	const Value value = *held;
 	COLLECTION_RELEASE(values, &item);
-	return ValueGetText(
+	// The property metadata fails for a default it cannot write, so this
+	// does too.
+	return getNameText(
 		strings,
 		propertyTypes,
 		&value,
 		MAX_DOUBLE_DECIMAL_PLACES,
+		false,
 		buffer,
 		bufferLength,
 		exception);
