@@ -23,6 +23,7 @@
 #include <algorithm>
 #include "ValueMetaDataCollectionForProfileIpi.hpp"
 #include "fiftyone.h"
+#include "../common/collectionKeyTypes.h"
 
 using namespace FiftyoneDegrees::IpIntelligence;
 
@@ -31,10 +32,15 @@ ValueMetaDataCollectionForProfileIpi::ValueMetaDataCollectionForProfileIpi(
 	ProfileMetaData *profile) : ValueMetaDataCollectionBaseIpi(manager) {
 	EXCEPTION_CREATE;
 	DataReset(&profileItem.data);
-	ProfileGetByIndex(
-		dataSet->profileOffsets,
-		dataSet->profiles,
+	// The key of an IP Intelligence profile is its offset in the profiles
+	// collection.
+	const CollectionKey profileKey = {
 		profile->getKey(),
+		CollectionKeyType_Profile,
+	};
+	dataSet->profiles->get(
+		dataSet->profiles,
+		&profileKey,
 		&profileItem,
 		exception);
 	EXCEPTION_THROW;
