@@ -27,9 +27,9 @@
  * its data file when they are valid, and a year, month and day of zero when
  * they are not.
  *
- * Each test changes the dates in a copy of the smallest data file found and
- * loads the copy from memory. Nothing else in the data set reads the dates,
- * so any date loads.
+ * The tests hold a copy of the smallest data file found in memory, change its
+ * dates where a test needs other dates, and load the copy. Nothing else in the
+ * data set reads the dates, so any date loads.
  */
 
 #include "../../common/pch.h"
