@@ -63,9 +63,11 @@ struct HashPinnedDefault {
 };
 
 /**
- * Defaults of flags, numbers and a name, checked in each data file that has
+ * Defaults of flags, numbers and names, checked in each data file that has
  * the property. A property with no default value index has an empty default
- * text, and no default value when none of its values has an empty name.
+ * text. Its default value is the value with an empty name when it has one,
+ * as HardwareName has in the TAC file, and otherwise none, as for
+ * PlatformVendor.
  */
 static const HashPinnedDefault hashPinnedDefaults[] = {
 	{ "IsMobile", "False", "False" },
@@ -73,6 +75,7 @@ static const HashPinnedDefault hashPinnedDefaults[] = {
 	{ "ScreenPixelsWidth", "Unknown", "Unknown" },
 	{ "ScreenInchesDiagonal", "Unknown", "Unknown" },
 	{ "HardwareRank", "0", "0" },
+	{ "HardwareName", "", "" },
 	{ "PlatformVendor", "", nullptr },
 };
 
