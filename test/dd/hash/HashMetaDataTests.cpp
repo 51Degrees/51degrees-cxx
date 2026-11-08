@@ -216,6 +216,22 @@ static string hashMetaDataMapText(
 	return hashMetaDataTake(result, buffer.data(), exception);
 }
 
+/** The texts a value gives its method, in the order they were given. */
+struct HashMetaDataValueTexts {
+	vector<fiftyoneDegreesValueText> order;
+	vector<string> texts;
+};
+
+/** Records a text of a value in the HashMetaDataValueTexts given. */
+static void hashMetaDataAddText(
+	void *state,
+	fiftyoneDegreesValueText text,
+	const char *value) {
+	HashMetaDataValueTexts * const texts = (HashMetaDataValueTexts*)state;
+	texts->order.push_back(text);
+	texts->texts.push_back(value);
+}
+
 /** A text of the value, read with a buffer of the length given. */
 static string hashMetaDataValueText(
 	fiftyoneDegreesDataSetHash *dataSet,
@@ -494,13 +510,25 @@ protected:
 				const fiftyoneDegreesValue stored =
 					hashMetaDataStoredValue(dataSet, valueIndex);
 				uint32_t propertyIndex = UINT32_MAX;
+				HashMetaDataValueTexts texts;
 				ASSERT_TRUE(fiftyoneDegreesHashGetValue(
 					dataSet,
 					valueIndex,
 					&propertyIndex,
+					&texts,
+					hashMetaDataAddText,
 					exception)) << name;
 				EXPECT_EQ((uint32_t)stored.propertyIndex, propertyIndex);
 				EXPECT_EQ(i, propertyIndex) << name;
+				uint32_t indexOnly = UINT32_MAX;
+				ASSERT_TRUE(fiftyoneDegreesHashGetValue(
+					dataSet,
+					valueIndex,
+					&indexOnly,
+					nullptr,
+					nullptr,
+					exception)) << name;
+				EXPECT_EQ(i, indexOnly) << name;
 				const string valueName = hashMetaDataStored(
 					dataSet,
 					(uint32_t)stored.nameOffset);
@@ -514,6 +542,15 @@ protected:
 					: hashMetaDataStored(
 						dataSet,
 						(uint32_t)stored.urlOffsetOrWeight);
+				// The three texts from one read are the texts read one by one.
+				const vector<fiftyoneDegreesValueText> order = {
+					FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+					FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION,
+					FIFTYONE_DEGREES_VALUE_TEXT_URL };
+				EXPECT_EQ(order, texts.order) << name;
+				EXPECT_EQ(
+					vector<string>({ valueName, description, url }),
+					texts.texts) << name;
 				for (size_t length : {
 					hashMetaDataTextBytes,
 					hashMetaDataShortBytes }) {
@@ -666,12 +703,16 @@ TEST_F(HashMetaDataTests, NoValuePastTheEnd) {
 			const uint32_t values =
 				fiftyoneDegreesCollectionGetCount(dataSet->values);
 			uint32_t propertyIndex = 0;
+			HashMetaDataValueTexts texts;
 			EXPECT_FALSE(fiftyoneDegreesHashGetValue(
 				dataSet,
 				values,
 				&propertyIndex,
+				&texts,
+				hashMetaDataAddText,
 				exception));
 			EXPECT_FALSE(EXCEPTION_OKAY);
+			EXPECT_TRUE(texts.texts.empty());
 		}
 	});
 }

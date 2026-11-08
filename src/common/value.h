@@ -391,6 +391,18 @@ typedef enum e_fiftyone_degrees_value_text {
 } fiftyoneDegreesValueText;
 
 /**
+ * Method called with a text of a value.
+ * @param state pointer given to the function that calls the method
+ * @param text which text of the value `value` is
+ * @param value the null terminated text, which is only valid until the
+ * method returns
+ */
+typedef void(*fiftyoneDegreesValueTextMethod)(
+	void *state,
+	fiftyoneDegreesValueText text,
+	const char *value);
+
+/**
  * Gets a text of the value as the metadata gives it. A value with no
  * description or URL, or whose description or URL the strings collection
  * gives nothing for, has an empty one, as does a weighted value, whose URL

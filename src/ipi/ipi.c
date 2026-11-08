@@ -4294,20 +4294,54 @@ bool fiftyoneDegreesIpiGetValue(
 	fiftyoneDegreesDataSetIpi *dataSet,
 	uint32_t valueIndex,
 	uint32_t *propertyIndex,
+	void *state,
+	fiftyoneDegreesValueTextMethod method,
 	fiftyoneDegreesException *exception) {
 	Item item;
-	const Value * const value = ipiMetaDataValue(
+	const Value * const held = ipiMetaDataValue(
 		dataSet,
 		valueIndex,
 		&item,
 		exception);
-	if (value == NULL) {
+	if (held == NULL) {
 		return false;
 	}
-	if (propertyIndex != NULL) {
-		*propertyIndex = (uint32_t)value->propertyIndex;
-	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
 	COLLECTION_RELEASE(dataSet->values, &item);
+	if (propertyIndex != NULL) {
+		*propertyIndex = (uint32_t)value.propertyIndex;
+	}
+	if (method == NULL) {
+		return true;
+	}
+	for (int text = FIFTYONE_DEGREES_VALUE_TEXT_NAME;
+		text <= FIFTYONE_DEGREES_VALUE_TEXT_URL;
+		text++) {
+		// The metadata gives no description for an IP Intelligence value.
+		if (text == FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION) {
+			method(state, (ValueText)text, "");
+			continue;
+		}
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		char * const written = ValueGetMetaDataText(
+			dataSet->strings,
+			dataSet->propertyTypes,
+			&value,
+			(ValueText)text,
+			DefaultWktDecimalPlaces,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (written == NULL) {
+			return false;
+		}
+		method(state, (ValueText)text, written);
+		if (written != buffer) {
+			Free(written);
+		}
+	}
 	return true;
 }
 
