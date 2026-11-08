@@ -30,7 +30,7 @@ same for every product in this repository, and are described in the
 
 ## Memory and the required properties
 
-Two settings of the configuration hold in memory what the required properties read, whatever the other settings are. Each preset sets both, and any configuration can set either.
+Two settings of the configuration, `fiftyoneDegreesConfigIpi` in C and `ConfigIpi` in C++, hold in memory what the required properties read. Each preset sets both, and any configuration can set either.
 
 `loadRequiredPropertiesOnly` (`setLoadRequiredPropertiesOnly()` in C++) applies when the required properties name some but not all of the properties in the data file. Only what they read is then loaded into memory:
 
@@ -46,7 +46,7 @@ Each part is held in whole records, and the rest of those collections reads from
 The presets set them as follows. Choosing a preset in C++ replaces both settings with the preset's.
 
 | Preset | `loadRequiredPropertiesOnly` | `defaultValuesInMemory` |
-|---|---|---|
+| --- | --- | --- |
 | InMemory (`setMaxPerformance()`) | false | true, with no effect |
 | HighPerformance | true | true |
 | Balanced, BalancedTemp and the default | false | true |
@@ -56,7 +56,7 @@ The HighPerformance configuration (`fiftyoneDegreesIpiHighPerformanceConfig`, or
 
 The Balanced configuration (`fiftyoneDegreesIpiBalancedConfig`, or `setBalanced()` in C++) holds the strings, the graphs, the profile offsets and the property types in memory, and reads values, profiles and profile groups through caches of 100,000 values, 20,000 profiles and 50,000 profile groups. The default value of each required property is held in memory too, and the profile of each result is read through the cache once for each lookup rather than once for each property, which uses 512 bytes for each component in each set of results. Naming the required properties does not change what Balanced holds. The C API uses Balanced when no configuration is given.
 
-The LowMemory configuration (`fiftyoneDegreesIpiLowMemoryConfig`, or `setLowMemory()` in C++) reads everything else from the file with no cache, and holds only the default values.
+The LowMemory configuration (`fiftyoneDegreesIpiLowMemoryConfig`, or `setLowMemory()` in C++) holds only the default values in memory, and reads everything else from the file with no cache.
 
 ## Address forms
 

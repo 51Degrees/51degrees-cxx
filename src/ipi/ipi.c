@@ -257,7 +257,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
 { FIFTYONE_DEGREES_PROFILE_GROUPS_LOADED, FIFTYONE_DEGREES_PROFILE_GROUPS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileGroups */ \
 { FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */ \
 { FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* PropertyTypes */ \
-{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Graph */ false, /* LoadRequiredPropertiesOnly */ true /* DefaultValuesInMemory */
+{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Graph */ \
+false, /* LoadRequiredPropertiesOnly */ \
+true /* DefaultValuesInMemory */
 
 fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig = {
 	FIFTYONE_DEGREES_IPI_CONFIG_BALANCED
@@ -2000,13 +2002,21 @@ static StatusCode heldDefaultsPlan(
 		return SUCCESS;
 	}
 	if (config->values.loaded == false) {
-		heldRangeAdd(defaults->values, &defaults->valuesCount, index, index + 1);
+		heldRangeAdd(
+			defaults->values,
+			&defaults->valuesCount,
+			index,
+			index + 1);
 	}
 	if (config->strings.loaded && config->propertyTypes.loaded) {
 		return SUCCESS;
 	}
 	DataReset(&item.data);
-	const Value* const value = ValueGet(dataSet->values, index, &item, exception);
+	const Value* const value = ValueGet(
+		dataSet->values,
+		index,
+		&item,
+		exception);
 	if (value == NULL || EXCEPTION_FAILED) {
 		return COLLECTION_FAILURE;
 	}
@@ -2086,8 +2096,9 @@ static StatusCode heldDefaultsInit(DataSetIpi* dataSet, Exception* exception) {
 			&defaults,
 			exception);
 	}
-	if (status == SUCCESS &&
-		defaults.valuesCount + defaults.stringsCount + defaults.typesCount > 0) {
+	const uint32_t rangeCount =
+		defaults.valuesCount + defaults.stringsCount + defaults.typesCount;
+	if (status == SUCCESS && rangeCount > 0) {
 		status = FileOpen(dataSet->b.b.fileName, &file);
 		if (status == SUCCESS) {
 			status = heldCreate(

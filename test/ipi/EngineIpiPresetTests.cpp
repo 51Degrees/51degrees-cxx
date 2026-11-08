@@ -1073,8 +1073,10 @@ TEST_F(IpiPresetTests, HighPerformanceShapeWithoutTheFlagLoadsEverything) {
 	for (const string& set : sets) {
 		printf("Naming %s\n", set.substr(0, 60).c_str());
 		PresetManager manager(dataFilePath, config, set.c_str());
-		EXPECT_NO_FATAL_FAILURE(presetExpectEverythingInMemory(&manager.manager));
-		EXPECT_NO_FATAL_FAILURE(expectSameAnswers(&manager.manager, set.c_str()));
+		EXPECT_NO_FATAL_FAILURE(
+			presetExpectEverythingInMemory(&manager.manager));
+		EXPECT_NO_FATAL_FAILURE(
+			expectSameAnswers(&manager.manager, set.c_str()));
 	}
 }
 
@@ -1148,7 +1150,10 @@ TEST_F(IpiPresetTests, LowMemoryGivesTheSameAnswersWithTheDefaultValuesHeld) {
 	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiLowMemoryConfig;
 	config.defaultValuesInMemory = false;
 	const vector<string> addresses = presetAddresses();
-	const char* namings[] = { oneComponent.c_str(), oneOfEach.c_str(), nullptr };
+	const char* namings[] = {
+		oneComponent.c_str(),
+		oneOfEach.c_str(),
+		nullptr };
 	for (const char* required : namings) {
 		PresetManager expected(dataFilePath, config, required);
 		PresetManager actual(
