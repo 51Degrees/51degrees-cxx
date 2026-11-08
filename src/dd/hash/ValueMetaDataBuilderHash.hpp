@@ -53,6 +53,32 @@ namespace FiftyoneDegrees {
 				static ValueMetaData* build(
 					fiftyoneDegreesDataSetHash *dataSet,
 					uint32_t valueIndex);
+
+				/**
+				 * Build a new instance of ValueMetaData from the value at the
+				 * index provided, which is a value of the property named, so
+				 * the property's name is not read again.
+				 * @param dataSet pointer to the data set containing the value
+				 * @param valueIndex index of the value in the values
+				 * collection
+				 * @param propertyName name of the value's property
+				 * @return the new instance, or nullptr when the data set gives
+				 * no value at the index
+				 */
+				static ValueMetaData* build(
+					fiftyoneDegreesDataSetHash *dataSet,
+					uint32_t valueIndex,
+					const string &propertyName);
+			private:
+				/**
+				 * Build a new instance of ValueMetaData from the value at the
+				 * index provided, reading the name of its property when no name
+				 * is given.
+				 */
+				static ValueMetaData* buildValue(
+					fiftyoneDegreesDataSetHash *dataSet,
+					uint32_t valueIndex,
+					const string *propertyName);
 			};
 		}
 	}

@@ -20,6 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+#include <utility>
 #include "ValueMetaDataBuilderIpi.hpp"
 #include "../common/Exceptions.hpp"
 #include "fiftyone.h"
@@ -31,6 +32,20 @@ using namespace FiftyoneDegrees::IpIntelligence;
 ValueMetaData* ValueMetaDataBuilderIpi::build(
 	fiftyoneDegreesDataSetIpi *dataSet,
 	uint32_t valueIndex) {
+	return buildValue(dataSet, valueIndex, nullptr);
+}
+
+ValueMetaData* ValueMetaDataBuilderIpi::build(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	const string &propertyName) {
+	return buildValue(dataSet, valueIndex, &propertyName);
+}
+
+ValueMetaData* ValueMetaDataBuilderIpi::buildValue(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	const string *propertyName) {
 	EXCEPTION_CREATE;
 	uint32_t propertyIndex = 0;
 	ValueTexts texts;
@@ -47,21 +62,28 @@ ValueMetaData* ValueMetaDataBuilderIpi::build(
 	if (texts.failed) {
 		throw StatusCodeException(INSUFFICIENT_MEMORY);
 	}
-	char buffer[REASONABLE_WKT_STRING_LENGTH];
-	char * const propertyName = IpiGetPropertyText(
-		dataSet,
-		propertyIndex,
-		FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
-		buffer,
-		sizeof(buffer),
-		exception);
-	if (propertyName == nullptr) {
-		EXCEPTION_THROW;
-		return nullptr;
+	string name;
+	if (propertyName != nullptr) {
+		name = *propertyName;
 	}
-	const string name = takeText(propertyName, buffer, exception);
+	else {
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		char * const text = IpiGetPropertyText(
+			dataSet,
+			propertyIndex,
+			FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (text == nullptr) {
+			EXCEPTION_THROW;
+			return nullptr;
+		}
+		name = takeText(text, buffer, exception);
+	}
+	// Moved rather than copied, as a text can be long.
 	return new ValueMetaData(
-		ValueMetaDataKey(name, texts.name),
-		texts.description,
-		texts.url);
+		ValueMetaDataKey(std::move(name), std::move(texts.name)),
+		std::move(texts.description),
+		std::move(texts.url));
 }
