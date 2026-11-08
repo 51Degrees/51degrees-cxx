@@ -4290,59 +4290,6 @@ static char* ipiEmptyText(
 		exception);
 }
 
-/**
- * Writes the value's name as the type its property is stored as, with a
- * number to DefaultWktDecimalPlaces places. A name that is read but cannot
- * be written is an empty text, as is one the strings collection gives
- * nothing for.
- */
-static char* ipiValueNameText(
-	DataSetIpi * const dataSet,
-	const Value * const value,
-	char * const buffer,
-	const size_t bufferLength,
-	Exception * const exception) {
-	const PropertyValueType storedValueType = PropertyGetStoredTypeByIndex(
-		dataSet->propertyTypes,
-		(uint32_t)value->propertyIndex,
-		exception);
-	if (EXCEPTION_FAILED) {
-		return NULL;
-	}
-	Item item;
-	DataReset(&item.data);
-	const StoredBinaryValue * const content = StoredBinaryValueGet(
-		dataSet->strings,
-		(uint32_t)value->nameOffset,
-		storedValueType,
-		&item,
-		exception);
-	if (content == NULL) {
-		return EXCEPTION_FAILED
-			? NULL
-			: ipiEmptyText(buffer, bufferLength, exception);
-	}
-	if (EXCEPTION_FAILED) {
-		COLLECTION_RELEASE(dataSet->strings, &item);
-		return NULL;
-	}
-	char *text = StoredBinaryValueToText(
-		content,
-		storedValueType,
-		DefaultWktDecimalPlaces,
-		buffer,
-		bufferLength,
-		exception);
-	COLLECTION_RELEASE(dataSet->strings, &item);
-	if (text == NULL) {
-		if (exception != NULL) {
-			EXCEPTION_CLEAR;
-		}
-		text = ipiEmptyText(buffer, bufferLength, exception);
-	}
-	return text;
-}
-
 bool fiftyoneDegreesIpiGetValue(
 	fiftyoneDegreesDataSetIpi *dataSet,
 	uint32_t valueIndex,
@@ -4432,25 +4379,18 @@ char* fiftyoneDegreesIpiGetValueText(
 	// one item is held at a time.
 	const Value value = *held;
 	COLLECTION_RELEASE(dataSet->values, &item);
-	switch (text) {
-	case FIFTYONE_DEGREES_VALUE_TEXT_NAME:
-		return ipiValueNameText(
-			dataSet,
-			&value,
-			buffer,
-			bufferLength,
-			exception);
-	case FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION:
+	// The metadata gives no description for an IP Intelligence value, and
+	// writes a number in a value's name to DefaultWktDecimalPlaces places.
+	if (text == FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION) {
 		return ipiEmptyText(buffer, bufferLength, exception);
-	default:
-		return ValueGetMetaDataText(
-			dataSet->strings,
-			dataSet->propertyTypes,
-			&value,
-			text,
-			DefaultWktDecimalPlaces,
-			buffer,
-			bufferLength,
-			exception);
 	}
+	return ValueGetMetaDataText(
+		dataSet->strings,
+		dataSet->propertyTypes,
+		&value,
+		text,
+		DefaultWktDecimalPlaces,
+		buffer,
+		bufferLength,
+		exception);
 }

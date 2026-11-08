@@ -1251,11 +1251,11 @@ EXTERNAL long fiftyoneDegreesIpiGetValueIndex(
 	fiftyoneDegreesException *exception);
 
 /**
- * Gets a text of the value as the metadata gives it. The name is written as
- * the type the value's property is stored as, with a number written to
- * #FIFTYONE_DEGREES_WKT_DECIMAL_PLACES places, and a name that is read but
- * cannot be written is an empty text. The description is always empty. The
- * URL is as #fiftyoneDegreesValueGetMetaDataText gives it.
+ * Gets a text of the value as the metadata gives it. The name and URL are as
+ * #fiftyoneDegreesValueGetMetaDataText gives them, the name written as the
+ * type the value's property is stored as with a number written to
+ * #FIFTYONE_DEGREES_WKT_DECIMAL_PLACES places. The description is always
+ * empty.
  * @param dataSet the data set to read
  * @param valueIndex index of the value in the values collection
  * @param text which text of the value to get
