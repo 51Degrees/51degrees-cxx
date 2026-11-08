@@ -665,7 +665,7 @@ void fiftyoneDegreesPropertiesFree(
 static uint32_t propertiesCountNames(const char *list) {
 	uint32_t count = 0;
 	bool inName = false;
-	for (; *list != ' '; list++) {
+	for (; *list != '\0'; list++) {
 		const bool isName = strchr(separators, *list) == NULL;
 		if (isName && inName == false) {
 			count++;
