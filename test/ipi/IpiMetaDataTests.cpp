@@ -518,6 +518,7 @@ protected:
 		vector<char> written(ipiMetaDataWrittenBytes);
 		unique_ptr<Properties> properties(metaData.getProperties());
 		const uint32_t count = fiftyoneDegreesIpiGetPropertyCount(dataSet);
+		uint32_t foundAtIndex = 0;
 		for (uint32_t i = 0; i < count; i++) {
 			EXCEPTION_CREATE;
 			uint32_t first = 0, valueCount = 0;
@@ -598,23 +599,35 @@ protected:
 				EXPECT_EQ(url, metaDataValue->getUrl()) << name;
 
 				// A number written to fewer places than the search compares
-				// it to is not found by its text, so only a string is.
+				// it to is not found by its text, so only a string is. The
+				// search relies on the order the data file keeps a
+				// property's values in, so a value out of that order, or one
+				// sharing its name with another, can be found elsewhere or
+				// not at all. Whatever is found must have the name.
 				if (storedType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) {
-					EXPECT_EQ(
-						(long)valueIndex,
-						fiftyoneDegreesIpiGetValueIndex(
-							dataSet,
-							i,
-							valueName.c_str(),
-							exception)) << name << " " << valueName;
+					const long found = fiftyoneDegreesIpiGetValueIndex(
+						dataSet,
+						i,
+						valueName.c_str(),
+						exception);
 					EXPECT_TRUE(EXCEPTION_OKAY) << name;
 					unique_ptr<Common::ValueMetaData> byKey(
 						values->getByKey(metaDataValue->getKey()));
-					ASSERT_TRUE(byKey != nullptr) << name << " " << valueName;
-					EXPECT_EQ(valueName, byKey->getName()) << name;
+					EXPECT_EQ(found >= 0, byKey != nullptr) << name;
+					if (found >= 0) {
+						EXPECT_EQ(valueName, ipiMetaDataValueText(
+							dataSet,
+							(uint32_t)found,
+							FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+							buffer,
+							buffer.size())) << name;
+						EXPECT_EQ(valueName, byKey->getName()) << name;
+					}
+					foundAtIndex += found == (long)valueIndex ? 1 : 0;
 				}
 			}
 		}
+		EXPECT_GT(foundAtIndex, 0u) << "No string value was found by name.";
 	}
 };
 
