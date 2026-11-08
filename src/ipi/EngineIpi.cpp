@@ -96,7 +96,7 @@ EngineIpi::EngineIpi(
 
 void EngineIpi::init() {
 	DataSetIpi *dataSet = DataSetIpiGet(manager.get());
-	keys = buildKeys(dataSet);
+	setKeys(buildKeys(dataSet));
 	initMetaData();
 	DataSetIpiRelease(dataSet);
 }
@@ -123,17 +123,7 @@ void EngineIpi::reloadKeys() const {
 		throw;
 	}
 	DataSetIpiRelease(dataSet);
-
-	// Callers hold the pointer returned by getKeys(), so the list is only
-	// disturbed when the reloaded data set genuinely declares different
-	// headers. A live update to a file with the same headers, which is the
-	// usual case, leaves it untouched.
-	if (refreshedKeys == keys) {
-		return;
-	}
-	// refreshData is const by contract. The swap installs the rebuilt list
-	// in one step, so the keys are never observed empty or half built.
-	const_cast<EngineIpi *>(this)->keys.swap(refreshedKeys);
+	setKeys(std::move(refreshedKeys));
 }
 
 void* EngineIpi::copyData(void * const data, const FileOffset length) const {

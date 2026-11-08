@@ -129,7 +129,7 @@ void EngineHash::init() {
 
 void EngineHash::init(
 	fiftyoneDegreesDataSetHash *dataSet) {
-	keys = buildKeys(dataSet);
+	setKeys(buildKeys(dataSet));
 	initMetaData();
 }
 
@@ -154,12 +154,7 @@ void EngineHash::reloadKeys() const {
 		throw;
 	}
 	DataSetHashRelease(dataSet);
-	if (refreshedKeys == keys) {
-		return;
-	}
-	// refreshData is const by contract, and the swap installs the new list
-	// in one step.
-	const_cast<EngineHash *>(this)->keys.swap(refreshedKeys);
+	setKeys(std::move(refreshedKeys));
 }
 
 void* EngineHash::copyData(void *data, size_t length) const {

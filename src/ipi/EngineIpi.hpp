@@ -259,13 +259,9 @@ namespace FiftyoneDegrees {
 			 * successful refresh, so that getKeys() describes the data set in
 			 * use rather than the one the engine was built from.
 			 *
-			 * The new list is built before anything is modified and installed
-			 * with a single swap, and the keys are left untouched when the
-			 * reloaded data set declares the same headers. A refresh which
-			 * does change the headers still mutates the list returned by
-			 * getKeys(), which is not synchronised against concurrent
-			 * readers, so a caller must not hold that pointer across a
-			 * refresh.
+			 * The new list is built before anything is changed, and a new list
+			 * is made only when the reloaded data set declares different
+			 * headers. The list a caller holds from getKeys() is not changed.
 			 */
 			void reloadKeys() const;
 

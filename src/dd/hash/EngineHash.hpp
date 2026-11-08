@@ -248,9 +248,8 @@ namespace FiftyoneDegrees {
 				/**
 				 * Rebuilds the evidence keys from the data set the resource
 				 * manager now holds, after a refresh, so that getKeys()
-				 * describes the data set in use. The list is only replaced
-				 * when the keys differ, in one swap. A caller must not hold
-				 * the pointer getKeys() returns across a refresh.
+				 * describes the data set in use. A new list is made only when
+				 * the keys differ, and the list a caller holds is not changed.
 				 */
 				void reloadKeys() const;
 
