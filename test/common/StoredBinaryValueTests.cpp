@@ -2658,3 +2658,98 @@ TEST_F(StoredBinaryValueDefaults, ValueGetDefaultIndex_WithNoPropertyTypes) {
     EXPECT_EQ(-1, defaultIndex(all[6], nullptr));
     EXPECT_EQ(-1, defaultIndex(all[7], nullptr));
 }
+
+TEST_F(StoredBinaryValueDefaults, ValueGetText_EmptyWhenNotWritable) {
+    // A string read as the IP address that property 4 is stored as has a
+    // length no IP address has, so it is read but cannot be written.
+    const Value unwritable = {
+        4, // propertyIndex
+        (int32_t)offsets.string1, // nameOffset
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+        0, // descriptionOffset
+#endif
+        0, // urlOffsetOrWeight
+    };
+    {
+        EXCEPTION_CREATE;
+        ItemBox item;
+        const StoredBinaryValue * const name = StoredBinaryValueGet(
+            collection.memory.get(),
+            offsets.string1,
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+            *item,
+            exception);
+        EXCEPTION_THROW;
+        char buffer[REASONABLE_WKT_STRING_LENGTH];
+        EXPECT_EQ(nullptr, StoredBinaryValueToText(
+            name,
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+            3,
+            buffer,
+            sizeof(buffer),
+            exception));
+        EXPECT_TRUE(EXCEPTION_CHECK(INCORRECT_IP_ADDRESS_FORMAT));
+    }
+
+    // The value metadata gives such a name as an empty text, in the buffer
+    // when there is one and otherwise in memory the caller frees.
+    {
+        EXCEPTION_CREATE;
+        char buffer[REASONABLE_WKT_STRING_LENGTH];
+        char * const text = ValueGetText(
+            collection.memory.get(),
+            typesCollection(),
+            &unwritable,
+            3,
+            buffer,
+            sizeof(buffer),
+            exception);
+        EXPECT_TRUE(EXCEPTION_OKAY);
+        EXPECT_TRUE(text == buffer);
+        EXPECT_STREQ("", text);
+    }
+    {
+        EXCEPTION_CREATE;
+        char * const text = ValueGetText(
+            collection.memory.get(),
+            typesCollection(),
+            &unwritable,
+            3,
+            nullptr,
+            0,
+            exception);
+        EXPECT_TRUE(EXCEPTION_OKAY);
+        EXPECT_STREQ("", text);
+        if (text != nullptr) {
+            Free(text);
+        }
+    }
+
+    // The property metadata fails for such a default, so the default text
+    // is NULL with the exception set, and no default value is found.
+    FixedSizeCollection<fiftyoneDegreesValue> unwritableValues({ unwritable });
+    const fiftyoneDegreesProperty ipAddress = property(4, 0, 0, 0);
+    {
+        EXCEPTION_CREATE;
+        char buffer[REASONABLE_WKT_STRING_LENGTH];
+        EXPECT_EQ(nullptr, ValueGetDefaultText(
+            unwritableValues.getState()->collection,
+            collection.memory.get(),
+            typesCollection(),
+            &ipAddress,
+            buffer,
+            sizeof(buffer),
+            exception));
+        EXPECT_TRUE(EXCEPTION_CHECK(INCORRECT_IP_ADDRESS_FORMAT));
+    }
+    {
+        EXCEPTION_CREATE;
+        EXPECT_EQ(-1, ValueGetDefaultIndex(
+            unwritableValues.getState()->collection,
+            collection.memory.get(),
+            typesCollection(),
+            &ipAddress,
+            exception));
+        EXPECT_TRUE(EXCEPTION_CHECK(INCORRECT_IP_ADDRESS_FORMAT));
+    }
+}

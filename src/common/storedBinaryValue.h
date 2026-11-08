@@ -155,8 +155,15 @@ EXTERNAL int fiftyoneDegreesStoredBinaryValueCompareWithString(
  * otherwise into memory allocated with fiftyoneDegreesMalloc, which the
  * caller frees with fiftyoneDegreesFree when the pointer returned is not
  * `buffer`. A string or an area that would not fit `buffer` is written
- * straight into memory sized from its length or its bytes, so it is written
- * once rather than twice.
+ * straight into memory sized from its length or its bytes. A string is
+ * therefore written once. An area is normally written once too, as
+ * #FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE characters for each byte normally
+ * hold its text. A reduced area written to more than 4 places can need more,
+ * as each point of 4 bytes can then take more than 20 characters, and is
+ * written a second time when it does. A number or an IP address has no size
+ * until it is written, so one whose text does not fit `buffer` is written
+ * twice, as an IPv6 address of 39 characters is with a buffer of less than
+ * 40 bytes.
  * `buffer` can be NULL with `bufferLength` 0, and the text is then always
  * allocated.
  * @param value the binary value to write
