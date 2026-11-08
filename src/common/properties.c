@@ -658,3 +658,37 @@ void fiftyoneDegreesPropertiesFree(
 		Free(available);
 	}
 }
+
+/**
+ * Gets the number of names in a list of required properties.
+ */
+static uint32_t propertiesCountNames(const char *list) {
+	uint32_t count = 0;
+	bool inName = false;
+	for (; *list != ' '; list++) {
+		const bool isName = strchr(separators, *list) == NULL;
+		if (isName && inName == false) {
+			count++;
+		}
+		inName = isName;
+	}
+	return count;
+}
+
+bool fiftyoneDegreesPropertiesRequiredNamesFewerThan(
+	const PropertiesRequired *properties,
+	const uint32_t total) {
+	if (properties == NULL) {
+		return false;
+	}
+	if (properties->existing != NULL) {
+		return properties->existing->named != NULL &&
+			properties->existing->namedCount < total;
+	}
+	if (properties->array != NULL && properties->count > 0) {
+		return (uint32_t)properties->count < total;
+	}
+	return properties->string != NULL &&
+		strlen(properties->string) > 0 &&
+		propertiesCountNames(properties->string) < total;
+}

@@ -240,8 +240,9 @@ static uint32_t presetCacheCapacity(const fiftyoneDegreesCollection* cached) {
 		->cache->capacity;
 }
 
-// The state of a held collection, laid out as heldCollection in src/ipi/ipi.c,
-// which the tests read to report and check what is held.
+// The state of a held collection, laid out as collectionHeld in
+// src/common/collection.c, which the tests read to report and check what is
+// held.
 struct PresetHeldRange {
 	uint32_t first;
 	uint32_t end;
