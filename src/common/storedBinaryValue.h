@@ -154,8 +154,9 @@ EXTERNAL int fiftyoneDegreesStoredBinaryValueCompareWithString(
  * is written into `buffer` when it fits in `bufferLength` bytes, and
  * otherwise into memory allocated with fiftyoneDegreesMalloc, which the
  * caller frees with fiftyoneDegreesFree when the pointer returned is not
- * `buffer`. An area that would not fit `buffer` is written straight into
- * memory sized from its byte count, so it is written once rather than twice.
+ * `buffer`. A string or an area that would not fit `buffer` is written
+ * straight into memory sized from its length or its bytes, so it is written
+ * once rather than twice.
  * `buffer` can be NULL with `bufferLength` 0, and the text is then always
  * allocated.
  * @param value the binary value to write

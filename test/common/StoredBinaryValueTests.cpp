@@ -2481,18 +2481,18 @@ public:
         };
     }
 
-    Collection *valuesCollection() const {
+    fiftyoneDegreesCollection *valuesCollection() const {
         return values->getState()->collection;
     }
 
-    Collection *typesCollection() const {
+    fiftyoneDegreesCollection *typesCollection() const {
         return propertyTypes->getState()->collection;
     }
 
     /** The text of the value at `index` with the places given. */
     std::string valueText(
         const uint32_t index,
-        const Collection * const types,
+        const fiftyoneDegreesCollection * const types,
         const uint8_t places) {
         EXCEPTION_CREATE;
         ItemBox item;
@@ -2523,7 +2523,7 @@ public:
     /** The default value text of the property. */
     std::string defaultText(
         const fiftyoneDegreesProperty &property,
-        const Collection * const types) {
+        const fiftyoneDegreesCollection * const types) {
         EXCEPTION_CREATE;
         char buffer[REASONABLE_WKT_STRING_LENGTH];
         char * const text = ValueGetDefaultText(
@@ -2546,7 +2546,7 @@ public:
     /** The index of the property's default value, or -1. */
     long defaultIndex(
         const fiftyoneDegreesProperty &property,
-        const Collection * const types) {
+        const fiftyoneDegreesCollection * const types) {
         EXCEPTION_CREATE;
         const long index = ValueGetDefaultIndex(
             valuesCollection(),
