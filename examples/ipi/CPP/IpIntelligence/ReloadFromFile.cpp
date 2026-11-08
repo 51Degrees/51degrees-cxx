@@ -165,6 +165,11 @@ namespace FiftyoneDegrees {
 					// Report the number of reloads.
 					printf("Reloaded '%i' times.\r\n", numberOfReloads);
 					printf("Failed to reload '%i' times.\r\n", numberOfReloadFails);
+
+					// On a free data file, say what the Enterprise data file
+					// adds and where to ask for a copy.
+					offerEnterprise(
+						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-ipintelligence-reloadfromfile.cpp&utm_term=free-data-file");
 					printf("Program execution complete. Press Return to exit.");
 				}
 

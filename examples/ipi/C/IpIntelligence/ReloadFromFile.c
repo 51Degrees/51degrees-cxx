@@ -388,6 +388,9 @@ void fiftyoneDegreesIpiReloadFromFileRun(
 		// Run the performance tests.
 		run(&manager, ipAddressFilePath);
 
+		// Say what the Enterprise data file adds, on a free data file.
+		fiftyoneDegreesExampleOfferEnterprise(&manager);
+
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);
 	}
@@ -455,7 +458,7 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesIpiReloadFromFileRun(
 		dataFilePath,
 		ipAddressFilePath,
-		argc > 3 ? argv[3] : "RegisteredName,AsnName",
+		argc > 3 ? argv[3] : "RegisteredName,AsnName,IpRangeStart",
 		CONFIG);
 
 #ifdef _DEBUG

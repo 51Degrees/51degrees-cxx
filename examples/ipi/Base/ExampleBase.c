@@ -189,11 +189,20 @@ bool fiftyoneDegreesExampleHasProperty(
 		propertyName,
 		&item,
 		exception);
-	if (property == NULL || EXCEPTION_FAILED) {
+	if (property == NULL) {
 		return false;
 	}
+	// A property that was returned holds its item, even when the lookup set
+	// the exception, so the item is released before the result is given.
 	COLLECTION_RELEASE(item.collection, &item);
-	return true;
+	return !EXCEPTION_FAILED;
+}
+
+void fiftyoneDegreesExampleOfferEnterprise(
+	fiftyoneDegreesResourceManager *manager) {
+	DataSetIpi *dataset = DataSetIpiGet(manager);
+	fiftyoneDegreesExampleCheckDataFile(dataset);
+	DataSetIpiRelease(dataset);
 }
 
 void fiftyoneDegreesExampleCheckDataFile(

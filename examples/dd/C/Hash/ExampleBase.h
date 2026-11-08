@@ -126,6 +126,27 @@ EXTERNAL bool fiftyoneDegreesExampleHasProperty(
     const char *propertyName);
 
 /**
+ * Prints "   <property>: <value>" for a property, or that it needs the
+ * Enterprise data file when the data file in use does not have the
+ * property. The property must be one of the required properties.
+ * @param results results of a match
+ * @param propertyName name of the property as the data file writes it
+ */
+EXTERNAL void fiftyoneDegreesExampleOutputEnterpriseValue(
+    fiftyoneDegreesResultsHash *results,
+    const char *propertyName);
+
+/**
+ * Reports the data file the resource manager holds, as
+ * #fiftyoneDegreesExampleCheckDataFile does, for an example that has no
+ * dataset of its own to give. On a free data file this says what the
+ * Enterprise data file adds and links to the contact page.
+ * @param manager resource manager that holds a Device Detection dataset
+ */
+EXTERNAL void fiftyoneDegreesExampleOfferEnterprise(
+    fiftyoneDegreesResourceManager *manager);
+
+/**
  * Finds a file in the data folder as fiftyoneDegreesFileGetPath does. When
  * the file is missing and the data repository has a link to it, runs the
  * data repository's download script for that file, and looks again if the

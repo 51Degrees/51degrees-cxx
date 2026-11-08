@@ -111,6 +111,16 @@ EXTERNAL void fiftyoneDegreesExampleCheckDataFile(
     fiftyoneDegreesDataSetIpi *dataset);
 
 /**
+ * Reports the data file the resource manager holds, as
+ * #fiftyoneDegreesExampleCheckDataFile does, for an example that has no
+ * dataset of its own to give. On a free data file this says what the
+ * Enterprise data file adds and links to the contact page.
+ * @param manager resource manager that holds an IP Intelligence dataset
+ */
+EXTERNAL void fiftyoneDegreesExampleOfferEnterprise(
+    fiftyoneDegreesResourceManager *manager);
+
+/**
  * Shown in place of a value for a property that the data file in use does
  * not have. Every property the examples ask for is in the Enterprise data
  * file.

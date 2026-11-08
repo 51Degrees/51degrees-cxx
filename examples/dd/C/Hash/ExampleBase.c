@@ -189,11 +189,44 @@ bool fiftyoneDegreesExampleHasProperty(
 		propertyName,
 		&item,
 		exception);
-	if (property == NULL || EXCEPTION_FAILED) {
+	if (property == NULL) {
 		return false;
 	}
+	// A property that was returned holds its item, even when the lookup set
+	// the exception, so the item is released before the result is given.
 	COLLECTION_RELEASE(item.collection, &item);
-	return true;
+	return !EXCEPTION_FAILED;
+}
+
+void fiftyoneDegreesExampleOutputEnterpriseValue(
+	fiftyoneDegreesResultsHash *results,
+	const char *propertyName) {
+	char buffer[500];
+	buffer[0] = '\0';
+	EXCEPTION_CREATE
+	if (fiftyoneDegreesExampleHasProperty(
+		(DataSetHash*)results->b.b.dataSet,
+		propertyName) == false) {
+		printf("   %s: %s\n", propertyName,
+			FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE);
+		return;
+	}
+	ResultsHashGetValuesString(
+		results,
+		propertyName,
+		buffer,
+		sizeof(buffer),
+		(char* const)",",
+		exception);
+	EXCEPTION_THROW
+	printf("   %s: %s\n", propertyName, buffer);
+}
+
+void fiftyoneDegreesExampleOfferEnterprise(
+	fiftyoneDegreesResourceManager *manager) {
+	DataSetHash *dataset = DataSetHashGet(manager);
+	fiftyoneDegreesExampleCheckDataFile(dataset);
+	DataSetHashRelease(dataset);
 }
 
 void fiftyoneDegreesExampleCheckDataFile(
