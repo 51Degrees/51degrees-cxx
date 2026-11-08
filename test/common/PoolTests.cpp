@@ -24,11 +24,25 @@
 #include "Base.hpp"
 #include <stdio.h>
 #include <sys/stat.h>
+#include <atomic>
+#include <chrono>
+#include <thread>
+#include <vector>
 
 #include "../../src/common/exceptions.h"
 #include "../../src/common/pool.h"
+#include "../../src/common/threading.h"
 
 // Note: fiftyone.h short names can't be used as conflicts with Pool class.
+
+// Time the only item stays in use while another thread waits for it.
+static const int waitMilliseconds = 100;
+
+// Items shared by more threads than there are items, and the gets each
+// thread makes.
+static const uint16_t sharedItems = 2;
+static const int sharingThreads = 8;
+static const int getsPerThread = 10000;
 
 #ifndef _MSC_VER
 #define _rmdir rmdir
@@ -261,10 +275,11 @@ TEST_F(Pool, PoolGetMultiple) {
 }
 
 /**
- * Check that when a pool of one resource has been exhausted,
- * null is returned and the correct exception is set.
+ * Check that when the only item in a pool is in use, a get waits until the
+ * item is released and then returns it. A single threaded build cannot wait,
+ * so the get returns null and sets the insufficient handles exception.
  */
-TEST_F(Pool, PoolGetInsufficientHandles) {
+TEST_F(Pool, PoolGetWaitsForRelease) {
 	// Arrange
 	testResourceCounter counter;
 	counter.count = 0;
@@ -277,30 +292,63 @@ TEST_F(Pool, PoolGetInsufficientHandles) {
 		createResource,
 		freeResource,
 		exception);
-
-	// Act
 	fiftyoneDegreesPoolItem* item = fiftyoneDegreesPoolItemGet(
 		&pool,
 		exception);
 	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
-	fiftyoneDegreesPoolItem* item2 = fiftyoneDegreesPoolItemGet(
-		&pool,
-		exception);
+
+	if (fiftyoneDegreesThreadingGetIsThreadSafe() == false) {
+		// Act
+		fiftyoneDegreesPoolItem* item2 = fiftyoneDegreesPoolItemGet(
+			&pool,
+			exception);
+
+		// Assert
+		EXPECT_EQ(nullptr, item2);
+		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(
+			FIFTYONE_DEGREES_STATUS_INSUFFICIENT_HANDLES));
+		fiftyoneDegreesPoolItemRelease(item);
+		return;
+	}
+
+	// Act
+	std::atomic<void*> taken(nullptr);
+	std::atomic<bool> failed(false);
+	std::thread waiter([this, &taken, &failed]() {
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		fiftyoneDegreesPoolItem* waited = fiftyoneDegreesPoolItemGet(
+			&pool,
+			exception);
+		failed = waited == nullptr || FIFTYONE_DEGREES_EXCEPTION_FAILED;
+		if (waited != nullptr) {
+			taken = waited->resource;
+			fiftyoneDegreesPoolItemRelease(waited);
+		}
+	});
+	std::this_thread::sleep_for(std::chrono::milliseconds(waitMilliseconds));
+	const bool takenWhileInUse = taken.load() != nullptr;
+	void* const released = item->resource;
+	fiftyoneDegreesPoolItemRelease(item);
+	waiter.join();
 
 	// Assert
-	ASSERT_EQ(NULL, item2);
-	ASSERT_FALSE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
-	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_HANDLES));
-
-	// Cleanup
-	fiftyoneDegreesPoolItemRelease(item);
+	EXPECT_FALSE(takenWhileInUse) <<
+		"The get should wait while the only item is in use.";
+	EXPECT_FALSE(failed.load()) << "The get should wait rather than fail.";
+	EXPECT_EQ(released, taken.load()) <<
+		"The waiting get should return the item that was released.";
 }
 
 /**
- * Check that when a pool of multiple resources has been exhausted,
- * null is returned and the correct exception is set.
+ * Check that more threads than items all get an item every time, that no
+ * more threads hold an item at once than the pool has items, and that none
+ * report a failure.
  */
-TEST_F(Pool, PoolGetInsufficientHandlesMultiple) {
+TEST_F(Pool, PoolGetMoreThreadsThanItems) {
+	if (fiftyoneDegreesThreadingGetIsThreadSafe() == false) {
+		return;
+	}
+
 	// Arrange
 	testResourceCounter counter;
 	counter.count = 0;
@@ -308,76 +356,46 @@ TEST_F(Pool, PoolGetInsufficientHandlesMultiple) {
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	fiftyoneDegreesPoolInit(
 		&pool,
-		2,
+		sharedItems,
 		&counter,
 		createResource,
 		freeResource,
 		exception);
+	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	std::atomic<int> holding(0);
+	std::atomic<int> mostHolding(0);
+	std::atomic<int> failures(0);
 
 	// Act
-	fiftyoneDegreesPoolItem* item = fiftyoneDegreesPoolItemGet(
-		&pool,
-		exception);
-	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
-	fiftyoneDegreesPoolItem* item2 = fiftyoneDegreesPoolItemGet(
-		&pool,
-		exception);
-	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
-	fiftyoneDegreesPoolItem* item3 = fiftyoneDegreesPoolItemGet(
-		&pool,
-		exception);
+	std::vector<std::thread> threads;
+	for (int t = 0; t < sharingThreads; t++) {
+		threads.emplace_back([this, &holding, &mostHolding, &failures]() {
+			for (int i = 0; i < getsPerThread; i++) {
+				FIFTYONE_DEGREES_EXCEPTION_CREATE;
+				fiftyoneDegreesPoolItem* item = fiftyoneDegreesPoolItemGet(
+					&pool,
+					exception);
+				if (item == nullptr || FIFTYONE_DEGREES_EXCEPTION_FAILED) {
+					failures++;
+					continue;
+				}
+				const int now = ++holding;
+				int most = mostHolding.load();
+				while (now > most &&
+					mostHolding.compare_exchange_weak(most, now) == false) {
+				}
+				std::this_thread::yield();
+				holding--;
+				fiftyoneDegreesPoolItemRelease(item);
+			}
+		});
+	}
+	for (std::thread& thread : threads) {
+		thread.join();
+	}
 
 	// Assert
-	ASSERT_EQ(NULL, item3);
-	ASSERT_FALSE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
-	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_HANDLES));
-
-	// Cleanup
-	fiftyoneDegreesPoolItemRelease(item);
-	fiftyoneDegreesPoolItemRelease(item2);
-}
-
-/**
- * Check that when a pool of resources has been exhausted,
- * then handles returned to it, resources are handed out again.
- */
-TEST_F(Pool, PoolGetHandlesReturned) {
-	// Arrange
-	testResourceCounter counter;
-	counter.count = 0;
-	counter.resources = resources;
-	FIFTYONE_DEGREES_EXCEPTION_CREATE;
-	fiftyoneDegreesPoolInit(
-		&pool,
-		1,
-		&counter,
-		createResource,
-		freeResource,
-		exception);
-
-	// Act
-	fiftyoneDegreesPoolItem* item = fiftyoneDegreesPoolItemGet(
-		&pool,
-		exception);
-	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
-	fiftyoneDegreesPoolItem* item2 = fiftyoneDegreesPoolItemGet(
-		&pool,
-		exception);
-	ASSERT_EQ(NULL, item2);
-	ASSERT_FALSE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
-	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_HANDLES));
-	FIFTYONE_DEGREES_EXCEPTION_CLEAR;
-	fiftyoneDegreesPoolItemRelease(item);
-	item2 = fiftyoneDegreesPoolItemGet(
-		&pool,
-		exception);
-
-	// Assert
-	ASSERT_NE((void*)NULL, (void*)item2);
-	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
-	ASSERT_EQ(item->resource, item2->resource);
-
-	// Cleanup
-	fiftyoneDegreesPoolItemRelease(item);
-	fiftyoneDegreesPoolItemRelease(item2);
+	EXPECT_EQ(0, failures.load()) << "Every get should return an item.";
+	EXPECT_LE(mostHolding.load(), (int)sharedItems) <<
+		"More threads held an item at once than the pool has items.";
 }

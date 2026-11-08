@@ -237,7 +237,8 @@ EXTERNAL void fiftyoneDegreesCacheFree(fiftyoneDegreesCache *cache);
  * references to them are released. This means that the size of the cache must
  * be carefully chosen to be no smaller than the maximum number of nodes which
  * may be in use at any one time. Attempting to fetch a node when there are no
- * free nodes to load the data into will result in a null being returned.
+ * free nodes to load the data into will result in a null being returned. A
+ * load that fails also returns null, and its node is free to be used again.
  *
  * @param cache to get the entry from
  * @param key for the item to be returned
