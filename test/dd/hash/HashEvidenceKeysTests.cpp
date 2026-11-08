@@ -31,6 +31,10 @@
  * data set accepts, keeping each key where it first appears. Both the C
  * function and the engine must give exactly that list in that order, for
  * each data file found and with and without upper prefixed headers.
+ *
+ * The Lite and TAC data files must also give the keys written out below,
+ * word for word, so a change to their keys fails a test even when it follows
+ * the rule above.
  */
 
 #include "../../common/pch.h"
@@ -62,6 +66,236 @@ const char * const fixedKeys[] = {
 };
 
 const size_t fixedKeysCount = sizeof(fixedKeys) / sizeof(fixedKeys[0]);
+
+/*
+ * The keys of the Lite and TAC data files, word for word and in order, with
+ * upper prefixed headers off and then on. Each list is written out rather
+ * than worked out from the data set, so a test fails when the keys change. A
+ * data file that adds or removes a header or an overridable property changes
+ * its list, which is then updated here.
+ */
+
+const char * const liteKeysOff[] = {
+	"header.Device-Stock-UA",
+	"query.Device-Stock-UA",
+	"header.X-Device-User-Agent",
+	"query.X-Device-User-Agent",
+	"header.X-OperaMini-Phone-UA",
+	"query.X-OperaMini-Phone-UA",
+	"header.X-UCBrowser-Device-UA",
+	"query.X-UCBrowser-Device-UA",
+	"header.User-Agent",
+	"query.User-Agent",
+	"header.Sec-CH-UA-Mobile",
+	"query.Sec-CH-UA-Mobile",
+	"header.Sec-CH-UA-Platform",
+	"query.Sec-CH-UA-Platform",
+	"header.Sec-CH-UA-Model",
+	"query.Sec-CH-UA-Model",
+	"header.Sec-CH-UA-Platform-Version",
+	"query.Sec-CH-UA-Platform-Version",
+	"header.Sec-CH-UA",
+	"query.Sec-CH-UA",
+	"header.Sec-CH-UA-Full-Version-List",
+	"query.Sec-CH-UA-Full-Version-List",
+	"cookie.51D_JavascriptGetHighEntropyValues",
+	"query.51D_JavascriptGetHighEntropyValues",
+	"cookie.51D_JavascriptHardwareProfile",
+	"query.51D_JavascriptHardwareProfile",
+	"query.51D_deviceId",
+	"query.51D_gethighentropyvalues",
+	"query.51D_structureduseragent",
+	"cookie.51D_gethighentropyvalues",
+	"cookie.51D_structureduseragent",
+	"query.51D_ProfileIds",
+	"cookie.51D_ProfileIds"
+};
+
+const char * const liteKeysOn[] = {
+	"header.HTTP_Device-Stock-UA",
+	"query.HTTP_Device-Stock-UA",
+	"header.HTTP_X-Device-User-Agent",
+	"query.HTTP_X-Device-User-Agent",
+	"header.HTTP_X-OperaMini-Phone-UA",
+	"query.HTTP_X-OperaMini-Phone-UA",
+	"header.HTTP_X-UCBrowser-Device-UA",
+	"query.HTTP_X-UCBrowser-Device-UA",
+	"header.HTTP_User-Agent",
+	"query.HTTP_User-Agent",
+	"header.HTTP_Sec-CH-UA-Mobile",
+	"query.HTTP_Sec-CH-UA-Mobile",
+	"header.HTTP_Sec-CH-UA-Platform",
+	"query.HTTP_Sec-CH-UA-Platform",
+	"header.HTTP_Sec-CH-UA-Model",
+	"query.HTTP_Sec-CH-UA-Model",
+	"header.HTTP_Sec-CH-UA-Platform-Version",
+	"query.HTTP_Sec-CH-UA-Platform-Version",
+	"header.HTTP_Sec-CH-UA",
+	"query.HTTP_Sec-CH-UA",
+	"header.HTTP_Sec-CH-UA-Full-Version-List",
+	"query.HTTP_Sec-CH-UA-Full-Version-List",
+	"cookie.51D_JavascriptGetHighEntropyValues",
+	"query.51D_JavascriptGetHighEntropyValues",
+	"cookie.51D_JavascriptHardwareProfile",
+	"query.51D_JavascriptHardwareProfile",
+	"query.51D_deviceId",
+	"query.51D_gethighentropyvalues",
+	"query.51D_structureduseragent",
+	"cookie.51D_gethighentropyvalues",
+	"cookie.51D_structureduseragent",
+	"query.51D_ProfileIds",
+	"cookie.51D_ProfileIds"
+};
+
+const char * const tacKeysOff[] = {
+	"header.Device-Stock-UA",
+	"query.Device-Stock-UA",
+	"header.X-Device-User-Agent",
+	"query.X-Device-User-Agent",
+	"header.X-OperaMini-Phone-UA",
+	"query.X-OperaMini-Phone-UA",
+	"header.X-UCBrowser-Device-UA",
+	"query.X-UCBrowser-Device-UA",
+	"header.User-Agent",
+	"query.User-Agent",
+	"header.Sec-CH-UA-Mobile",
+	"query.Sec-CH-UA-Mobile",
+	"header.Sec-CH-UA-Platform",
+	"query.Sec-CH-UA-Platform",
+	"header.Sec-CH-UA-Model",
+	"query.Sec-CH-UA-Model",
+	"header.Sec-CH-UA-Platform-Version",
+	"query.Sec-CH-UA-Platform-Version",
+	"header.Sec-CH-UA",
+	"query.Sec-CH-UA",
+	"header.Sec-CH-UA-Full-Version-List",
+	"query.Sec-CH-UA-Full-Version-List",
+	"cookie.51D_HasWebDriver",
+	"query.51D_HasWebDriver",
+	"cookie.51D_HasWebDriverJavaScript",
+	"query.51D_HasWebDriverJavaScript",
+	"cookie.51D_IsVerifiediPhone",
+	"query.51D_IsVerifiediPhone",
+	"cookie.51D_IsVerifiediPhoneJavaScript",
+	"query.51D_IsVerifiediPhoneJavaScript",
+	"cookie.51D_IsVisible",
+	"query.51D_IsVisible",
+	"cookie.51D_IsVisibleJavaScript",
+	"query.51D_IsVisibleJavaScript",
+	"cookie.51D_Javascript",
+	"query.51D_Javascript",
+	"cookie.51D_JavascriptBandwidth",
+	"query.51D_JavascriptBandwidth",
+	"cookie.51D_JavaScriptBrowserOverride",
+	"query.51D_JavaScriptBrowserOverride",
+	"cookie.51D_JavascriptGetHighEntropyValues",
+	"query.51D_JavascriptGetHighEntropyValues",
+	"cookie.51D_JavascriptHardwareProfile",
+	"query.51D_JavascriptHardwareProfile",
+	"cookie.51D_JavascriptImageOptimiser",
+	"query.51D_JavascriptImageOptimiser",
+	"cookie.51D_PixelRatio",
+	"query.51D_PixelRatio",
+	"cookie.51D_PixelRatioJavascript",
+	"query.51D_PixelRatioJavascript",
+	"cookie.51D_ScreenPixelsHeight",
+	"query.51D_ScreenPixelsHeight",
+	"cookie.51D_ScreenPixelsHeightJavaScript",
+	"query.51D_ScreenPixelsHeightJavaScript",
+	"cookie.51D_ScreenPixelsWidth",
+	"query.51D_ScreenPixelsWidth",
+	"cookie.51D_ScreenPixelsWidthJavaScript",
+	"query.51D_ScreenPixelsWidthJavaScript",
+	"cookie.51D_ThirdPartyCookiesEnabled",
+	"query.51D_ThirdPartyCookiesEnabled",
+	"cookie.51D_ThirdPartyCookiesEnabledJavaScript",
+	"query.51D_ThirdPartyCookiesEnabledJavaScript",
+	"query.51D_deviceId",
+	"query.51D_gethighentropyvalues",
+	"query.51D_structureduseragent",
+	"cookie.51D_gethighentropyvalues",
+	"cookie.51D_structureduseragent",
+	"query.51D_ProfileIds",
+	"cookie.51D_ProfileIds"
+};
+
+const char * const tacKeysOn[] = {
+	"header.HTTP_Device-Stock-UA",
+	"query.HTTP_Device-Stock-UA",
+	"header.HTTP_X-Device-User-Agent",
+	"query.HTTP_X-Device-User-Agent",
+	"header.HTTP_X-OperaMini-Phone-UA",
+	"query.HTTP_X-OperaMini-Phone-UA",
+	"header.HTTP_X-UCBrowser-Device-UA",
+	"query.HTTP_X-UCBrowser-Device-UA",
+	"header.HTTP_User-Agent",
+	"query.HTTP_User-Agent",
+	"header.HTTP_Sec-CH-UA-Mobile",
+	"query.HTTP_Sec-CH-UA-Mobile",
+	"header.HTTP_Sec-CH-UA-Platform",
+	"query.HTTP_Sec-CH-UA-Platform",
+	"header.HTTP_Sec-CH-UA-Model",
+	"query.HTTP_Sec-CH-UA-Model",
+	"header.HTTP_Sec-CH-UA-Platform-Version",
+	"query.HTTP_Sec-CH-UA-Platform-Version",
+	"header.HTTP_Sec-CH-UA",
+	"query.HTTP_Sec-CH-UA",
+	"header.HTTP_Sec-CH-UA-Full-Version-List",
+	"query.HTTP_Sec-CH-UA-Full-Version-List",
+	"cookie.51D_HasWebDriver",
+	"query.51D_HasWebDriver",
+	"cookie.51D_HasWebDriverJavaScript",
+	"query.51D_HasWebDriverJavaScript",
+	"cookie.51D_IsVerifiediPhone",
+	"query.51D_IsVerifiediPhone",
+	"cookie.51D_IsVerifiediPhoneJavaScript",
+	"query.51D_IsVerifiediPhoneJavaScript",
+	"cookie.51D_IsVisible",
+	"query.51D_IsVisible",
+	"cookie.51D_IsVisibleJavaScript",
+	"query.51D_IsVisibleJavaScript",
+	"cookie.51D_Javascript",
+	"query.51D_Javascript",
+	"cookie.51D_JavascriptBandwidth",
+	"query.51D_JavascriptBandwidth",
+	"cookie.51D_JavaScriptBrowserOverride",
+	"query.51D_JavaScriptBrowserOverride",
+	"cookie.51D_JavascriptGetHighEntropyValues",
+	"query.51D_JavascriptGetHighEntropyValues",
+	"cookie.51D_JavascriptHardwareProfile",
+	"query.51D_JavascriptHardwareProfile",
+	"cookie.51D_JavascriptImageOptimiser",
+	"query.51D_JavascriptImageOptimiser",
+	"cookie.51D_PixelRatio",
+	"query.51D_PixelRatio",
+	"cookie.51D_PixelRatioJavascript",
+	"query.51D_PixelRatioJavascript",
+	"cookie.51D_ScreenPixelsHeight",
+	"query.51D_ScreenPixelsHeight",
+	"cookie.51D_ScreenPixelsHeightJavaScript",
+	"query.51D_ScreenPixelsHeightJavaScript",
+	"cookie.51D_ScreenPixelsWidth",
+	"query.51D_ScreenPixelsWidth",
+	"cookie.51D_ScreenPixelsWidthJavaScript",
+	"query.51D_ScreenPixelsWidthJavaScript",
+	"cookie.51D_ThirdPartyCookiesEnabled",
+	"query.51D_ThirdPartyCookiesEnabled",
+	"cookie.51D_ThirdPartyCookiesEnabledJavaScript",
+	"query.51D_ThirdPartyCookiesEnabledJavaScript",
+	"query.51D_deviceId",
+	"query.51D_gethighentropyvalues",
+	"query.51D_structureduseragent",
+	"cookie.51D_gethighentropyvalues",
+	"cookie.51D_structureduseragent",
+	"query.51D_ProfileIds",
+	"cookie.51D_ProfileIds"
+};
+
+/** The keys of the array, in order. */
+template <size_t N>
+vector<string> listOf(const char * const (&keys)[N]) {
+	return vector<string>(keys, keys + N);
+}
 
 /** Adds the key unless the list already holds it. */
 void addKey(vector<string> &keys, const string &key) {
@@ -232,6 +466,50 @@ protected:
 			"different keys for '" << path << "'.";
 	}
 
+	/**
+	 * Checks that the C library and the engine give exactly the keys listed
+	 * for the data file, with upper prefixed headers off and then on. Skips
+	 * if there is no such file.
+	 */
+	void verifyListed(
+		const char *fileName,
+		const vector<string> &off,
+		const vector<string> &on) {
+		const string path = GetFilePath(_dataFolderName, fileName);
+		if (path.empty()) {
+			GTEST_SKIP() << "The data file '" << fileName << "' was not found.";
+		}
+		verifyListedKeys(path, false, off);
+		verifyListedKeys(path, true, on);
+	}
+
+	void verifyListedKeys(
+		const string &path,
+		bool upper,
+		const vector<string> &listed) {
+		const string where = "'" + path + "' with upper prefixed headers " +
+			(upper ? "on" : "off") + ". If the data file has changed, update "
+			"the keys listed in this test.";
+		fiftyoneDegreesResourceManager manager;
+		if (open(path, upper, &manager) == false) {
+			return;
+		}
+		fiftyoneDegreesDataSetHash *dataSet =
+			fiftyoneDegreesDataSetHashGet(&manager);
+		const vector<string> written = split(writeKeys(dataSet, ","), ",");
+		fiftyoneDegreesDataSetHashRelease(dataSet);
+		fiftyoneDegreesResourceManagerFree(&manager);
+		EXPECT_EQ(listed, written) << "The C library gave other keys for " <<
+			where;
+
+		ConfigHash config;
+		config.setUseUpperPrefixHeaders(upper);
+		RequiredPropertiesConfig properties;
+		EngineHash engine(path, &config, &properties);
+		EXPECT_EQ(listed, *engine.getKeys()) << "The engine gave other keys "
+			"for " << where;
+	}
+
 	/** The path of the first data file found, or empty if there is none. */
 	string findDataFile() {
 		string path;
@@ -252,6 +530,20 @@ TEST_F(HashEvidenceKeysTests, EnterpriseDataFile) {
 
 TEST_F(HashEvidenceKeysTests, TacDataFile) {
 	verifyFile("TAC-HashV41.hash");
+}
+
+TEST_F(HashEvidenceKeysTests, LiteDataFile_GivesTheListedKeys) {
+	verifyListed(
+		"51Degrees-LiteV4.1.hash",
+		listOf(liteKeysOff),
+		listOf(liteKeysOn));
+}
+
+TEST_F(HashEvidenceKeysTests, TacDataFile_GivesTheListedKeys) {
+	verifyListed(
+		"TAC-HashV41.hash",
+		listOf(tacKeysOff),
+		listOf(tacKeysOn));
 }
 
 /**

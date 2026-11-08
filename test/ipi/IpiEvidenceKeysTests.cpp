@@ -30,6 +30,10 @@
  * header under the query prefix and then the server prefix, keeping each key
  * where it first appears. Both the C function and the engine must give
  * exactly that list in that order, for each data file found.
+ *
+ * The Lite data file must also give the keys written out below, word for
+ * word, so a change to its keys fails a test even when it follows the rule
+ * above.
  */
 
 #include "../common/Base.hpp"
@@ -51,6 +55,21 @@ namespace {
 
 /** The free data file holding the autonomous system properties. */
 const char asnFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
+
+/**
+ * The keys of the Lite data file, word for word and in order. The list is
+ * written out rather than worked out from the data set, so a test fails when
+ * the keys change. A data file that adds or removes a header changes it, and
+ * it is then updated here.
+ */
+const char * const liteKeys[] = {
+	"query.true-client-ip-51d",
+	"server.true-client-ip-51d",
+	"query.client-ip-51d",
+	"server.client-ip-51d",
+	"query.client-ip",
+	"server.client-ip"
+};
 
 /**
  * The keys of the data set. For each unique header there is a key under
@@ -179,6 +198,36 @@ protected:
 			"different keys for '" << path << "'.";
 	}
 
+	/**
+	 * Checks that the C library and the engine give exactly the keys listed
+	 * for the data file. Skips if there is no such file.
+	 */
+	void verifyListed(const char *fileName, const vector<string> &listed) {
+		const string path = GetFilePath(_dataFolderName, fileName);
+		if (path.empty()) {
+			GTEST_SKIP() << "The data file '" << fileName << "' was not found.";
+		}
+		const string where = "'" + path + "'. If the data file has changed, "
+			"update the keys listed in this test.";
+		fiftyoneDegreesResourceManager manager;
+		if (open(path, &manager) == false) {
+			return;
+		}
+		fiftyoneDegreesDataSetIpi *dataSet =
+			fiftyoneDegreesDataSetIpiGet(&manager);
+		const vector<string> written = split(writeKeys(dataSet, ","), ",");
+		fiftyoneDegreesDataSetIpiRelease(dataSet);
+		fiftyoneDegreesResourceManagerFree(&manager);
+		EXPECT_EQ(listed, written) << "The C library gave other keys for " <<
+			where;
+
+		ConfigIpi config;
+		RequiredPropertiesConfig properties;
+		EngineIpi engine(path, &config, &properties);
+		EXPECT_EQ(listed, *engine.getKeys()) << "The engine gave other keys "
+			"for " << where;
+	}
+
 	/** The path of the first data file found, or empty if there is none. */
 	string findDataFile() {
 		string path = GetFilePath(_dataFolderName, asnFileName);
@@ -199,6 +248,14 @@ TEST_F(IpiEvidenceKeysTests, EnterpriseDataFile) {
 
 TEST_F(IpiEvidenceKeysTests, AsnDataFile) {
 	verifyFile(asnFileName);
+}
+
+TEST_F(IpiEvidenceKeysTests, LiteDataFile_GivesTheListedKeys) {
+	verifyListed(
+		"51Degrees-LiteV41.ipi",
+		vector<string>(
+			liteKeys,
+			liteKeys + sizeof(liteKeys) / sizeof(liteKeys[0])));
 }
 
 /**
