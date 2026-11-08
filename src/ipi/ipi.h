@@ -476,8 +476,10 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiHighPerformanceConfig;
  * Low memory configuration. A connection is maintained to the source data file
  * used to build the data set and used to load data into memory when required.
  * No caching is used resulting in the lowest memory footprint at the expense
- * of performance. The concurrency of each collection must be set to the
- * maximum number of concurrent operations to optimize file reads.
+ * of performance. Only the default value of each required property is held in
+ * memory, as defaultValuesInMemory is set. The concurrency of each collection
+ * must be set to the maximum number of concurrent operations to optimize file
+ * reads.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig;
 

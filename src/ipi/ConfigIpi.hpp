@@ -92,9 +92,9 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Set the collections to use the high performance
-			 * configuration. It sets setLoadRequiredPropertiesOnly, so
-			 * naming some of the required properties loads only what they
-			 * read into memory.
+			 * configuration. It turns on setLoadRequiredPropertiesOnly,
+			 * so naming some of the required properties loads only what
+			 * they read into memory.
 			 * See #fiftyoneDegreesIpiHighPerformanceConfig
 			 */
 			void setHighPerformance();
