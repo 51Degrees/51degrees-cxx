@@ -23,7 +23,7 @@
 /**
  * @file IpiMetaDataTests.cpp
  * @brief Checks the metadata the IP Intelligence C functions give for every
- * property and value of each data file found against
+ * property, value, component and profile of each data file found against
  * the data set's own records, and that the C++ metadata gives the same
  * answers.
  *
@@ -48,6 +48,8 @@ namespace Common = FiftyoneDegrees::Common;
 using Properties = Common::Collection<string, Common::PropertyMetaData>;
 using Values =
 	Common::Collection<Common::ValueMetaDataKey, Common::ValueMetaData>;
+using Components = Common::Collection<::byte, Common::ComponentMetaData>;
+using Profiles = Common::Collection<uint32_t, Common::ProfileMetaData>;
 
 /** The free ASN data file, which the data repository's script downloads. */
 static const char ipiMetaDataAsnFileName[] = "51Degrees-IPIV4AsnIpiV41.ipi";
@@ -66,6 +68,9 @@ static const uint32_t ipiMetaDataAllValues = 500;
 
 /** The values of a larger property checked, spread across them. */
 static const uint32_t ipiMetaDataSampledValues = 200;
+
+/** The profiles checked, spread across them. */
+static const uint32_t ipiMetaDataSampledProfiles = 2000;
 
 /** A name no property or value has. */
 static const char *ipiMetaDataNoName = "NoSuchName51Degrees";
@@ -280,6 +285,22 @@ static string ipiMetaDataValueText(
 		text,
 		buffer.data(),
 		length,
+		exception);
+	return ipiMetaDataTake(result, buffer.data(), exception);
+}
+
+/** The name of the component, read with a buffer of the length given. */
+static string ipiMetaDataComponentName(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t index,
+	size_t length) {
+	EXCEPTION_CREATE;
+	vector<char> buffer(length);
+	char *result = fiftyoneDegreesIpiGetComponentName(
+		dataSet,
+		index,
+		buffer.data(),
+		buffer.size(),
 		exception);
 	return ipiMetaDataTake(result, buffer.data(), exception);
 }
@@ -616,6 +637,103 @@ protected:
 			}
 		}
 	}
+
+	/** Checks the components and the profiles. */
+	void checkComponentsAndProfiles(const string &path) {
+		const auto manager = openIpiMetaData(path, nullptr);
+		Ipi::MetaDataIpi metaData(manager);
+		IpiMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetIpi *dataSet = scope.dataSet;
+		unique_ptr<Components> components(metaData.getComponents());
+		const uint32_t count = fiftyoneDegreesIpiGetComponentCount(dataSet);
+		EXPECT_EQ(dataSet->componentsList.count, count);
+		EXPECT_EQ(count, components->getSize());
+		for (uint32_t c = 0; c < count; c++) {
+			const fiftyoneDegreesComponent *stored =
+				(const fiftyoneDegreesComponent*)
+				dataSet->componentsList.items[c].data.ptr;
+			uint8_t componentId = 0;
+			uint32_t defaultProfileOffset = 0;
+			ASSERT_TRUE(fiftyoneDegreesIpiGetComponent(
+				dataSet,
+				c,
+				&componentId,
+				&defaultProfileOffset));
+			EXPECT_EQ(stored->componentId, componentId);
+			EXPECT_EQ(
+				(uint32_t)stored->defaultProfileOffset,
+				defaultProfileOffset);
+			const string name = ipiMetaDataStored(
+				dataSet,
+				(uint32_t)stored->nameOffset);
+			EXPECT_EQ(name, ipiMetaDataComponentName(
+				dataSet,
+				c,
+				ipiMetaDataTextBytes));
+			EXPECT_EQ(name, ipiMetaDataComponentName(
+				dataSet,
+				c,
+				ipiMetaDataShortBytes));
+			unique_ptr<Common::ComponentMetaData> component(
+				components->getByIndex(c));
+			ASSERT_TRUE(component != nullptr) << name;
+			EXPECT_EQ(componentId, component->getComponentId()) << name;
+			EXPECT_EQ(name, component->getName());
+			EXPECT_EQ(defaultProfileOffset, component->getDefaultProfileId());
+			unique_ptr<Common::ComponentMetaData> byKey(
+				components->getByKey(componentId));
+			ASSERT_TRUE(byKey != nullptr) << name;
+			EXPECT_EQ(name, byKey->getName());
+		}
+
+		unique_ptr<Profiles> profiles(metaData.getProfiles());
+		const uint32_t profileCount =
+			fiftyoneDegreesIpiGetProfileCount(dataSet);
+		EXPECT_EQ(
+			fiftyoneDegreesCollectionGetCount(dataSet->profileOffsets),
+			profileCount);
+		EXPECT_EQ(profileCount, profiles->getSize());
+		const uint32_t step =
+			profileCount / ipiMetaDataSampledProfiles + 1;
+		for (uint32_t p = 0; p < profileCount; p += step) {
+			EXCEPTION_CREATE;
+			const uint32_t storedOffset =
+				(uint32_t)fiftyoneDegreesCollectionGetInteger32(
+					dataSet->profileOffsets,
+					p,
+					exception);
+			EXCEPTION_THROW;
+			uint32_t profileOffset = 0;
+			uint8_t componentId = 0;
+			const bool read = fiftyoneDegreesIpiGetProfile(
+				dataSet,
+				p,
+				&profileOffset,
+				&componentId,
+				exception);
+			EXPECT_TRUE(EXCEPTION_OKAY);
+			EXPECT_EQ(storedOffset, profileOffset);
+			unique_ptr<Common::ProfileMetaData> profile(
+				profiles->getByIndex(p));
+			EXPECT_EQ(read, profile != nullptr);
+			if (read == false) {
+				continue;
+			}
+			uint8_t byOffsetComponentId = 0;
+			ASSERT_TRUE(fiftyoneDegreesIpiGetProfileByOffset(
+				dataSet,
+				profileOffset,
+				&byOffsetComponentId,
+				exception));
+			EXPECT_EQ(componentId, byOffsetComponentId);
+			EXPECT_EQ(profileOffset, profile->getProfileId());
+			EXPECT_EQ(componentId, profile->getComponentId());
+			unique_ptr<Common::ProfileMetaData> byKey(
+				profiles->getByKey(profileOffset));
+			ASSERT_TRUE(byKey != nullptr);
+			EXPECT_EQ(componentId, byKey->getComponentId());
+		}
+	}
 };
 
 TEST_F(IpiMetaDataTests, PropertiesOfEachDataFile) {
@@ -624,6 +742,12 @@ TEST_F(IpiMetaDataTests, PropertiesOfEachDataFile) {
 
 TEST_F(IpiMetaDataTests, ValuesOfEachDataFile) {
 	eachDataFile([this](const string &path) { checkValues(path); });
+}
+
+TEST_F(IpiMetaDataTests, ComponentsAndProfilesOfEachDataFile) {
+	eachDataFile([this](const string &path) {
+		checkComponentsAndProfiles(path);
+	});
 }
 
 /**
@@ -717,6 +841,50 @@ TEST_F(IpiMetaDataTests, NoValuePastTheEnd) {
 				sizeof(buffer),
 				exception));
 			EXPECT_TRUE(EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_INVALID_INPUT));
+		}
+	});
+}
+
+/**
+ * Reading past the last component, or for a profile offset no component
+ * has, gives no answer rather than another component or profile.
+ */
+TEST_F(IpiMetaDataTests, NoComponentPastTheEnd) {
+	eachDataFile([](const string &path) {
+		const auto manager = openIpiMetaData(path, nullptr);
+		IpiMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetIpi *dataSet = scope.dataSet;
+		{
+			EXCEPTION_CREATE;
+			const uint32_t components =
+				fiftyoneDegreesIpiGetComponentCount(dataSet);
+			uint8_t componentId = 0;
+			uint32_t defaultProfileOffset = 0;
+			EXPECT_FALSE(fiftyoneDegreesIpiGetComponent(
+				dataSet,
+				components,
+				&componentId,
+				&defaultProfileOffset));
+			char buffer[8];
+			EXPECT_EQ(nullptr, fiftyoneDegreesIpiGetComponentName(
+				dataSet,
+				components,
+				buffer,
+				sizeof(buffer),
+				exception));
+			EXPECT_TRUE(EXCEPTION_CHECK(
+				FIFTYONE_DEGREES_STATUS_COLLECTION_INDEX_OUT_OF_RANGE));
+		}
+		{
+			EXCEPTION_CREATE;
+			uint8_t componentId = 0;
+			// A component with no default profile gives this offset.
+			EXPECT_FALSE(fiftyoneDegreesIpiGetProfileByOffset(
+				dataSet,
+				UINT32_MAX,
+				&componentId,
+				exception));
+			EXPECT_TRUE(EXCEPTION_OKAY);
 		}
 	});
 }
