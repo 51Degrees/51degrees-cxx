@@ -47,6 +47,9 @@ public:
 	void TearDown() override;
 
 protected:
+	/** Makes the collections the tests read. */
+	void createObjects();
+
 	/**
 	 * A text of the property at the index, written with a buffer of the
 	 * length given, or "<null>" when there is none.
@@ -96,6 +99,13 @@ const char *MetaDataTextTests::strings[] = {
 };
 
 void MetaDataTextTests::SetUp() {
+	createObjects();
+	// The objects are made before the base starts counting memory, so the
+	// base sees only what each test allocates.
+	Base::SetUp();
+}
+
+void MetaDataTextTests::createObjects() {
 	stringsHelper = new StringCollection(strings, N_STRINGS);
 	stringsCollection = stringsHelper->getState()->collection;
 	const uint32_t *offsets = stringsHelper->getState()->offsets;
@@ -169,7 +179,6 @@ void MetaDataTextTests::SetUp() {
 		metaDataTextWeighted });
 	valuesHelper = new FixedSizeCollection<fiftyoneDegreesValue>(valueItems);
 	values = valuesHelper->getState()->collection;
-	Base::SetUp();
 }
 
 void MetaDataTextTests::TearDown() {
