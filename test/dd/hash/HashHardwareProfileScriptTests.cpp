@@ -24,13 +24,15 @@
  * @file HashHardwareProfileScriptTests.cpp
  * @brief Tests of the script written for a value of the
  * JavascriptHardwareProfile property. The C function is checked with every
- * length of buffer up to one that fits. ResultsHash is checked to give, for
- * each value the C results hold for the same evidence, that value inside the
- * text given here, for every User-Agent in the test file and every Hash data
- * file found, so a change to the script fails the test.
+ * length of buffer up to one that fits. ResultsHash is checked, on every Hash
+ * data file found, to give each value inside the text given here, so a change
+ * to the script fails the test. That is checked for each value the C results
+ * hold for every User-Agent in the test file, and for every value the data
+ * file holds for the property, read through a profile that holds it.
  */
 
 #include "../../common/pch.h"
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <memory>
@@ -44,6 +46,7 @@
 #include "../../../src/dd/hash/hash.h"
 
 using namespace FiftyoneDegrees::Common;
+using namespace FiftyoneDegrees::DeviceDetection;
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
 namespace {
@@ -319,5 +322,76 @@ TEST_F(HashHardwareProfileScriptTests, Results_GiveEachValueInTheScript) {
 		if (engine.getProduct() != "Lite") {
 			EXPECT_GT(scripts, (size_t)0) << path;
 		}
+	}
+}
+
+/**
+ * Every value the data file holds for the property, an empty one included,
+ * is given inside the script by the results for a profile that holds it,
+ * with the profile set by the 51D_ProfileIds evidence. Every script given is
+ * that of a value the data file holds. The number of values, and of empty
+ * ones, is printed.
+ */
+TEST_F(HashHardwareProfileScriptTests, Results_GiveEveryValueOfTheFile) {
+	if (dataFilePaths.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
+	for (const std::string &path : dataFilePaths) {
+		ConfigHash config;
+		config.setIndexedProperties({ propertyName });
+		RequiredPropertiesConfig properties(propertyName);
+		EngineHash engine(path.c_str(), &config, &properties);
+		MetaData *metaData = engine.getMetaData();
+		std::unique_ptr<Collection<std::string, PropertyMetaData>>
+			fileProperties(metaData->getProperties());
+		std::unique_ptr<PropertyMetaData> property(
+			fileProperties->getByKey(propertyName));
+		if (property == nullptr) {
+			printf("%s has no %s\n", path.c_str(), propertyName);
+			continue;
+		}
+		std::vector<std::string> names;
+		{
+			std::unique_ptr<Collection<ValueMetaDataKey, ValueMetaData>>
+				values(metaData->getValuesForProperty(property.get()));
+			for (uint32_t i = 0; i < values->getSize(); i++) {
+				std::unique_ptr<ValueMetaData> value(values->getByIndex(i));
+				names.push_back(value->getName());
+			}
+		}
+		std::set<std::string> scripts;
+		size_t emptyValues = 0;
+		for (const std::string &name : names) {
+			scripts.insert(expectedScript(name));
+			if (name.empty()) {
+				emptyValues++;
+			}
+		}
+		for (const std::string &name : names) {
+			const std::vector<uint32_t> ids =
+				engine.getProfileIdsForPropertyValue(
+					property->getName(),
+					name);
+			ASSERT_FALSE(ids.empty()) << "No profile holds '" << name << "'";
+			EvidenceDeviceDetection evidence;
+			evidence["query.51D_ProfileIds"] = std::to_string(ids[0]);
+			std::unique_ptr<ResultsHash> results(engine.process(&evidence));
+			const Value<std::vector<std::string>> actual =
+				results->getValues(propertyName);
+			ASSERT_TRUE(actual.hasValue()) << "Profile " << ids[0];
+			const std::vector<std::string> given = actual.getValue();
+			const std::string script = expectedScript(name);
+			EXPECT_NE(
+				given.end(),
+				std::find(given.begin(), given.end(), script)) <<
+				"Profile " << ids[0] << " for '" << name << "'";
+			for (const std::string &each : given) {
+				EXPECT_EQ((size_t)1, scripts.count(each)) << each;
+			}
+		}
+		const std::string summary = path + " (" + engine.getProduct() +
+			"): " + std::to_string(names.size()) + " values of " +
+			propertyName + ", " + std::to_string(emptyValues) + " empty";
+		printf("%s\n", summary.c_str());
 	}
 }
