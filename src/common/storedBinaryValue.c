@@ -122,8 +122,9 @@ int fiftyoneDegreesStoredBinaryValueCompareWithString(
 /**
  * Bytes the text of the value is expected to need, counting its terminating
  * null, or 0 when that is not known before it is written. A string needs its
- * size, and an area is expected to need at most
- * FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE for each byte.
+ * size, and an area normally needs at most
+ * FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE for each byte, though a reduced
+ * area written to more than 4 places can need more.
  */
 static size_t textBytesExpected(
     const StoredBinaryValue * const value,
