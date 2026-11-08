@@ -305,9 +305,9 @@ EXTERNAL char* fiftyoneDegreesValueGetText(
  * to, so a default stored with more places than the metadata shows for a
  * value is still found. A property with no default value index has an empty
  * text. A default that is read but cannot be written gives NULL rather than
- * an empty text, as the property metadata fails for it. The text is written
- * into `buffer` when it fits, and otherwise into memory the caller frees, as
- * #fiftyoneDegreesStoredBinaryValueToText describes.
+ * an empty text, so it is not taken for a value with an empty name. The text
+ * is written into `buffer` when it fits, and otherwise into memory the caller
+ * frees, as #fiftyoneDegreesStoredBinaryValueToText describes.
  * @param values collection containing the property's values
  * @param strings collection containing the value names
  * @param propertyTypes collection of the type each property's values are

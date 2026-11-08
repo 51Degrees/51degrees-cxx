@@ -428,8 +428,8 @@ char* fiftyoneDegreesValueGetDefaultText(
 	// item is held at a time.
 	const Value value = *held;
 	COLLECTION_RELEASE(values, &item);
-	// The property metadata fails for a default it cannot write, so this
-	// does too.
+	// A default that cannot be written fails, as an empty text would find a
+	// value with an empty name in fiftyoneDegreesValueGetDefaultIndex.
 	return getNameText(
 		strings,
 		propertyTypes,
