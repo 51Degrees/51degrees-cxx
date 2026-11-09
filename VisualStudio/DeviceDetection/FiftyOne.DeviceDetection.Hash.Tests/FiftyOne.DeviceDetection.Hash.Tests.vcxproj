@@ -58,6 +58,7 @@
     <ClCompile Include="..\..\..\test\dd\hash\HashCTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashFirstReadTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashFirstReadRuleTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashMatchMetricsTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashPositionsTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashValueProfilesTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashDefaultValueTests.cpp" />
@@ -68,9 +69,11 @@
     <ClCompile Include="..\..\..\test\dd\hash\HashSizeManagerFromMemoryTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\TransformTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashReloadTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashHardwareProfileScriptTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashConcurrencyTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashConcurrentReadTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashFailedReadTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashDateTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashLoadFailureTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashShortFileTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ResultsHashSerializerTests.cpp" />

@@ -60,7 +60,9 @@ PropertyMetaData* PropertyMetaDataBuilderIpi::build(
 	return new PropertyMetaData(
 		name,
 		getPropertyMap(dataSet, propertyIndex, mapCount),
-		getPropertyType(valueType, isList),
+		PropertyValueTypeGetName(
+			(PropertyValueType)valueType,
+			isList),
 		getText(
 			dataSet,
 			propertyIndex,
@@ -117,55 +119,6 @@ vector<uint32_t> PropertyMetaDataBuilderIpi::getEvidenceProperties(
 		}
 	}
 	return indexes;
-}
-
-string PropertyMetaDataBuilderIpi::getPropertyType(
-	uint8_t valueType,
-	bool isList) {
-	switch (valueType) {
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER:
-		return string("int");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT:
-		return string("single");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB:
-		return string("wkb");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R:
-		return string("wkbr");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN:
-		return string("bool");
-    case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE:
-		return string("double");
-    case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_COORDINATE:
-		return string("coordinate");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS:
-		return string("ipaddress");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT:
-		return string("javascript");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
-		if (isList) {
-			return string("string[]");
-		}
-		return string("string");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_STRING:
-		return string("weightedstring");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_INT:
-		return string("weightedint");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_SINGLE:
-		return string("weightedsingle");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_DOUBLE:
-		return string("weighteddouble");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_BOOL:
-		return string("weightedbool");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_BYTE:
-		return string("weightedbyte");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_IP_ADDRESS:
-		return string("weightedipaddress");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_WKB_R:
-		return string("weightedwkbr");
-
-	default:
-		return string("string");
-	}
 }
 
 vector<string> PropertyMetaDataBuilderIpi::getPropertyMap(

@@ -70,15 +70,6 @@ namespace FiftyoneDegrees {
 				fiftyoneDegreesPropertyText text);
 
 			/**
-			 * Get a copy of the type name for a property.
-			 * @param valueType the type of the property's values
-			 * @param isList true when the property can have more than one
-			 * value
-			 * @return copy of the type string
-			 */
-			static string getPropertyType(uint8_t valueType, bool isList);
-
-			/**
 			 * Get the names of the maps the property is in, leaving out a map
 			 * the data set gives no name for.
 			 * @param dataSet pointer to the data set containing the property

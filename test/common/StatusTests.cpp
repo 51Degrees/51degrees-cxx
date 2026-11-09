@@ -245,8 +245,8 @@ TEST(Status, Get_CollectionFailureMessage) {
 		NULL);
 	assertValidMessage(message);
 	assertContains(message, "getting an item from a collection");
-	assertContains(message, "too many concurrent operations");
-	assertContains(message, "Increase the concurrency");
+	assertContains(message, "Reading the item from the data file failed");
+	assertContains(message, "build without threading");
 	free((void*)message);
 }
 

@@ -401,6 +401,7 @@ MAP_TYPE(WeightedItemList)
 #define SignalWait fiftyoneDegreesSignalWait /**< Synonym for #fiftyoneDegreesSignalWait function. */
 #define IntToBool fiftyoneDegreesIntToBool /**< Synonym for #fiftyoneDegreesIntToBool function. */
 #define BoolToInt fiftyoneDegreesBoolToInt /**< Synonym for #fiftyoneDegreesBoolToInt function. */
+#define DateIsValid fiftyoneDegreesDateIsValid /**< Synonym for #fiftyoneDegreesDateIsValid function. */
 #define ProcessGetId fiftyoneDegreesProcessGetId /**< Synonym for fiftyoneDegreesProcessGetId */
 #define YamlFileIterate fiftyoneDegreesYamlFileIterate /**< Synonym for fiftyoneDegreesYamlFileIterate */
 #define YamlFileIterateWithLimit fiftyoneDegreesYamlFileIterateWithLimit /**< Synonym for fiftyoneDegreesYamlFileIterateWithLimit */
@@ -435,6 +436,7 @@ MAP_TYPE(WeightedItemList)
 #define ValueGetWeight fiftyoneDegreesValueGetWeight /**< Synonym for fiftyoneDegreesValueGetWeight */
 #define ValueIsWeighted fiftyoneDegreesValueIsWeighted /**< Synonym for fiftyoneDegreesValueIsWeighted */
 #define PropertyValueTypeGetUnderlyingType fiftyoneDegreesPropertyValueTypeGetUnderlyingType /**< Synonym for fiftyoneDegreesPropertyValueTypeGetUnderlyingType */
+#define PropertyValueTypeGetName fiftyoneDegreesPropertyValueTypeGetName /**< Synonym for fiftyoneDegreesPropertyValueTypeGetName */
 
 /* <-- only one asterisk to avoid inclusion in documentation
  * Shortened constants.

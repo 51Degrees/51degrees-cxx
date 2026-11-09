@@ -166,23 +166,23 @@ string EngineHash::getType() const {
 }
 
 /**
- * @return the date that 51Degrees published the data file.
+ * @return the date that 51Degrees published the data file, or a year, month
+ * and day of zero when its header holds no valid date.
  */
 Date EngineHash::getPublishedTime() const {
-	DataSetHash*dataSet = DataSetHashGet(manager.get());
-	Date date = Date(&dataSet->header.published);
-	DataSetHashRelease(dataSet);
-	return date;
+	fiftyoneDegreesDate date;
+	HashGetPublished(manager.get(), &date);
+	return Date(&date);
 }
 
 /**
- * @return the date that 51Degrees will publish an updated data file.
+ * @return the date that 51Degrees will publish an updated data file, or a
+ * year, month and day of zero when its header holds no valid date.
  */
 Date EngineHash::getUpdateAvailableTime() const {
-	DataSetHash *dataSet = DataSetHashGet(manager.get());
-	Date date = Date(&dataSet->header.nextUpdate);
-	DataSetHashRelease(dataSet);
-	return date;
+	fiftyoneDegreesDate date;
+	HashGetNextUpdate(manager.get(), &date);
+	return Date(&date);
 }
 
 string EngineHash::getDataFilePath() const {

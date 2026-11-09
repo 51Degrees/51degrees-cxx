@@ -38,19 +38,22 @@
 
 %nodefaultctor MetaData;
 
-%newobject getComponents;
-%newobject getProperties;
-%newobject getProfiles;
-%newobject getValues;
+// Each is scoped to MetaData, as an unscoped name also matches other
+// classes' methods of that name, such as ConfigIpi's getters, which return
+// references the configuration owns.
+%newobject MetaData::getComponents;
+%newobject MetaData::getProperties;
+%newobject MetaData::getProfiles;
+%newobject MetaData::getValues;
 
-%newobject getValuesForProperty;
-%newobject getValuesForProfile;
-%newobject getComponentForProfile;
-%newobject getComponentForProperty;
-%newobject getDefaultProfileForComponent;
-%newobject getDefaultValueForProperty;
-%newobject getPropertiesForComponent;
-%newobject getPropertyForValue;
+%newobject MetaData::getValuesForProperty;
+%newobject MetaData::getValuesForProfile;
+%newobject MetaData::getComponentForProfile;
+%newobject MetaData::getComponentForProperty;
+%newobject MetaData::getDefaultProfileForComponent;
+%newobject MetaData::getDefaultValueForProperty;
+%newobject MetaData::getPropertiesForComponent;
+%newobject MetaData::getPropertyForValue;
 
 class MetaData
 {
