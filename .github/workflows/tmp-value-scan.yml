@@ -1,0 +1,86 @@
+name: Temporary red and green run of the weighted list search
+
+on:
+  push:
+    branches:
+      - tmp/value-scan
+
+permissions:
+  contents: read
+
+env:
+  REPO: 51degrees-cxx
+
+jobs:
+  byname:
+    name: Values found by name, ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: tests only (red expected)
+            sha: 517755d5
+          - label: tests and fix (green expected)
+            sha: 9fa1a67b
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.REPO }}
+          submodules: true
+          fetch-depth: 0
+      - name: Name the pipeline's asset caches
+        id: cache-date
+        run: |
+          "today=$((Get-Date).ToUniversalTime().ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+          "yesterday=$((Get-Date).ToUniversalTime().AddDays(-1).ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+      - name: Restore the pipeline's asset cache
+        uses: actions/cache/restore@v4
+        with:
+          key: tmp-value-scan-no-such-key
+          restore-keys: |
+            ${{ steps.cache-date.outputs.today }}
+            ${{ steps.cache-date.outputs.yesterday }}
+          path: assets
+          enableCrossOsArchive: true
+      - name: Fetch the data files as the pipeline does
+        env:
+          DD_KEY: ${{ secrets.DEVICE_DETECTION_KEY }}
+          DD_URL: ${{ secrets.DEVICE_DETECTION_URL }}
+          IPI_URL: ${{ secrets.IPI_DATA_FILE_URL }}
+        run: |
+          & "./$env:REPO/ci/fetch-assets.ps1" -DeviceDetection $env:DD_KEY -DeviceDetectionUrl $env:DD_URL -IpIntelligenceUrl $env:IPI_URL
+          Get-ChildItem "$env:REPO/data/ip-intelligence", "$env:REPO/data/device-detection" | Format-Table Name, Length | Out-String -Width 200
+      - name: Check out the commit under test
+        env:
+          SHA: ${{ matrix.sha }}
+        run: |
+          git -C $env:REPO checkout --detach $env:SHA
+          git -C $env:REPO log --oneline -1
+      - name: Build the Hash and IP Intelligence tests
+        run: |
+          cmake -S $env:REPO -B build -DCMAKE_BUILD_TYPE=Release -DFIFTYONE_COMMON_CXX_BUILD_TESTING=OFF | Out-Null
+          $log = cmake --build build --config Release --parallel 4 --target HashTests IpiTests 2>&1
+          if ($LASTEXITCODE -ne 0) { $log | Select-Object -Last 80; throw "The build failed" }
+          "built"
+      - name: Run the by-name tests
+        run: |
+          Push-Location $env:REPO
+          $failed = $false
+          foreach ($t in @('HashTests', 'IpiTests')) {
+            $start = Get-Date
+            & "../build/bin/$t" --gtest_filter='*FoundByName*'
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+            "$t took $([int]((Get-Date) - $start).TotalSeconds) seconds"
+          }
+          Pop-Location
+          if ($failed) { throw "A by-name test failed" }
