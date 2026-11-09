@@ -12,6 +12,9 @@ on:
       - '.github/workflows/single-file-build.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   single-file-build:
     name: ${{ matrix.os }} ${{ matrix.product }}
@@ -45,8 +48,9 @@ jobs:
             defs=""
           else
             files="$common $(ls src/ipi/graph/*.c | sort) $(ls src/ipi/*.c | sort)"
-            defs="-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT -DFIFTYONE_DEGREES_REDUCED_FILE"
+            defs="-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -D_FILE_OFFSET_BITS=64 -DFIFTYONE_DEGREES_REDUCED_FILE -DFIFTYONE_DEGREES_IPI_SYMBOLS"
           fi
           for f in $files; do echo "#include \"$f\""; done > single-file.c
           cat single-file.c
-          gcc -c $defs -I. -o single-file.o single-file.c
+          # Warnings show in the log and do not fail the job, as in cgo.
+          gcc -c -fcommon $defs -I. -o single-file.o single-file.c
