@@ -27,10 +27,12 @@
  *
  * The text of each default is written again here from the value at the
  * property's default value index, with numbers to 15 places, and the default
- * value must be the one the values collection finds by that text.
+ * value must be the one the values collection finds by that text. The values
+ * of string properties must also be found by their names.
  */
 
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 #include "Constants.hpp"
@@ -198,6 +200,174 @@ static string writtenDefault(
 	return string(buffer.data());
 }
 
+/**
+ * A weighted list with at most this many values has every distinct name looked
+ * up. Its values are not in name order, so each name the binary search misses
+ * reads every value of the property.
+ */
+static const uint32_t weightedValuesInFull = 200000;
+
+/**
+ * Distinct names looked up in a larger weighted list, such as
+ * StateGeoNameIdsGeographical with more than a million values.
+ */
+static const size_t weightedNamesChecked = 16;
+
+/** Values looked up, evenly spaced, in a property that is not weighted. */
+static const uint32_t sampledValues = 2000;
+
+/**
+ * A manager over every property of a data file, with the values in memory and
+ * a cache of strings, so that reading every value of a weighted list is quick.
+ */
+static std::shared_ptr<fiftyoneDegreesResourceManager> openForSearch(
+	const string &path) {
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiLowMemoryConfig;
+	config.values.loaded = true;
+	config.strings.capacity = 500000;
+	config.strings.concurrency = 1;
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	fiftyoneDegreesResourceManager *manager =
+		new fiftyoneDegreesResourceManager();
+	EXCEPTION_CREATE;
+	const fiftyoneDegreesStatusCode status =
+		fiftyoneDegreesIpiInitManagerFromFile(
+			manager,
+			&config,
+			&properties,
+			path.c_str(),
+			exception);
+	if (status != FIFTYONE_DEGREES_STATUS_SUCCESS || EXCEPTION_FAILED) {
+		delete manager;
+		throw Common::StatusCodeException(status);
+	}
+	return std::shared_ptr<fiftyoneDegreesResourceManager>(
+		manager,
+		[](fiftyoneDegreesResourceManager *m) {
+			fiftyoneDegreesResourceManagerFree(m);
+			delete m;
+		});
+}
+
+/** The name of a value stored as a string, and whether it has a weight. */
+static string stringValueName(
+	const fiftyoneDegreesDataSetIpi *dataSet,
+	const uint32_t index,
+	bool *weighted) {
+	EXCEPTION_CREATE;
+	fiftyoneDegreesCollectionItem valueItem;
+	fiftyoneDegreesDataReset(&valueItem.data);
+	const fiftyoneDegreesValue *value = fiftyoneDegreesValueGet(
+		dataSet->values,
+		index,
+		&valueItem,
+		exception);
+	EXCEPTION_THROW;
+	if (weighted != nullptr) {
+		*weighted = fiftyoneDegreesValueIsWeighted(value);
+	}
+	fiftyoneDegreesCollectionItem nameItem;
+	fiftyoneDegreesDataReset(&nameItem.data);
+	const fiftyoneDegreesString *name = fiftyoneDegreesValueGetName(
+		dataSet->strings,
+		value,
+		&nameItem,
+		exception);
+	EXCEPTION_THROW;
+	const string result(&name->value);
+	FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->strings, &nameItem);
+	FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->values, &valueItem);
+	return result;
+}
+
+/**
+ * Looks up the names of string properties' values, and expects a value of the
+ * property with each name. A weighted list has every distinct name looked up,
+ * or its first weightedNamesChecked when it has more than weightedValuesInFull
+ * values. Any other string property has sampledValues values looked up, evenly
+ * spaced. Returns the number of names looked up.
+ */
+static size_t checkValuesByName(const string &path) {
+	size_t checked = 0;
+	const auto manager = openForSearch(path);
+	IpiDefaultValueDataSet scope(manager.get());
+	const fiftyoneDegreesDataSetIpi *dataSet = scope.dataSet;
+	const uint32_t count =
+		fiftyoneDegreesCollectionGetCount(dataSet->properties);
+	for (uint32_t i = 0; i < count; i++) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesCollectionItem item;
+		fiftyoneDegreesDataReset(&item.data);
+		const fiftyoneDegreesProperty *stored = fiftyoneDegreesPropertyGet(
+			dataSet->properties,
+			i,
+			&item,
+			exception);
+		EXCEPTION_THROW;
+		const fiftyoneDegreesProperty property = *stored;
+		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->properties, &item);
+		const fiftyoneDegreesPropertyValueType type =
+			fiftyoneDegreesPropertyGetStoredType(
+				dataSet->propertyTypes,
+				&property,
+				exception);
+		EXCEPTION_THROW;
+		if (type != FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING ||
+			(int32_t)property.firstValueIndex == -1) {
+			continue;
+		}
+		fiftyoneDegreesDataReset(&item.data);
+		const fiftyoneDegreesString *propertyName =
+			fiftyoneDegreesPropertyGetName(
+				dataSet->strings,
+				&property,
+				&item,
+				exception);
+		EXCEPTION_THROW;
+		const string name(&propertyName->value);
+		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->strings, &item);
+
+		bool weighted = false;
+		stringValueName(dataSet, property.firstValueIndex, &weighted);
+		const uint32_t values =
+			property.lastValueIndex - property.firstValueIndex + 1;
+		const bool inFull = weighted && values <= weightedValuesInFull;
+		const uint32_t step = weighted || values <= sampledValues ?
+			1 : values / sampledValues;
+		std::set<string> seen;
+		for (uint32_t v = property.firstValueIndex;
+			v <= property.lastValueIndex &&
+			(weighted == false || inFull ||
+				seen.size() < weightedNamesChecked);
+			v += step) {
+			const string valueName = stringValueName(dataSet, v, nullptr);
+			if (seen.insert(valueName).second == false) {
+				continue;
+			}
+			checked++;
+			const long found = fiftyoneDegreesValueGetIndexByNameAndType(
+				dataSet->values,
+				dataSet->strings,
+				&property,
+				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+				valueName.c_str(),
+				exception);
+			EXCEPTION_THROW;
+			if (found < (long)property.firstValueIndex ||
+				found > (long)property.lastValueIndex) {
+				ADD_FAILURE() << name << " '" << valueName <<
+					"', the value at " << v << ", was not found";
+				continue;
+			}
+			EXPECT_EQ(
+				valueName,
+				stringValueName(dataSet, (uint32_t)found, nullptr)) << name;
+		}
+	}
+	return checked;
+}
+
 class IpiDefaultValueTests : public Base {
 protected:
 	/**
@@ -315,6 +485,28 @@ TEST_F(IpiDefaultValueTests, EveryPropertyOfEachDataFile) {
 			EXPECT_GT(found[(size_t)IpiValueKind::Area], 0);
 			EXPECT_GT(found[(size_t)IpiValueKind::IpAddress], 0);
 		}
+	}
+	if (any == false) {
+		GTEST_SKIP() << "No IP Intelligence data file was found.";
+	}
+}
+
+TEST_F(IpiDefaultValueTests, EveryStringValueFoundByName) {
+	vector<string> paths;
+	for (int i = 0; i < _IpiFileNamesLength; i++) {
+		paths.push_back(GetFilePath(_dataFolderName, _IpiFileNames[i]));
+	}
+	paths.push_back(GetFilePath(_dataFolderName, defaultValueAsnFileName));
+	bool any = false;
+	for (const string &path : paths) {
+		if (path.empty()) {
+			continue;
+		}
+		any = true;
+		printf("Checking %s\n", path.c_str());
+		const size_t checked = checkValuesByName(path);
+		printf("%zu names looked up\n", checked);
+		EXPECT_GT(checked, (size_t)0) << path;
 	}
 	if (any == false) {
 		GTEST_SKIP() << "No IP Intelligence data file was found.";
