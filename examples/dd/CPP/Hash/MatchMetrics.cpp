@@ -76,39 +76,42 @@ using namespace FiftyoneDegrees;
 DeviceDetection::Hash::DeviceDetection::Hash::ResultsHash *results = engine->process(evidence);
 ```
 
-5. Obtain drift: The maximum drift for a matched substring from the character
-position where it was expected to be found. The maximum drift to allow when
+5. Obtain the drift, which is the largest number of characters a matched
+substring of a result was from where it was expected to be found, added up
+over the results, one for each component. The maximum drift to allow when
 finding a match can be set through the configuration structure.
 ```
 int drift = results->getDrift();
 
 ```
 
-6. Obtain difference: The total difference in hash code values between the
-matched substrings and the actual substrings. The maximum difference to allow
-when finding a match can be set through the configuration structure.
+6. Obtain the difference, which is the total difference in hash code values
+between the matched substrings and the actual substrings. The maximum
+difference to allow when finding a match can be set through the configuration
+structure.
 ```
 int difference = results->getDifference();
 ```
 
-7. Obtain iteration count: The number of iterations required to get the device
-offset in the devices collection in the graph of nodes. This is indicative of
-the time taken to fetch the result.
+7. Obtain the iterations, which are the number of iterations required to get
+the device offset in the devices collection in the graph of nodes. This is
+indicative of the time taken to fetch the result.
 ```
 int iterations = results->getIterations();
 ```
 
-8. Obtain match method: provides information about the algorithm that was used
-to perform detection for a particular User-Agent. For more information on what
-each method means please see:
+8. Obtain the method, which is the highest method any result used and
+provides information about the algorithm that was used to perform detection
+for a particular User-Agent. For more information on what each method means
+please see:
 <a href="https://51degrees.com/support/documentation/hash?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-hash-matchmetrics.cpp&utm_term=header">
 How device detection works</a>.
 ```
 fiftyoneDegreesHashMatchMethod method = results->getMethod();
 ```
 
-9. Obtain the matched User-Agent: the matched substrings in the User-Agent
-separated with underscored.
+9. Obtain the matched User-Agent of the first result, which holds the matched
+substrings of the User-Agent separated with underscores.
 ```
 string matchedUserAgent = results->getUserAgent(0);
 ```
@@ -158,10 +161,15 @@ namespace FiftyoneDegrees {
 				 * @copydoc ExampleBase::run
 				 */
 				void run() {
-					DeviceDetection::Hash::ResultsHash *results;
+					// Each std::unique_ptr in this example frees what it holds
+					// when it is reset or goes out of scope, including when an
+					// exception is thrown. Results hold a reference to the
+					// engine's data set, so they must always be freed.
+					std::unique_ptr<DeviceDetection::Hash::ResultsHash> results;
 
 					// Create an evidence instance to store and process User-Agents.
-					EvidenceDeviceDetection *evidence = new EvidenceDeviceDetection();
+					std::unique_ptr<EvidenceDeviceDetection> evidence(
+						new EvidenceDeviceDetection());
 
 					cout << "Starting Match Metrics Example.\n";
 
@@ -170,7 +178,7 @@ namespace FiftyoneDegrees {
 						mobileUserAgent << "\n";
 					evidence->operator[]("header.user-agent")
 						= mobileUserAgent;
-					results = engine->process(evidence);
+					results.reset(engine->process(evidence.get()));
 					cout <<
 						"   IsMobile:    " <<
 						(*results->getValueAsString("IsMobile")).c_str() << "\n" <<
@@ -181,14 +189,13 @@ namespace FiftyoneDegrees {
 						"   Method:      " <<
 						getMethodString(results->getMethod()) << "\n" <<
 						"   Sub Strings: " << results->getUserAgent(0);
-					delete results;
 
 					// Carries out a match for a desktop User-Agent.
 					cout << "\nDesktop User-Agent: " <<
 						desktopUserAgent << "\n";
 					evidence->operator[]("header.user-agent")
 						= desktopUserAgent;
-					results = engine->process(evidence);
+					results.reset(engine->process(evidence.get()));
 					cout <<
 						"   IsMobile:    " <<
 						(*results->getValueAsString("IsMobile")).c_str() << "\n" <<
@@ -199,14 +206,13 @@ namespace FiftyoneDegrees {
 						"   Method:      " <<
 						getMethodString(results->getMethod()) << "\n" <<
 						"   Sub Strings: " << results->getUserAgent(0);
-					delete results;
 
 					// Carries out a match for a MediaHub User-Agent.
 					cout << "\nMediaHub User-Agent: " <<
 						mediaHubUserAgent << "\n";
 					evidence->operator[]("header.user-agent")
 						= mediaHubUserAgent;
-					results = engine->process(evidence);
+					results.reset(engine->process(evidence.get()));
 					cout <<
 						"   IsMobile:    " <<
 						(*results->getValueAsString("IsMobile")).c_str() << "\n" <<
@@ -217,10 +223,12 @@ namespace FiftyoneDegrees {
 						"   Method:      " <<
 						getMethodString(results->getMethod()) << "\n" <<
 						"   Sub Strings: " << results->getUserAgent(0);
-					delete results;
 
-					// Free the evidence.
-					delete evidence;
+					// On the free Lite data file, say what the Enterprise data
+					// file adds and where to ask for a copy.
+					cout << "\n";
+					offerEnterprise(
+						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-hash-matchmetrics.cpp&utm_term=lite-data-file");
 				}
 			};
 		}
@@ -237,10 +245,10 @@ extern "C" void fiftyoneDegreesExampleCPPMatchMetricsRun(ExampleParameters *para
 	DeviceDetection::Hash::ConfigHash* cppConfig = new DeviceDetection::Hash::ConfigHash(&configHash);
 
 	try {
-		MatchMetrics *matchMetrics = new MatchMetrics(
-			params->dataFilePath, cppConfig);
-		matchMetrics->run();
-		delete matchMetrics;
+		// The example, and the engine it holds, is freed when it goes out of
+		// scope, including when an exception is thrown.
+		MatchMetrics matchMetrics(params->dataFilePath, cppConfig);
+		matchMetrics.run();
 	}
 	catch (const StatusCodeException &e) {
 		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);

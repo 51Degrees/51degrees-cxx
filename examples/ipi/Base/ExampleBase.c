@@ -28,7 +28,7 @@
 #define CONFIG_EQUALS(h) memcmp(&config, &h, sizeof(ConfigIpi)) == 0
 
 // Sent with each download so that the downloads these examples make can be
-// counted.
+// counted. It is left out inside GitHub Actions.
 #define EXAMPLE_DOWNLOAD_SOURCE "examples-51degrees-cxx"
 
 const char* fiftyoneDegreesExampleGetConfigName(ConfigIpi config) {
@@ -106,6 +106,7 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 	char command[FILE_MAX_PATH * 2];
 	char *separator;
 	int i, written;
+	bool inActions;
 	StatusCode status = FileGetPath(
 		dataFolderName,
 		fileName,
@@ -134,15 +135,29 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 		*separator = '\0';
 	}
 
+	// Inside GitHub Actions the data repository's script names the build,
+	// so that test runs are not counted as people using the examples.
+	inActions = getenv("GITHUB_ACTIONS") != NULL &&
+		strcmp(getenv("GITHUB_ACTIONS"), "true") == 0;
 #ifdef _WIN32
+	// PowerShell 7 when it is on the path, otherwise Windows PowerShell,
+	// which, started from PowerShell 7, inherits its module path and then
+	// cannot load its own commands.
 	written = Snprintf(command, sizeof(command),
-		"powershell -NoProfile -ExecutionPolicy Bypass -File "
-		"\"%s\\get-data-files.ps1\" \"%s\" -Source %s",
-		dataPath, fileName, EXAMPLE_DOWNLOAD_SOURCE);
+		"%s -NoProfile -ExecutionPolicy Bypass -File "
+		"\"%s\\get-data-files.ps1\" \"%s\"%s%s",
+		system("where pwsh >NUL 2>NUL") == 0 ?
+			"pwsh" : "set \"PSModulePath=\" && powershell",
+		dataPath, fileName,
+		inActions ? "" : " -Source ",
+		inActions ? "" : EXAMPLE_DOWNLOAD_SOURCE);
 #else
 	written = Snprintf(command, sizeof(command),
-		"sh \"%s/get-data-files.sh\" -s %s \"%s\"",
-		dataPath, EXAMPLE_DOWNLOAD_SOURCE, fileName);
+		"sh \"%s/get-data-files.sh\"%s%s \"%s\"",
+		dataPath,
+		inActions ? "" : " -s ",
+		inActions ? "" : EXAMPLE_DOWNLOAD_SOURCE,
+		fileName);
 #endif
 	if (written < 0 || (size_t)written >= sizeof(command)) {
 		return status;
@@ -162,6 +177,34 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 	return status;
 }
 
+bool fiftyoneDegreesExampleHasProperty(
+	fiftyoneDegreesDataSetIpi *dataset,
+	const char *propertyName) {
+	Item item;
+	DataReset(&item.data);
+	EXCEPTION_CREATE
+	const Property *property = PropertyGetByName(
+		dataset->properties,
+		dataset->strings,
+		propertyName,
+		&item,
+		exception);
+	if (property == NULL) {
+		return false;
+	}
+	// A property that was returned holds its item, even when the lookup set
+	// the exception, so the item is released before the result is given.
+	COLLECTION_RELEASE(item.collection, &item);
+	return !EXCEPTION_FAILED;
+}
+
+void fiftyoneDegreesExampleOfferEnterprise(
+	fiftyoneDegreesResourceManager *manager) {
+	DataSetIpi *dataset = DataSetIpiGet(manager);
+	fiftyoneDegreesExampleCheckDataFile(dataset);
+	DataSetIpiRelease(dataset);
+}
+
 void fiftyoneDegreesExampleCheckDataFile(
 	fiftyoneDegreesDataSetIpi *dataset) {
 	Item item;
@@ -178,37 +221,46 @@ void fiftyoneDegreesExampleCheckDataFile(
 
 	const char* dataTier = STRING(item.data.ptr); // product is string
 
+	// The header holds whatever bytes the file was written with, so the date
+	// is only turned into a time when it is a real calendar date.
 	fiftyoneDegreesDate date = dataset->header.published;
-	struct tm gt;
-	gt.tm_year = (date.year >= 1900) ? date.year - 1900 : date.year;
-	gt.tm_mday = date.day;
-	gt.tm_mon = (int)date.month - 1;
-	gt.tm_hour = 0;
-	gt.tm_min = 0;
-	gt.tm_sec = 0;
-	gt.tm_isdst = 0;
-	gt.tm_wday = 0;
-	gt.tm_yday = 0;
-	time_t published = mktime(&gt);
+	const bool hasDate = DateIsValid(&date);
+	time_t published = 0;
 	time_t now = time(NULL);
-
 	char timeStr[500] = "";
+	if (hasDate) {
+		struct tm gt;
+		gt.tm_year = (date.year >= 1900) ? date.year - 1900 : date.year;
+		gt.tm_mday = date.day;
+		gt.tm_mon = (int)date.month - 1;
+		gt.tm_hour = 0;
+		gt.tm_min = 0;
+		gt.tm_sec = 0;
+		gt.tm_isdst = 0;
+		gt.tm_wday = 0;
+		gt.tm_yday = 0;
+		published = mktime(&gt);
 #if defined( _MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
-	if (asctime_s(timeStr, 500, (const struct tm*)&gt) != 0) {
+		if (asctime_s(timeStr, 500, (const struct tm*)&gt) != 0) {
 #else
-	if (asctime_r((const struct tm*)&gt, timeStr) != timeStr) {
+		if (asctime_r((const struct tm*)&gt, timeStr) != timeStr) {
 #endif
-		printf("\033[0;33m");
-		printf(("Failed to obtain textual representation of the data file "
-			"published date\n"));
-		printf("\033[0m");
+			printf("\033[0;33m");
+			printf(("Failed to obtain textual representation of the data "
+				"file published date\n"));
+			printf("\033[0m");
+		}
+		printf("Using a %s data file created %s from location %s\n",
+			dataTier, timeStr, dataset->b.b.fileName);
+	}
+	else {
+		printf("Using a %s data file with no valid published date from "
+			"location %s\n", dataTier, dataset->b.b.fileName);
 	}
 
-	printf("Using a %s data file created %s from location %s\n",
-		dataTier, timeStr, dataset->b.b.fileName);
-
 #define DATA_FILE_AGE_WARNING 30
-	if ((now - published) / (24 * 60 * 60) > DATA_FILE_AGE_WARNING) {
+	if (hasDate &&
+		(now - published) / (24 * 60 * 60) > DATA_FILE_AGE_WARNING) {
 		printf("\033[0;33m");
 		printf(("This example is using a data file "
 			"that is more than %d days old. "
@@ -218,18 +270,19 @@ void fiftyoneDegreesExampleCheckDataFile(
 			"data/get-data-files.sh -u 51Degrees-LiteV41.ipi, "
 			"or data/get-data-files.ps1 51Degrees-LiteV41.ipi "
 			"-Update on Windows. "
-			"Find out about the Enterprise data file, which "
-			"includes automatic daily updates, on our pricing "
-			"page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=data-file-age-warning\n"), DATA_FILE_AGE_WARNING);
+			"Contact us about the Enterprise data file, which "
+			"includes automatic daily updates, at "
+			"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=data-file-age-warning\n"), DATA_FILE_AGE_WARNING);
 		printf("\033[0m");
 	}
 
-	if (strncmp(dataTier, "Lite", strlen("Lite")) == 0) {
-		printf(("This example is using the \"Lite\" "
-			"data file. This is used for illustration, and "
-			"has limited accuracy and capabilities. Find "
-			"out about the Enterprise data file on our "
-			"pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=lite-data-file\n"));
+	// Only the Enterprise data file has the range properties, so a check
+	// for IpRangeStart tells the free data files, Lite and ASN, apart from
+	// it.
+	if (!fiftyoneDegreesExampleHasProperty(dataset, "IpRangeStart")) {
+		printf("This example is using a free data file. The Enterprise "
+			"data file adds the location, range and connection "
+			"properties. Contact us for a copy at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=free-data-file\n");
 	}
 	if (!CollectionGetIsMemoryOnly()) {
 		COLLECTION_RELEASE(dataset->strings, &item);

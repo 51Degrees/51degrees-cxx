@@ -165,23 +165,23 @@ string EngineIpi::getType() const {
 }
 
 /**
- * @return the date that 51Degrees published the data file.
+ * @return the date that 51Degrees published the data file, or a year, month
+ * and day of zero when its header holds no valid date.
  */
 Date EngineIpi::getPublishedTime() const {
-	DataSetIpi*dataSet = DataSetIpiGet(manager.get());
-	Date date = Date(&dataSet->header.published);
-	DataSetIpiRelease(dataSet);
-	return date;
+	fiftyoneDegreesDate date;
+	IpiGetPublished(manager.get(), &date);
+	return Date(&date);
 }
 
 /**
- * @return the date that 51Degrees will publish an updated data file.
+ * @return the date that 51Degrees will publish an updated data file, or a
+ * year, month and day of zero when its header holds no valid date.
  */
 Date EngineIpi::getUpdateAvailableTime() const {
-	DataSetIpi *dataSet = DataSetIpiGet(manager.get());
-	Date date = Date(&dataSet->header.nextUpdate);
-	DataSetIpiRelease(dataSet);
-	return date;
+	fiftyoneDegreesDate date;
+	IpiGetNextUpdate(manager.get(), &date);
+	return Date(&date);
 }
 
 string EngineIpi::getDataFilePath() const {

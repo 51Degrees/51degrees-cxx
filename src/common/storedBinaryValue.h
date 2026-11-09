@@ -149,6 +149,42 @@ EXTERNAL int fiftyoneDegreesStoredBinaryValueCompareWithString(
  fiftyoneDegreesException *exception);
 
 /**
+ * Writes the binary value as text, as results and metadata give it, with a
+ * number written to at most `decimalPlaces` places after the point. The text
+ * is written into `buffer` when it fits in `bufferLength` bytes, and
+ * otherwise into memory allocated with fiftyoneDegreesMalloc, which the
+ * caller frees with fiftyoneDegreesFree when the pointer returned is not
+ * `buffer`. A string or an area that would not fit `buffer` is written
+ * straight into memory sized from its length or its bytes. A string is
+ * therefore written once. An area is normally written once too, as
+ * #FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE characters for each byte normally
+ * hold its text. A reduced area written to more than 4 places can need more,
+ * as each point of 4 bytes can then take more than 20 characters, and is
+ * written a second time when it does. A number or an IP address has no size
+ * until it is written, so one whose text does not fit `buffer` is written
+ * twice, as an IPv6 address of 39 characters is with a buffer of less than
+ * 40 bytes.
+ * `buffer` can be NULL with `bufferLength` 0, and the text is then always
+ * allocated.
+ * @param value the binary value to write
+ * @param storedValueType format of byte array representation
+ * @param decimalPlaces the most places to write after the decimal point
+ * @param buffer memory the text is written into when it fits
+ * @param bufferLength the bytes `buffer` holds
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the null terminated text, or NULL when the value cannot be written
+ * or memory cannot be allocated
+ */
+EXTERNAL char* fiftyoneDegreesStoredBinaryValueToText(
+ const fiftyoneDegreesStoredBinaryValue *value,
+ fiftyoneDegreesPropertyValueType storedValueType,
+ uint8_t decimalPlaces,
+ char *buffer,
+ size_t bufferLength,
+ fiftyoneDegreesException *exception);
+
+/**
  * Function to convert the binary value to int when possible.
  * @param value the current binary value item
  * @param storedValueType format of byte array representation

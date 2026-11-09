@@ -350,7 +350,8 @@ void fiftyoneDegreesMemHashRun(
 
 	// Configure to return the device Id properties.
 	PropertiesRequired properties = PropertiesDefault;
-	properties.string = "IsMobile,BrowserVendor,PlatformVendor,IsCrawler";
+	properties.string =
+		"IsMobile,BrowserVendor,PlatformVendor,IsCrawler,HardwareVendor";
 
 	ResourceManager manager;
 	EXCEPTION_CREATE;
@@ -370,6 +371,9 @@ void fiftyoneDegreesMemHashRun(
 
 		// Run the performance tests.
 		run(&manager, userAgentFilePath);
+
+		// Say what the Enterprise data file adds, on a free data file.
+		fiftyoneDegreesExampleOfferEnterprise(&manager);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);

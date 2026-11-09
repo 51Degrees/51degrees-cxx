@@ -98,6 +98,23 @@ TEST_F(HashConcurrencyTests, DefaultConfig_IsTheProcessorCount) {
 		config.getConcurrency());
 }
 
+TEST(HashConfigConcurrency, SetConcurrency_ReachesEveryCollection) {
+	ConfigHash config;
+	const uint16_t concurrency =
+		static_cast<uint16_t>(config.getConcurrency() + 1);
+	config.setConcurrency(concurrency);
+	fiftyoneDegreesConfigHash *c = config.getConfig();
+	EXPECT_EQ(concurrency, c->strings.concurrency);
+	EXPECT_EQ(concurrency, c->components.concurrency);
+	EXPECT_EQ(concurrency, c->maps.concurrency);
+	EXPECT_EQ(concurrency, c->properties.concurrency);
+	EXPECT_EQ(concurrency, c->values.concurrency);
+	EXPECT_EQ(concurrency, c->profiles.concurrency);
+	EXPECT_EQ(concurrency, c->rootNodes.concurrency);
+	EXPECT_EQ(concurrency, c->nodes.concurrency);
+	EXPECT_EQ(concurrency, c->profileOffsets.concurrency);
+}
+
 TEST_F(HashConcurrencyTests, PerformanceProfile_KeepsTheConcurrency) {
 	ConfigHash config;
 	config.setConcurrency(setConcurrencyBeforeProfile);

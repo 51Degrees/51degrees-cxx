@@ -29,6 +29,7 @@
 #include "../../../../src/dd/hash/EngineHash.hpp"
 #include <string>
 #include <iostream>
+#include <memory>
 #include <thread>
 #include "../../../../src/common/textfile.h"
 
@@ -63,7 +64,8 @@ namespace FiftyoneDegrees {
 				 * data pointer provided.
 				 * @param data pointer to the data set in memory
 				 * @param length of the data in bytes
-				 * @param config to configure the engine with
+				 * @param config to configure the engine with, which the
+				 * example deletes, even if the engine cannot be created
 				 */
 				ExampleBase(
 					byte *data, 
@@ -81,7 +83,8 @@ namespace FiftyoneDegrees {
 				 * Construct a new instance of the example to be run using the
 				 * data file and configuration provided.
 				 * @param dataFilePath path to the data file to use
-				 * @param config to configure the engine with
+				 * @param config to configure the engine with, which the
+				 * example deletes, even if the engine cannot be created
 				 */
 				ExampleBase(
 					string dataFilePath, 
@@ -137,6 +140,24 @@ namespace FiftyoneDegrees {
 					size_t size);
 
 			protected:
+				/**
+				 * True when the data file has the property. The free Lite data
+				 * file leaves out the properties only the Enterprise data file
+				 * has. The data file's own list is read, so the answer does not
+				 * depend on the required properties.
+				 * @param name of the property as the data file writes it
+				 * @return true when the data file has the property
+				 */
+				bool hasProperty(const char *name) const;
+
+				/**
+				 * On the free Lite data file, says what the Enterprise data
+				 * file adds and where to ask for a copy.
+				 * @param contactUs link to the contact page, tagged with the
+				 * example
+				 */
+				void offerEnterprise(const char *contactUs) const;
+
 				/**
 				 * State containing the states for all threads running in a
 				 * multi-threaded example .
@@ -237,11 +258,12 @@ namespace FiftyoneDegrees {
 				static void processUserAgent(const char *userAgent, void *state);
 
 				/** Configuration for the Engine */
-				DeviceDetection::Hash::ConfigHash *config;
+				std::unique_ptr<DeviceDetection::Hash::ConfigHash> config;
 				/** Properties to initialise the Engine with */
-				RequiredPropertiesConfig *properties;
-				/** Hash Engine used for the example */
-				EngineHash *engine;
+				std::unique_ptr<RequiredPropertiesConfig> properties;
+				/** Hash Engine used for the example. Declared last, so it is
+				 * freed before the configuration and properties it uses. */
+				std::unique_ptr<EngineHash> engine;
 
 			private:
 				/**

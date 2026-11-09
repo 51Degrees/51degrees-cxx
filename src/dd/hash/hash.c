@@ -181,16 +181,19 @@ if (dataSet->t == NULL) { \
 	return CORRUPT_DATA; \
 }
 
-#define COLLECTION_CREATE_FILE(t,f) \
+#define COLLECTION_CREATE_FILE_WITH_CONFIG(t,f,c) \
 dataSet->t = CollectionCreateFromFile( \
 	file, \
 	&dataSet->b.b.filePool, \
-	&dataSet->config.t, \
+	c, \
 	dataSet->header.t, \
 	f); \
 if (dataSet->t == NULL) { \
 	return CORRUPT_DATA; \
 }
+
+#define COLLECTION_CREATE_FILE(t,f) \
+COLLECTION_CREATE_FILE_WITH_CONFIG(t,f,&dataSet->config.t)
 
 /**
  * Returns true if either unmatched nodes are allowed, or the match method is
@@ -316,7 +319,8 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig = {
 	0,
 	false, // Performance graph
 	true, // Predictive graph
-	false // Trace
+	false, // Trace
+	false // Load required properties only
 };
 #undef FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY
 #define FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY \
@@ -337,7 +341,8 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig = {
 	0,
 	false, // Performance graph
 	true, // Predictive graph
-	false // Trace
+	false, // Trace
+	true // Load required properties only
 };
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
@@ -355,7 +360,8 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
 	0,
 	false, // Performance graph
 	true, // Predictive graph
-	false // Trace
+	false, // Trace
+	false // Load required properties only
 };
 
 #define FIFTYONE_DEGREES_HASH_CONFIG_BALANCED \
@@ -2565,9 +2571,304 @@ static StatusCode readHeaderFromFile(
 	return SUCCESS;
 }
 
+/**
+ * HOLDING WHAT THE REQUIRED PROPERTIES READ
+ *
+ * With loadRequiredPropertiesOnly, a caller that names some of the properties
+ * only reads part of the values and the strings. Only the values of the
+ * required properties, and the strings those values use, are held in memory,
+ * in whole records, and the rest of both reads from the file with no cache.
+ * The profiles, nodes and every other collection follow their own settings.
+ *
+ * The strings are created reading from the file, as the required properties
+ * are not known yet. The values are created as configured, as creating the
+ * property index reads the values of every profile, and are replaced once the
+ * data set is created.
+ */
+
+/** What is worked out before anything is held. */
+typedef struct held_plan_t {
+	byte* buffer; /* Used to scan records */
+	CollectionHeldStrings strings; /* The strings the required values use */
+	CollectionHeldRange* values; /* The stretches of the values to hold */
+	uint32_t valuesCount; /* Number of stretches of the values */
+} heldPlan;
+
+/** What creating a values collection needs. */
+typedef struct held_create_t {
+	DataSetHash* dataSet;
+	FILE* file;
+} heldCreateState;
+
+static void heldPlanFree(heldPlan* plan) {
+	if (plan->buffer != NULL) {
+		Free(plan->buffer);
+	}
+	if (plan->values != NULL) {
+		Free(plan->values);
+	}
+	CollectionHeldStringsFree(&plan->strings);
+}
+
+static void heldPlanScanValue(void* state, const byte* record) {
+	heldPlan* const plan = (heldPlan*)state;
+	CollectionHeldStringsAdd(
+		&plan->strings,
+		(uint32_t)((const Value*)record)->nameOffset,
+		0);
+}
+
+/**
+ * Gets the offset after the string at the offset provided.
+ */
+static uint32_t heldStringEnd(
+	void* state,
+	const uint32_t offset,
+	const uint32_t tag,
+	Exception* exception) {
+	const DataSetHash* const dataSet = (const DataSetHash*)state;
+	Item item;
+	uint32_t end = offset;
+	(void)tag;
+	DataReset(&item.data);
+	const String* const string = StringGet(
+		dataSet->strings,
+		offset,
+		&item,
+		exception);
+	if (string != NULL) {
+		if (EXCEPTION_OKAY) {
+			end += (uint32_t)(sizeof(uint16_t) + string->size);
+		}
+		COLLECTION_RELEASE(dataSet->strings, &item);
+	}
+	return end;
+}
+
+/**
+ * Plans to hold the values of each required property, and records the strings
+ * they use.
+ */
+static StatusCode heldPlanProperties(
+	DataSetHash* dataSet,
+	FILE* file,
+	heldPlan* plan,
+	Exception* exception) {
+	const PropertiesAvailable* const available = dataSet->b.b.available;
+	const uint32_t valueCount = dataSet->values->count;
+	const uint32_t valueBytes = dataSet->values->elementSize;
+	plan->values = (CollectionHeldRange*)Malloc(
+		sizeof(CollectionHeldRange) * available->count);
+	if (plan->values == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t i = 0; i < available->count; i++) {
+		Item item;
+		DataReset(&item.data);
+		const Property* const property = PropertyGet(
+			dataSet->properties,
+			available->items[i].propertyIndex,
+			&item,
+			exception);
+		if (property == NULL || EXCEPTION_FAILED) {
+			if (property != NULL) {
+				COLLECTION_RELEASE(dataSet->properties, &item);
+			}
+			return COLLECTION_FAILURE;
+		}
+		const uint32_t first = property->firstValueIndex;
+		const uint32_t last = property->lastValueIndex;
+		COLLECTION_RELEASE(dataSet->properties, &item);
+		if (first <= last && last < valueCount) {
+			CollectionHeldRangeAdd(
+				plan->values,
+				&plan->valuesCount,
+				first,
+				last + 1);
+			const StatusCode status = CollectionHeldScan(
+				file,
+				plan->buffer,
+				(uint64_t)dataSet->header.values.startPosition +
+					(uint64_t)first * valueBytes,
+				last - first + 1,
+				valueBytes,
+				heldPlanScanValue,
+				plan);
+			if (status != SUCCESS) {
+				return status;
+			}
+		}
+	}
+	return SUCCESS;
+}
+
+/**
+ * Creates a values collection from the file, reading it or loading it into
+ * memory as the configuration says.
+ */
+static StatusCode heldCreateValues(
+	void* state,
+	const fiftyoneDegreesCollectionConfig* config,
+	CollectionHeader header,
+	Collection** collection) {
+	const heldCreateState* const create = (const heldCreateState*)state;
+	*collection = CollectionCreateFromFile(
+		create->file,
+		&create->dataSet->b.b.filePool,
+		config,
+		header,
+		CollectionReadFileFixed);
+	return *collection == NULL ? CORRUPT_DATA : SUCCESS;
+}
+
+/**
+ * Holds what the plan says to hold. The strings stay, as the names of the
+ * required properties are read from them while the data set is created and
+ * released through them when it is freed. The values the data set was created
+ * with are replaced by the held ones. Anything allocated is freed with the
+ * data set if this fails.
+ */
+static StatusCode heldPlanApply(
+	DataSetHash* dataSet,
+	FILE* file,
+	heldPlan* plan) {
+	static const fiftyoneDegreesCollectionConfig readFromFile = { false, 0, 0 };
+	heldCreateState create;
+	Collection* source = NULL;
+	StatusCode status = CollectionHeldApply(
+		&dataSet->strings,
+		file,
+		dataSet->header.strings,
+		0,
+		false,
+		plan->strings.ranges,
+		plan->strings.count,
+		NULL,
+		NULL);
+	if (status != SUCCESS) {
+		return status;
+	}
+	create.dataSet = dataSet;
+	create.file = file;
+	status = heldCreateValues(
+		&create,
+		&readFromFile,
+		dataSet->header.values,
+		&source);
+	if (status != SUCCESS) {
+		return status;
+	}
+	Collection* const configured = dataSet->values;
+	dataSet->values = source;
+	status = CollectionHeldApply(
+		&dataSet->values,
+		file,
+		dataSet->header.values,
+		0,
+		true,
+		plan->values,
+		plan->valuesCount,
+		heldCreateValues,
+		&create);
+	FIFTYONE_DEGREES_COLLECTION_FREE(configured);
+	return status;
+}
+
+/**
+ * Holds in memory what the required properties read.
+ */
+static StatusCode heldInit(DataSetHash* dataSet, Exception* exception) {
+	FILE* file;
+	heldPlan plan;
+	memset(&plan, 0, sizeof(plan));
+	if (dataSet->b.b.available->count == 0) {
+		return SUCCESS;
+	}
+	StatusCode status = FileOpen(dataSet->b.b.fileName, &file);
+	if (status != SUCCESS) {
+		return status;
+	}
+	plan.buffer = (byte*)Malloc(
+		FIFTYONE_DEGREES_COLLECTION_HELD_SCAN_BUFFER_BYTES);
+	status = CollectionHeldStringsInit(
+		&plan.strings,
+		dataSet->header.strings.length);
+	if (plan.buffer == NULL || status != SUCCESS) {
+		status = INSUFFICIENT_MEMORY;
+	}
+	else {
+		status = heldPlanProperties(dataSet, file, &plan, exception);
+	}
+	if (status == SUCCESS && EXCEPTION_OKAY) {
+		status = CollectionHeldStringsPlan(
+			&plan.strings,
+			heldStringEnd,
+			dataSet,
+			exception);
+	}
+	if (status == SUCCESS && EXCEPTION_OKAY) {
+		// The memory used to work out the plan goes before anything is held.
+		Free(plan.buffer);
+		plan.buffer = NULL;
+		CollectionHeldStringsFreeOffsets(&plan.strings);
+		status = heldPlanApply(dataSet, file, &plan);
+	}
+	heldPlanFree(&plan);
+	fclose(file);
+	if (status == SUCCESS && EXCEPTION_FAILED) {
+		status = COLLECTION_FAILURE;
+	}
+	return status;
+}
+
+/**
+ * True when loadRequiredPropertiesOnly is set, the data set reads the file,
+ * and the caller has named fewer properties than the data file has.
+ */
+static bool heldIsWanted(
+	const DataSetHash* dataSet,
+	const PropertiesRequired* properties) {
+	if (dataSet->config.loadRequiredPropertiesOnly == false ||
+		dataSet->config.b.b.allInMemory) {
+		return false;
+	}
+	return PropertiesRequiredNamesFewerThan(
+		properties,
+		dataSet->header.properties.count);
+}
+
+/**
+ * Gets the configuration to create the strings with, which reads from the file
+ * when what the required properties read is to be held, as they are not known
+ * yet.
+ */
+static const fiftyoneDegreesCollectionConfig* heldConfig(
+	const fiftyoneDegreesCollectionConfig* config,
+	const bool hold) {
+	static const fiftyoneDegreesCollectionConfig readFromFile = { false, 0, 0 };
+	return hold ? &readFromFile : config;
+}
+
+/**
+ * Checks that the strings and values the hold reads from lie within the file,
+ * as a collection loaded into memory is checked when it is loaded.
+ */
+static StatusCode heldFileStatus(const DataSetHash* dataSet) {
+	const uint64_t stringsEnd =
+		(uint64_t)dataSet->header.strings.startPosition +
+		dataSet->header.strings.length;
+	const uint64_t valuesEnd =
+		(uint64_t)dataSet->header.values.startPosition +
+		dataSet->header.values.length;
+	const uint64_t length = (uint64_t)dataSet->b.b.filePool.length;
+	return stringsEnd > length || valuesEnd > length ? CORRUPT_DATA : SUCCESS;
+}
+
 static StatusCode readDataSetFromFile(
 	DataSetHash *dataSet,
 	FILE *file,
+	const PropertiesRequired *properties,
+	bool *hold,
 	Exception *exception) {
 	StatusCode status = SUCCESS;
 
@@ -2584,10 +2885,22 @@ static StatusCode readDataSetFromFile(
 		return status;
 	}
 
-	// Create the strings collection.
+	// Create the strings collection. When only what the required properties
+	// read will be held, the strings read from the file until the required
+	// properties are known.
+	*hold = heldIsWanted(dataSet, properties);
+	if (*hold) {
+		status = heldFileStatus(dataSet);
+		if (status != SUCCESS) {
+			return status;
+		}
+	}
 	uint32_t stringsCount = dataSet->header.strings.count;
 	*(uint32_t*)(&dataSet->header.strings.count) = 0;
-	COLLECTION_CREATE_FILE(strings, fiftyoneDegreesStringRead);
+	COLLECTION_CREATE_FILE_WITH_CONFIG(
+		strings,
+		fiftyoneDegreesStringRead,
+		heldConfig(&dataSet->config.strings, *hold));
 	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
 
 	// Override the header count so that the variable collection can work.
@@ -2645,7 +2958,11 @@ static uint16_t getMaxConcurrency(const ConfigHash *config) {
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
-static StatusCode initWithFile(DataSetHash *dataSet, Exception *exception) {
+static StatusCode initWithFile(
+	DataSetHash *dataSet,
+	const PropertiesRequired *properties,
+	bool *hold,
+	Exception *exception) {
 	StatusCode status;
 	FileHandle handle;
 
@@ -2669,7 +2986,12 @@ static StatusCode initWithFile(DataSetHash *dataSet, Exception *exception) {
 	}
 
 	// Read the data set from the source.
-	status = readDataSetFromFile(dataSet, handle.file, exception);
+	status = readDataSetFromFile(
+		dataSet,
+		handle.file,
+		properties,
+		hold,
+		exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		fclose(handle.file);
 		return status;
@@ -2705,6 +3027,9 @@ static StatusCode initDataSetFromFileIndexing(
 	DataSetHash *dataSet = (DataSetHash*)dataSetBase;
 	ConfigHash *config = (ConfigHash*)configBase;
 	StatusCode status = NOT_SET;
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+	bool hold = false;
+#endif
 
 	// Common data set initialisation actions.
 	initDataSet(dataSet, &config);
@@ -2727,7 +3052,7 @@ static StatusCode initDataSetFromFileIndexing(
 	}
 	else {
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
-		status = initWithFile(dataSet, exception);
+		status = initWithFile(dataSet, properties, &hold, exception);
 #else
 		status = INVALID_CONFIG;
 #endif
@@ -2796,6 +3121,19 @@ static StatusCode initDataSetFromFileIndexing(
 	}
 
 	initGetHighEntropyValues(dataSet, exception);
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+	// Now the data set is created, hold what the required properties read.
+	if (hold && EXCEPTION_OKAY) {
+		status = heldInit(dataSet, exception);
+		if (status != SUCCESS || EXCEPTION_FAILED) {
+			if (config->b.b.useTempFile == true) {
+				FileDelete(dataSet->b.b.fileName);
+			}
+			return status;
+		}
+	}
+#endif
 
 	return status;
 }
@@ -4649,8 +4987,8 @@ typedef struct evidence_key_t {
 } evidenceKey;
 
 /**
- * The keys a data set accepts that do not come from the data file. They
- * follow the keys that do.
+ * The keys a data set accepts that do not come from the data file, when it
+ * processes special evidence. They follow the keys that do.
  */
 static const evidenceKey fixedEvidenceKeys[] = {
 	{ "query.", "", FIFTYONE_DEGREES_EVIDENCE_DEVICE_ID },
@@ -4666,7 +5004,9 @@ static const evidenceKey fixedEvidenceKeys[] = {
  * Gets the evidence key at the index, counting a key under header. and then
  * query. for each unique header, then a key under cookie. and then query.
  * for each overridable property, then the fixed keys. A pseudo header gives
- * no key, as a request never carries one, so its name is set to NULL.
+ * no key, as a request never carries one, so its name is set to NULL. The
+ * override and fixed keys are only read when the data set processes special
+ * evidence, so they are only counted then.
  * @return false if the index is past the last key
  */
 static bool getEvidenceKey(
@@ -4677,8 +5017,12 @@ static bool getEvidenceKey(
 	static const char * const overridePrefixes[] = { "cookie.", "query." };
 	Headers * const headers = dataSet->b.b.uniqueHeaders;
 	OverridePropertyArray * const overrides = dataSet->b.b.overridable;
+	const bool special = dataSet->config.b.processSpecialEvidence;
 	const uint32_t headerKeys = headers == NULL ? 0 : headers->count * 2;
-	const uint32_t overrideKeys = overrides == NULL ? 0 : overrides->count * 2;
+	const uint32_t overrideKeys = special == false || overrides == NULL ?
+		0 : overrides->count * 2;
+	const uint32_t fixedKeys = special == false ? 0 :
+		(uint32_t)(sizeof(fixedEvidenceKeys) / sizeof(fixedEvidenceKeys[0]));
 	const char *name;
 	if (index < headerKeys) {
 		name = headers->items[index / 2].name;
@@ -4700,7 +5044,7 @@ static bool getEvidenceKey(
 		return true;
 	}
 	index -= overrideKeys;
-	if (index < sizeof(fixedEvidenceKeys) / sizeof(fixedEvidenceKeys[0])) {
+	if (index < fixedKeys) {
 		*key = fixedEvidenceKeys[index];
 		return true;
 	}
@@ -4772,6 +5116,44 @@ size_t fiftyoneDegreesHashGetEvidenceKeys(
 	added = builder.added;
 	StringBuilderComplete(&builder);
 	return added;
+}
+
+/**
+ * Sets the date to the next update date in the header when next is true, or
+ * to the published date otherwise, if that date is valid, and to zeros if not,
+ * so a caller that ignores the result still never reads an invalid date.
+ */
+static bool getHeaderDate(
+	ResourceManager *manager,
+	bool next,
+	fiftyoneDegreesDate *date) {
+	DataSetHash *dataSet = DataSetHashGet(manager);
+	if (next) {
+		*date = dataSet->header.nextUpdate;
+	}
+	else {
+		*date = dataSet->header.published;
+	}
+	DataSetHashRelease(dataSet);
+	if (DateIsValid(date)) {
+		return true;
+	}
+	date->year = 0;
+	date->month = 0;
+	date->day = 0;
+	return false;
+}
+
+bool fiftyoneDegreesHashGetPublished(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date) {
+	return getHeaderDate(manager, false, date);
+}
+
+bool fiftyoneDegreesHashGetNextUpdate(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date) {
+	return getHeaderDate(manager, true, date);
 }
 
 /**
@@ -5111,6 +5493,44 @@ size_t fiftyoneDegreesResultsHashGetValuesString(
 	return charactersAdded;
 }
 
+/**
+ * The hardware profile script starts with this, as the body pushes onto the
+ * profileIds array without declaring it.
+ */
+static const char hardwareProfileScriptStart[] = "var profileIds = []\n";
+
+/**
+ * The hardware profile script ends with this, which writes the ids the body
+ * found to the cookie the engine reads them back from. The engine takes each
+ * run of digits in the cookie as a profile id, so any other character, here
+ * '|', separates them.
+ */
+static const char hardwareProfileScriptEnd[] =
+	"\ndocument.cookie = \"51D_ProfileIds=\" + profileIds.join(\"|\")";
+
+size_t fiftyoneDegreesHashGetHardwareProfileScript(
+	const char *body,
+	char *buffer,
+	size_t length) {
+	size_t added;
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilderInit(&builder);
+	StringBuilderAddChars(
+		&builder,
+		hardwareProfileScriptStart,
+		sizeof(hardwareProfileScriptStart) - 1);
+	if (body != NULL) {
+		StringBuilderAddChars(&builder, body, strlen(body));
+	}
+	StringBuilderAddChars(
+		&builder,
+		hardwareProfileScriptEnd,
+		sizeof(hardwareProfileScriptEnd) - 1);
+	added = builder.added;
+	StringBuilderComplete(&builder);
+	return added;
+}
+
 ResultHash* getResultForPropertyIndex(
 	ResultsHash* results,
 	uint32_t propertyIndex,
@@ -5297,16 +5717,12 @@ static fiftyoneDegreesResultsNoValueReason resultsHashGetNoValueReason(
 	const Property *property = (const Property*)results->propertyItem.data.ptr;
 
 	if (result == NULL) {
-		// In the unified result shape (issue #362) value selection returns no
-		// result for the property's component when none of the result items
-		// carries a matched profile for it and unmatched results are disabled
-		// (allowUnmatched == false). A result item still exists for the
-		// component (count > 0 is guaranteed by the NO_RESULTS check above) - it
-		// simply has a null profile - so report NULL_PROFILE, whose message
-		// points the caller at lenient matching, rather than the generic
-		// NO_RESULT_FOR_PROPERTY. Before #362 removed the single User-Agent fast
-		// path, this same case produced one coalesced result and correctly
-		// reported NULL_PROFILE.
+		// Value selection returns no result when none of the result items
+		// carries a matched profile for the property's component and
+		// allowUnmatched is false. A result item still exists for the
+		// component, with a null profile, so report NULL_PROFILE, whose
+		// message points the caller at lenient matching, rather than the
+		// generic NO_RESULT_FOR_PROPERTY.
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE;
 	}
 	else if (result->profileOffsets[property->componentIndex] == NULL_PROFILE_OFFSET) {
@@ -5730,6 +6146,126 @@ char* fiftyoneDegreesHashGetDeviceIdFromResults(
 			buffer,
 			length);
 	}
+}
+
+// The match metrics of one result, or of several taken together.
+typedef struct match_metrics_t {
+	HashMatchMethod method; // The highest method used
+	int32_t difference; // Sum of the differences
+	int32_t drift; // Sum of the drifts
+	int32_t iterations; // Sum of the iterations
+	int32_t matchedNodes; // Sum of the matched nodes
+} matchMetrics;
+
+// Adds the result's metrics to those taken so far, so that adding one result
+// to the zero metrics gives that result's.
+static void matchMetricsAdd(matchMetrics *metrics, const ResultHash *result) {
+	if (result->method > metrics->method) {
+		metrics->method = result->method;
+	}
+	metrics->difference += result->difference;
+	metrics->drift += result->drift;
+	metrics->iterations += result->iterations;
+	metrics->matchedNodes += result->matchedNodes;
+}
+
+// Sets each metric the caller asked for, being those whose pointer is not
+// NULL.
+static void matchMetricsCopy(
+	const matchMetrics *metrics,
+	HashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes) {
+	if (method != NULL) {
+		*method = metrics->method;
+	}
+	if (difference != NULL) {
+		*difference = metrics->difference;
+	}
+	if (drift != NULL) {
+		*drift = metrics->drift;
+	}
+	if (iterations != NULL) {
+		*iterations = metrics->iterations;
+	}
+	if (matchedNodes != NULL) {
+		*matchedNodes = metrics->matchedNodes;
+	}
+}
+
+void fiftyoneDegreesResultsHashGetMatchMetrics(
+	fiftyoneDegreesResultsHash *results,
+	fiftyoneDegreesHashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes,
+	fiftyoneDegreesException *exception) {
+	uint32_t i;
+	matchMetrics metrics = {
+		FIFTYONE_DEGREES_HASH_MATCH_METHOD_NONE, 0, 0, 0, 0 };
+	if (results != NULL) {
+
+		// The walk of each component's graph sets its result's metrics.
+		ResultsEvaluateAll(&results->b.b, exception);
+		if (EXCEPTION_OKAY) {
+			for (i = 0; i < results->count; i++) {
+				matchMetricsAdd(&metrics, &results->items[i]);
+			}
+		}
+	}
+	matchMetricsCopy(
+		&metrics,
+		method,
+		difference,
+		drift,
+		iterations,
+		matchedNodes);
+}
+
+bool fiftyoneDegreesResultsHashGetMatchMetricsForResult(
+	fiftyoneDegreesResultsHash *results,
+	uint32_t resultIndex,
+	fiftyoneDegreesHashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes,
+	fiftyoneDegreesException *exception) {
+	bool found = false;
+	matchMetrics metrics = {
+		FIFTYONE_DEGREES_HASH_MATCH_METHOD_NONE, 0, 0, 0, 0 };
+	if (results != NULL) {
+		ResultsEvaluateAll(&results->b.b, exception);
+		if (EXCEPTION_OKAY && resultIndex < results->count) {
+			matchMetricsAdd(&metrics, &results->items[resultIndex]);
+			found = true;
+		}
+	}
+	matchMetricsCopy(
+		&metrics,
+		method,
+		difference,
+		drift,
+		iterations,
+		matchedNodes);
+	return found;
+}
+
+const char* fiftyoneDegreesResultsHashGetMatchedUserAgent(
+	fiftyoneDegreesResultsHash *results,
+	uint32_t resultIndex,
+	fiftyoneDegreesException *exception) {
+	if (results == NULL) {
+		return NULL;
+	}
+	ResultsEvaluateAll(&results->b.b, exception);
+	if (EXCEPTION_FAILED || resultIndex >= results->count) {
+		return NULL;
+	}
+	return results->items[resultIndex].b.matchedUserAgent;
 }
 
 size_t fiftyoneDegreesResultsHashGetValuesJson(

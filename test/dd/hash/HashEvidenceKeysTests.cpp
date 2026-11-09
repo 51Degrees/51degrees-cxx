@@ -294,6 +294,36 @@ const char * const tacKeysOn[] = {
 	"cookie.51D_ProfileIds"
 };
 
+/**
+ * The keys of the 11 unique headers the Lite and TAC data files both hold,
+ * with upper prefixed headers off, which are all the keys either gives when
+ * special evidence is not processed.
+ */
+const char * const headerKeysOff[] = {
+	"header.Device-Stock-UA",
+	"query.Device-Stock-UA",
+	"header.X-Device-User-Agent",
+	"query.X-Device-User-Agent",
+	"header.X-OperaMini-Phone-UA",
+	"query.X-OperaMini-Phone-UA",
+	"header.X-UCBrowser-Device-UA",
+	"query.X-UCBrowser-Device-UA",
+	"header.User-Agent",
+	"query.User-Agent",
+	"header.Sec-CH-UA-Mobile",
+	"query.Sec-CH-UA-Mobile",
+	"header.Sec-CH-UA-Platform",
+	"query.Sec-CH-UA-Platform",
+	"header.Sec-CH-UA-Model",
+	"query.Sec-CH-UA-Model",
+	"header.Sec-CH-UA-Platform-Version",
+	"query.Sec-CH-UA-Platform-Version",
+	"header.Sec-CH-UA",
+	"query.Sec-CH-UA",
+	"header.Sec-CH-UA-Full-Version-List",
+	"query.Sec-CH-UA-Full-Version-List"
+};
+
 /** The keys of the array, in order. */
 template <size_t N>
 vector<string> listOf(const char * const (&keys)[N]) {
@@ -402,14 +432,17 @@ class HashEvidenceKeysTests : public Base {
 protected:
 	/**
 	 * Opens the data file with the C library, with or without upper prefixed
-	 * headers. Returns false and records a failure if it cannot be opened.
+	 * headers and special evidence. Returns false and records a failure if it
+	 * cannot be opened.
 	 */
 	bool open(
 		const string &path,
 		bool upper,
-		fiftyoneDegreesResourceManager *manager) {
+		fiftyoneDegreesResourceManager *manager,
+		bool special = true) {
 		fiftyoneDegreesConfigHash config = fiftyoneDegreesHashDefaultConfig;
 		config.b.b.usesUpperPrefixedHeaders = upper;
+		config.b.processSpecialEvidence = special;
 		fiftyoneDegreesPropertiesRequired properties =
 			fiftyoneDegreesPropertiesDefault;
 		FIFTYONE_DEGREES_EXCEPTION_CREATE;
@@ -500,15 +533,30 @@ protected:
 		verifyListedKeys(path, true, on);
 	}
 
+	/**
+	 * Checks that the C library and the engine give exactly the keys of the
+	 * unique headers, with upper prefixed headers off, when special evidence
+	 * is not processed. Skips if there is no such file.
+	 */
+	void verifyHeaderKeysOnly(const char *fileName) {
+		const string path = GetFilePath(_dataFolderName, fileName);
+		if (path.empty()) {
+			GTEST_SKIP() << "The data file '" << fileName << "' was not found.";
+		}
+		verifyListedKeys(path, false, listOf(headerKeysOff), false);
+	}
+
 	void verifyListedKeys(
 		const string &path,
 		bool upper,
-		const vector<string> &listed) {
+		const vector<string> &listed,
+		bool special = true) {
 		const string where = "'" + path + "' with upper prefixed headers " +
-			(upper ? "on" : "off") + ". If the data file has changed, update "
-			"the keys listed in this test.";
+			(upper ? "on" : "off") + " and special evidence " +
+			(special ? "on" : "off") + ". If the data file has changed, "
+			"update the keys listed in this test.";
 		fiftyoneDegreesResourceManager manager;
-		if (open(path, upper, &manager) == false) {
+		if (open(path, upper, &manager, special) == false) {
 			return;
 		}
 		fiftyoneDegreesDataSetHash *dataSet =
@@ -521,6 +569,7 @@ protected:
 
 		ConfigHash config;
 		config.setUseUpperPrefixHeaders(upper);
+		config.setProcessSpecialEvidence(special);
 		RequiredPropertiesConfig properties;
 		EngineHash engine(path, &config, &properties);
 		EXPECT_EQ(listed, *engine.getKeys()) << "The engine gave other keys "
@@ -668,6 +717,19 @@ TEST_F(HashEvidenceKeysTests, Refresh_WhileKeysAreRead_LeavesEachListValid) {
 	}
 	EXPECT_EQ(listOf(liteKeysOff), *engine.getKeys());
 	EXPECT_GT(totalLength.load(), (size_t)0);
+}
+
+/**
+ * Without special evidence the data set reads no override, device id, high
+ * entropy values, structured User-Agent or profile id evidence, so only the
+ * keys of the unique headers can change its results.
+ */
+TEST_F(HashEvidenceKeysTests, LiteDataFile_NoSpecialEvidence_GivesHeaderKeys) {
+	verifyHeaderKeysOnly("51Degrees-LiteV4.1.hash");
+}
+
+TEST_F(HashEvidenceKeysTests, TacDataFile_NoSpecialEvidence_GivesHeaderKeys) {
+	verifyHeaderKeysOnly("TAC-HashV41.hash");
 }
 
 /**

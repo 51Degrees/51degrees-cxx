@@ -152,6 +152,11 @@ public:
 	Tracking& operator=(const Tracking&) = delete;
 };
 
+/** Results that are freed on every way out of a test. */
+typedef std::unique_ptr<
+	fiftyoneDegreesResultsIpi,
+	decltype(&fiftyoneDegreesResultsIpiFree)> OwnedResults;
+
 fiftyoneDegreesDataSetIpi* dataSetOf(fiftyoneDegreesResultsIpi* results) {
 	return (fiftyoneDegreesDataSetIpi*)results->b.dataSet;
 }
@@ -1188,27 +1193,28 @@ TEST_F(IpiFirstReadRuleTests, Reload_ReadAfterReload_AnswersFromTheHeldDataSet) 
 			m,
 			good,
 			withNames ? named(list.c_str()) : fiftyoneDegreesPropertiesDefault));
-		fiftyoneDegreesResultsIpi* expected =
-			fiftyoneDegreesResultsIpiCreate(&m.manager);
-		fiftyoneDegreesResultsIpi* held =
-			fiftyoneDegreesResultsIpiCreate(&m.manager);
-		populate(expected, addresses[0]);
-		populate(held, addresses[0]);
-		const std::vector<std::string> before = describeAll(expected);
-		fiftyoneDegreesResultsIpiFree(expected);
+		OwnedResults expected(
+			fiftyoneDegreesResultsIpiCreate(&m.manager),
+			fiftyoneDegreesResultsIpiFree);
+		OwnedResults held(
+			fiftyoneDegreesResultsIpiCreate(&m.manager),
+			fiftyoneDegreesResultsIpiFree);
+		populate(expected.get(), addresses[0]);
+		populate(held.get(), addresses[0]);
+		const std::vector<std::string> before = describeAll(expected.get());
+		expected.reset();
 
 		ASSERT_NO_FATAL_FAILURE(reload(m, renamed));
-		EXPECT_EQ(before, describeAll(held)) <<
+		EXPECT_EQ(before, describeAll(held.get())) <<
 			(withNames ? "named" : "none named");
 
-		fiftyoneDegreesResultsIpi* reloaded =
-			fiftyoneDegreesResultsIpiCreate(&m.manager);
-		populate(reloaded, addresses[0]);
-		EXPECT_NE(before, describeAll(reloaded)) <<
+		OwnedResults reloaded(
+			fiftyoneDegreesResultsIpiCreate(&m.manager),
+			fiftyoneDegreesResultsIpiFree);
+		populate(reloaded.get(), addresses[0]);
+		EXPECT_NE(before, describeAll(reloaded.get())) <<
 			"The reload did not change what the positions read, " <<
 			(withNames ? "named" : "none named");
-		fiftyoneDegreesResultsIpiFree(reloaded);
-		fiftyoneDegreesResultsIpiFree(held);
 	}
 }
 
@@ -1227,26 +1233,26 @@ TEST_F(IpiFirstReadRuleTests, Reload_ReusedResults_KeepTheirDataSet) {
 			m,
 			good,
 			withNames ? named(list.c_str()) : fiftyoneDegreesPropertiesDefault));
-		fiftyoneDegreesResultsIpi* reused =
-			fiftyoneDegreesResultsIpiCreate(&m.manager);
-		populate(reused, addresses[0]);
-		const std::vector<std::string> before = describeAll(reused);
+		OwnedResults reused(
+			fiftyoneDegreesResultsIpiCreate(&m.manager),
+			fiftyoneDegreesResultsIpiFree);
+		populate(reused.get(), addresses[0]);
+		const std::vector<std::string> before = describeAll(reused.get());
 		const void* held = reused->b.dataSet;
 
 		ASSERT_NO_FATAL_FAILURE(reload(m, renamed));
-		populate(reused, addresses[0]);
+		populate(reused.get(), addresses[0]);
 		EXPECT_EQ(held, reused->b.dataSet);
-		EXPECT_EQ(before, describeAll(reused)) <<
+		EXPECT_EQ(before, describeAll(reused.get())) <<
 			(withNames ? "named" : "none named");
 
-		fiftyoneDegreesResultsIpi* fresh =
-			fiftyoneDegreesResultsIpiCreate(&m.manager);
+		OwnedResults fresh(
+			fiftyoneDegreesResultsIpiCreate(&m.manager),
+			fiftyoneDegreesResultsIpiFree);
 		EXPECT_NE(held, fresh->b.dataSet);
-		populate(fresh, addresses[0]);
-		EXPECT_NE(before, describeAll(fresh)) <<
+		populate(fresh.get(), addresses[0]);
+		EXPECT_NE(before, describeAll(fresh.get())) <<
 			(withNames ? "named" : "none named");
-		fiftyoneDegreesResultsIpiFree(fresh);
-		fiftyoneDegreesResultsIpiFree(reused);
 	}
 }
 
@@ -1262,25 +1268,27 @@ TEST_F(IpiFirstReadRuleTests, Reload_NamedPropertyMissing_ProcessSkipsIt) {
 	Manager m;
 	ASSERT_NO_FATAL_FAILURE(initFromMemory(m, good, named(list.c_str())));
 	ASSERT_NO_FATAL_FAILURE(reload(m, renamed));
-	fiftyoneDegreesResultsIpi* results =
-		fiftyoneDegreesResultsIpiCreate(&m.manager);
+	OwnedResults results(
+		fiftyoneDegreesResultsIpiCreate(&m.manager),
+		fiftyoneDegreesResultsIpiFree);
 	std::vector<int> walks;
-	countWalks(results, walks);
+	countWalks(results.get(), walks);
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	fiftyoneDegreesResultsIpiFromIpAddressString(
-		results,
+		results.get(),
 		addresses[0],
 		strlen(addresses[0]),
 		exception);
 	EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY) <<
 		"Populating the results failed for a named property the file lacks.";
-	EXPECT_EQ(availableComponents(results), walks);
-	EXPECT_FALSE(anyPending(results));
-	EXPECT_EQ(2, positionCount(results));
-	EXPECT_FALSE(fiftyoneDegreesResultsIpiGetHasValues(results, 0, exception));
+	EXPECT_EQ(availableComponents(results.get()), walks);
+	EXPECT_FALSE(anyPending(results.get()));
+	EXPECT_EQ(2, positionCount(results.get()));
+	EXPECT_FALSE(
+		fiftyoneDegreesResultsIpiGetHasValues(results.get(), 0, exception));
 	EXPECT_EQ(
 		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY,
-		fiftyoneDegreesResultsIpiGetNoValueReason(results, 0, exception));
+		fiftyoneDegreesResultsIpiGetNoValueReason(results.get(), 0, exception));
 	EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
 
 	Manager only;
@@ -1288,13 +1296,12 @@ TEST_F(IpiFirstReadRuleTests, Reload_NamedPropertyMissing_ProcessSkipsIt) {
 		only,
 		renamed,
 		named(keptName.c_str())));
-	fiftyoneDegreesResultsIpi* expected =
-		fiftyoneDegreesResultsIpiCreate(&only.manager);
-	populate(expected, addresses[0]);
-	EXPECT_EQ(describe(expected, 0), describe(results, 1)) <<
+	OwnedResults expected(
+		fiftyoneDegreesResultsIpiCreate(&only.manager),
+		fiftyoneDegreesResultsIpiFree);
+	populate(expected.get(), addresses[0]);
+	EXPECT_EQ(describe(expected.get(), 0), describe(results.get(), 1)) <<
 		"The named property the file has read differently.";
-	fiftyoneDegreesResultsIpiFree(expected);
-	fiftyoneDegreesResultsIpiFree(results);
 }
 
 /**

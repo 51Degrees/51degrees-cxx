@@ -44,3 +44,14 @@ public:
 };
 
 EXAMPLE_TESTS(ExampleTestReloadFromMemory)
+
+// The example uses the free ASN data file by default, and asks for AsnName,
+// which that file has in place of RegisteredName.
+TEST_F(ExampleTestReloadFromMemory, AsnDataFile) {
+    dataFilePath = getAsnDataFilePath();
+    if (dataFilePath.empty()) {
+        GTEST_SKIP() << "The free ASN data file is not present.";
+    }
+    requiredProperties = "RegisteredName,AsnName";
+    run(fiftyoneDegreesIpiInMemoryConfig);
+}

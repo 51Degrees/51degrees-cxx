@@ -57,6 +57,7 @@
     <ClCompile Include="..\..\..\src\common\component.c" />
     <ClCompile Include="..\..\..\src\common\data.c" />
     <ClCompile Include="..\..\..\src\common\dataset.c" />
+    <ClCompile Include="..\..\..\src\common\date.c" />
     <ClCompile Include="..\..\..\src\common\evidence.c" />
     <ClCompile Include="..\..\..\src\common\exceptionsc.c" />
     <ClCompile Include="..\..\..\src\common\file.c" />
