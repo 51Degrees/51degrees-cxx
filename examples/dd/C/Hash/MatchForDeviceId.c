@@ -159,7 +159,8 @@ void fiftyoneDegreesHashMatchForDeviceId(
 
 	// Set the properties to be returned for each User-Agent.
 	PropertiesRequired properties = PropertiesDefault;
-	properties.string = "ScreenPixelsWidth,HardwareModel,IsMobile,BrowserName";
+	properties.string =
+		"ScreenPixelsWidth,HardwareModel,IsMobile,BrowserName,HardwareVendor";
 
 	// Initialise the manager for device detection.
 	StatusCode status = HashInitManagerFromFile(
@@ -212,6 +213,9 @@ void fiftyoneDegreesHashMatchForDeviceId(
 		resultsUserAgents,
 		"IsMobile"));
 	
+	fiftyoneDegreesExampleOutputEnterpriseValue(
+		resultsUserAgents, "HardwareVendor");
+
 	// Carries out a match for a mobile device Id from the prior match.
 	HashGetDeviceIdFromResults(
 		resultsUserAgents,
@@ -292,6 +296,9 @@ void fiftyoneDegreesHashMatchForDeviceId(
 	printf("   IsMobile: %s\n", getPropertyValueAsString(
 		resultsDeviceId,
 		"IsMobile"));
+
+	// Say what the Enterprise data file adds, on a free data file.
+	fiftyoneDegreesExampleOfferEnterprise(&manager);
 
 	// Ensure the results are freed to avoid memory leaks.
 	ResultsHashFree(resultsDeviceId);

@@ -217,6 +217,22 @@ typedef struct fiftyone_degrees_config_hash_t {
                      during processing. The trace can then be printed to debug
                      the matching after the fact. Note that this option is only
                      considered when compiled in debug mode. */
+	/**
+	 * When true, and the required properties are some but not all of the
+	 * properties in the data file, only the data they read is loaded into
+	 * memory. That is the values of the required properties and the strings
+	 * those values use, in whole records, with the rest of the values and
+	 * strings read from the file when needed with no cache. Other collections,
+	 * including the profiles and nodes every lookup walks, follow their own
+	 * settings. It has no effect when no property or every property is
+	 * required, or when allInMemory is true. True in the HighPerformance
+	 * configuration only.
+	 *
+	 * IP Intelligence also has defaultValuesInMemory. Device Detection does
+	 * not, because a Hash lookup uses no default value, and a property that a
+	 * profile has no value for returns no value.
+	 */
+	bool loadRequiredPropertiesOnly;
 } fiftyoneDegreesConfigHash;
 
 /**
@@ -399,6 +415,11 @@ EXTERNAL_VAR fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig;
  * with this configuration.
  * In this configuration, only the performance optimised graph is enabled for
  * processing to give the fastest operation.
+ *
+ * It sets loadRequiredPropertiesOnly, so when the required properties name
+ * some but not all of the properties in the data file, only the values they
+ * read and the strings those values use are kept in memory, and the rest of
+ * the values and strings read from the data file.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig;
 
@@ -1121,6 +1142,44 @@ EXTERNAL fiftyoneDegreesDataSetHash* fiftyoneDegreesDataSetHashGet(
  */
 EXTERNAL void fiftyoneDegreesDataSetHashRelease(
 	fiftyoneDegreesDataSetHash *dataSet);
+
+/**
+ * Writes the evidence keys the data set accepts, each with its prefix, with
+ * the separator between them. The keys are listed in this order.
+ *
+ * 1. For each unique header in the data set that is not a pseudo header, a
+ *    key under `header.` and then one under `query.`, with `HTTP_` before
+ *    the header name when the configuration's usesUpperPrefixedHeaders is
+ *    true. The header name is as the data set holds it.
+ * 2. For each property that can be overridden, a key under `cookie.` and
+ *    then one under `query.`, with `51D_` before the property name when the
+ *    overrides need that prefix.
+ * 3. `query.51D_deviceId`, `query.51D_gethighentropyvalues`,
+ *    `query.51D_structureduseragent`, `cookie.51D_gethighentropyvalues`,
+ *    `cookie.51D_structureduseragent`, `query.51D_ProfileIds` and
+ *    `cookie.51D_ProfileIds`.
+ *
+ * The keys in 2 and 3 are listed only when the configuration's
+ * processSpecialEvidence is true, as the data set reads none of them
+ * otherwise.
+ *
+ * A key that is listed more than once is written where it is first listed.
+ * Call with a NULL buffer to find the length needed, then with a buffer one
+ * longer than that.
+ * @param dataSet the data set to list the keys of
+ * @param buffer to write the keys to, or NULL to only find their length
+ * @param length of the buffer, including room for the null terminator
+ * @param separator written between keys. A comma suits, as no HTTP header
+ * name holds one and property names are given as a comma separated list.
+ * @return the number of characters the keys and separators need, not
+ * counting the null terminator. When the buffer is shorter than that plus
+ * one, it holds as many characters as fit followed by a null terminator.
+ */
+EXTERNAL size_t fiftyoneDegreesHashGetEvidenceKeys(
+	fiftyoneDegreesDataSetHash *dataSet,
+	char *buffer,
+	size_t length,
+	const char *separator);
 
 /**
  * Gets the date the data file in use was published, from its header.
