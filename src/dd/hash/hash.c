@@ -5014,6 +5014,44 @@ size_t fiftyoneDegreesResultsHashGetValuesString(
 	return charactersAdded;
 }
 
+/**
+ * The hardware profile script starts with this, as the body pushes onto the
+ * profileIds array without declaring it.
+ */
+static const char hardwareProfileScriptStart[] = "var profileIds = []\n";
+
+/**
+ * The hardware profile script ends with this, which writes the ids the body
+ * found to the cookie the engine reads them back from. The engine takes each
+ * run of digits in the cookie as a profile id, so any other character, here
+ * '|', separates them.
+ */
+static const char hardwareProfileScriptEnd[] =
+	"\ndocument.cookie = \"51D_ProfileIds=\" + profileIds.join(\"|\")";
+
+size_t fiftyoneDegreesHashGetHardwareProfileScript(
+	const char *body,
+	char *buffer,
+	size_t length) {
+	size_t added;
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilderInit(&builder);
+	StringBuilderAddChars(
+		&builder,
+		hardwareProfileScriptStart,
+		sizeof(hardwareProfileScriptStart) - 1);
+	if (body != NULL) {
+		StringBuilderAddChars(&builder, body, strlen(body));
+	}
+	StringBuilderAddChars(
+		&builder,
+		hardwareProfileScriptEnd,
+		sizeof(hardwareProfileScriptEnd) - 1);
+	added = builder.added;
+	StringBuilderComplete(&builder);
+	return added;
+}
+
 ResultHash* getResultForPropertyIndex(
 	ResultsHash* results,
 	uint32_t propertyIndex,
