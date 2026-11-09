@@ -192,11 +192,73 @@ long fiftyoneDegreesValueGetIndexByName(
 }
 
 /**
+ * True when the property's first value carries a weight, which every value of
+ * a weighted list does. A weighted list repeats each name with different
+ * weights and is not stored in name order.
+ */
+static bool hasWeightedValues(
+	const Collection * const values,
+	const Property * const property,
+	Exception * const exception) {
+	bool weighted = false;
+	Item item;
+	DataReset(&item.data);
+	const Value * const first = ValueGet(
+		values,
+		property->firstValueIndex,
+		&item,
+		exception);
+	if (first != NULL) {
+		weighted = EXCEPTION_OKAY && ValueIsWeighted(first);
+		COLLECTION_RELEASE(values, &item);
+	}
+	return weighted;
+}
+
+/**
+ * Compares each of the property's values with the name in index order, and
+ * returns the index of the first that matches with the value in `item`, or -1.
+ */
+static long scanByName(
+	const Collection * const values,
+	const Property * const property,
+	valueSearch * const search,
+	Item * const item,
+	Exception * const exception) {
+	const uint32_t count =
+		property->lastValueIndex - property->firstValueIndex + 1;
+	for (uint32_t i = 0; i < count; i++) {
+		const CollectionKey key = {
+			property->firstValueIndex + i,
+			CollectionKeyType_Value,
+		};
+		if (values->get(values, &key, item, exception) == NULL ||
+			EXCEPTION_FAILED) {
+			return -1;
+		}
+		const int result = compareValueByName(search, item, key, exception);
+		if (EXCEPTION_OKAY && result == 0) {
+			return (long)key.indexOrOffset.index;
+		}
+		COLLECTION_RELEASE(values, item);
+		if (EXCEPTION_FAILED) {
+			return -1;
+		}
+	}
+	return -1;
+}
+
+/**
  * Searches the property's values for the one named, comparing each as
  * `storedValueType`, and returns its index with the value in `item`, or -1.
  * A value that is not a string is written for the comparison into a buffer
  * three bytes longer than the name, with as many decimal places as that
  * buffer has bytes, up to MAX_DOUBLE_DECIMAL_PLACES.
+ *
+ * Values are binary searched, as they are stored in name order. A weighted
+ * list is not, so a name the binary search misses is then compared with each
+ * of its values. Other properties keep a miss to a binary search, so finding
+ * profiles by an unknown TAC or native model stays quick.
  */
 static long searchByNameAndType(
 	const Collection * const values,
@@ -218,7 +280,7 @@ static long searchByNameAndType(
 	StringBuilder tempBuilder = { buffer, requiredSize };
 	search.tempBuilder = isString ? NULL : &tempBuilder;
 
-	const long index = CollectionBinarySearch(
+	long index = CollectionBinarySearch(
 		values,
 		item,
 		(CollectionIndexOrOffset){property->firstValueIndex},
@@ -227,6 +289,13 @@ static long searchByNameAndType(
 		(void*)&search,
 		compareValueByName,
 		exception);
+	if (index < 0 &&
+		EXCEPTION_OKAY &&
+		(int32_t)property->firstValueIndex != -1 &&
+		hasWeightedValues(values, property, exception) &&
+		EXCEPTION_OKAY) {
+		index = scanByName(values, property, &search, item, exception);
+	}
 	if (buffer) {
 		Free(buffer);
 	}

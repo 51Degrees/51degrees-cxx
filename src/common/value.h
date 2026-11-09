@@ -189,7 +189,10 @@ EXTERNAL const fiftyoneDegreesValue* fiftyoneDegreesValueGet(
 	fiftyoneDegreesException *exception);
 
 /**
- * Get the value for the requested name from the collection provided.
+ * Get the value for the requested name from the collection provided. The
+ * values are binary searched by name. A weighted list's values are not in
+ * name order, so a name the search misses there is compared with every value
+ * of the property.
  * @param values collection to get the value from
  * @param strings collection containing the value names
  * @param property that the value relates to
@@ -230,6 +233,8 @@ EXTERNAL const fiftyoneDegreesValue* fiftyoneDegreesValueGetByName(
 
 /**
  * Get index of the value for the requested name from the collection provided.
+ * The values are searched as #fiftyoneDegreesValueGetByNameAndType searches
+ * them.
  * @param values collection to get the value from
  * @param strings collection containing the value names
  * @param property that the value relates to
