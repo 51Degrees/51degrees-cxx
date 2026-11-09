@@ -16,7 +16,9 @@ available through the [data](https://github.com/51Degrees/data) submodule. To ob
 file with a more complete set of device properties see the 
 [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=data-file). 
 To download the lite file into `data/device-detection`, run one of these from
-the repository root. The examples also download it when it is missing.
+the repository root. The examples also download it when it is missing. On the
+lite file, the examples show the properties only the Enterprise data file has,
+such as HardwareVendor, as needing it, with a link to ask for a copy.
 
 ```
 sh data/get-data-files.sh 51Degrees-LiteV4.1.hash

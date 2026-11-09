@@ -225,7 +225,8 @@ void fiftyoneDegreesHashMatchMetrics(
 
 	// Set the properties to be returned for each User-Agent.
 	PropertiesRequired properties = PropertiesDefault;
-	properties.string = "ScreenPixelsWidth,HardwareModel,IsMobile,BrowserName,Id";
+	properties.string = "ScreenPixelsWidth,HardwareModel,IsMobile,BrowserName,"
+		"Id,HardwareVendor";
 
 	// Initialise the manager for device detection.
 	StatusCode status = HashInitManagerFromFile(
@@ -291,6 +292,9 @@ void fiftyoneDegreesHashMatchMetrics(
 		exception);
 	EXCEPTION_THROW;
 	outputMatchMetrics(results);
+
+	// Say what the Enterprise data file adds, on a free data file.
+	fiftyoneDegreesExampleOfferEnterprise(&manager);
 
 	// Ensure the results are freed to avoid memory leaks.
 	ResultsHashFree(results);
