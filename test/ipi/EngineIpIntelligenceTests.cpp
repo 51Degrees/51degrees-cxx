@@ -93,18 +93,15 @@ void EngineIpIntelligenceTests::verifyComponentMetaDataDefaultProfile(
 	MetaData *metaData,
 	ComponentMetaData *component) {
 	if (component->getDefaultProfileId() != 0) {
-		ProfileMetaData *defaultProfile = 
-			metaData->getDefaultProfileForComponent(component);
-		ComponentMetaData *otherComponent = 
-			metaData->getComponentForProfile(defaultProfile);
+		std::unique_ptr<ProfileMetaData> defaultProfile(
+			metaData->getDefaultProfileForComponent(component));
+		std::unique_ptr<ComponentMetaData> otherComponent(
+			metaData->getComponentForProfile(defaultProfile.get()));
 		ASSERT_EQ(*component, *otherComponent) <<
 			L"The component and its default profile are not linked." <<
 			L"\nComponent Id = " << (int)component->getComponentId() <<
 			L"\nOther Component Id = " << (int)otherComponent->getComponentId() <<
 			L"\nProfile Id = " << defaultProfile->getProfileId();
-
-		delete otherComponent;
-		delete defaultProfile;
 	}
 }
 
@@ -885,8 +882,7 @@ void EngineIpIntelligenceTests::compareResultsAfterFailedReload(
 
 void EngineIpIntelligenceTests::reloadFileFailure() {
 	EngineIpi *engineIpi = (EngineIpi*)getEngine();
-	ResultsIpi *results1 = engineIpi->process(
-		ipv4Address);
+	std::unique_ptr<ResultsIpi> results1(engineIpi->process(ipv4Address));
 
 	// Write a file which must fail to load to a temporary path.
 	unsigned char invalidData[sizeof(fiftyoneDegreesDataSetIpiHeader) + 64];
@@ -914,11 +910,10 @@ void EngineIpIntelligenceTests::reloadFileFailure() {
 	EXPECT_EQ((size_t)0, fiftyoneDegreesUnsetMemoryTracking()) << "The "
 		"failed reload from a file did not free everything it allocated.";
 
-	ResultsIpi *results2 = engineIpi->process(
-		ipv4Address);
-	compareResultsAfterFailedReload(results1, results2);
-	delete results1;
-	delete results2;
+	std::unique_ptr<ResultsIpi> results2(engineIpi->process(ipv4Address));
+	compareResultsAfterFailedReload(results1.get(), results2.get());
+	results1.reset();
+	results2.reset();
 
 	// Deleting the file also checks the failed reload closed the file
 	// handles it opened, as an open handle stops the delete on Windows.

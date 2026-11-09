@@ -158,10 +158,15 @@ namespace FiftyoneDegrees {
 				 * @copydoc ExampleBase::run
 				 */
 				void run() {
-					DeviceDetection::Hash::ResultsHash *results;
+					// Each std::unique_ptr in this example frees what it holds
+					// when it is reset or goes out of scope, including when an
+					// exception is thrown. Results hold a reference to the
+					// engine's data set, so they must always be freed.
+					std::unique_ptr<DeviceDetection::Hash::ResultsHash> results;
 
 					// Create an evidence instance to store and process User-Agents.
-					EvidenceDeviceDetection *evidence = new EvidenceDeviceDetection();
+					std::unique_ptr<EvidenceDeviceDetection> evidence(
+						new EvidenceDeviceDetection());
 
 					cout << "Starting Match Metrics Example.\n";
 
@@ -170,7 +175,7 @@ namespace FiftyoneDegrees {
 						mobileUserAgent << "\n";
 					evidence->operator[]("header.user-agent")
 						= mobileUserAgent;
-					results = engine->process(evidence);
+					results.reset(engine->process(evidence.get()));
 					cout <<
 						"   IsMobile:    " <<
 						(*results->getValueAsString("IsMobile")).c_str() << "\n" <<
@@ -181,14 +186,13 @@ namespace FiftyoneDegrees {
 						"   Method:      " <<
 						getMethodString(results->getMethod()) << "\n" <<
 						"   Sub Strings: " << results->getUserAgent(0);
-					delete results;
 
 					// Carries out a match for a desktop User-Agent.
 					cout << "\nDesktop User-Agent: " <<
 						desktopUserAgent << "\n";
 					evidence->operator[]("header.user-agent")
 						= desktopUserAgent;
-					results = engine->process(evidence);
+					results.reset(engine->process(evidence.get()));
 					cout <<
 						"   IsMobile:    " <<
 						(*results->getValueAsString("IsMobile")).c_str() << "\n" <<
@@ -199,14 +203,13 @@ namespace FiftyoneDegrees {
 						"   Method:      " <<
 						getMethodString(results->getMethod()) << "\n" <<
 						"   Sub Strings: " << results->getUserAgent(0);
-					delete results;
 
 					// Carries out a match for a MediaHub User-Agent.
 					cout << "\nMediaHub User-Agent: " <<
 						mediaHubUserAgent << "\n";
 					evidence->operator[]("header.user-agent")
 						= mediaHubUserAgent;
-					results = engine->process(evidence);
+					results.reset(engine->process(evidence.get()));
 					cout <<
 						"   IsMobile:    " <<
 						(*results->getValueAsString("IsMobile")).c_str() << "\n" <<
@@ -217,10 +220,6 @@ namespace FiftyoneDegrees {
 						"   Method:      " <<
 						getMethodString(results->getMethod()) << "\n" <<
 						"   Sub Strings: " << results->getUserAgent(0);
-					delete results;
-
-					// Free the evidence.
-					delete evidence;
 				}
 			};
 		}
@@ -237,10 +236,10 @@ extern "C" void fiftyoneDegreesExampleCPPMatchMetricsRun(ExampleParameters *para
 	DeviceDetection::Hash::ConfigHash* cppConfig = new DeviceDetection::Hash::ConfigHash(&configHash);
 
 	try {
-		MatchMetrics *matchMetrics = new MatchMetrics(
-			params->dataFilePath, cppConfig);
-		matchMetrics->run();
-		delete matchMetrics;
+		// The example, and the engine it holds, is freed when it goes out of
+		// scope, including when an exception is thrown.
+		MatchMetrics matchMetrics(params->dataFilePath, cppConfig);
+		matchMetrics.run();
 	}
 	catch (const StatusCodeException &e) {
 		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);

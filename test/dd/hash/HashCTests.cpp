@@ -40,6 +40,19 @@ const char* commonProperties =
 
 using namespace std;
 
+/** Results that are freed on every way out of a test. */
+typedef std::unique_ptr<
+	ResultsHash,
+	decltype(&ResultsHashFree)> OwnedResults;
+
+/**
+ * Frees an initialised manager on every way out of a test. Declare it before
+ * any results made from the manager, so that the results are freed first.
+ */
+typedef std::unique_ptr<
+	ResourceManager,
+	decltype(&ResourceManagerFree)> ManagerGuard;
+
 class HashCTests : public Base {
 public:
 	HashCTests() {
@@ -305,19 +318,20 @@ TEST_F(HashCTests, ResultsShapeIndependentOfEvidenceCardinality) {
 TEST_F(HashCTests, NoValueReasonForNullProfileComponentIsNullProfile) {
 	EXCEPTION_CREATE;
 
-	EvidenceKeyValuePairArray* evidence = EvidenceCreate(1);
+	std::unique_ptr<EvidenceKeyValuePairArray, decltype(&EvidenceFree)>
+		evidence(EvidenceCreate(1), EvidenceFree);
 	EvidenceAddString(
-		evidence,
+		evidence.get(),
 		FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
 		"User-Agent",
 		mobileUserAgent);
 
-	ResultsHash* results = ResultsHashCreate(&manager, 0);
+	OwnedResults results(ResultsHashCreate(&manager, 0), ResultsHashFree);
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
 	ASSERT_FALSE(dataSet->config.b.allowUnmatched) <<
 		"This regression only applies when unmatched results are disabled.\n";
 
-	ResultsHashFromEvidence(results, evidence, exception);
+	ResultsHashFromEvidence(results.get(), evidence.get(), exception);
 	EXCEPTION_THROW;
 	ASSERT_GT(results->count, 0u) <<
 		"A User-Agent should produce at least one result.\n";
@@ -340,25 +354,22 @@ TEST_F(HashCTests, NoValueReasonForNullProfileComponentIsNullProfile) {
 	}
 
 	const int requiredPropertyIndex =
-		getRequiredPropertyIndex(results, "IsMobile");
+		getRequiredPropertyIndex(results.get(), "IsMobile");
 	ASSERT_GE(requiredPropertyIndex, 0) <<
 		"IsMobile must be an available property for this test.\n";
 
 	ASSERT_FALSE(ResultsHashGetHasValues(
-		results, requiredPropertyIndex, exception)) <<
+		results.get(), requiredPropertyIndex, exception)) <<
 		"A component with only null profiles must have no value.\n";
 	EXCEPTION_THROW;
 
-	fiftyoneDegreesResultsNoValueReason reason =
-		ResultsHashGetNoValueReason(results, requiredPropertyIndex, exception);
+	fiftyoneDegreesResultsNoValueReason reason = ResultsHashGetNoValueReason(
+		results.get(), requiredPropertyIndex, exception);
 	EXCEPTION_THROW;
 	EXPECT_EQ(FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE, reason) <<
 		"A component with only null profiles should report a null profile, "
 		"pointing the caller at lenient matching, not a generic "
 		"no-result-for-property reason.\n";
-
-	ResultsHashFree(results);
-	EvidenceFree(evidence);
 }
 
 /*
@@ -426,13 +437,15 @@ TEST_F(HashCTests, ResultsHashGetValuesStringTest) {
  * does not have enough space.
  */
 TEST_F(HashCTests, GraphTraceGetTests) {
-	ResultsHash* resultsUserAgents = ResultsHashCreate(&manager, 0);
+	OwnedResults resultsUserAgents(
+		ResultsHashCreate(&manager, 0),
+		ResultsHashFree);
 
 	EXCEPTION_CREATE;
 	// Obtain results from user agent, walking every graph so that the traces
 	// are written.
 	ResultsHashFromUserAgent(
-		resultsUserAgents,
+		resultsUserAgents.get(),
 		mobileUserAgent,
 		strlen(mobileUserAgent),
 		exception);
@@ -480,7 +493,6 @@ TEST_F(HashCTests, GraphTraceGetTests) {
 
 	// Free resource
 	Free(fullBuffer);
-	ResultsHashFree(resultsUserAgents);
 }
 
 // TODO - Remove after refactor.
@@ -1204,19 +1216,20 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdWithStoredProperty) {
 	PropertiesRequired required = PropertiesDefault;
 	required.string = "DeviceId,IsMobile";
 	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
+	ManagerGuard managerGuard(&deviceIdManager, ResourceManagerFree);
 	EXPECT_EQ(unrestrictedDeviceId(),
 		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent));
 
-	ResultsHash *results = ResultsHashCreate(&deviceIdManager, 0);
+	OwnedResults results(
+		ResultsHashCreate(&deviceIdManager, 0),
+		ResultsHashFree);
 	ResultsHashFromUserAgent(
-		results, mobileUserAgent, strlen(mobileUserAgent), exception);
+		results.get(), mobileUserAgent, strlen(mobileUserAgent), exception);
 	EXCEPTION_THROW;
-	const int index = getRequiredPropertyIndex(results, "IsMobile");
+	const int index = getRequiredPropertyIndex(results.get(), "IsMobile");
 	ASSERT_GE(index, 0) << "IsMobile should still be available.\n";
-	EXPECT_TRUE(ResultsHashGetHasValues(results, index, exception));
+	EXPECT_TRUE(ResultsHashGetHasValues(results.get(), index, exception));
 	EXCEPTION_THROW;
-	ResultsHashFree(results);
-	ResourceManagerFree(&deviceIdManager);
 }
 
 /*

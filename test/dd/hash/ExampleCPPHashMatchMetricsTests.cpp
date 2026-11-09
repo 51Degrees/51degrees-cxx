@@ -30,11 +30,12 @@ public:
 		// Capture stdout for the test.
 		testing::internal::CaptureStdout();
 
-		DeviceDetection::Hash::ConfigHash* config = new 
+		// The example owns the configuration, and is freed with its engine
+		// when it goes out of scope, even if it throws.
+		DeviceDetection::Hash::ConfigHash* config = new
 			DeviceDetection::Hash::ConfigHash(&configHash);
-		MatchMetrics* matchMetrics = new MatchMetrics(dataFilePath, config);
-		matchMetrics->run();
-		delete matchMetrics;
+		MatchMetrics matchMetrics(dataFilePath, config);
+		matchMetrics.run();
 
 		// Don't print the stdout
 		std::string output = testing::internal::GetCapturedStdout();

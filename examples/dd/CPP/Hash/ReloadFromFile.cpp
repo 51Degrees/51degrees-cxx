@@ -106,7 +106,9 @@ namespace FiftyoneDegrees {
 				void run() {
 					int numberOfReloads = 0;
 					int numberOfReloadFails = 0;
-					ExampleBase::SharedState state(engine, userAgentFilePath);
+					ExampleBase::SharedState state(
+						engine.get(),
+						userAgentFilePath);
 					
 					if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
 						printf("** Multi Threaded Reload Example **\r\n");
@@ -163,12 +165,13 @@ extern "C" void fiftyoneDegreesExampleCPPReloadFromFileRun(ExampleParameters *pa
 	DeviceDetection::Hash::ConfigHash* cppConfig = new DeviceDetection::Hash::ConfigHash(&configHash);
 	cppConfig->setConcurrency(THREAD_COUNT);
 	try {
-		ReloadFromFile *reloadFromFile = new ReloadFromFile(
+		// The example, and the engine it holds, is freed when it goes out of
+		// scope, including when an exception is thrown.
+		ReloadFromFile reloadFromFile(
 			params->dataFilePath,
 			params->evidenceFilePath,
 			cppConfig);
-		reloadFromFile->run();
-		delete reloadFromFile;
+		reloadFromFile.run();
 	}
 	catch (const StatusCodeException &e) {
 		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);
