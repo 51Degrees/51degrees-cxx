@@ -42,22 +42,20 @@
  *
  * The #fiftyoneDegreesPoolInit method is used to initialise a pointer to
  * a #fiftyoneDegreesPool. A concurrency value is provided to indicate the
- * maximum number of threads that will be in operation. If this value is lower
- * than the actual number of threads the stack can be exhausted and a null
- * pointer is returned instead of a valid item. The concurrency value must
- * always be the same or greater than the number of threads. When compiled
- * in single threaded operation a pool is not strictly required and the
- * implementation maintains a simple stack for consistency of interface and to
- * minimise divergent code.
+ * number of items in the pool, which is the number of threads that can use
+ * an item at the same time. Further threads wait until an item is released.
+ * When compiled in single threaded operation a pool is not strictly required
+ * and the implementation maintains a simple stack for consistency of
+ * interface and to minimise divergent code.
  *
  * ## Get & Release
  *
  * Handles are retrieved from the pool via the #fiftyoneDegreesPoolItemGet
  * method. The handle **MUST** be returned with the
  * #fiftyoneDegreesPoolItemRelease method when it is finished with. The
- * handle will always be open and ready for read only operation. If too many
- * threads are accessing the pool simultaneously, meaning a handle cannot be
- * secured, then a NULL pointer is returned.
+ * handle will always be open and ready for read only operation. If every
+ * handle is in use, the thread waits until another thread releases one. A
+ * single threaded build cannot wait, so a NULL pointer is returned instead.
  *
  * ## Free
  *
@@ -114,8 +112,13 @@
  * (https://en.wikipedia.org/wiki/ABA_problem). It is for this reason the head 
  * structure is implemented as a union between the values and the exchange
  * integer. Pointers are not used as the address space for the stack is 
- * continuous and always very small compared to the total addressable memory 
+ * continuous and always very small compared to the total addressable memory
  * space.
+ *
+ * A thread that finds every item in use takes the pool's lock, counts itself
+ * as waiting and sleeps on a condition variable. A release that sees a
+ * waiting thread wakes one. The lock is only used when the pool is empty, so
+ * gets and releases with items to spare stay lock free.
  *
  * @{
  */
@@ -205,6 +208,16 @@ typedef struct fiftyone_degrees_pool_t {
 	fiftyoneDegreesPoolHead head; /**< Head of the stack */
 	uint16_t count; /**< Number of resource items that stack can hold */
 	fiftyoneDegreesPoolResourceFree resourceFree; /**< Frees a resource */
+#ifndef FIFTYONE_DEGREES_NO_THREADING
+	volatile long waiting; /**< Number of threads waiting for an item */
+	long waits; /**< Counts waits for an item, for the tests */
+	fiftyoneDegreesMutex lock; /**< Guards the count and the wait for an item */
+#ifdef _MSC_VER
+	CONDITION_VARIABLE released; /**< Wakes a waiting thread */
+#else
+	pthread_cond_t released; /**< Wakes a waiting thread */
+#endif
+#endif
 } fiftyoneDegreesPool;
 
 /**
@@ -214,7 +227,8 @@ typedef struct fiftyone_degrees_pool_t {
  * pool which will be freed during when the release method is called on the
  * pool using the resourceFree method.
  * @param pool data structure to be initialised.
- * @param concurrency the number of resources the pool should contain.
+ * @param concurrency the number of resources the pool should contain, at most
+ * 65,534 as the items are indexed by 16 bits.
  * @param state passed to the create resource method.
  * @param resourceCreate method used to create the resource to be added to 
  * items in the pool.
@@ -233,13 +247,16 @@ EXTERNAL fiftyoneDegreesPool* fiftyoneDegreesPoolInit(
 	fiftyoneDegreesException *exception);
 
 /**
- * Gets the next free item from the pool for exclusive use by the caller. Every 
- * item returned must be released when the caller has finished with it using 
- * the #fiftyoneDegreesPoolItemRelease method.
+ * Gets the next free item from the pool for exclusive use by the caller. Every
+ * item returned must be released when the caller has finished with it using
+ * the #fiftyoneDegreesPoolItemRelease method. When every item is in use the
+ * caller waits until another thread releases one. A single threaded build
+ * cannot wait, so it returns NULL with an INSUFFICIENT_HANDLES exception.
  * @param pool to return items from.
- * @param exception pointer to an exception data structure to be used if an 
+ * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
- * @return the next free item, or NULL if no items are available.
+ * @return the next free item, or NULL in a single threaded build if every
+ * item is in use.
  */
 EXTERNAL fiftyoneDegreesPoolItem* fiftyoneDegreesPoolItemGet(
 	fiftyoneDegreesPool *pool,

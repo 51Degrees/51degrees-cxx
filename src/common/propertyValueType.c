@@ -46,3 +46,48 @@ fiftyoneDegreesPropertyValueTypeGetUnderlyingType(
             return type;
     }
 }
+
+const char* fiftyoneDegreesPropertyValueTypeGetName(
+    fiftyoneDegreesPropertyValueType type,
+    bool isList) {
+    switch (type) {
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
+            return isList ? "string[]" : "string";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER:
+            return "int";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE:
+            return "double";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN:
+            return "bool";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT:
+            return "javascript";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT:
+            return "single";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_COORDINATE:
+            return "coordinate";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS:
+            return "ipaddress";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB:
+            return "wkb";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R:
+            return "wkbr";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_STRING:
+            return "weightedstring";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_INT:
+            return "weightedint";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_DOUBLE:
+            return "weighteddouble";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_BOOL:
+            return "weightedbool";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_SINGLE:
+            return "weightedsingle";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_BYTE:
+            return "weightedbyte";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_IP_ADDRESS:
+            return "weightedipaddress";
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_WKB_R:
+            return "weightedwkbr";
+        default:
+            return "string";
+    }
+}

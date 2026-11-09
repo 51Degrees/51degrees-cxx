@@ -30,12 +30,12 @@ public:
 		// Capture stdout for the test.
 		testing::internal::CaptureStdout();
 
-		DeviceDetection::Hash::ConfigHash* config = 
+		// The example owns the configuration, and is freed with its engine
+		// when it goes out of scope, even if it throws.
+		DeviceDetection::Hash::ConfigHash* config =
 			new DeviceDetection::Hash::ConfigHash(&configHash);
-		StronglyTyped* stronglyTyped =
-			new StronglyTyped(dataFilePath, config);
-		stronglyTyped->run();
-		delete stronglyTyped;
+		StronglyTyped stronglyTyped(dataFilePath, config);
+		stronglyTyped.run();
 
 		// Don't print output
 		std::string output = testing::internal::GetCapturedStdout();

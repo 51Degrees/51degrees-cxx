@@ -120,6 +120,8 @@ MAP_TYPE(CollectionFile)
 MAP_TYPE(CollectionFileRead)
 MAP_TYPE(CollectionCache)
 MAP_TYPE(CollectionFileRead)
+MAP_TYPE(CollectionHeldRange)
+MAP_TYPE(CollectionHeldStrings)
 #endif
 MAP_TYPE(FileHandle)
 MAP_TYPE(FileOffset)
@@ -316,6 +318,7 @@ MAP_TYPE(WeightedItemList)
 #define StoredBinaryValueToIntOrDefault fiftyoneDegreesStoredBinaryValueToIntOrDefault /**< Synonym for #fiftyoneDegreesStoredBinaryValueToIntOrDefault function. */
 #define StoredBinaryValueToDoubleOrDefault fiftyoneDegreesStoredBinaryValueToDoubleOrDefault /**< Synonym for #fiftyoneDegreesStoredBinaryValueToDoubleOrDefault function. */
 #define StoredBinaryValueToBoolOrDefault fiftyoneDegreesStoredBinaryValueToBoolOrDefault /**< Synonym for #fiftyoneDegreesStoredBinaryValueToBoolOrDefault function. */
+#define StoredBinaryValueToText fiftyoneDegreesStoredBinaryValueToText /**< Synonym for #fiftyoneDegreesStoredBinaryValueToText function. */
 #define EvidenceFree fiftyoneDegreesEvidenceFree /**< Synonym for #fiftyoneDegreesEvidenceFree function. */
 #define EvidenceCreate fiftyoneDegreesEvidenceCreate /**< Synonym for #fiftyoneDegreesEvidenceCreate function. */
 #define EvidenceMapPrefix fiftyoneDegreesEvidenceMapPrefix /**< Synonym for #fiftyoneDegreesEvidenceMapPrefix function. */
@@ -337,8 +340,20 @@ MAP_TYPE(WeightedItemList)
 #define FileGetPath fiftyoneDegreesFileGetPath /**< Synonym for #fiftyoneDegreesFileGetPath function. */
 #define FileGetFileName fiftyoneDegreesFileGetFileName /**< Synonym for #fiftyoneDegreesFileGetFileName function. */
 #define ThreadingGetIsThreadSafe fiftyoneDegreesThreadingGetIsThreadSafe /**< Synonym for #fiftyoneDegreesThreadingGetIsThreadSafe function. */
+#define ThreadingGetProcessorCount fiftyoneDegreesThreadingGetProcessorCount /**< Synonym for #fiftyoneDegreesThreadingGetProcessorCount function. */
 #define CollectionReadFilePosition fiftyoneDegreesCollectionReadFilePosition /**< Synonym for #fiftyoneDegreesCollectionReadFilePosition function. */
 #define CollectionReadFileFixed fiftyoneDegreesCollectionReadFileFixed /**< Synonym for #fiftyoneDegreesCollectionReadFileFixed function. */
+#define CollectionHeldApply fiftyoneDegreesCollectionHeldApply /**< Synonym for #fiftyoneDegreesCollectionHeldApply function. */
+#define CollectionHeldCreate fiftyoneDegreesCollectionHeldCreate /**< Synonym for #fiftyoneDegreesCollectionHeldCreate function. */
+#define CollectionHeldRangeAdd fiftyoneDegreesCollectionHeldRangeAdd /**< Synonym for #fiftyoneDegreesCollectionHeldRangeAdd function. */
+#define CollectionHeldRangeAddWithin fiftyoneDegreesCollectionHeldRangeAddWithin /**< Synonym for #fiftyoneDegreesCollectionHeldRangeAddWithin function. */
+#define CollectionHeldScan fiftyoneDegreesCollectionHeldScan /**< Synonym for #fiftyoneDegreesCollectionHeldScan function. */
+#define CollectionHeldStringsAdd fiftyoneDegreesCollectionHeldStringsAdd /**< Synonym for #fiftyoneDegreesCollectionHeldStringsAdd function. */
+#define CollectionHeldStringsFree fiftyoneDegreesCollectionHeldStringsFree /**< Synonym for #fiftyoneDegreesCollectionHeldStringsFree function. */
+#define CollectionHeldStringsFreeOffsets fiftyoneDegreesCollectionHeldStringsFreeOffsets /**< Synonym for #fiftyoneDegreesCollectionHeldStringsFreeOffsets function. */
+#define CollectionHeldStringsInit fiftyoneDegreesCollectionHeldStringsInit /**< Synonym for #fiftyoneDegreesCollectionHeldStringsInit function. */
+#define CollectionHeldStringsPlan fiftyoneDegreesCollectionHeldStringsPlan /**< Synonym for #fiftyoneDegreesCollectionHeldStringsPlan function. */
+#define PropertiesRequiredNamesFewerThan fiftyoneDegreesPropertiesRequiredNamesFewerThan /**< Synonym for #fiftyoneDegreesPropertiesRequiredNamesFewerThan function. */
 #define CollectionGetIsMemoryOnly fiftyoneDegreesCollectionGetIsMemoryOnly /**< Synonym for #fiftyoneDegreesCollectionGetIsMemoryOnly function. */
 #define HeaderGetIndex fiftyoneDegreesHeaderGetIndex /**< Synonym for #fiftyoneDegreesHeaderGetIndex function. */
 #define FileWrite fiftyoneDegreesFileWrite /**< Synonym for #fiftyoneDegreesFileWrite function. */
@@ -375,6 +390,9 @@ MAP_TYPE(WeightedItemList)
 #define ValueGetIndexByName fiftyoneDegreesValueGetIndexByName /**< Synonym for #fiftyoneDegreesValueGetIndexByName function. */
 #define ValueGetIndexByNameAndType fiftyoneDegreesValueGetIndexByNameAndType /**< Synonym for #fiftyoneDegreesValueGetIndexByNameAndType function. */
 #define ValueGet fiftyoneDegreesValueGet /**< Synonym for #fiftyoneDegreesValueGet function. */
+#define ValueGetText fiftyoneDegreesValueGetText /**< Synonym for #fiftyoneDegreesValueGetText function. */
+#define ValueGetDefaultText fiftyoneDegreesValueGetDefaultText /**< Synonym for #fiftyoneDegreesValueGetDefaultText function. */
+#define ValueGetDefaultIndex fiftyoneDegreesValueGetDefaultIndex /**< Synonym for #fiftyoneDegreesValueGetDefaultIndex function. */
 #define CollectionBinarySearch fiftyoneDegreesCollectionBinarySearch /**< Synonym for #fiftyoneDegreesCollectionBinarySearch function. */
 #define PropertyGetName fiftyoneDegreesPropertyGetName /**< Synonym for #fiftyoneDegreesPropertyGetName function. */
 #define PropertyGetStoredType fiftyoneDegreesPropertyGetStoredType /**< Synonym for #fiftyoneDegreesPropertyGetStoredType function. */
@@ -391,6 +409,7 @@ MAP_TYPE(WeightedItemList)
 #define SignalWait fiftyoneDegreesSignalWait /**< Synonym for #fiftyoneDegreesSignalWait function. */
 #define IntToBool fiftyoneDegreesIntToBool /**< Synonym for #fiftyoneDegreesIntToBool function. */
 #define BoolToInt fiftyoneDegreesBoolToInt /**< Synonym for #fiftyoneDegreesBoolToInt function. */
+#define DateIsValid fiftyoneDegreesDateIsValid /**< Synonym for #fiftyoneDegreesDateIsValid function. */
 #define ProcessGetId fiftyoneDegreesProcessGetId /**< Synonym for fiftyoneDegreesProcessGetId */
 #define YamlFileIterate fiftyoneDegreesYamlFileIterate /**< Synonym for fiftyoneDegreesYamlFileIterate */
 #define YamlFileIterateWithLimit fiftyoneDegreesYamlFileIterateWithLimit /**< Synonym for fiftyoneDegreesYamlFileIterateWithLimit */
@@ -425,6 +444,7 @@ MAP_TYPE(WeightedItemList)
 #define ValueGetWeight fiftyoneDegreesValueGetWeight /**< Synonym for fiftyoneDegreesValueGetWeight */
 #define ValueIsWeighted fiftyoneDegreesValueIsWeighted /**< Synonym for fiftyoneDegreesValueIsWeighted */
 #define PropertyValueTypeGetUnderlyingType fiftyoneDegreesPropertyValueTypeGetUnderlyingType /**< Synonym for fiftyoneDegreesPropertyValueTypeGetUnderlyingType */
+#define PropertyValueTypeGetName fiftyoneDegreesPropertyValueTypeGetName /**< Synonym for fiftyoneDegreesPropertyValueTypeGetName */
 
 /* <-- only one asterisk to avoid inclusion in documentation
  * Shortened constants.

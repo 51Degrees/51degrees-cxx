@@ -7,6 +7,8 @@ param(
     [string[]]$Products,
     [bool]$IpiSymbols = $true,
     [bool]$CxxBothProducts,
+    # Also installs the libraries and builds test/install against them.
+    [bool]$InstallCheck,
     [bool]$ExceptionsDisabled,
     # Builds the libraries, examples and tools without the tests.
     [bool]$BuildOnly,
@@ -51,6 +53,11 @@ if ($BuildMethod -eq "cmake") {
         ($Products -contains 'common' -and $Arch -in 'x64', 'arm64'))) {
         & $PSScriptRoot/check-common-symbols.ps1 -BuildPath "$RepoName/build" `
             -Cxx:$CxxBothProducts
+    }
+
+    if ($InstallCheck) {
+        & $PSScriptRoot/check-install.ps1 -RepoName $RepoName -Arch $Arch `
+            -Configuration $Configuration -Products $Products -Options $extraArgs
     }
 
 } elseif ($BuildMethod -eq "msbuild") {

@@ -24,6 +24,7 @@
 
 #include "collectionKeyTypes.h"
 #include "fiftyone.h"
+#include <stdlib.h>
 
 #ifdef _MSC_VER
 #include <io.h>
@@ -932,9 +933,13 @@ fiftyoneDegreesFileHandle* fiftyoneDegreesCollectionReadFilePosition(
 		// Get the next free handle from the list of readers.
 		handle = FileHandleGet(file->reader, exception);
 
-		// The concurrency setting does not allow for another file handle, so 
-		// return NULL.
-		if (handle != NULL && EXCEPTION_OKAY) {
+		// A handle taken while an earlier failure is in the exception goes
+		// back, as the caller does not use it.
+		if (handle != NULL && EXCEPTION_FAILED) {
+			FileHandleRelease(handle);
+			handle = NULL;
+		}
+		if (handle != NULL) {
 
 			// Move to the start of the record in the file handling success or 
 			// failure of the operation via the status code.
@@ -1062,6 +1067,12 @@ void* fiftyoneDegreesCollectionReadFileFixed(
 			}
 
 			// Release the file handle.
+			FileHandleRelease(handle);
+		}
+		else if (handle != NULL) {
+
+			// A handle taken while an earlier failure is in the exception is
+			// not used.
 			FileHandleRelease(handle);
 		}
 	}
@@ -1194,6 +1205,12 @@ void* fiftyoneDegreesCollectionReadFileVariable(
 				exception);
 			FileHandleRelease(handle);
 		}
+		else if (handle != NULL) {
+
+			// A handle taken while an earlier failure is in the exception is
+			// not used.
+			FileHandleRelease(handle);
+		}
 	}
 	else {
 		EXCEPTION_SET(COLLECTION_OFFSET_OUT_OF_RANGE);
@@ -1287,3 +1304,432 @@ long fiftyoneDegreesCollectionBinarySearch(
 	// The item could not be found and no error occurred.
 	return -1;
 }
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+
+/**
+ * Blocks of keys for each range held. A read starts from the first range that
+ * ends after the start of the key's block, so more blocks mean fewer ranges
+ * checked.
+ */
+#define COLLECTION_HELD_BLOCKS_PER_RANGE 16
+
+/**
+ * State of a collection that holds stretches of another collection in memory
+ * and passes every other read to that collection.
+ */
+typedef struct collection_held_t {
+	Collection *source; /* Reads whatever is not held */
+	uint64_t bytes; /* Bytes held in the ranges */
+	uint32_t unitBytes; /* Bytes in each unit of a key */
+	uint32_t count; /* Number of ranges */
+	fiftyoneDegreesCollectionHeldRange *ranges; /* In the order of their keys */
+	uint32_t blockShift; /* Bits of a key below the number of its block */
+	uint32_t blockCount; /* Blocks up to the end of the last range */
+	uint32_t *blocks; /* The first range ending after each block starts */
+} collectionHeld;
+
+/**
+ * Gets an item from the range that holds it, or from the source when no range
+ * does. The key's block gives the first range that could hold it. Each range
+ * holds whole records, so an item that starts in a range ends in it.
+ */
+static void* collectionHeldGet(
+	const Collection *collection,
+	const CollectionKey * const key,
+	Item *item,
+	Exception *exception) {
+	const collectionHeld * const state =
+		(const collectionHeld*)collection->state;
+	const uint32_t position = key->indexOrOffset.offset;
+	const uint32_t block = position >> state->blockShift;
+	if (block < state->blockCount) {
+		const fiftyoneDegreesCollectionHeldRange * const last =
+			state->ranges + state->count;
+		for (const fiftyoneDegreesCollectionHeldRange *range =
+			state->ranges + state->blocks[block];
+			range < last && range->first <= position;
+			range++) {
+			if (position < range->end) {
+				byte * const ptr = range->memory + (size_t)(
+					(uint64_t)(position - range->first) * state->unitBytes);
+				item->data.ptr = ptr;
+				item->handle = NULL;
+				item->collection = collection;
+				return ptr;
+			}
+		}
+	}
+	void * const ptr = state->source->get(state->source, key, item, exception);
+	if (item->collection != NULL) {
+		item->collection = collection;
+	}
+	return ptr;
+}
+
+static void collectionHeldRelease(Item *item) {
+	if (item->handle != NULL) {
+		const collectionHeld * const state =
+			(const collectionHeld*)item->collection->state;
+		state->source->release(item);
+	}
+	else {
+		DataReset(&item->data);
+	}
+}
+
+static void collectionHeldFree(Collection *collection) {
+	collectionHeld * const state = (collectionHeld*)collection->state;
+	for (uint32_t i = 0; i < state->count; i++) {
+		Free(state->ranges[i].memory);
+	}
+	FIFTYONE_DEGREES_COLLECTION_FREE(state->source);
+	Free(state);
+	Free(collection);
+}
+
+void fiftyoneDegreesCollectionHeldRangeAdd(
+	fiftyoneDegreesCollectionHeldRange *ranges,
+	uint32_t *count,
+	const uint32_t first,
+	const uint32_t end) {
+	if (end > first) {
+		ranges[*count].first = first;
+		ranges[*count].end = end;
+		ranges[*count].memory = NULL;
+		(*count)++;
+	}
+}
+
+void fiftyoneDegreesCollectionHeldRangeAddWithin(
+	fiftyoneDegreesCollectionHeldRange *ranges,
+	uint32_t *count,
+	const uint32_t first,
+	const uint32_t length,
+	const uint32_t limit) {
+	const uint64_t end = (uint64_t)first + length;
+	fiftyoneDegreesCollectionHeldRangeAdd(
+		ranges,
+		count,
+		first,
+		end < limit ? (uint32_t)end : limit);
+}
+
+static int collectionHeldRangeCompareFirst(const void *a, const void *b) {
+	const uint32_t x = ((const fiftyoneDegreesCollectionHeldRange*)a)->first;
+	const uint32_t y = ((const fiftyoneDegreesCollectionHeldRange*)b)->first;
+	return x < y ? -1 : (x > y ? 1 : 0);
+}
+
+/**
+ * Puts the ranges in the order of their keys and joins those that meet,
+ * returning the number left.
+ */
+static uint32_t collectionHeldRangesMerge(
+	fiftyoneDegreesCollectionHeldRange *ranges,
+	const uint32_t rangeCount) {
+	uint32_t count = 0;
+	if (rangeCount == 0) {
+		return 0;
+	}
+	qsort(
+		ranges,
+		rangeCount,
+		sizeof(fiftyoneDegreesCollectionHeldRange),
+		collectionHeldRangeCompareFirst);
+	for (uint32_t i = 0; i < rangeCount; i++) {
+		if (count > 0 && ranges[i].first <= ranges[count - 1].end) {
+			if (ranges[i].end > ranges[count - 1].end) {
+				ranges[count - 1].end = ranges[i].end;
+			}
+		}
+		else {
+			ranges[count++] = ranges[i];
+		}
+	}
+	return count;
+}
+
+static StatusCode collectionHeldCreate(
+	Collection **collection,
+	FILE *file,
+	const uint64_t startPosition,
+	const uint32_t unitBytes,
+	fiftyoneDegreesCollectionHeldRange *ranges,
+	const uint32_t count) {
+	if (count == 0) {
+		return SUCCESS;
+	}
+	const uint32_t end = ranges[count - 1].end;
+	uint32_t shift = 0;
+	while (((uint64_t)end >> shift) >
+		(uint64_t)count * COLLECTION_HELD_BLOCKS_PER_RANGE) {
+		shift++;
+	}
+	const uint32_t blockCount = ((end - 1) >> shift) + 1;
+	collectionHeld * const state = (collectionHeld*)Malloc(
+		sizeof(collectionHeld) +
+		count * sizeof(fiftyoneDegreesCollectionHeldRange) +
+		blockCount * sizeof(uint32_t));
+	if (state == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	Collection * const held = (Collection*)Malloc(sizeof(Collection));
+	if (held == NULL) {
+		Free(state);
+		return INSUFFICIENT_MEMORY;
+	}
+	state->source = *collection;
+	state->bytes = 0;
+	state->unitBytes = unitBytes;
+	state->count = 0;
+	state->ranges = (fiftyoneDegreesCollectionHeldRange*)(state + 1);
+	state->blockShift = shift;
+	state->blockCount = blockCount;
+	state->blocks = (uint32_t*)(state->ranges + count);
+	for (uint32_t b = 0, r = 0; b < blockCount; b++) {
+		while (r < count && ranges[r].end <= ((uint64_t)b << shift)) {
+			r++;
+		}
+		state->blocks[b] = r;
+	}
+	*held = **collection;
+	held->state = state;
+	held->get = collectionHeldGet;
+	held->release = collectionHeldRelease;
+	held->freeCollection = collectionHeldFree;
+	held->typeName = "CollectionHeld";
+	*collection = held;
+
+	for (uint32_t i = 0; i < count; i++) {
+		const uint64_t bytes =
+			(uint64_t)(ranges[i].end - ranges[i].first) * unitBytes;
+		if (bytes > (uint64_t)SIZE_MAX) {
+			return INSUFFICIENT_MEMORY;
+		}
+		byte * const memory = (byte*)Malloc((size_t)bytes);
+		if (memory == NULL) {
+			return INSUFFICIENT_MEMORY;
+		}
+		state->ranges[i] = ranges[i];
+		state->ranges[i].memory = memory;
+		state->count++;
+		state->bytes += bytes;
+		const uint64_t position =
+			startPosition + (uint64_t)ranges[i].first * unitBytes;
+		if (FileSeek(file, (FileOffset)position, SEEK_SET) != 0) {
+			return COLLECTION_FILE_SEEK_FAIL;
+		}
+		if (fread(memory, 1, (size_t)bytes, file) != (size_t)bytes) {
+			return COLLECTION_FILE_READ_FAIL;
+		}
+	}
+	return SUCCESS;
+}
+
+StatusCode fiftyoneDegreesCollectionHeldCreate(
+	Collection **collection,
+	FILE *file,
+	const uint64_t startPosition,
+	const uint32_t unitBytes,
+	fiftyoneDegreesCollectionHeldRange *ranges,
+	const uint32_t rangeCount) {
+	return collectionHeldCreate(
+		collection,
+		file,
+		startPosition,
+		unitBytes,
+		ranges,
+		collectionHeldRangesMerge(ranges, rangeCount));
+}
+
+StatusCode fiftyoneDegreesCollectionHeldApply(
+	Collection **collection,
+	FILE *file,
+	CollectionHeader header,
+	const byte shift,
+	const bool replaceable,
+	fiftyoneDegreesCollectionHeldRange *ranges,
+	const uint32_t rangeCount,
+	fiftyoneDegreesCollectionHeldCreateMethod create,
+	void *createState) {
+	static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
+	const uint32_t unitBytes = (*collection)->elementSize > 0 ?
+		(*collection)->elementSize : (uint32_t)1 << shift;
+	const uint32_t count = collectionHeldRangesMerge(ranges, rangeCount);
+	if (replaceable == false ||
+		create == NULL ||
+		count != 1 ||
+		ranges[0].first > 0 ||
+		(uint64_t)ranges[0].end * unitBytes <
+			((uint64_t)header.length << shift)) {
+		return collectionHeldCreate(
+			collection,
+			file,
+			(uint64_t)header.startPosition,
+			unitBytes,
+			ranges,
+			count);
+	}
+	// A collection of variable length records is created with no count.
+	if ((*collection)->elementSize == 0) {
+		header.count = 0;
+	}
+	Collection * const source = *collection;
+	FIFTYONE_DEGREES_COLLECTION_FREE(source);
+	return create(createState, &inMemory, header, collection);
+}
+
+StatusCode fiftyoneDegreesCollectionHeldScan(
+	FILE *file,
+	byte *buffer,
+	const uint64_t position,
+	uint32_t count,
+	const uint32_t recordBytes,
+	fiftyoneDegreesCollectionHeldScanMethod method,
+	void *state) {
+	if (count == 0) {
+		return SUCCESS;
+	}
+	if (FileSeek(file, (FileOffset)position, SEEK_SET) != 0) {
+		return COLLECTION_FILE_SEEK_FAIL;
+	}
+	const uint32_t recordsInBuffer =
+		FIFTYONE_DEGREES_COLLECTION_HELD_SCAN_BUFFER_BYTES / recordBytes;
+	while (count > 0) {
+		const uint32_t next = count < recordsInBuffer ? count : recordsInBuffer;
+		if (fread(buffer, recordBytes, next, file) != next) {
+			return COLLECTION_FILE_READ_FAIL;
+		}
+		for (uint32_t i = 0; i < next; i++) {
+			method(state, buffer + (size_t)i * recordBytes);
+		}
+		count -= next;
+	}
+	return SUCCESS;
+}
+
+StatusCode fiftyoneDegreesCollectionHeldStringsInit(
+	fiftyoneDegreesCollectionHeldStrings *strings,
+	const uint32_t bytes) {
+	memset(strings, 0, sizeof(fiftyoneDegreesCollectionHeldStrings));
+	strings->bytes = bytes;
+	strings->bucketCount =
+		(bytes / FIFTYONE_DEGREES_COLLECTION_HELD_STRINGS_GAP_BYTES) + 1;
+	strings->buckets = (fiftyoneDegreesCollectionHeldBucket*)Malloc(
+		sizeof(fiftyoneDegreesCollectionHeldBucket) * strings->bucketCount);
+	if (strings->buckets == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t i = 0; i < strings->bucketCount; i++) {
+		strings->buckets[i].first = UINT32_MAX;
+		strings->buckets[i].last = 0;
+		strings->buckets[i].lastTag = 0;
+	}
+	return SUCCESS;
+}
+
+void fiftyoneDegreesCollectionHeldStringsAdd(
+	fiftyoneDegreesCollectionHeldStrings *strings,
+	const uint32_t offset,
+	const uint32_t tag) {
+	if (offset < strings->bytes) {
+		fiftyoneDegreesCollectionHeldBucket * const bucket =
+			&strings->buckets[
+				offset / FIFTYONE_DEGREES_COLLECTION_HELD_STRINGS_GAP_BYTES];
+		if (offset < bucket->first) {
+			bucket->first = offset;
+		}
+		if (offset >= bucket->last) {
+			bucket->last = offset;
+			bucket->lastTag = tag;
+		}
+	}
+}
+
+StatusCode fiftyoneDegreesCollectionHeldStringsPlan(
+	fiftyoneDegreesCollectionHeldStrings *strings,
+	fiftyoneDegreesCollectionHeldStringEnd end,
+	void *state,
+	Exception *exception) {
+	const uint32_t size = strings->bytes;
+	uint32_t start = 0;
+	uint32_t last = 0;
+	uint32_t lastTag = 0;
+	bool found = false;
+	strings->ranges = (fiftyoneDegreesCollectionHeldRange*)Malloc(
+		sizeof(fiftyoneDegreesCollectionHeldRange) *
+		((size / FIFTYONE_DEGREES_COLLECTION_HELD_STRINGS_GAP_BYTES) + 2));
+	if (strings->ranges == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t i = 0; i < strings->bucketCount; i++) {
+		const fiftyoneDegreesCollectionHeldBucket * const bucket =
+			&strings->buckets[i];
+		if (bucket->first == UINT32_MAX) {
+			continue;
+		}
+		if (found == false) {
+			if (bucket->first >=
+				FIFTYONE_DEGREES_COLLECTION_HELD_STRINGS_GAP_BYTES) {
+				start = bucket->first;
+			}
+			found = true;
+		}
+		else if (bucket->first - last >=
+			FIFTYONE_DEGREES_COLLECTION_HELD_STRINGS_GAP_BYTES) {
+			const uint32_t stringEnd = end(state, last, lastTag, exception);
+			if (EXCEPTION_FAILED) {
+				return COLLECTION_FAILURE;
+			}
+			if (bucket->first > stringEnd &&
+				bucket->first - stringEnd >=
+				FIFTYONE_DEGREES_COLLECTION_HELD_STRINGS_GAP_BYTES) {
+				fiftyoneDegreesCollectionHeldRangeAdd(
+					strings->ranges,
+					&strings->count,
+					start,
+					stringEnd);
+				start = bucket->first;
+			}
+		}
+		last = bucket->last;
+		lastTag = bucket->lastTag;
+	}
+	if (found) {
+		uint32_t stringEnd = end(state, last, lastTag, exception);
+		if (EXCEPTION_FAILED) {
+			return COLLECTION_FAILURE;
+		}
+		if (stringEnd > size ||
+			size - stringEnd <
+			FIFTYONE_DEGREES_COLLECTION_HELD_STRINGS_GAP_BYTES) {
+			stringEnd = size;
+		}
+		fiftyoneDegreesCollectionHeldRangeAdd(
+			strings->ranges,
+			&strings->count,
+			start,
+			stringEnd);
+	}
+	return SUCCESS;
+}
+
+void fiftyoneDegreesCollectionHeldStringsFreeOffsets(
+	fiftyoneDegreesCollectionHeldStrings *strings) {
+	if (strings->buckets != NULL) {
+		Free(strings->buckets);
+		strings->buckets = NULL;
+	}
+}
+
+void fiftyoneDegreesCollectionHeldStringsFree(
+	fiftyoneDegreesCollectionHeldStrings *strings) {
+	fiftyoneDegreesCollectionHeldStringsFreeOffsets(strings);
+	if (strings->ranges != NULL) {
+		Free(strings->ranges);
+		strings->ranges = NULL;
+	}
+}
+
+#endif

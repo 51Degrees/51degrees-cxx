@@ -104,15 +104,8 @@ ProfileMetaData* MetaDataHash::getDefaultProfileForComponent(
 
 ValueMetaData* MetaDataHash::getDefaultValueForProperty(
 	PropertyMetaData *property) const {
-	ValueMetaData *result = nullptr;
-	Collection<ValueMetaDataKey, ValueMetaData> *values = getValues();
-	if (values != nullptr) {
-		result = values->getByKey(ValueMetaDataKey(
-			property->getName(), 
-			property->getDefaultValue()));
-		delete values;
-	}
-	return result;
+	ValueMetaDataCollectionHash values(manager.get());
+	return values.getDefaultForProperty(property->getName());
 }
 
 Collection<string, PropertyMetaData>*

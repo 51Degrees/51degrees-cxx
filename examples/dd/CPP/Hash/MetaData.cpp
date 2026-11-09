@@ -112,16 +112,22 @@ namespace FiftyoneDegrees {
 				 * @copydoc ExampleBase::run
 				 */
 				void run() {
-					PropertyMetaData *property;
-					Collection<string, PropertyMetaData> *localProperties;
 					cout << "Starting MetaData Example.\n";
-					localProperties = engine->getMetaData()->getProperties();
+					// The collection holds a reference to the engine's data
+					// set. The std::unique_ptr frees it when it goes out of
+					// scope, including when an exception is thrown.
+					std::unique_ptr<Collection<string, PropertyMetaData>>
+						localProperties(engine->getMetaData()->getProperties());
 					for (uint32_t i = 0; i < localProperties->getSize(); i++){
-						property = localProperties->getByIndex(i);
+						std::unique_ptr<PropertyMetaData> property(
+							localProperties->getByIndex(i));
 						cout << property->getName() << " - " << property->getDescription() << "\n";
-                        delete property;
 					}
-					delete localProperties;
+
+					// On the free Lite data file, say what the Enterprise data
+					// file adds and where to ask for a copy.
+					offerEnterprise(
+						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-hash-metadata.cpp&utm_term=lite-data-file");
 				}
 			};
 		}
@@ -139,9 +145,10 @@ extern "C" void fiftyoneDegreesExampleCPPMetaDataRun(ExampleParameters *params) 
 	DeviceDetection::Hash::ConfigHash* cppConfig = new DeviceDetection::Hash::ConfigHash(&configHash);
 
 	try {
-		MetaDataExample *metaData = new MetaDataExample(params->dataFilePath, cppConfig);
-		metaData->run();
-		delete metaData;
+		// The example, and the engine it holds, is freed when it goes out of
+		// scope, including when an exception is thrown.
+		MetaDataExample metaData(params->dataFilePath, cppConfig);
+		metaData.run();
 	}
 	catch (const StatusCodeException &e) {
 		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);

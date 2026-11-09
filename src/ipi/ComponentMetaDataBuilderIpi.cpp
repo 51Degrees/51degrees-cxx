@@ -34,10 +34,7 @@ ComponentMetaData* ComponentMetaDataBuilderIpi::build(
 	fiftyoneDegreesComponent *component) {
 	return new ComponentMetaData(
 		component->componentId,
-		getValue(
-			dataSet->strings,
-			component->nameOffset,
-			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING), // name is string
+		getString(dataSet->strings, component->nameOffset),
 		// The key used for profiles is the offset, as there is no profile id.
 		component->defaultProfileOffset);
 }

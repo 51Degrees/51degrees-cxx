@@ -52,9 +52,9 @@ static const char *dataDir = "data/device-detection";
 // or you may specify another file as a command line parameter.
 //
 // Note that the Lite data file is only used for illustration, and has
-// limited accuracy and capabilities.
-// Find out about the Enterprise data file on our pricing page:
-// https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-gettingstarted.c&utm_term=top
+// limited accuracy and capabilities. The example shows the properties only
+// the Enterprise data file has as needing it. Contact us for a copy:
+// https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-gettingstarted.c&utm_term=top
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
 // Returned by main. Set to 1 when the data file cannot be used.
@@ -229,6 +229,26 @@ static void outputValue(
 }
 
 /**
+ * Outputs a property only the Enterprise data file has, or that it needs
+ * the Enterprise data file when the data file in use does not have it.
+ */
+static void outputEnterpriseValue(
+	ResultsHash *results,
+	const char *name,
+	const char *propertyName,
+	FILE *output) {
+	if (fiftyoneDegreesExampleHasProperty(
+		(DataSetHash*)results->b.b.dataSet,
+		propertyName)) {
+		outputValue(results, name, propertyName, output);
+	}
+	else {
+		fprintf(output, "\n\t%s: %s", name,
+			FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE);
+	}
+}
+
+/**
  * Reports the status of the data file initialization.
  */
 static void reportStatus(StatusCode status,
@@ -289,6 +309,9 @@ static void analyse(
 	outputValue(results, "Platform Version", "PlatformVersion", output);
 	outputValue(results, "Browser Name", "BrowserName", output);
 	outputValue(results, "Browser Version", "BrowserVersion", output);
+	outputEnterpriseValue(results, "Hardware Vendor", "HardwareVendor", output);
+	outputEnterpriseValue(results, "Hardware Name", "HardwareName", output);
+	outputEnterpriseValue(results, "Device Type", "DeviceType", output);
 
 	// Shows the Device Id that can be used to look up the properties via
 	// reference tables. 
@@ -357,6 +380,7 @@ void fiftyoneDegreesHashGettingStarted(
 		NULL,
 		0,
 		"IsMobile,PlatformName,PlatformVersion,BrowserName,BrowserVersion,"
+		"HardwareVendor,HardwareName,DeviceType,"
 		"HardwareImages,SetHeaderBrowserAccept-CH,SetHeaderHardwareAccept-CH,"
 		"SetHeaderPlatformAccept-CH,JavascriptGetHighEntropyValues",
 		NULL };

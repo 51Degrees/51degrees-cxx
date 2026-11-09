@@ -24,7 +24,9 @@
 #include "../../src/common/string.h"
 #include "Base.hpp"
 #include "TestUtils_Pointers.hpp"
+#include "FixedSizeCollection.hpp"
 #include "../../src/common/collectionKeyTypes.h"
+#include <string>
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 static void releaseFilePool(FilePool * const ptr) {
@@ -2153,3 +2155,601 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_LongValue_FromFileLoaded) {
     ASSERT_EQ((int)longValuePayload, (int)value->byteArrayValue.size);
 }
 #endif
+
+
+// ============== StoredBinaryValueToText ==============
+
+
+/**
+ * The text StringBuilderAddStringValue writes for the value into a buffer it
+ * fits, which is what StoredBinaryValueToText must give.
+ */
+static std::string expectedText(
+    const StoredBinaryValue * const value,
+    const PropertyValueType type,
+    const uint8_t places) {
+    EXCEPTION_CREATE;
+    std::vector<char> buffer(1024 * 1024);
+    StringBuilder builder = { buffer.data(), buffer.size() };
+    StringBuilderInit(&builder);
+    StringBuilderAddStringValue(&builder, value, type, places, exception);
+    StringBuilderComplete(&builder);
+    EXCEPTION_THROW;
+    return std::string(buffer.data());
+}
+
+/**
+ * The text StoredBinaryValueToText gives with a buffer of `bufferLength`
+ * bytes, or with no buffer when that is 0, and whether it was written into
+ * the buffer. Memory it allocated is freed.
+ */
+static std::string toText(
+    const StoredBinaryValue * const value,
+    const PropertyValueType type,
+    const uint8_t places,
+    const size_t bufferLength,
+    bool &inBuffer) {
+    EXCEPTION_CREATE;
+    std::vector<char> buffer(bufferLength);
+    char * const start = bufferLength > 0 ? buffer.data() : nullptr;
+    char * const text = StoredBinaryValueToText(
+        value,
+        type,
+        places,
+        start,
+        bufferLength,
+        exception);
+    EXCEPTION_THROW;
+    EXPECT_NE(nullptr, text);
+    std::string result(text == nullptr ? "" : text);
+    inBuffer = text == start;
+    if (text != nullptr && text != start) {
+        Free(text);
+    }
+    return result;
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToText_EachType_FromMemory) {
+    const struct {
+        Offset offset;
+        PropertyValueType type;
+        const char *text;
+    } cases[] = {
+        { offsets.string1, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+            "some-string-value" },
+        { offsets.ipv4, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+            "212.12.0.1" },
+        { offsets.ipv6, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+            "2001:0db8:85a3:0000:0000:8a2e:0370:7334" },
+        { offsets.wkb, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+            "POINT(17.25 892.094)" },
+        { offsets.shortValue, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
+            "135.531" },
+        { offsets.shortValue,
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION, "67.766" },
+        { offsets.floatValue,
+            FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT, "0" },
+        { offsets.intValue, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER,
+            "1377860197" },
+        { offsets.byteValue, FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+            "47" },
+    };
+    for (const auto &c : cases) {
+        EXCEPTION_CREATE;
+        ItemBox item;
+        const StoredBinaryValue * const value = StoredBinaryValueGet(
+            collection.memory.get(),
+            c.offset,
+            c.type,
+            *item,
+            exception);
+        EXCEPTION_THROW;
+        ASSERT_NE(nullptr, value);
+        bool inBuffer = false;
+        EXPECT_EQ(c.text, toText(value, c.type, 3, 128, inBuffer));
+        EXPECT_EQ(expectedText(value, c.type, 3), c.text);
+        EXPECT_TRUE(inBuffer) << c.text << " fits the buffer";
+        EXPECT_EQ(c.text, toText(value, c.type, 3, 0, inBuffer));
+        EXPECT_FALSE(inBuffer) << c.text << " has no buffer to go in";
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToText_DecimalPlaces) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.memory.get(),
+        offsets.wkb,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    const PropertyValueType type = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB;
+    bool inBuffer = false;
+    EXPECT_EQ(
+        "POINT(17.25 892.09375)",
+        toText(value, type, MAX_DOUBLE_DECIMAL_PLACES, 128, inBuffer));
+    EXPECT_EQ("POINT(17 892)", toText(value, type, 0, 128, inBuffer));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToText_StringAtTheBufferLength) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.memory.get(),
+        offsets.string1,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    const std::string expected = "some-string-value";
+    const PropertyValueType type = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
+    bool inBuffer = false;
+    // Room for the characters and the terminating null.
+    EXPECT_EQ(expected, toText(value, type, 0, expected.size() + 1, inBuffer));
+    EXPECT_TRUE(inBuffer);
+    EXPECT_EQ(expected, toText(value, type, 0, expected.size(), inBuffer));
+    EXPECT_FALSE(inBuffer);
+    EXPECT_EQ(expected, toText(value, type, 0, 1, inBuffer));
+    EXPECT_FALSE(inBuffer);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToText_NumberLongerThanTheBuffer) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.memory.get(),
+        offsets.intValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    const PropertyValueType type = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER;
+    bool inBuffer = false;
+    // A number's length is only known by writing it, so one longer than the
+    // buffer is written again into memory that holds it.
+    EXPECT_EQ("1377860197", toText(value, type, 0, 4, inBuffer));
+    EXPECT_FALSE(inBuffer);
+    EXPECT_EQ("1377860197", toText(value, type, 0, 11, inBuffer));
+    EXPECT_TRUE(inBuffer);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToText_LongArea) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.memory.get(),
+        offsets.longValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    const PropertyValueType type = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB;
+    const std::string expected = expectedText(value, type, 3);
+    ASSERT_GT(expected.size(), (size_t)REASONABLE_WKT_STRING_LENGTH);
+    ASSERT_EQ(0, strncmp(expected.c_str(), "LINESTRING(", 11));
+    bool inBuffer = true;
+    EXPECT_EQ(
+        expected,
+        toText(value, type, 3, REASONABLE_WKT_STRING_LENGTH, inBuffer));
+    EXPECT_FALSE(inBuffer);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToText_NoValue) {
+    EXCEPTION_CREATE;
+    char buffer[REASONABLE_WKT_STRING_LENGTH];
+    EXPECT_EQ(nullptr, StoredBinaryValueToText(
+        nullptr,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+        0,
+        buffer,
+        sizeof(buffer),
+        exception));
+    EXPECT_TRUE(EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_NULL_POINTER));
+}
+
+
+// ============== ValueGetText and the default value ==============
+
+
+/**
+ * The property each value belongs to and the type that property is stored
+ * as, by the value's index. Each property's values are in order of their
+ * text, as the search needs.
+ */
+static const struct {
+    int16_t property;
+    PropertyValueType type;
+} valueRows[] = {
+    { 0, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION }, // shortValue
+    { 1, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB }, // wkb
+    { 2, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER }, // intValue
+    { 3, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING }, // string2
+    { 3, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING }, // string1
+    { 4, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS }, // ipv4
+    { 5, FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT }, // float
+    { 6, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING }, // string2
+    { 7, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING }, // string2
+};
+
+/**
+ * The offset the first property's name is given, which no string uses, as
+ * the type of a property is found by the offset of its name and the name is
+ * never read.
+ */
+static constexpr uint32_t propertyNameOffset = 1000;
+
+/**
+ * Values, properties and property types over the stored values, as an IP
+ * Intelligence data set holds them. Property 6 has no default value index,
+ * and the default value index of property 7 is a value of property 3.
+ */
+class StoredBinaryValueDefaults : public StoredBinaryValues {
+public:
+    static constexpr uint32_t propertyCount = 8;
+
+    void SetUp() override {
+        StoredBinaryValues::SetUp();
+        const Offset names[] = {
+            offsets.shortValue,
+            offsets.wkb,
+            offsets.intValue,
+            offsets.string2,
+            offsets.string1,
+            offsets.ipv4,
+            offsets.floatValue,
+            offsets.string2,
+            offsets.string2,
+        };
+        std::vector<fiftyoneDegreesValue> rows;
+        for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+            rows.push_back({
+                valueRows[i].property, // propertyIndex
+                (int32_t)names[i], // nameOffset
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+                0, // descriptionOffset
+#endif
+                0, // urlOffsetOrWeight
+            });
+        }
+        values.reset(new FixedSizeCollection<fiftyoneDegreesValue>(rows));
+        std::vector<fiftyoneDegreesPropertyTypeRecord> types;
+        for (uint32_t i = 0; i < propertyCount; i++) {
+            types.push_back({ propertyNameOffset + i, (byte)typeOf(i) });
+        }
+        propertyTypes.reset(
+            new FixedSizeCollection<fiftyoneDegreesPropertyTypeRecord>(types));
+    }
+
+    void TearDown() override {
+        values.reset();
+        propertyTypes.reset();
+        StoredBinaryValues::TearDown();
+    }
+
+    /** The type the property is stored as. */
+    static PropertyValueType typeOf(const uint32_t property) {
+        for (const auto &row : valueRows) {
+            if ((uint32_t)row.property == property) {
+                return row.type;
+            }
+        }
+        return FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
+    }
+
+    /**
+     * The property at `index`, with the default value index given and the
+     * values from `first` to `last`.
+     */
+    static fiftyoneDegreesProperty property(
+        const uint32_t index,
+        const uint32_t defaultValueIndex,
+        const uint32_t first,
+        const uint32_t last) {
+        return {
+            0, // componentIndex
+            0, // displayOrder
+            0, // isMandatory
+            0, // isList
+            0, // showValues
+            0, // isObsolete
+            0, // show
+            (byte)typeOf(index), // valueType
+            defaultValueIndex, // defaultValueIndex
+            propertyNameOffset + index, // nameOffset
+            0, // descriptionOffset
+            0, // categoryOffset
+            0, // urlOffset
+            first, // firstValueIndex
+            last, // lastValueIndex
+            0, // mapCount
+            0, // firstMapIndex
+        };
+    }
+
+    /** Each property with its default value index and its values. */
+    static std::vector<fiftyoneDegreesProperty> properties() {
+        return {
+            property(0, 0, 0, 0),
+            property(1, 1, 1, 1),
+            property(2, 2, 2, 2),
+            property(3, 4, 3, 4),
+            property(4, 5, 5, 5),
+            property(5, 6, 6, 6),
+            property(6, UINT32_MAX, 7, 7),
+            property(7, 4, 8, 8),
+        };
+    }
+
+    fiftyoneDegreesCollection *valuesCollection() const {
+        return values->getState()->collection;
+    }
+
+    fiftyoneDegreesCollection *typesCollection() const {
+        return propertyTypes->getState()->collection;
+    }
+
+    /** The text of the value at `index` with the places given. */
+    std::string valueText(
+        const uint32_t index,
+        const fiftyoneDegreesCollection * const types,
+        const uint8_t places) {
+        EXCEPTION_CREATE;
+        ItemBox item;
+        const Value * const value = ValueGet(
+            valuesCollection(),
+            index,
+            *item,
+            exception);
+        EXCEPTION_THROW;
+        char buffer[REASONABLE_WKT_STRING_LENGTH];
+        char * const text = ValueGetText(
+            collection.memory.get(),
+            types,
+            value,
+            places,
+            buffer,
+            sizeof(buffer),
+            exception);
+        EXCEPTION_THROW;
+        EXPECT_NE(nullptr, text);
+        std::string result(text == nullptr ? "" : text);
+        if (text != nullptr && text != buffer) {
+            Free(text);
+        }
+        return result;
+    }
+
+    /** The default value text of the property. */
+    std::string defaultText(
+        const fiftyoneDegreesProperty &property,
+        const fiftyoneDegreesCollection * const types) {
+        EXCEPTION_CREATE;
+        char buffer[REASONABLE_WKT_STRING_LENGTH];
+        char * const text = ValueGetDefaultText(
+            valuesCollection(),
+            collection.memory.get(),
+            types,
+            &property,
+            buffer,
+            sizeof(buffer),
+            exception);
+        EXCEPTION_THROW;
+        EXPECT_NE(nullptr, text);
+        std::string result(text == nullptr ? "" : text);
+        if (text != nullptr && text != buffer) {
+            Free(text);
+        }
+        return result;
+    }
+
+    /** The index of the property's default value, or -1. */
+    long defaultIndex(
+        const fiftyoneDegreesProperty &property,
+        const fiftyoneDegreesCollection * const types) {
+        EXCEPTION_CREATE;
+        const long index = ValueGetDefaultIndex(
+            valuesCollection(),
+            collection.memory.get(),
+            types,
+            &property,
+            exception);
+        EXCEPTION_THROW;
+        return index;
+    }
+
+    std::unique_ptr<FixedSizeCollection<fiftyoneDegreesValue>> values;
+    std::unique_ptr<FixedSizeCollection<fiftyoneDegreesPropertyTypeRecord>>
+        propertyTypes;
+};
+
+TEST_F(StoredBinaryValueDefaults, ValueGetText_AsItsPropertyIsStored) {
+    const char * const expected[] = {
+        "67.766",
+        "POINT(17.25 892.094)",
+        "1377860197",
+        "another-world",
+        "some-string-value",
+        "212.12.0.1",
+        "0",
+        "another-world",
+        "another-world",
+    };
+    for (uint32_t i = 0; i < sizeof(expected) / sizeof(expected[0]); i++) {
+        EXPECT_EQ(expected[i], valueText(i, typesCollection(), 3)) <<
+            "Value " << i;
+    }
+    // A data set with no property types reads every value as a string.
+    EXPECT_EQ("some-string-value", valueText(4, nullptr, 3));
+}
+
+TEST_F(StoredBinaryValueDefaults, ValueGetDefaultText_NumbersTo15Places) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const declination = StoredBinaryValueGet(
+        collection.memory.get(),
+        offsets.shortValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    const std::string declinationText = expectedText(
+        declination,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
+        MAX_DOUBLE_DECIMAL_PLACES);
+    // More places than the 3 the value's own text has.
+    ASSERT_GT(declinationText.size(), strlen("67.766"));
+    ASSERT_EQ(0, strncmp(declinationText.c_str(), "67.765", 6));
+
+    const std::vector<fiftyoneDegreesProperty> all = properties();
+    const std::string expected[] = {
+        declinationText,
+        "POINT(17.25 892.09375)",
+        "1377860197",
+        "some-string-value",
+        "212.12.0.1",
+        "0",
+        "",
+        "some-string-value",
+    };
+    for (uint32_t i = 0; i < propertyCount; i++) {
+        EXPECT_EQ(expected[i], defaultText(all[i], typesCollection())) <<
+            "Property " << i;
+    }
+}
+
+TEST_F(StoredBinaryValueDefaults, ValueGetDefaultIndex_FindsEachDefault) {
+    const std::vector<fiftyoneDegreesProperty> all = properties();
+    // Property 6 has no default value index and no value with an empty
+    // name, and the default of property 7 is not one of its values.
+    const long expected[] = { 0, 1, 2, 4, 5, 6, -1, -1 };
+    for (uint32_t i = 0; i < propertyCount; i++) {
+        EXPECT_EQ(expected[i], defaultIndex(all[i], typesCollection())) <<
+            "Property " << i;
+    }
+}
+
+TEST_F(StoredBinaryValueDefaults, ValueGetDefaultIndex_3PlaceTextFindsNothing) {
+    // The search writes each value to more places than the text it looks
+    // for has, so the 3 place text of a number or an area finds nothing,
+    // and the default is found from its text to 15 places.
+    const std::vector<fiftyoneDegreesProperty> all = properties();
+    for (uint32_t i = 0; i < 2; i++) {
+        EXCEPTION_CREATE;
+        const std::string text = valueText(i, typesCollection(), 3);
+        EXPECT_EQ(-1, ValueGetIndexByNameAndType(
+            valuesCollection(),
+            collection.memory.get(),
+            &all[i],
+            typeOf(i),
+            text.c_str(),
+            exception)) << text;
+        EXCEPTION_THROW;
+        EXPECT_EQ((long)i, defaultIndex(all[i], typesCollection()));
+    }
+}
+
+TEST_F(StoredBinaryValueDefaults, ValueGetDefaultIndex_WithNoPropertyTypes) {
+    // As a Device Detection data set, whose values are all strings.
+    const std::vector<fiftyoneDegreesProperty> all = properties();
+    EXPECT_EQ("some-string-value", defaultText(all[3], nullptr));
+    EXPECT_EQ(4, defaultIndex(all[3], nullptr));
+    EXPECT_EQ("", defaultText(all[6], nullptr));
+    EXPECT_EQ(-1, defaultIndex(all[6], nullptr));
+    EXPECT_EQ(-1, defaultIndex(all[7], nullptr));
+}
+
+TEST_F(StoredBinaryValueDefaults, ValueGetText_EmptyWhenNotWritable) {
+    // A string read as the IP address that property 4 is stored as has a
+    // length no IP address has, so it is read but cannot be written.
+    const Value unwritable = {
+        4, // propertyIndex
+        (int32_t)offsets.string1, // nameOffset
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+        0, // descriptionOffset
+#endif
+        0, // urlOffsetOrWeight
+    };
+    {
+        EXCEPTION_CREATE;
+        ItemBox item;
+        const StoredBinaryValue * const name = StoredBinaryValueGet(
+            collection.memory.get(),
+            offsets.string1,
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+            *item,
+            exception);
+        EXCEPTION_THROW;
+        char buffer[REASONABLE_WKT_STRING_LENGTH];
+        EXPECT_EQ(nullptr, StoredBinaryValueToText(
+            name,
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+            3,
+            buffer,
+            sizeof(buffer),
+            exception));
+        EXPECT_TRUE(EXCEPTION_CHECK(INCORRECT_IP_ADDRESS_FORMAT));
+    }
+
+    // The value metadata gives such a name as an empty text, in the buffer
+    // when there is one and otherwise in memory the caller frees.
+    {
+        EXCEPTION_CREATE;
+        char buffer[REASONABLE_WKT_STRING_LENGTH];
+        char * const text = ValueGetText(
+            collection.memory.get(),
+            typesCollection(),
+            &unwritable,
+            3,
+            buffer,
+            sizeof(buffer),
+            exception);
+        EXPECT_TRUE(EXCEPTION_OKAY);
+        EXPECT_TRUE(text == buffer);
+        EXPECT_STREQ("", text);
+    }
+    {
+        EXCEPTION_CREATE;
+        char * const text = ValueGetText(
+            collection.memory.get(),
+            typesCollection(),
+            &unwritable,
+            3,
+            nullptr,
+            0,
+            exception);
+        EXPECT_TRUE(EXCEPTION_OKAY);
+        EXPECT_STREQ("", text);
+        if (text != nullptr) {
+            Free(text);
+        }
+    }
+
+    // The property metadata fails for such a default, so the default text
+    // is NULL with the exception set, and no default value is found.
+    FixedSizeCollection<fiftyoneDegreesValue> unwritableValues({ unwritable });
+    const fiftyoneDegreesProperty ipAddress = property(4, 0, 0, 0);
+    {
+        EXCEPTION_CREATE;
+        char buffer[REASONABLE_WKT_STRING_LENGTH];
+        EXPECT_EQ(nullptr, ValueGetDefaultText(
+            unwritableValues.getState()->collection,
+            collection.memory.get(),
+            typesCollection(),
+            &ipAddress,
+            buffer,
+            sizeof(buffer),
+            exception));
+        EXPECT_TRUE(EXCEPTION_CHECK(INCORRECT_IP_ADDRESS_FORMAT));
+    }
+    {
+        EXCEPTION_CREATE;
+        EXPECT_EQ(-1, ValueGetDefaultIndex(
+            unwritableValues.getState()->collection,
+            collection.memory.get(),
+            typesCollection(),
+            &ipAddress,
+            exception));
+        EXPECT_TRUE(EXCEPTION_CHECK(INCORRECT_IP_ADDRESS_FORMAT));
+    }
+}

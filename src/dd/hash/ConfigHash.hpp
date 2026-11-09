@@ -98,7 +98,9 @@ namespace FiftyoneDegrees {
 
 				/**
 				 * Set the collections to use the high performance
-				 * configuration.
+				 * configuration. It turns on setLoadRequiredPropertiesOnly,
+				 * so naming some of the required properties loads only what
+				 * they read into memory.
 				 * See #fiftyoneDegreesHashHighPerformanceConfig
 				 */
 				void setHighPerformance();
@@ -170,14 +172,45 @@ namespace FiftyoneDegrees {
 				void setUsePredictiveGraph(bool use);
 
 				/**
-				 * Set the expected concurrent requests for all the data set's
-				 * collections. All collections in the data set which use
-				 * cached elements will have their caches constructued to allow
-				 * for the concurrency value set here.
+				 * Set the expected number of operations that use the engine
+				 * at the same time, which defaults to the number of
+				 * processors. It is the number of file handles in the pool, up
+				 * to 64, and an operation that has to read the file when every
+				 * handle is in use waits for one. Each cache is split into
+				 * as many parts as this, or fewer so that every part holds an
+				 * item for each operation, and a smaller cache is made that
+				 * large. It has no effect when every collection is held in
+				 * memory, and choosing a performance profile does not change
+				 * it.
 				 * See CollectionConfig::setConcurrency
-				 * @param concurrency expected concurrent requests
+				 * @param concurrency expected operations at the same time, or
+				 * 0 for one for each processor
 				 */
 				void setConcurrency(uint16_t concurrency);
+
+				/**
+				 * Set whether only the data the required properties read is
+				 * loaded into memory. When true, and the required properties
+				 * are some but not all of the properties in the data file,
+				 * only that data is loaded. That is the values of the
+				 * required properties and the strings those values use, in
+				 * whole records, with the rest of the values and strings
+				 * read from the file when needed with no cache. Other
+				 * collections, including the profiles and nodes every lookup
+				 * walks, follow their own settings. It has no effect when no
+				 * property or every property is required, or when everything
+				 * is in memory. True in the high performance profile only,
+				 * and choosing a performance profile replaces it with the
+				 * profile's setting.
+				 *
+				 * IP Intelligence also has setDefaultValuesInMemory. Device
+				 * Detection does not, because a Hash lookup uses no default
+				 * value, and a property that a profile has no value for
+				 * returns no value.
+				 * @param load true to load only what the required properties
+				 * read
+				 */
+				void setLoadRequiredPropertiesOnly(bool load);
 
 				/**
 				 * Sets whether the route through each graph should be traced
@@ -280,6 +313,14 @@ namespace FiftyoneDegrees {
 				uint16_t getConcurrency() const;
 
 				/**
+				 * Get whether only the data the required properties read is
+				 * loaded into memory. See setLoadRequiredPropertiesOnly.
+				 * @return true if only what the required properties read is
+				 * loaded
+				 */
+				bool getLoadRequiredPropertiesOnly() const;
+
+				/**
 				 * Gets whether the route through each graph should be traced
 				 * during processing. The trace can then be printed to debug
 				 * the matching after the fact. Note that this option is only
@@ -321,6 +362,9 @@ namespace FiftyoneDegrees {
 
 				/** The underlying profiles configuration structure */
 				CollectionConfig profiles;
+
+				/** The underlying root nodes configuration structure */
+				CollectionConfig rootNodes;
 
 				/** The underlying nodes configuration structure */
 				CollectionConfig nodes;

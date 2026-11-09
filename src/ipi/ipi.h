@@ -72,10 +72,13 @@
 #include "../common/weightedItem.h"
 #include "graph/graph.h"
 
-/** Default value for the cache concurrency used in the default configuration. */
+/**
+ * Default value for the concurrency used in the default configurations, where
+ * 0 is one operation for each processor the system has.
+ */
 #ifndef FIFTYONE_DEGREES_CACHE_CONCURRENCY
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-#define FIFTYONE_DEGREES_CACHE_CONCURRENCY 10
+#define FIFTYONE_DEGREES_CACHE_CONCURRENCY 0
 #else
 #define FIFTYONE_DEGREES_CACHE_CONCURRENCY 1
 #endif
@@ -266,6 +269,31 @@ typedef struct fiftyone_degrees_config_ipi_t {
 	fiftyoneDegreesCollectionConfig propertyTypes; /**< Property types collection
 												   config */
 	fiftyoneDegreesCollectionConfig graph; /**< Config for each graph */
+	/**
+	 * When true, and the required properties are some but not all of the
+	 * properties in the data file, only the data they read is loaded into
+	 * memory. That is the parts of the strings, values, profiles, profile
+	 * groups and profile offsets they reach, in whole records, with the rest
+	 * read from the file when needed with no cache, and the graphs of their
+	 * components, each following the graph setting, with the graphs of other
+	 * components read from the file. Other collections follow their own
+	 * settings. It has no effect when no property or every property is
+	 * required, or when allInMemory is true. True in the HighPerformance
+	 * configuration only.
+	 */
+	bool loadRequiredPropertiesOnly;
+	/**
+	 * When true, the default value of each required property is held in
+	 * memory when the data set is created, with what reading it takes from the
+	 * strings and the property types, so reading a default value reads
+	 * nothing from the file and takes no lock. Nothing is copied from a
+	 * collection already loaded into memory, so it has no effect where the
+	 * values, strings and property types are all loaded, as in HighPerformance
+	 * when no properties are named. It has no effect when allInMemory is true
+	 * or when loadRequiredPropertiesOnly applies, as both already hold the
+	 * default values. True in every configuration.
+	 */
+	bool defaultValuesInMemory;
 } fiftyoneDegreesConfigIpi;
 
 /**
@@ -434,13 +462,13 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiInMemoryConfig;
 
 /**
  * Highest performance configuration that reads the data file. Loads all the
- * data into memory, unless the required properties name some but not all of
- * the properties in the data file. Then only what they read is loaded, being
- * the graphs, profile offsets, profile groups and profiles of their
- * components, their values and the strings of those values, and anything else
- * reads from the file. A lookup that reads the named properties reads nothing
- * from the file. A connection to the data file is kept, with as many readers
- * as the highest concurrency setting.
+ * data into memory, and sets loadRequiredPropertiesOnly, so when the required
+ * properties name some but not all of the properties in the data file only
+ * what they read is loaded, being the graphs, profile offsets, profile groups
+ * and profiles of their components, their values and the strings of those
+ * values, and anything else reads from the file. A lookup that reads the
+ * named properties reads nothing from the file. A connection to the data file
+ * is kept, with as many readers as the highest concurrency setting.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiHighPerformanceConfig;
 
@@ -448,8 +476,10 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiHighPerformanceConfig;
  * Low memory configuration. A connection is maintained to the source data file
  * used to build the data set and used to load data into memory when required.
  * No caching is used resulting in the lowest memory footprint at the expense
- * of performance. The concurrency of each collection must be set to the
- * maximum number of concurrent operations to optimize file reads.
+ * of performance. Only the default value of each required property is held in
+ * memory, as defaultValuesInMemory is set. The concurrency of each collection
+ * must be set to the maximum number of concurrent operations to optimize file
+ * reads.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig;
 
@@ -461,12 +491,12 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig;
  * number of concurrent operations to optimize file reads. This is the default
  * configuration.
  *
- * The strings, the graphs, the profile offsets, the property types and the
- * default value of each required property are held in memory. The values,
- * profiles and profile groups are read through caches, and the profile of each
- * result is copied the first time a lookup reads it, so that each property
- * does not read the cache again. Naming the required properties does not
- * change what is held.
+ * The strings, the graphs, the profile offsets, the property types and, as
+ * defaultValuesInMemory is set, the default value of each required property
+ * are held in memory. The values, profiles and profile groups are read through
+ * caches, and the profile of each result is copied the first time a lookup
+ * reads it, so that each property does not read the cache again. Naming the
+ * required properties does not change what is held.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig;
 
@@ -507,6 +537,59 @@ EXTERNAL fiftyoneDegreesDataSetIpi* fiftyoneDegreesDataSetIpiGet(
  * @param dataSet pointer to the data set to release
  */
 EXTERNAL void fiftyoneDegreesDataSetIpiRelease(fiftyoneDegreesDataSetIpi* dataset);
+
+/**
+ * Writes the evidence keys the data set accepts, each with its prefix, with
+ * the separator between them. For each header the data set reads the client
+ * IP address from, in the data set's order, there is a key under `query.`
+ * and then one under `server.`, for example `query.client-ip-51d` and
+ * `server.client-ip-51d`. A header named more than once gives its keys once.
+ * The order is the order of the headers. A lookup from evidence tries every
+ * `query.` key before any `server.` key, whatever the order here.
+ *
+ * Call with a NULL buffer to find the length needed, then with a buffer one
+ * longer than that.
+ * @param dataSet the data set to list the keys of
+ * @param buffer to write the keys to, or NULL to only find their length
+ * @param length of the buffer, including room for the null terminator
+ * @param separator written between keys. A comma suits, as no HTTP header
+ * name holds one.
+ * @return the number of characters the keys and separators need, not
+ * counting the null terminator. When the buffer is shorter than that plus
+ * one, it holds as many characters as fit followed by a null terminator.
+ */
+EXTERNAL size_t fiftyoneDegreesIpiGetEvidenceKeys(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	char *buffer,
+	size_t length,
+	const char *separator);
+
+/**
+ * Gets the date the data file in use was published, from its header.
+ * @param manager the resource manager containing an IP Intelligence data set
+ * initialised by one of the IP Intelligence data set init methods
+ * @param date pointer to the date to set, to the header's date when that is
+ * valid (see #fiftyoneDegreesDateIsValid), otherwise to a year, month and day
+ * of zero
+ * @return true if the header holds a valid date, otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesIpiGetPublished(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date);
+
+/**
+ * Gets the date 51Degrees expect to publish the next data file, from the
+ * header of the data file in use.
+ * @param manager the resource manager containing an IP Intelligence data set
+ * initialised by one of the IP Intelligence data set init methods
+ * @param date pointer to the date to set, to the header's date when that is
+ * valid (see #fiftyoneDegreesDateIsValid), otherwise to a year, month and day
+ * of zero
+ * @return true if the header holds a valid date, otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesIpiGetNextUpdate(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date);
 
 /**
  * Gets the total size in bytes which will be allocated when intialising a

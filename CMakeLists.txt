@@ -35,28 +35,49 @@ endif()
 
 include(CMakeDependentOption)
 
-project(51Degrees VERSION 4.0.1 LANGUAGES CXX C)
+# The version the installed package reports. A release is a tag rather than a
+# version in a file, so a build from a source archive is given it.
+set(FIFTYONE_VERSION "" CACHE STRING "Version of the installed package")
+if (NOT FIFTYONE_VERSION AND EXISTS ${CMAKE_CURRENT_LIST_DIR}/.git)
+	execute_process(
+		COMMAND git describe --tags --abbrev=0 --match "[0-9]*.[0-9]*.[0-9]*"
+		WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+		OUTPUT_VARIABLE FIFTYONE_VERSION
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+		ERROR_QUIET)
+endif()
+if (NOT FIFTYONE_VERSION)
+	set(FIFTYONE_VERSION 0.0.0)
+endif()
+
+project(51Degrees VERSION ${FIFTYONE_VERSION} LANGUAGES CXX C)
 
 option(FIFTYONE_BUILD_DEVICE_DETECTION "Build Device Detection" ON)
 option(FIFTYONE_BUILD_IP_INTELLIGENCE "Build IP Intelligence" ON)
 
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_LIST_DIR)
+	set(FIFTYONE_TOP_LEVEL ON)
+else()
+	set(FIFTYONE_TOP_LEVEL OFF)
+endif()
+
 # Gives IP Intelligence's copy of common its own linked names, which one program
 # linking both products needs. A project that includes this file keeps the
 # original names unless it turns this on, so language wrappers don't change.
-if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_LIST_DIR)
-	set(FIFTYONE_IPI_SYMBOLS_DEFAULT ON)
-else()
-	set(FIFTYONE_IPI_SYMBOLS_DEFAULT OFF)
-endif()
 option(FIFTYONE_IPI_SYMBOLS
 	"Give IP Intelligence's copy of common its own linked names"
-	${FIFTYONE_IPI_SYMBOLS_DEFAULT})
+	${FIFTYONE_TOP_LEVEL})
 # The same for the common C++ classes. Off by default because the wrappers SWIG
 # generates have not been checked with the changed linked names.
 option(FIFTYONE_CXX_BOTH_PRODUCTS
 	"Give IP Intelligence's copy of the common C++ classes its own linked names" OFF)
+# Adds the install rules in cmake/install.cmake. A project that includes this
+# file installs none of it unless it turns this on.
+option(FIFTYONE_INSTALL "Add the install rules" ${FIFTYONE_TOP_LEVEL})
 
-if (MSVC)
+# A Visual Studio generator names the toolset and the Windows SDK. Another
+# generator, such as Ninja, gives only the compiler's toolset version.
+if (MSVC AND CMAKE_GENERATOR MATCHES "^Visual Studio")
 	# Check minimum required versions for MSVC
 	if (CMAKE_VS_PLATFORM_TOOLSET MATCHES "v([0-9]+)")
 		if (${CMAKE_MATCH_1} LESS MIN_VS_TOOLSET_VERSION)
@@ -69,6 +90,8 @@ if (MSVC)
 	if (CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION VERSION_LESS ${MIN_VS_PLATFORM_VERSION})
 		message(FATAL_ERROR "Require at least windows SDK version ${MIN_VS_PLATFORM_VERSION} which can be downloaded from https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/")
 	endif()
+elseif (MSVC AND MSVC_TOOLSET_VERSION LESS MIN_VS_TOOLSET_VERSION)
+	message(FATAL_ERROR "Require at least Platform Toolset v${MIN_VS_TOOLSET_VERSION}. These can be installed by Visual Studio Installer or as part of C++ Build Tools which can be downloaded from https://visualstudio.microsoft.com/visual-cpp-build-tools/")
 endif()
 
 include(CTest)
@@ -165,6 +188,11 @@ message("-- FIFTYONE_COMMON_CXX_BUILD_TESTING=${FIFTYONE_COMMON_CXX_BUILD_TESTIN
 cmake_dependent_option(FIFTYONE_COMMON_CXX_BUILD_TESTING_IPI
 	"Also test the copy of common that IP Intelligence uses" ON
 	"FIFTYONE_COMMON_CXX_BUILD_TESTING;CMAKE_SIZEOF_VOID_P EQUAL 8" OFF)
+# The tests compile the examples' code and run the tools, so both are built
+# whenever the tests are.
+cmake_dependent_option(FIFTYONE_BUILD_EXAMPLES
+	"Build the examples and the command line tools" ON
+	"NOT BUILD_TESTING" ON)
 
 if (BUILD_TESTING)
 	include(FetchContent)
@@ -182,8 +210,10 @@ endif()
 
 if (FIFTYONE_BUILD_DEVICE_DETECTION)
 	include(${CMAKE_CURRENT_LIST_DIR}/src/dd/CMakeLists.txt NO_POLICY_SCOPE)
-	include(${CMAKE_CURRENT_LIST_DIR}/examples/dd/CMakeLists.txt NO_POLICY_SCOPE)
-	include(${CMAKE_CURRENT_LIST_DIR}/tools/dd/js-snippet-export/CMakeLists.txt NO_POLICY_SCOPE)
+	if (FIFTYONE_BUILD_EXAMPLES)
+		include(${CMAKE_CURRENT_LIST_DIR}/examples/dd/CMakeLists.txt NO_POLICY_SCOPE)
+		include(${CMAKE_CURRENT_LIST_DIR}/tools/dd/js-snippet-export/CMakeLists.txt NO_POLICY_SCOPE)
+	endif()
 	if (BUILD_TESTING)
 		include(${CMAKE_CURRENT_LIST_DIR}/test/dd/CMakeLists.txt NO_POLICY_SCOPE)
 	endif()
@@ -191,7 +221,9 @@ endif()
 
 if (FIFTYONE_BUILD_IP_INTELLIGENCE)
 	include(${CMAKE_CURRENT_LIST_DIR}/src/ipi/CMakeLists.txt NO_POLICY_SCOPE)
-	include(${CMAKE_CURRENT_LIST_DIR}/examples/ipi/CMakeLists.txt NO_POLICY_SCOPE)
+	if (FIFTYONE_BUILD_EXAMPLES)
+		include(${CMAKE_CURRENT_LIST_DIR}/examples/ipi/CMakeLists.txt NO_POLICY_SCOPE)
+	endif()
 	if (BUILD_TESTING)
 		include(${CMAKE_CURRENT_LIST_DIR}/test/ipi/CMakeLists.txt NO_POLICY_SCOPE)
 	endif()
@@ -200,4 +232,8 @@ endif()
 if (BUILD_TESTING AND FIFTYONE_BUILD_DEVICE_DETECTION AND
 	FIFTYONE_BUILD_IP_INTELLIGENCE AND FIFTYONE_IPI_SYMBOLS)
 	include(${CMAKE_CURRENT_LIST_DIR}/test/both/CMakeLists.txt NO_POLICY_SCOPE)
+endif()
+
+if (FIFTYONE_INSTALL)
+	include(${CMAKE_CURRENT_LIST_DIR}/cmake/install.cmake NO_POLICY_SCOPE)
 endif()

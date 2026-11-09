@@ -25,6 +25,7 @@
 #include "../common/config.h"
 #include "constantsIpi.h"
 #include "../common/collectionKeyTypes.h"
+#include "../common/threading.h"
 #include "graph/graph.h"
 
 MAP_TYPE(Collection)
@@ -70,6 +71,10 @@ MAP_TYPE(Collection)
 
 #define MAX_CONCURRENCY(t) if (config->t.concurrency > concurrency) { \
 concurrency = config->t.concurrency; }
+
+/* A concurrency of 0 is one operation for each processor. */
+#define DEFAULT_CONCURRENCY(c,t) if ((c)->t.concurrency == 0) { \
+(c)->t.concurrency = ThreadingGetProcessorCount(); }
 
 #define COLLECTION_CREATE_MEMORY(t) \
 dataSet->t = CollectionCreateFromMemory( \
@@ -196,7 +201,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiInMemoryConfig = {
 	{0,0,0}, // ProfileGroups
 	{0,0,0}, // PropertyTypes
 	{0,0,0}, // ProfileOffsets
-	{0,0,0}  // Graph
+	{0,0,0}, // Graph
+	false, // LoadRequiredPropertiesOnly
+	true // DefaultValuesInMemory
 };
 #undef FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY
 #define FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY \
@@ -214,7 +221,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiHighPerformanceConfig = {
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileGroups
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // PropertyTypes
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileOffsets
-	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }  // Graph
+	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Graph
+	true, // LoadRequiredPropertiesOnly
+	true // DefaultValuesInMemory
 };
 
 fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
@@ -229,7 +238,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileGroups
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // PropertyTypes
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileOffsets
-	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }  // Graph
+	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Graph
+	false, // LoadRequiredPropertiesOnly
+	true // DefaultValuesInMemory
 };
 
 // The profile offsets and the property types are read for each property of every
@@ -246,7 +257,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
 { FIFTYONE_DEGREES_PROFILE_GROUPS_LOADED, FIFTYONE_DEGREES_PROFILE_GROUPS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileGroups */ \
 { FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */ \
 { FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* PropertyTypes */ \
-{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY } /* Graph */
+{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Graph */ \
+false, /* LoadRequiredPropertiesOnly */ \
+true /* DefaultValuesInMemory */
 
 fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig = {
 	FIFTYONE_DEGREES_IPI_CONFIG_BALANCED
@@ -283,7 +296,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedTempConfig = {
 	{ FIFTYONE_DEGREES_PROFILE_GROUPS_LOADED, FIFTYONE_DEGREES_PROFILE_GROUPS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileGroups */
 	{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */
 	{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* PropertyTypes */
-	{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY } /* Graph */
+	{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Graph */
+	false, /* LoadRequiredPropertiesOnly */
+	true /* DefaultValuesInMemory */
 };
 #undef FIFTYONE_DEGREES_CONFIG_USE_TEMP_FILE
 #define FIFTYONE_DEGREES_CONFIG_USE_TEMP_FILE \
@@ -967,6 +982,18 @@ static void initDataSet(DataSetIpi* dataSet, ConfigIpi** config) {
 	// available in cases where the source configuration gets freed.
 	memcpy((void*)&dataSet->config, *config, sizeof(ConfigIpi));
 	dataSet->b.b.config = &dataSet->config;
+	ConfigIpi *copy = (ConfigIpi*)&dataSet->config;
+	DEFAULT_CONCURRENCY(copy, strings);
+	DEFAULT_CONCURRENCY(copy, components);
+	DEFAULT_CONCURRENCY(copy, maps);
+	DEFAULT_CONCURRENCY(copy, properties);
+	DEFAULT_CONCURRENCY(copy, values);
+	DEFAULT_CONCURRENCY(copy, profiles);
+	DEFAULT_CONCURRENCY(copy, graphs);
+	DEFAULT_CONCURRENCY(copy, profileGroups);
+	DEFAULT_CONCURRENCY(copy, profileOffsets);
+	DEFAULT_CONCURRENCY(copy, propertyTypes);
+	DEFAULT_CONCURRENCY(copy, graph);
 }
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
@@ -1052,249 +1079,65 @@ static StatusCode createProfilesFromFile(
 /**
  * HOLDING WHAT THE REQUIRED PROPERTIES READ
  *
- * With the HighPerformance preset, a caller that names some of the properties
- * only reads part of the data file. Only that part is loaded into memory, and
- * the rest reads from the file. Each stretch held is made of whole records, so
- * a lookup that reads the named properties reads nothing from the file, and
- * anything else still gets the same answer, more slowly.
+ * With loadRequiredPropertiesOnly, a caller that names some of the properties
+ * only reads part of the data file. Only that part of the strings, values,
+ * profiles, profile groups and profile offsets is held in memory, with the
+ * graphs of the components named, and the rest reads from the file. Each
+ * stretch held is made of whole records, so a lookup that reads the named
+ * properties reads none of those collections from the file, and anything else
+ * still gets the same answer, more slowly.
  *
- * With the Balanced preset, the default value of each required property is
- * held, which a lookup reads for each mandatory property its profile has no
+ * With defaultValuesInMemory, the default value of each required property is
+ * held, with what reading it takes from the strings and the property types. A
+ * lookup reads the default for each mandatory property its profile has no
  * value for.
  */
-
-/**
- * The fewest bytes between two required strings worth leaving on file, as more
- * ranges cost time on every string read. The scan for required strings records
- * parts of this size, because a gap this long always crosses the edge of a part.
- */
-#define HELD_STRINGS_GAP_BYTES ((uint32_t)65536)
-
-/** Bytes read from the file at a time when scanning records. */
-#define HELD_SCAN_BUFFER_BYTES ((uint32_t)65536)
 
 /** The number of values a component id, which is a byte, can have. */
 #define HELD_COMPONENT_IDS 256
 
+/** What creating a collection that is held in full needs. */
+typedef struct held_create_t {
+	DataSetIpi* dataSet;
+	FILE* file;
+	CollectionFileRead read;
+	byte shift;
+} heldCreateState;
+
 /**
- * Blocks of keys for each range held. A read starts from the first range that
- * ends after the start of the key's block, so more blocks mean fewer ranges
- * checked.
+ * Creates the collection loaded into memory that replaces one that is held in
+ * full.
  */
-#define HELD_BLOCKS_PER_RANGE 16
-
-/**
- * A stretch of a collection held in memory, in the units of the collection's
- * keys.
- */
-typedef struct held_range_t {
-	uint32_t first; /* Key of the first unit of the range */
-	uint32_t end; /* Key after the last unit of the range */
-	byte* memory; /* The bytes of the range */
-} heldRange;
-
-/**
- * State of a collection that holds stretches of another collection in memory
- * and passes every other read to that collection.
- */
-typedef struct held_collection_t {
-	Collection* source; /* Reads whatever is not held */
-	uint64_t bytes; /* Bytes held in the ranges */
-	uint32_t unitBytes; /* Bytes in each unit of a key */
-	uint32_t count; /* Number of ranges */
-	heldRange* ranges; /* The ranges in the order of their keys */
-	uint32_t blockShift; /* Bits of a key below the number of its block */
-	uint32_t blockCount; /* Blocks up to the end of the last range */
-	uint32_t* blocks; /* The first range ending after each block starts */
-} heldCollection;
-
-/**
- * Gets an item from the range that holds it, or from the source when no range
- * does. The key's block gives the first range that could hold it. Each range
- * holds whole records, so an item that starts in a range ends in it.
- */
-static void* heldGet(
-	const Collection* collection,
-	const CollectionKey* const key,
-	Item* item,
-	Exception* exception) {
-	const heldCollection* const state =
-		(const heldCollection*)collection->state;
-	const uint32_t position = key->indexOrOffset.offset;
-	const uint32_t block = position >> state->blockShift;
-	if (block < state->blockCount) {
-		const heldRange* const last = state->ranges + state->count;
-		for (const heldRange* range = state->ranges + state->blocks[block];
-			range < last && range->first <= position;
-			range++) {
-			if (position < range->end) {
-				byte* const ptr = range->memory + (size_t)(
-					(uint64_t)(position - range->first) * state->unitBytes);
-				item->data.ptr = ptr;
-				item->handle = NULL;
-				item->collection = collection;
-				return ptr;
-			}
-		}
-	}
-	void* const ptr = state->source->get(state->source, key, item, exception);
-	if (item->collection != NULL) {
-		item->collection = collection;
-	}
-	return ptr;
-}
-
-static void heldRelease(Item* item) {
-	if (item->handle != NULL) {
-		const heldCollection* const state =
-			(const heldCollection*)item->collection->state;
-		state->source->release(item);
-	}
-	else {
-		DataReset(&item->data);
-	}
-}
-
-static void heldFree(Collection* collection) {
-	heldCollection* const state = (heldCollection*)collection->state;
-	for (uint32_t i = 0; i < state->count; i++) {
-		Free(state->ranges[i].memory);
-	}
-	FIFTYONE_DEGREES_COLLECTION_FREE(state->source);
-	Free(state);
-	Free(collection);
-}
-
-static void heldRangeAdd(
-	heldRange* ranges,
-	uint32_t* count,
-	const uint32_t first,
-	const uint32_t end) {
-	if (end > first) {
-		ranges[*count].first = first;
-		ranges[*count].end = end;
-		ranges[*count].memory = NULL;
-		(*count)++;
-	}
-}
-
-static int heldRangeCompareFirst(const void* a, const void* b) {
-	const uint32_t x = ((const heldRange*)a)->first;
-	const uint32_t y = ((const heldRange*)b)->first;
-	return x < y ? -1 : (x > y ? 1 : 0);
+static StatusCode heldCreateInMemory(
+	void* state,
+	const fiftyoneDegreesCollectionConfig* config,
+	CollectionHeader header,
+	Collection** collection) {
+	const heldCreateState* const create = (const heldCreateState*)state;
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+	*collection = fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
+		create->file,
+		&create->dataSet->b.b.filePool,
+		config,
+		header,
+		create->read,
+		create->shift);
+#else
+	*collection = CollectionCreateFromFile(
+		create->file,
+		&create->dataSet->b.b.filePool,
+		config,
+		header,
+		create->read);
+#endif
+	return *collection == NULL ?
+		getCollectionFileStatus(create->dataSet, header, create->shift) :
+		SUCCESS;
 }
 
 /**
- * Puts the ranges in the order of their keys and joins those that meet,
- * returning the number left.
- */
-static uint32_t heldRangesMerge(heldRange* ranges, const uint32_t rangeCount) {
-	uint32_t count = 0;
-	if (rangeCount == 0) {
-		return 0;
-	}
-	qsort(ranges, rangeCount, sizeof(heldRange), heldRangeCompareFirst);
-	for (uint32_t i = 0; i < rangeCount; i++) {
-		if (count > 0 && ranges[i].first <= ranges[count - 1].end) {
-			if (ranges[i].end > ranges[count - 1].end) {
-				ranges[count - 1].end = ranges[i].end;
-			}
-		}
-		else {
-			ranges[count++] = ranges[i];
-		}
-	}
-	return count;
-}
-
-/**
- * Replaces the collection with one holding the ranges in memory, which reads
- * everything else from the collection replaced. Anything allocated is freed
- * with the data set if this fails.
- */
-static StatusCode heldCreate(
-	Collection** collection,
-	FILE* file,
-	const uint64_t startPosition,
-	const uint32_t unitBytes,
-	heldRange* ranges,
-	const uint32_t rangeCount) {
-	const uint32_t count = heldRangesMerge(ranges, rangeCount);
-	if (count == 0) {
-		return SUCCESS;
-	}
-	const uint32_t end = ranges[count - 1].end;
-	uint32_t shift = 0;
-	while (((uint64_t)end >> shift) > (uint64_t)count * HELD_BLOCKS_PER_RANGE) {
-		shift++;
-	}
-	const uint32_t blockCount = ((end - 1) >> shift) + 1;
-	heldCollection* const state = (heldCollection*)Malloc(
-		sizeof(heldCollection) +
-		count * sizeof(heldRange) +
-		blockCount * sizeof(uint32_t));
-	if (state == NULL) {
-		return INSUFFICIENT_MEMORY;
-	}
-	Collection* const held = (Collection*)Malloc(sizeof(Collection));
-	if (held == NULL) {
-		Free(state);
-		return INSUFFICIENT_MEMORY;
-	}
-	state->source = *collection;
-	state->bytes = 0;
-	state->unitBytes = unitBytes;
-	state->count = 0;
-	state->ranges = (heldRange*)(state + 1);
-	state->blockShift = shift;
-	state->blockCount = blockCount;
-	state->blocks = (uint32_t*)(state->ranges + count);
-	for (uint32_t b = 0, r = 0; b < blockCount; b++) {
-		while (r < count && ranges[r].end <= ((uint64_t)b << shift)) {
-			r++;
-		}
-		state->blocks[b] = r;
-	}
-	*held = **collection;
-	held->state = state;
-	held->get = heldGet;
-	held->release = heldRelease;
-	held->freeCollection = heldFree;
-	held->typeName = "CollectionHeld";
-	*collection = held;
-
-	for (uint32_t i = 0; i < count; i++) {
-		const uint64_t bytes =
-			(uint64_t)(ranges[i].end - ranges[i].first) * unitBytes;
-		if (bytes > (uint64_t)SIZE_MAX) {
-			return INSUFFICIENT_MEMORY;
-		}
-		byte* const memory = (byte*)Malloc((size_t)bytes);
-		if (memory == NULL) {
-			return INSUFFICIENT_MEMORY;
-		}
-		state->ranges[i] = ranges[i];
-		state->ranges[i].memory = memory;
-		state->count++;
-		state->bytes += bytes;
-		const uint64_t position =
-			startPosition + (uint64_t)ranges[i].first * unitBytes;
-		if (FileSeek(file, (FileOffset)position, SEEK_SET) != 0) {
-			return COLLECTION_FILE_SEEK_FAIL;
-		}
-		if (fread(memory, 1, (size_t)bytes, file) != (size_t)bytes) {
-			return COLLECTION_FILE_READ_FAIL;
-		}
-	}
-	return SUCCESS;
-}
-
-/**
- * Holds the ranges of a collection that reads from the file. A collection that
- * is needed in full is loaded into memory like any other if it can be
- * replaced, and one with nothing needed stays on file. A collection cannot be
- * replaced while items read from it when the data set was created are still to
- * be released through it.
+ * Holds the ranges of a collection that reads from the file. See
+ * CollectionHeldApply.
  */
 static StatusCode heldApply(
 	DataSetIpi* dataSet,
@@ -1304,110 +1147,39 @@ static StatusCode heldApply(
 	CollectionFileRead read,
 	const byte shift,
 	const bool replaceable,
-	heldRange* ranges,
+	CollectionHeldRange* ranges,
 	const uint32_t rangeCount) {
-	static const fiftyoneDegreesCollectionConfig inMemory = { true, 0, 0 };
-	const uint32_t unitBytes = (*collection)->elementSize > 0 ?
-		(*collection)->elementSize : (uint32_t)1 << shift;
-	const uint32_t count = heldRangesMerge(ranges, rangeCount);
-	if (replaceable == false ||
-		count != 1 ||
-		ranges[0].first > 0 ||
-		(uint64_t)ranges[0].end * unitBytes <
-			((uint64_t)header.length << shift)) {
-		return heldCreate(
-			collection,
-			file,
-			(uint64_t)header.startPosition,
-			unitBytes,
-			ranges,
-			count);
-	}
-	// A collection of variable length records is created with no count.
-	if ((*collection)->elementSize == 0) {
-		header.count = 0;
-	}
-	Collection* const source = *collection;
-	FIFTYONE_DEGREES_COLLECTION_FREE(source);
-#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
-	*collection = fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
+	heldCreateState create;
+	create.dataSet = dataSet;
+	create.file = file;
+	create.read = read;
+	create.shift = shift;
+	return CollectionHeldApply(
+		collection,
 		file,
-		&dataSet->b.b.filePool,
-		&inMemory,
 		header,
-		read,
-		shift);
-#else
-	*collection = CollectionCreateFromFile(
-		file,
-		&dataSet->b.b.filePool,
-		&inMemory,
-		header,
-		read);
-#endif
-	return *collection == NULL ?
-		getCollectionFileStatus(dataSet, header, shift) : SUCCESS;
+		shift,
+		replaceable,
+		ranges,
+		rangeCount,
+		heldCreateInMemory,
+		&create);
 }
-
-/**
- * Calls the method for each fixed size record in a stretch of the data file.
- */
-static StatusCode heldScan(
-	FILE* file,
-	byte* buffer,
-	const uint64_t position,
-	uint32_t count,
-	const uint32_t recordBytes,
-	void(*method)(void* state, const byte* record),
-	void* state) {
-	if (count == 0) {
-		return SUCCESS;
-	}
-	if (FileSeek(file, (FileOffset)position, SEEK_SET) != 0) {
-		return COLLECTION_FILE_SEEK_FAIL;
-	}
-	const uint32_t recordsInBuffer = HELD_SCAN_BUFFER_BYTES / recordBytes;
-	while (count > 0) {
-		const uint32_t next = count < recordsInBuffer ? count : recordsInBuffer;
-		if (fread(buffer, recordBytes, next, file) != next) {
-			return COLLECTION_FILE_READ_FAIL;
-		}
-		for (uint32_t i = 0; i < next; i++) {
-			method(state, buffer + (size_t)i * recordBytes);
-		}
-		count -= next;
-	}
-	return SUCCESS;
-}
-
-/**
- * The lowest and highest required string offsets in part of the strings, and
- * how the highest is stored so that its size can be worked out.
- */
-typedef struct held_strings_bucket_t {
-	uint32_t first;
-	uint32_t last;
-	PropertyValueType lastType;
-} heldStringsBucket;
 
 /**
  * What is worked out before anything is held.
  */
 typedef struct held_plan_t {
 	byte* buffer; /* Used to scan records */
-	heldStringsBucket* buckets; /* The strings the required properties read */
-	uint32_t bucketCount; /* Number of buckets */
-	uint32_t stringsBytes; /* Bytes in the strings collection */
+	CollectionHeldStrings strings; /* The strings the required properties read */
 	PropertyValueType scanType; /* How the strings being scanned are stored */
-	heldRange* strings; /* The stretches of the strings to hold */
-	uint32_t stringsCount; /* Number of stretches of the strings */
-	heldRange* values; /* The stretches of the values to hold */
+	CollectionHeldRange* values; /* The stretches of the values to hold */
 	uint32_t valuesCount; /* Number of stretches of the values */
-	heldRange* profileOffsets; /* The stretches of the profile offsets */
+	CollectionHeldRange* profileOffsets; /* The stretches of the profile offsets */
 	uint32_t profileOffsetsCount; /* Number of stretches of profile offsets */
-	heldRange* profileGroups; /* The stretches of the profile groups */
+	CollectionHeldRange* profileGroups; /* The stretches of the profile groups */
 	uint32_t profileGroupsCount; /* Number of stretches of profile groups */
-	heldRange* profiles; /* The stretches of the profiles to hold */
+	CollectionHeldRange* profiles; /* The stretches of the profiles to hold */
 	uint32_t profilesCount; /* Number of stretches of the profiles */
 } heldPlan;
 
@@ -1419,8 +1191,7 @@ static void heldFreeIfSet(void* memory) {
 
 static void heldPlanFree(heldPlan* plan) {
 	heldFreeIfSet(plan->buffer);
-	heldFreeIfSet(plan->buckets);
-	heldFreeIfSet(plan->strings);
+	CollectionHeldStringsFree(&plan->strings);
 	heldFreeIfSet(plan->values);
 	heldFreeIfSet(plan->profileOffsets);
 	heldFreeIfSet(plan->profileGroups);
@@ -1429,18 +1200,10 @@ static void heldPlanFree(heldPlan* plan) {
 
 static void heldPlanScanValue(void* state, const byte* record) {
 	heldPlan* const plan = (heldPlan*)state;
-	const uint32_t offset = (uint32_t)((const Value*)record)->nameOffset;
-	if (offset < plan->stringsBytes) {
-		heldStringsBucket* const bucket =
-			&plan->buckets[offset / HELD_STRINGS_GAP_BYTES];
-		if (offset < bucket->first) {
-			bucket->first = offset;
-		}
-		if (offset >= bucket->last) {
-			bucket->last = offset;
-			bucket->lastType = plan->scanType;
-		}
-	}
+	CollectionHeldStringsAdd(
+		&plan->strings,
+		(uint32_t)((const Value*)record)->nameOffset,
+		(uint32_t)plan->scanType);
 }
 
 /**
@@ -1482,8 +1245,8 @@ static StatusCode heldPlanValues(
 	const uint32_t first,
 	const uint32_t count) {
 	const uint32_t valueBytes = dataSet->values->elementSize;
-	heldRangeAdd(plan->values, &plan->valuesCount, first, first + count);
-	return heldScan(
+	CollectionHeldRangeAdd(plan->values, &plan->valuesCount, first, first + count);
+	return CollectionHeldScan(
 		file,
 		plan->buffer,
 		(uint64_t)dataSet->header.values.startPosition +
@@ -1505,8 +1268,8 @@ static StatusCode heldPlanProperties(
 	Exception* exception) {
 	const PropertiesAvailable* const available = dataSet->b.b.available;
 	const uint32_t valueCount = dataSet->values->count;
-	plan->values = (heldRange*)Malloc(
-		sizeof(heldRange) * available->count * 2);
+	plan->values = (CollectionHeldRange*)Malloc(
+		sizeof(CollectionHeldRange) * available->count * 2);
 	if (plan->values == NULL) {
 		return INSUFFICIENT_MEMORY;
 	}
@@ -1576,6 +1339,18 @@ static uint32_t heldStringEnd(
 	return end;
 }
 
+static uint32_t heldStringEndMethod(
+	void* state,
+	const uint32_t offset,
+	const uint32_t tag,
+	Exception* exception) {
+	return heldStringEnd(
+		(const DataSetIpi*)state,
+		offset,
+		(PropertyValueType)tag,
+		exception);
+}
+
 /**
  * Works out the stretches of the strings to hold from the strings recorded,
  * which leaves on file any stretch long enough that holds no required string.
@@ -1584,56 +1359,11 @@ static StatusCode heldPlanStrings(
 	const DataSetIpi* dataSet,
 	heldPlan* plan,
 	Exception* exception) {
-	const uint32_t size = plan->stringsBytes;
-	uint32_t start = 0;
-	uint32_t last = 0;
-	PropertyValueType lastType = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
-	bool found = false;
-	plan->strings = (heldRange*)Malloc(
-		sizeof(heldRange) * ((size / HELD_STRINGS_GAP_BYTES) + 2));
-	if (plan->strings == NULL) {
-		return INSUFFICIENT_MEMORY;
-	}
-	for (uint32_t i = 0; i < plan->bucketCount; i++) {
-		const heldStringsBucket* const bucket = &plan->buckets[i];
-		if (bucket->first == UINT32_MAX) {
-			continue;
-		}
-		if (found == false) {
-			if (bucket->first >= HELD_STRINGS_GAP_BYTES) {
-				start = bucket->first;
-			}
-			found = true;
-		}
-		else if (bucket->first - last >= HELD_STRINGS_GAP_BYTES) {
-			const uint32_t end = heldStringEnd(
-				dataSet,
-				last,
-				lastType,
-				exception);
-			if (EXCEPTION_FAILED) {
-				return COLLECTION_FAILURE;
-			}
-			if (bucket->first > end &&
-				bucket->first - end >= HELD_STRINGS_GAP_BYTES) {
-				heldRangeAdd(plan->strings, &plan->stringsCount, start, end);
-				start = bucket->first;
-			}
-		}
-		last = bucket->last;
-		lastType = bucket->lastType;
-	}
-	if (found) {
-		uint32_t end = heldStringEnd(dataSet, last, lastType, exception);
-		if (EXCEPTION_FAILED) {
-			return COLLECTION_FAILURE;
-		}
-		if (end > size || size - end < HELD_STRINGS_GAP_BYTES) {
-			end = size;
-		}
-		heldRangeAdd(plan->strings, &plan->stringsCount, start, end);
-	}
-	return SUCCESS;
+	return CollectionHeldStringsPlan(
+		&plan->strings,
+		heldStringEndMethod,
+		(void*)dataSet,
+		exception);
 }
 
 /** The profiles of a component, which are next to each other in the file. */
@@ -1690,19 +1420,6 @@ static StatusCode heldProfileUnits(
 }
 
 /**
- * Adds a range, cut to end at the limit of its collection.
- */
-static void heldRangeAddWithin(
-	heldRange* ranges,
-	uint32_t* count,
-	const uint32_t first,
-	const uint32_t length,
-	const uint32_t limit) {
-	const uint64_t end = (uint64_t)first + length;
-	heldRangeAdd(ranges, count, first, end < limit ? (uint32_t)end : limit);
-}
-
-/**
  * Plans for the profile offsets, the profile groups and the profiles of each
  * component with a required property. A component's profiles are next to each
  * other in the file, so they are held from the first to the end of the last.
@@ -1718,10 +1435,10 @@ static StatusCode heldPlanComponents(
 	const uint64_t groupsStart =
 		(uint64_t)dataSet->header.profileGroups.startPosition;
 	const uint32_t graphCount = dataSet->graphsArray->count;
-	plan->profileOffsets = (heldRange*)Malloc(sizeof(heldRange) * graphCount);
-	plan->profileGroups = (heldRange*)Malloc(sizeof(heldRange) * graphCount);
-	plan->profiles = (heldRange*)Malloc(
-		sizeof(heldRange) * dataSet->componentsList.count);
+	plan->profileOffsets = (CollectionHeldRange*)Malloc(sizeof(CollectionHeldRange) * graphCount);
+	plan->profileGroups = (CollectionHeldRange*)Malloc(sizeof(CollectionHeldRange) * graphCount);
+	plan->profiles = (CollectionHeldRange*)Malloc(
+		sizeof(CollectionHeldRange) * dataSet->componentsList.count);
 	if (plan->profileOffsets == NULL ||
 		plan->profileGroups == NULL ||
 		plan->profiles == NULL) {
@@ -1739,19 +1456,19 @@ static StatusCode heldPlanComponents(
 			if (info->componentId != component->componentId) {
 				continue;
 			}
-			heldRangeAddWithin(
+			CollectionHeldRangeAddWithin(
 				plan->profileOffsets,
 				&plan->profileOffsetsCount,
 				info->firstProfileIndex,
 				info->profileCount,
 				dataSet->header.profileOffsets.count);
-			heldRangeAddWithin(
+			CollectionHeldRangeAddWithin(
 				plan->profileGroups,
 				&plan->profileGroupsCount,
 				info->firstProfileGroupIndex,
 				info->profileGroupCount,
 				dataSet->header.profileGroups.count);
-			StatusCode status = heldScan(
+			StatusCode status = CollectionHeldScan(
 				file,
 				plan->buffer,
 				offsetsStart +
@@ -1761,7 +1478,7 @@ static StatusCode heldPlanComponents(
 				heldProfileRunScanOffset,
 				&run);
 			if (status == SUCCESS) {
-				status = heldScan(
+				status = CollectionHeldScan(
 					file,
 					plan->buffer,
 					groupsStart + (uint64_t)info->firstProfileGroupIndex *
@@ -1789,7 +1506,7 @@ static StatusCode heldPlanComponents(
 			return status;
 		}
 		if (units <= size - run.last) {
-			heldRangeAdd(
+			CollectionHeldRangeAdd(
 				plan->profiles,
 				&plan->profilesCount,
 				run.first,
@@ -1811,18 +1528,13 @@ static StatusCode heldPlanCreate(
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		return status;
 	}
-	plan->buffer = (byte*)Malloc(HELD_SCAN_BUFFER_BYTES);
-	plan->stringsBytes = dataSet->header.strings.length;
-	plan->bucketCount = (plan->stringsBytes / HELD_STRINGS_GAP_BYTES) + 1;
-	plan->buckets = (heldStringsBucket*)Malloc(
-		sizeof(heldStringsBucket) * plan->bucketCount);
-	if (plan->buffer == NULL || plan->buckets == NULL) {
+	plan->buffer = (byte*)Malloc(
+		FIFTYONE_DEGREES_COLLECTION_HELD_SCAN_BUFFER_BYTES);
+	status = CollectionHeldStringsInit(
+		&plan->strings,
+		dataSet->header.strings.length);
+	if (plan->buffer == NULL || status != SUCCESS) {
 		return INSUFFICIENT_MEMORY;
-	}
-	for (uint32_t i = 0; i < plan->bucketCount; i++) {
-		plan->buckets[i].first = UINT32_MAX;
-		plan->buckets[i].last = 0;
-		plan->buckets[i].lastType = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
 	}
 	status = heldPlanProperties(dataSet, file, plan, exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
@@ -1854,8 +1566,8 @@ static StatusCode heldPlanApply(
 		fiftyoneDegreesStoredBinaryValueRead,
 		0,
 		false,
-		plan->strings,
-		plan->stringsCount);
+		plan->strings.ranges,
+		plan->strings.count);
 	if (status == SUCCESS) {
 		status = heldApply(
 			dataSet,
@@ -1923,139 +1635,215 @@ static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
 		// The memory used to work out the plan goes before anything is held.
 		heldFreeIfSet(plan.buffer);
 		plan.buffer = NULL;
-		heldFreeIfSet(plan.buckets);
-		plan.buckets = NULL;
+		CollectionHeldStringsFreeOffsets(&plan.strings);
 		status = heldPlanApply(dataSet, file, &plan);
 	}
 	heldPlanFree(&plan);
 	fclose(file);
+	if (status == SUCCESS && EXCEPTION_FAILED) {
+		status = COLLECTION_FAILURE;
+	}
 	return status;
 }
 
 /**
- * Holds the default value of each required property, so that reading one takes
- * no lock and reads nothing from the file. Anything allocated is freed with the
- * data set if this fails.
+ * What holding the default values holds, from each collection not loaded into
+ * memory.
+ */
+typedef struct held_defaults_t {
+	CollectionHeldRange* values; /* The default value records */
+	uint32_t valuesCount; /* Number of ranges of the values */
+	CollectionHeldRange* strings; /* What the default values read from the strings */
+	uint32_t stringsCount; /* Number of ranges of the strings */
+	CollectionHeldRange* types; /* The property types the default values read */
+	uint32_t typesCount; /* Number of ranges of the property types */
+} heldDefaults;
+
+/**
+ * Plans to hold the default value of a property, with what reading it takes
+ * from the strings and the property types, from each of those collections not
+ * loaded into memory. Every read follows what a lookup reads for a default.
+ */
+static StatusCode heldDefaultsPlan(
+	const DataSetIpi* dataSet,
+	const uint32_t propertyIndex,
+	heldDefaults* defaults,
+	Exception* exception) {
+	const ConfigIpi* const config = &dataSet->config;
+	Item item;
+	DataReset(&item.data);
+	const Property* const property = PropertyGet(
+		dataSet->properties,
+		propertyIndex,
+		&item,
+		exception);
+	if (property == NULL || EXCEPTION_FAILED) {
+		if (property != NULL) {
+			COLLECTION_RELEASE(dataSet->properties, &item);
+		}
+		return COLLECTION_FAILURE;
+	}
+	const uint32_t index = property->defaultValueIndex;
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	if (index >= dataSet->values->count) {
+		return SUCCESS;
+	}
+	if (config->values.loaded == false) {
+		CollectionHeldRangeAdd(
+			defaults->values,
+			&defaults->valuesCount,
+			index,
+			index + 1);
+	}
+	if (config->strings.loaded && config->propertyTypes.loaded) {
+		return SUCCESS;
+	}
+	DataReset(&item.data);
+	const Value* const value = ValueGet(
+		dataSet->values,
+		index,
+		&item,
+		exception);
+	if (value == NULL || EXCEPTION_FAILED) {
+		if (value != NULL) {
+			COLLECTION_RELEASE(dataSet->values, &item);
+		}
+		return COLLECTION_FAILURE;
+	}
+	const uint32_t typeIndex = (uint32_t)value->propertyIndex;
+	const uint32_t offset = (uint32_t)value->nameOffset;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	if (typeIndex >= dataSet->header.propertyTypes.count) {
+		return SUCCESS;
+	}
+	if (config->propertyTypes.loaded == false) {
+		CollectionHeldRangeAdd(
+			defaults->types,
+			&defaults->typesCount,
+			typeIndex,
+			typeIndex + 1);
+	}
+	if (config->strings.loaded || offset >= dataSet->header.strings.length) {
+		return SUCCESS;
+	}
+	const PropertyValueType type = PropertyGetStoredTypeByIndex(
+		dataSet->propertyTypes,
+		typeIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return COLLECTION_FAILURE;
+	}
+	DataReset(&item.data);
+	const StoredBinaryValue* const stored = StoredBinaryValueGet(
+		dataSet->strings,
+		offset,
+		type,
+		&item,
+		exception);
+	if (stored == NULL || EXCEPTION_FAILED) {
+		if (stored != NULL) {
+			COLLECTION_RELEASE(dataSet->strings, &item);
+		}
+		return COLLECTION_FAILURE;
+	}
+	CollectionHeldRangeAdd(
+		defaults->strings,
+		&defaults->stringsCount,
+		offset,
+		offset + item.data.used);
+	COLLECTION_RELEASE(dataSet->strings, &item);
+	return SUCCESS;
+}
+
+/**
+ * Holds the default value of each required property, with what reading it
+ * takes from the strings and the property types, so that reading one takes no
+ * lock and reads nothing from the file. Nothing is copied from a collection
+ * loaded into memory, so this does nothing when all three are. Anything
+ * allocated is freed with the data set if this fails.
  */
 static StatusCode heldDefaultsInit(DataSetIpi* dataSet, Exception* exception) {
 	const PropertiesAvailable* const available = dataSet->b.b.available;
-	const uint32_t valueCount = dataSet->values->count;
-	uint32_t count = 0;
+	const ConfigIpi* const config = &dataSet->config;
+	heldDefaults defaults;
 	FILE* file;
-	if (available->count == 0) {
+	if (available->count == 0 ||
+		(config->values.loaded &&
+			config->strings.loaded &&
+			config->propertyTypes.loaded)) {
 		return SUCCESS;
 	}
-	heldRange* const ranges = (heldRange*)Malloc(
-		sizeof(heldRange) * available->count);
+	CollectionHeldRange* const ranges = (CollectionHeldRange*)Malloc(
+		sizeof(CollectionHeldRange) * (size_t)available->count * 3);
 	if (ranges == NULL) {
 		return INSUFFICIENT_MEMORY;
 	}
-	for (uint32_t i = 0; i < available->count; i++) {
-		Item item;
-		DataReset(&item.data);
-		const Property* const property = PropertyGet(
-			dataSet->properties,
-			available->items[i].propertyIndex,
-			&item,
-			exception);
-		if (property == NULL || EXCEPTION_FAILED) {
-			Free(ranges);
-			return COLLECTION_FAILURE;
-		}
-		const uint32_t index = property->defaultValueIndex;
-		COLLECTION_RELEASE(dataSet->properties, &item);
-		if (index < valueCount) {
-			heldRangeAdd(ranges, &count, index, index + 1);
-		}
-	}
+	memset(&defaults, 0, sizeof(defaults));
+	defaults.values = ranges;
+	defaults.strings = ranges + available->count;
+	defaults.types = ranges + (size_t)available->count * 2;
 	StatusCode status = SUCCESS;
-	if (count > 0) {
+	for (uint32_t i = 0; i < available->count && status == SUCCESS; i++) {
+		status = heldDefaultsPlan(
+			dataSet,
+			available->items[i].propertyIndex,
+			&defaults,
+			exception);
+	}
+	const uint32_t rangeCount =
+		defaults.valuesCount + defaults.stringsCount + defaults.typesCount;
+	if (status == SUCCESS && rangeCount > 0) {
 		status = FileOpen(dataSet->b.b.fileName, &file);
 		if (status == SUCCESS) {
-			status = heldCreate(
+			status = CollectionHeldCreate(
 				&dataSet->values,
 				file,
 				(uint64_t)dataSet->header.values.startPosition,
 				dataSet->values->elementSize,
-				ranges,
-				count);
+				defaults.values,
+				defaults.valuesCount);
+			if (status == SUCCESS) {
+				status = CollectionHeldCreate(
+					&dataSet->strings,
+					file,
+					(uint64_t)dataSet->header.strings.startPosition,
+					1,
+					defaults.strings,
+					defaults.stringsCount);
+			}
+			if (status == SUCCESS) {
+				status = CollectionHeldCreate(
+					&dataSet->propertyTypes,
+					file,
+					(uint64_t)dataSet->header.propertyTypes.startPosition,
+					dataSet->propertyTypes->elementSize,
+					defaults.types,
+					defaults.typesCount);
+			}
 			fclose(file);
 		}
 	}
 	Free(ranges);
+	if (status == SUCCESS && EXCEPTION_FAILED) {
+		status = COLLECTION_FAILURE;
+	}
 	return status;
 }
 
 /**
- * Gets the number of names in a list of required properties.
- */
-static uint32_t heldCountNames(const char* list) {
-	uint32_t count = 0;
-	bool inName = false;
-	for (; *list != '\0'; list++) {
-		const bool isName =
-			strchr(FIFTYONE_DEGREES_PROPERTIES_SEPARATORS, *list) == NULL;
-		if (isName && inName == false) {
-			count++;
-		}
-		inName = isName;
-	}
-	return count;
-}
-
-/**
- * True for the shape of the Balanced preset, which holds the strings and the
- * graphs in memory and reads the values and the profiles from the file.
- */
-static bool heldIsBalanced(const ConfigIpi* config) {
-	return config->b.allInMemory == false &&
-		config->strings.loaded &&
-		config->graph.loaded &&
-		config->values.loaded == false &&
-		config->profiles.loaded == false;
-}
-
-/**
- * True for the shape of the HighPerformance preset, which loads every
- * collection into memory from the file.
- */
-static bool heldIsHighPerformance(const ConfigIpi* config) {
-	return config->b.allInMemory == false &&
-		config->strings.loaded &&
-		config->components.loaded &&
-		config->maps.loaded &&
-		config->properties.loaded &&
-		config->values.loaded &&
-		config->profiles.loaded &&
-		config->graphs.loaded &&
-		config->profileGroups.loaded &&
-		config->profileOffsets.loaded &&
-		config->propertyTypes.loaded &&
-		config->graph.loaded;
-}
-
-/**
- * True for the shape of the HighPerformance preset when the caller has named
- * fewer properties than the data file has.
+ * True when loadRequiredPropertiesOnly is set, the data set reads the file,
+ * and the caller has named fewer properties than the data file has.
  */
 static bool heldIsWanted(
 	const DataSetIpi* dataSet,
 	const PropertiesRequired* properties) {
-	if (heldIsHighPerformance(&dataSet->config) == false ||
-		properties == NULL) {
+	if (dataSet->config.loadRequiredPropertiesOnly == false ||
+		dataSet->config.b.allInMemory) {
 		return false;
 	}
-	const uint32_t count = dataSet->header.properties.count;
-	if (properties->existing != NULL) {
-		return properties->existing->named != NULL &&
-			properties->existing->namedCount < count;
-	}
-	if (properties->array != NULL && properties->count > 0) {
-		return (uint32_t)properties->count < count;
-	}
-	return properties->string != NULL &&
-		strlen(properties->string) > 0 &&
-		heldCountNames(properties->string) < count;
+	return PropertiesRequiredNamesFewerThan(
+		properties,
+		dataSet->header.properties.count);
 }
 
 /**
@@ -2337,7 +2125,8 @@ static StatusCode initDataSetFromFile(
 			return status;
 		}
 	}
-	else if (heldIsBalanced(&dataSet->config)) {
+	else if (dataSet->config.defaultValuesInMemory &&
+		dataSet->config.b.allInMemory == false) {
 		status = heldDefaultsInit(dataSet, exception);
 		if (status != SUCCESS || EXCEPTION_FAILED) {
 			if (config->b.useTempFile == true) {
@@ -2613,6 +2402,93 @@ fiftyoneDegreesDataSetIpi* fiftyoneDegreesDataSetIpiGet(fiftyoneDegreesResourceM
 
 void fiftyoneDegreesDataSetIpiRelease(fiftyoneDegreesDataSetIpi* dataSet) {
 	DataSetRelease(&dataSet->b.b);
+}
+
+/**
+ * True if a header before the one at the index has the same name.
+ */
+static bool isHeaderNameRepeated(Headers *headers, uint32_t index) {
+	uint32_t i;
+	for (i = 0; i < index; i++) {
+		if (headers->items[i].name != NULL &&
+			strcmp(headers->items[i].name, headers->items[index].name) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+size_t fiftyoneDegreesIpiGetEvidenceKeys(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	char *buffer,
+	size_t length,
+	const char *separator) {
+	static const char * const prefixes[] = { "query.", "server." };
+	uint32_t i, p;
+	size_t added;
+	const char *name;
+	Headers * const headers = dataSet->b.b.uniqueHeaders;
+	const uint32_t count = headers == NULL ? 0 : headers->count;
+	const size_t separatorLength = separator == NULL ? 0 : strlen(separator);
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilderInit(&builder);
+	for (i = 0; i < count; i++) {
+		name = headers->items[i].name;
+
+		// The prefixes differ from their first character, so a header gives
+		// keys already written only when an earlier header has its name.
+		if (name == NULL || isHeaderNameRepeated(headers, i)) {
+			continue;
+		}
+		for (p = 0; p < sizeof(prefixes) / sizeof(prefixes[0]); p++) {
+			if (builder.added > 0) {
+				StringBuilderAddChars(&builder, separator, separatorLength);
+			}
+			StringBuilderAddChars(&builder, prefixes[p], strlen(prefixes[p]));
+			StringBuilderAddChars(&builder, name, strlen(name));
+		}
+	}
+	added = builder.added;
+	StringBuilderComplete(&builder);
+	return added;
+}
+
+/**
+ * Sets the date to the next update date in the header when next is true, or
+ * to the published date otherwise, if that date is valid, and to zeros if not,
+ * so a caller that ignores the result still never reads an invalid date.
+ */
+static bool getHeaderDate(
+	ResourceManager *manager,
+	bool next,
+	fiftyoneDegreesDate *date) {
+	DataSetIpi *dataSet = DataSetIpiGet(manager);
+	if (next) {
+		*date = dataSet->header.nextUpdate;
+	}
+	else {
+		*date = dataSet->header.published;
+	}
+	DataSetIpiRelease(dataSet);
+	if (DateIsValid(date)) {
+		return true;
+	}
+	date->year = 0;
+	date->month = 0;
+	date->day = 0;
+	return false;
+}
+
+bool fiftyoneDegreesIpiGetPublished(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date) {
+	return getHeaderDate(manager, false, date);
+}
+
+bool fiftyoneDegreesIpiGetNextUpdate(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date) {
+	return getHeaderDate(manager, true, date);
 }
 
 /**
