@@ -79,6 +79,12 @@ MAP_TYPE(WeightedValuesCollection)
 #define IpiGetIpAddressAsString fiftyoneDegreesIpiGetIpAddressAsString /**< Synonym for #fiftyoneDegreesIpiGetIpAddressAsString function. */
 #define IpiGetIpAddressAsByteArray fiftyoneDegreesIpiGetIpAddressAsByteArray /**< Synonym for #fiftyoneDegreesIpiGetIpAddressAsByteArray function. */
 #define IpiIterateProfilesForPropertyAndValue fiftyoneDegreesIpiIterateProfilesForPropertyAndValue /**< Synonym for #fiftyoneDegreesIpiIterateProfilesForPropertyAndValue function. */
+#define IpiGetPropertyCount fiftyoneDegreesIpiGetPropertyCount /**< Synonym for #fiftyoneDegreesIpiGetPropertyCount function. */
+#define IpiGetPropertyIndex fiftyoneDegreesIpiGetPropertyIndex /**< Synonym for #fiftyoneDegreesIpiGetPropertyIndex function. */
+#define IpiGetProperty fiftyoneDegreesIpiGetProperty /**< Synonym for #fiftyoneDegreesIpiGetProperty function. */
+#define IpiGetPropertyValueIndexes fiftyoneDegreesIpiGetPropertyValueIndexes /**< Synonym for #fiftyoneDegreesIpiGetPropertyValueIndexes function. */
+#define IpiGetPropertyText fiftyoneDegreesIpiGetPropertyText /**< Synonym for #fiftyoneDegreesIpiGetPropertyText function. */
+#define IpiGetPropertyMapText fiftyoneDegreesIpiGetPropertyMapText /**< Synonym for #fiftyoneDegreesIpiGetPropertyMapText function. */
 #define ResultsIpiGetValuesCollection fiftyoneDegreesResultsIpiGetValuesCollection /**< Synonym for #fiftyoneDegreesResultsIpiGetValuesCollection function. */
 #define WeightedValuesCollectionRelease fiftyoneDegreesWeightedValuesCollectionRelease /**< Synonym for #fiftyoneDegreesWeightedValuesCollectionRelease function. */
 
