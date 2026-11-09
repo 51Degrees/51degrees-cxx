@@ -1505,3 +1505,200 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdWithPropertyValueIndex) {
 		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent));
 	ResourceManagerFree(&deviceIdManager);
 }
+
+/*
+ * The query value of 51D_GetHighEntropyValues and 51D_StructuredUserAgent
+ * takes precedence over the cookie value, whatever order the evidence is
+ * given in. The evidence is built through the C API so that the order is the
+ * one the caller chose, which a map keyed by name cannot express.
+ */
+class HashSpecialEvidencePrecedenceTests : public HashCTests {
+public:
+	void SetUp() {
+		Base::SetUp();
+		properties.string = "PlatformName,PlatformVersion";
+		EXCEPTION_CREATE;
+		HashInitManagerFromFile(
+			&manager,
+			&configHash,
+			&properties,
+			dataFilePath.c_str(),
+			exception);
+		EXCEPTION_THROW;
+	}
+	void TearDown() {
+		ResourceManagerFree(&manager);
+		Base::TearDown();
+	}
+protected:
+	struct Item {
+		EvidencePrefix prefix;
+		const char *key;
+		const char *value;
+	};
+
+	// The platform version from the evidence, with the User-Agent as a header
+	// and then the items in the order given.
+	string platformVersion(const vector<Item> &items) {
+		EXCEPTION_CREATE;
+		EvidenceKeyValuePairArray *evidence = EvidenceCreate(
+			(uint32_t)items.size() + 1);
+		EvidenceAddString(
+			evidence,
+			FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+			"User-Agent",
+			windowsUserAgent);
+		for (const Item &item : items) {
+			EvidenceAddString(evidence, item.prefix, item.key, item.value);
+		}
+		ResultsHash *results = ResultsHashCreate(&manager, 0);
+		ResultsHashFromEvidence(results, evidence, exception);
+		EXCEPTION_THROW;
+		char buffer[256];
+		string version = getPropertyValueAsString(
+			results, "PlatformVersion", buffer, sizeof(buffer));
+		ResultsHashFree(results);
+		EvidenceFree(evidence);
+		return version;
+	}
+
+	// Checks the query value gives the Windows 11 platform version when the
+	// cookie value, which gives another, is added before and after it.
+	void expectQueryWins(
+		const char *queryKey,
+		const char *queryValue,
+		const char *cookieKey,
+		const char *cookieValue) {
+		const Item query = {
+			FIFTYONE_DEGREES_EVIDENCE_QUERY, queryKey, queryValue };
+		const Item cookie = {
+			FIFTYONE_DEGREES_EVIDENCE_COOKIE, cookieKey, cookieValue };
+
+		ASSERT_EQ(windows11Version, platformVersion({ query })) <<
+			"The query value alone must give the Windows 11 version.\n";
+		ASSERT_NE(windows11Version, platformVersion({ cookie })) <<
+			"The cookie value alone must give another version for this "
+			"test to show anything.\n";
+
+		EXPECT_EQ(windows11Version, platformVersion({ query, cookie })) <<
+			"Query added before the cookie, the query should win.\n";
+		EXPECT_EQ(windows11Version, platformVersion({ cookie, query })) <<
+			"Cookie added before the query, the query should win.\n";
+	}
+
+	const char *windowsUserAgent =
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+		"(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+	const string windows11Version = "11.0";
+
+	// Platform version 15.0.0, which the data file maps to Windows 11.
+	const char *windows11Ghev =
+		"eyJicmFuZHMiOlt7ImJyYW5kIjoiQ2hyb21pdW0iLCJ2ZXJzaW9uIjoiMTUyIn0seyJicmFu"
+		"ZCI6Ikdvb2dsZSBDaHJvbWUiLCJ2ZXJzaW9uIjoiMTUyIn0seyJicmFuZCI6Ik5vdD9BX0Jy"
+		"YW5kIiwidmVyc2lvbiI6IjI0In1dLCJmdWxsVmVyc2lvbkxpc3QiOlt7ImJyYW5kIjoiQ2hy"
+		"b21pdW0iLCJ2ZXJzaW9uIjoiMTUyLjAuNzI1OC42NiJ9LHsiYnJhbmQiOiJHb29nbGUgQ2hy"
+		"b21lIiwidmVyc2lvbiI6IjE1Mi4wLjcyNTguNjYifSx7ImJyYW5kIjoiTm90P0FfQnJhbmQi"
+		"LCJ2ZXJzaW9uIjoiMjQuMC4wLjAifV0sIm1vYmlsZSI6ZmFsc2UsIm1vZGVsIjoiIiwicGxh"
+		"dGZvcm0iOiJXaW5kb3dzIiwicGxhdGZvcm1WZXJzaW9uIjoiMTUuMC4wIn0=";
+
+	// The same values with platform version 10.0.0.
+	const char *windows10Ghev =
+		"eyJicmFuZHMiOlt7ImJyYW5kIjoiQ2hyb21pdW0iLCJ2ZXJzaW9uIjoiMTUyIn0seyJicmFu"
+		"ZCI6Ikdvb2dsZSBDaHJvbWUiLCJ2ZXJzaW9uIjoiMTUyIn0seyJicmFuZCI6Ik5vdD9BX0Jy"
+		"YW5kIiwidmVyc2lvbiI6IjI0In1dLCJmdWxsVmVyc2lvbkxpc3QiOlt7ImJyYW5kIjoiQ2hy"
+		"b21pdW0iLCJ2ZXJzaW9uIjoiMTUyLjAuNzI1OC42NiJ9LHsiYnJhbmQiOiJHb29nbGUgQ2hy"
+		"b21lIiwidmVyc2lvbiI6IjE1Mi4wLjcyNTguNjYifSx7ImJyYW5kIjoiTm90P0FfQnJhbmQi"
+		"LCJ2ZXJzaW9uIjoiMjQuMC4wLjAifV0sIm1vYmlsZSI6ZmFsc2UsIm1vZGVsIjoiIiwicGxh"
+		"dGZvcm0iOiJXaW5kb3dzIiwicGxhdGZvcm1WZXJzaW9uIjoiMTAuMC4wIn0=";
+
+	// Structured User-Agent values, which are JSON and not encoded. Platform
+	// version 14.0.0 is Windows 11 and 10.0.0 is Windows 10.
+	const char *windows11Sua =
+		"{\"browsers\":[{\"brand\":\"Chromium\",\"version\":[\"140\",\"0\","
+		"\"0\",\"0\"]},{\"brand\":\"Google Chrome\",\"version\":[\"140\","
+		"\"0\",\"0\",\"0\"]}],\"platform\":{\"brand\":\"Windows\","
+		"\"version\":[\"14\",\"0\",\"0\"]},\"mobile\":0,"
+		"\"architecture\":\"x86\",\"source\":2}";
+	const char *windows10Sua =
+		"{\"browsers\":[{\"brand\":\"Chromium\",\"version\":[\"140\",\"0\","
+		"\"0\",\"0\"]},{\"brand\":\"Google Chrome\",\"version\":[\"140\","
+		"\"0\",\"0\",\"0\"]}],\"platform\":{\"brand\":\"Windows\","
+		"\"version\":[\"10\",\"0\",\"0\"]},\"mobile\":0,"
+		"\"architecture\":\"x86\",\"source\":2}";
+};
+
+TEST_F(HashSpecialEvidencePrecedenceTests, GhevQueryBeatsCookie) {
+	expectQueryWins(
+		"51D_GetHighEntropyValues", windows11Ghev,
+		"51D_GetHighEntropyValues", windows10Ghev);
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, SuaQueryBeatsCookie) {
+	expectQueryWins(
+		"51D_StructuredUserAgent", windows11Sua,
+		"51D_StructuredUserAgent", windows10Sua);
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, QuerySuaBeatsCookieGhev) {
+	expectQueryWins(
+		"51D_StructuredUserAgent", windows11Sua,
+		"51D_GetHighEntropyValues", windows10Ghev);
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, QueryGhevBeatsCookieSua) {
+	expectQueryWins(
+		"51D_GetHighEntropyValues", windows11Ghev,
+		"51D_StructuredUserAgent", windows10Sua);
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, CookieGhevUsedAlone) {
+	EXPECT_EQ(windows11Version, platformVersion({ {
+		FIFTYONE_DEGREES_EVIDENCE_COOKIE,
+		"51D_GetHighEntropyValues",
+		windows11Ghev } }));
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, CookieSuaUsedAlone) {
+	EXPECT_EQ(windows11Version, platformVersion({ {
+		FIFTYONE_DEGREES_EVIDENCE_COOKIE,
+		"51D_StructuredUserAgent",
+		windows11Sua } }));
+}
+
+// A query value that cannot be decoded gives no header, so the cookie value
+// is still used, whichever order the two were added in.
+TEST_F(HashSpecialEvidencePrecedenceTests, InvalidQueryGhevLeavesTheCookie) {
+	const Item query = {
+		FIFTYONE_DEGREES_EVIDENCE_QUERY,
+		"51D_GetHighEntropyValues",
+		"!!not a base64 value!!" };
+	const Item cookie = {
+		FIFTYONE_DEGREES_EVIDENCE_COOKIE,
+		"51D_GetHighEntropyValues",
+		windows11Ghev };
+	ASSERT_NE(windows11Version, platformVersion({ query })) <<
+		"The invalid query value alone must not give the Windows 11 "
+		"version.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ query, cookie })) <<
+		"Invalid query added before the cookie, the cookie should be used.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ cookie, query })) <<
+		"Cookie added before the invalid query, the cookie should be used.\n";
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, InvalidQuerySuaLeavesTheCookie) {
+	const Item query = {
+		FIFTYONE_DEGREES_EVIDENCE_QUERY,
+		"51D_StructuredUserAgent",
+		"{not valid json" };
+	const Item cookie = {
+		FIFTYONE_DEGREES_EVIDENCE_COOKIE,
+		"51D_StructuredUserAgent",
+		windows11Sua };
+	ASSERT_NE(windows11Version, platformVersion({ query })) <<
+		"The invalid query value alone must not give the Windows 11 "
+		"version.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ query, cookie })) <<
+		"Invalid query added before the cookie, the cookie should be used.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ cookie, query })) <<
+		"Cookie added before the invalid query, the cookie should be used.\n";
+}
