@@ -653,6 +653,43 @@ TEST_F(File, TempExists_Delete) {
 }
 
 /**
+ * Check that an existing temporary file is found when it is only in the
+ * second of the directories passed to the method, and that the path returned
+ * is the path of that file.
+ */
+TEST_F(File, TempExists_SecondPath) {
+	const char *paths[] = { tempPath1, tempPath2 };
+	char tempFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	char foundFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	tempFileName[0] = '\0';
+	foundFileName[0] = '\0';
+	createDir(tempPath1);
+	createDir(tempPath2);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileNewTempFile(
+			fileName,
+			&paths[1],
+			1,
+			tempFileName,
+			FIFTYONE_DEGREES_FILE_MAX_PATH)) <<
+		"A temporary file was not created in the second directory.";
+
+	EXPECT_TRUE(fiftyoneDegreesFileGetExistingTempFile(
+		fileName,
+		paths,
+		2,
+		-1,
+		foundFileName)) <<
+		"The existing temporary file in the second directory was not found.";
+	EXPECT_STREQ(tempFileName, foundFileName) <<
+		"The matching file name was not written to the memory passed in.";
+
+	removeFile(tempFileName);
+	removeDir(tempPath1);
+	removeDir(tempPath2);
+}
+
+/**
  * Check that unused temporary files are deleted from every directory passed
  * to the delete method, and not only the first, and that the number of
  * deleted files returned counts both.
