@@ -67,48 +67,48 @@ fiftyoneDegreesResultsHashFromUserAgent(
 	exception);
 ```
 
-5. Walk every graph. Each graph is walked when a property of its component is
-first read, and the metrics below are read from the result items, which a walk
-sets.
+5. Obtain the match metrics. The results hold a result for each component,
+such as the hardware or the browser, and the metrics are taken across them.
+A walk of a component's graph sets the metrics of its result, so any graph not
+yet walked is walked first. A metric that is not needed can be passed as NULL.
 ```
-fiftyoneDegreesResultsEvaluateAll(&results->b.b, exception);
+fiftyoneDegreesHashMatchMethod method;
+int32_t drift, difference, iterations;
+fiftyoneDegreesResultsHashGetMatchMetrics(
+	results,
+	&method,
+	&difference,
+	&drift,
+	&iterations,
+	NULL,
+	exception);
 ```
 
-6. Obtain drift: The maximum drift for a matched substring from the character
-position where it was expected to be found. The maximum drift to allow when
-finding a match can be set through the configuration structure.
-```
-int drift = results->items->drift;
+6. The drift is the largest number of characters a matched substring of a
+result was from where it was expected to be found, added up over the results.
+The maximum drift to allow when finding a match can be set through the
+configuration structure.
 
-```
-
-7. Obtain difference: The total difference in hash code values between the
+7. The difference is the total difference in hash code values between the
 matched substrings and the actual substrings. The maximum difference to allow
 when finding a match can be set through the configuration structure.
-```
-int difference = results->items->difference;
-```
 
-8. Obtain iteration count: The number of iterations required to get the device
+8. The iterations are the number of iterations required to get the device
 offset in the devices collection in the graph of nodes. This is indicative of
 the time taken to fetch the result.
-```
-int iterations = results->items->iterations;
-```
 
-9. Obtain match method: provides information about the algorithm that was used
-to perform detection for a particular User-Agent. For more information on what
-each method means please see:
+9. The method is the highest method any result used, which provides
+information about the algorithm that was used to perform detection for a
+particular User-Agent. For more information on what each method means please
+see:
 <a href="https://51degrees.com/support/documentation/hash?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-matchmetrics.c&utm_term=header">
 How device detection works</a>.
-```
-fiftyoneDegreesHashMatchMethod method = results->items->method;
-```
 
-10. Obtain the matched User-Agent: the matched substrings in the User-Agent
-separated with underscored.
+10. Obtain the matched User-Agent of the first result, which holds the matched
+substrings of the User-Agent separated with underscores.
 ```
-char *matchedUserAgent = results->items->b.matchedUserAgent;
+const char *matchedUserAgent =
+	fiftyoneDegreesResultsHashGetMatchedUserAgent(results, 0, exception);
 ```
 
 11. Release the memory used by the results.
@@ -116,7 +116,7 @@ char *matchedUserAgent = results->items->b.matchedUserAgent;
 fiftyoneDegreesResultsHashFree(results);
 ```
 
-11. Finally release the memory used by the data set resource.
+12. Finally release the memory used by the data set resource.
 ```
 fiftyoneDegreesResourceManagerFree(&manager);
 ```
@@ -157,21 +157,25 @@ static const char* getPropertyValueAsString(
 static void outputMatchMetrics(ResultsHash *results) {
 	EXCEPTION_CREATE;
 	char deviceId[40];
-
-	// The metrics are read from the result items, which the walks set.
-	ResultsEvaluateAll(&results->b.b, exception);
-	EXCEPTION_THROW;
+	HashMatchMethod matchMethod;
+	int32_t drift, difference, iterations;
 	HashGetDeviceIdFromResults(
 		results,
 		deviceId,
 		sizeof(deviceId),
 		exception);
 	EXCEPTION_THROW;
-	int drift = results->items->drift;
-	int difference = results->items->difference;
-	int iterations = results->items->iterations;
+	ResultsHashGetMatchMetrics(
+		results,
+		&matchMethod,
+		&difference,
+		&drift,
+		&iterations,
+		NULL,
+		exception);
+	EXCEPTION_THROW;
 	const char *method;
-	switch (results->items->method) {
+	switch (matchMethod) {
 	case FIFTYONE_DEGREES_HASH_MATCH_METHOD_PERFORMANCE:
 		method = "PERFORMANCE";
 		break;
@@ -186,7 +190,11 @@ static void outputMatchMetrics(ResultsHash *results) {
 		method = "NONE";
 		break;
 	}
-	char *matchedUserAgent = results->items->b.matchedUserAgent;
+	const char *matchedUserAgent = ResultsHashGetMatchedUserAgent(
+		results,
+		0,
+		exception);
+	EXCEPTION_THROW;
 	printf("   IsMobile:    %s\n",
 		getPropertyValueAsString(results, "IsMobile"));
 	printf("   Id:          %s\n", deviceId);
@@ -194,7 +202,8 @@ static void outputMatchMetrics(ResultsHash *results) {
 	printf("   Difference:  %d\n", difference);
 	printf("   Iterations:  %d\n", iterations);
 	printf("   Method:      %s\n", method);
-	printf("   Sub Strings: %s\n", matchedUserAgent);
+	printf("   Sub Strings: %s\n",
+		matchedUserAgent == NULL ? "" : matchedUserAgent);
 	return;
 }
 

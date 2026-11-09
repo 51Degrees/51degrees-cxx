@@ -30,12 +30,12 @@ public:
 		// Capture stdout for the test.
 		testing::internal::CaptureStdout();
 
-		DeviceDetection::Hash::ConfigHash* config = 
+		// The example owns the configuration, and is freed with its engine
+		// when it goes out of scope, even if it throws.
+		DeviceDetection::Hash::ConfigHash* config =
 			new DeviceDetection::Hash::ConfigHash(&configHash);
-		ReloadFromFile* reloadFromFile =
-			new ReloadFromFile(dataFilePath, userAgentFilePath, config);
-		reloadFromFile->run();
-		delete reloadFromFile;
+		ReloadFromFile reloadFromFile(dataFilePath, userAgentFilePath, config);
+		reloadFromFile.run();
 
 		// Check the output
 		std::string output = testing::internal::GetCapturedStdout();

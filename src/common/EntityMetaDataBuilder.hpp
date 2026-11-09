@@ -27,6 +27,7 @@
 #include "Exceptions.hpp"
 #include "collection.h"
 #include "constants.h"
+#include "memory.h"
 #include "storedBinaryValue.h"
 #include "string.h"
 #include "string_pp.hpp"
@@ -61,51 +62,57 @@ namespace FiftyoneDegrees {
 			static string getString(
 				fiftyoneDegreesCollection *stringsCollection,
 				uint32_t offset) {
-				return getValue(
-					stringsCollection,
-					offset,
-					FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING); // legacy contract
-			}
-
-			/**
-			 * Get a copy of a binary value (as string) from the strings collection at the offset
-			 * provided.
-			 * @param stringsCollection pointer to the collection to copy the
-			 * value (as string) from
-			 * @param offset offset in the strings collection of the binary value to
-			 * copy (as string)
-			 * @param storedValueType format of byte array representation.
-			 * @return string describing contents of binary value the offset provided
-			 */
-			static string getValue(
-				fiftyoneDegreesCollection *stringsCollection,
-				uint32_t offset,
-				fiftyoneDegreesPropertyValueType storedValueType) {
 				FIFTYONE_DEGREES_EXCEPTION_CREATE;
 				string result;
 				fiftyoneDegreesCollectionItem item;
 				fiftyoneDegreesDataReset(&item.data);
-				const fiftyoneDegreesStoredBinaryValue * const binaryValue = fiftyoneDegreesStoredBinaryValueGet(
-					stringsCollection,
-					offset,
-					storedValueType,
-					&item,
-					exception);
-				FIFTYONE_DEGREES_EXCEPTION_THROW;
-				if (binaryValue != nullptr) {
-					std::stringstream stream;
-					writeStoredBinaryValueToStringStream(
-						binaryValue,
-						storedValueType,
-						stream,
-						FIFTYONE_DEGREES_MAX_DOUBLE_DECIMAL_PLACES,
+				const fiftyoneDegreesStoredBinaryValue * const value =
+					fiftyoneDegreesStoredBinaryValueGet(
+						stringsCollection,
+						offset,
+						FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+						&item,
 						exception);
-					FIFTYONE_DEGREES_EXCEPTION_THROW;
-					result.append(stream.str());
+				FIFTYONE_DEGREES_EXCEPTION_THROW;
+				if (value != nullptr) {
+					char buffer[FIFTYONE_DEGREES_REASONABLE_WKT_STRING_LENGTH];
+					// A string has no decimal places.
+					char * const text = fiftyoneDegreesStoredBinaryValueToText(
+						value,
+						FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+						0,
+						buffer,
+						sizeof(buffer),
+						exception);
+					FIFTYONE_DEGREES_COLLECTION_RELEASE(
+						stringsCollection,
+						&item);
+					result = takeText(text, buffer, exception);
 				}
-				FIFTYONE_DEGREES_COLLECTION_RELEASE(
-					stringsCollection,
-					&item);
+				return result;
+			}
+
+			/**
+			 * Get a copy of the text a C function wrote into the buffer
+			 * provided or into memory it allocated, freeing that memory.
+			 * @param text the text the C function returned, or nullptr
+			 * @param buffer the buffer the C function was given
+			 * @param exception the exception the C function was given, thrown
+			 * when it is set
+			 * @return copy of the text, or an empty string when there is none
+			 */
+			static string takeText(
+				char *text,
+				const char *buffer,
+				fiftyoneDegreesException *exception) {
+				string result;
+				if (text != nullptr) {
+					result = text;
+					if (text != buffer) {
+						fiftyoneDegreesFree(text);
+					}
+				}
+				FIFTYONE_DEGREES_EXCEPTION_THROW;
 				return result;
 			}
 

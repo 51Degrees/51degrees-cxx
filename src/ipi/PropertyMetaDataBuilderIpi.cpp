@@ -30,30 +30,23 @@ using namespace FiftyoneDegrees::IpIntelligence;
 PropertyMetaData* PropertyMetaDataBuilderIpi::build(
 	fiftyoneDegreesDataSetIpi *dataSet,
 	const fiftyoneDegreesProperty *property) {
-	string name = getValue(
-		dataSet->strings,
-		property->nameOffset,
-		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING); // name is string
+	string name = getString(dataSet->strings, property->nameOffset);
 	return new PropertyMetaData(
 		name,
 		getPropertyMap(
 			dataSet->strings,
 			dataSet->maps,
 			property),
-		getPropertyType(property),
+		PropertyValueTypeGetName(
+			(PropertyValueType)property->valueType,
+			property->isList != 0),
 		(int)property->categoryOffset != -1 ?
-		getValue(
-			dataSet->strings,
-			property->categoryOffset,
-			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) : // category is string
+		getString(dataSet->strings, property->categoryOffset) :
 		string(),
 		// A property with no URL points at offset 0, which holds the first
 		// string in the file rather than a URL.
 		(int)property->urlOffset > 0 ?
-		getValue(
-			dataSet->strings,
-			property->urlOffset,
-			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) : // URL is string
+		getString(dataSet->strings, property->urlOffset) :
 		string(),
 		propertyIsAvailable(dataSet, &name),
 		property->displayOrder,
@@ -63,12 +56,9 @@ PropertyMetaData* PropertyMetaDataBuilderIpi::build(
 		property->show,
 		property->showValues,
 		(int)property->descriptionOffset != -1 ?
-		getValue(
-			dataSet->strings,
-			property->descriptionOffset,
-			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING) : // description is string
+		getString(dataSet->strings, property->descriptionOffset) :
 		string(),
-		getDefaultValue(dataSet, property->defaultValueIndex),
+		getDefaultValue(dataSet, property),
 		getComponentId(dataSet, property),
 		getEvidenceProperties(dataSet, property));
 }
@@ -117,33 +107,18 @@ vector<uint32_t> PropertyMetaDataBuilderIpi::getEvidenceProperties(
 }
 string PropertyMetaDataBuilderIpi::getDefaultValue(
 	fiftyoneDegreesDataSetIpi *dataSet,
-	uint32_t valueIndex) {
+	const fiftyoneDegreesProperty *property) {
 	EXCEPTION_CREATE;
-	string result;
-	Item item;
-	const Value *value;
-	if (valueIndex != UINT32_MAX) {
-		DataReset(&item.data);
-		value = ValueGet(
-			dataSet->values,
-			valueIndex,
-			&item,
-			exception);
-		EXCEPTION_THROW;
-		const PropertyValueType storedType = PropertyGetStoredTypeByIndex(
-			dataSet->propertyTypes,
-			value->propertyIndex,
-			exception);
-		EXCEPTION_THROW;
-		if (value != nullptr) {
-			result = getValue(
-				dataSet->strings,
-				value->nameOffset,
-				storedType);
-			COLLECTION_RELEASE(dataSet->values, &item);
-		}
-	}
-	return result;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const text = ValueGetDefaultText(
+		dataSet->values,
+		dataSet->strings,
+		dataSet->propertyTypes,
+		property,
+		buffer,
+		sizeof(buffer),
+		exception);
+	return takeText(text, buffer, exception);
 }
 
 bool PropertyMetaDataBuilderIpi::propertyIsAvailable(
@@ -152,54 +127,6 @@ bool PropertyMetaDataBuilderIpi::propertyIsAvailable(
 	return PropertiesGetPropertyIndexFromName(
 		dataSet->b.b.available,
 		name->c_str()) >= 0;
-}
-
-string PropertyMetaDataBuilderIpi::getPropertyType(
-	const fiftyoneDegreesProperty * const property) {
-	switch (property->valueType) {
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER:
-		return string("int");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT:
-		return string("single");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB:
-		return string("wkb");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R:
-		return string("wkbr");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN:
-		return string("bool");
-    case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE:
-		return string("double");
-    case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_COORDINATE:
-		return string("coordinate");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS:
-		return string("ipaddress");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT:
-		return string("javascript");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
-		if (property->isList != 0) {
-			return string("string[]");
-		}
-		return string("string");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_STRING:
-		return string("weightedstring");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_INT:
-		return string("weightedint");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_SINGLE:
-		return string("weightedsingle");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_DOUBLE:
-		return string("weighteddouble");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_BOOL:
-		return string("weightedbool");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_BYTE:
-		return string("weightedbyte");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_IP_ADDRESS:
-		return string("weightedipaddress");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_WKB_R:
-		return string("weightedwkbr");
-
-	default:
-		return string("string");
-	}
 }
 
 vector<string> PropertyMetaDataBuilderIpi::getPropertyMap(

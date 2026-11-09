@@ -173,37 +173,46 @@ void fiftyoneDegreesExampleCheckDataFile(
 
 	const char* dataTier = STRING(item.data.ptr);
 
+	// The header holds whatever bytes the file was written with, so the date
+	// is only turned into a time when it is a real calendar date.
 	fiftyoneDegreesDate date = dataset->header.published;
-	struct tm gt;
-	gt.tm_year = (date.year >= 1900) ? date.year - 1900 : date.year;
-	gt.tm_mday = date.day;
-	gt.tm_mon = (int)date.month - 1;
-	gt.tm_hour = 0;
-	gt.tm_min = 0;
-	gt.tm_sec = 0;
-	gt.tm_isdst = 0;
-	gt.tm_wday = 0;
-	gt.tm_yday = 0;
-	time_t published = mktime(&gt);
+	const bool hasDate = DateIsValid(&date);
+	time_t published = 0;
 	time_t now = time(NULL);
-
 	char timeStr[500] = "";
+	if (hasDate) {
+		struct tm gt;
+		gt.tm_year = (date.year >= 1900) ? date.year - 1900 : date.year;
+		gt.tm_mday = date.day;
+		gt.tm_mon = (int)date.month - 1;
+		gt.tm_hour = 0;
+		gt.tm_min = 0;
+		gt.tm_sec = 0;
+		gt.tm_isdst = 0;
+		gt.tm_wday = 0;
+		gt.tm_yday = 0;
+		published = mktime(&gt);
 #if defined( _MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
-	if (asctime_s(timeStr, 500, (const struct tm*)&gt) != 0) {
+		if (asctime_s(timeStr, 500, (const struct tm*)&gt) != 0) {
 #else
-	if (asctime_r((const struct tm*)&gt, timeStr) != timeStr) {
+		if (asctime_r((const struct tm*)&gt, timeStr) != timeStr) {
 #endif
-		printf("\033[0;33m");
-		printf(("Failed to obtain textual representation of the data file "
-			"published date\n"));
-		printf("\033[0m");
+			printf("\033[0;33m");
+			printf(("Failed to obtain textual representation of the data "
+				"file published date\n"));
+			printf("\033[0m");
+		}
+		printf("Using a %s data file created %s from location %s\n",
+			dataTier, timeStr, dataset->b.b.fileName);
+	}
+	else {
+		printf("Using a %s data file with no valid published date from "
+			"location %s\n", dataTier, dataset->b.b.fileName);
 	}
 
-	printf("Using a %s data file created %s from location %s\n",
-		dataTier, timeStr, dataset->b.b.fileName);
-
 #define DATA_FILE_AGE_WARNING 30
-	if ((now - published) / (24 * 60 * 60) > DATA_FILE_AGE_WARNING) {
+	if (hasDate &&
+		(now - published) / (24 * 60 * 60) > DATA_FILE_AGE_WARNING) {
 		printf("\033[0;33m");
 		printf(("This example is using a data file "
 			"that is more than %d days old. "

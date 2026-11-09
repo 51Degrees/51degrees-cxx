@@ -48,6 +48,13 @@ and for the Hash C++ API, the following are needed in addition:
 
 The CMake project also builds a single shared library containing everything. This is named `fiftyone-device-detection-complete` and can be referenced by any C or C++ project.
 
+A project that uses an installed copy of the libraries finds them with
+`find_package(51Degrees CONFIG REQUIRED)` and links `51Degrees::hash-c` or
+`51Degrees::hash-cxx`, which bring the libraries above. The headers are then
+included as, for example, `<51degrees/dd/hash/hash.h>`.
+[Installing](../../README.md#installing) in the repository README says how to
+install them.
+
 ## Visual Studio
 
 The Visual Studio solution contains static libraries which have all the dependencies set up correctly, so referencing these in a Visual Studio solution should be fairly self explanatory.
@@ -106,10 +113,14 @@ from.
 Either way the values are the same whatever is read first, and the evidence
 can be freed once the results are populated.
 
-The match metrics, such as the iterations and the drift, and the device id
-are worked out from every component, so reading them walks every graph not yet
-walked. The C++ API does this itself. A C caller that reads the result items
-directly calls `fiftyoneDegreesResultsEvaluateAll` first.
+The match metrics, such as the iterations and the drift, the matched
+User-Agents and the device id are worked out from every component, so reading
+them walks every graph not yet walked. The C++ API does this itself, and so
+do the C functions `fiftyoneDegreesResultsHashGetMatchMetrics`,
+`fiftyoneDegreesResultsHashGetMatchMetricsForResult`,
+`fiftyoneDegreesResultsHashGetMatchedUserAgent` and
+`fiftyoneDegreesHashGetDeviceIdFromResults`, so a C caller reads them through
+those functions rather than from the result items.
 
 # Threads
 

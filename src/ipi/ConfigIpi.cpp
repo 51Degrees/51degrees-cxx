@@ -28,7 +28,7 @@ using namespace std;
 using namespace FiftyoneDegrees::IpIntelligence;
 
 ConfigIpi::ConfigIpi() : ConfigBase(&this->config.b) {
-	config = fiftyoneDegreesIpiInMemoryConfig;
+	config = fiftyoneDegreesIpiDefaultConfig;
 	initCollectionConfig();
 	// A concurrency of 0 is one operation for each processor.
 	if (getConcurrency() == 0) {
@@ -39,7 +39,7 @@ ConfigIpi::ConfigIpi() : ConfigBase(&this->config.b) {
 ConfigIpi::ConfigIpi(fiftyoneDegreesConfigIpi *config) :
 	ConfigBase(&this->config.b) {
 	this->config = config != nullptr ?
-		*config : fiftyoneDegreesIpiInMemoryConfig;
+		*config : fiftyoneDegreesIpiDefaultConfig;
 	initCollectionConfig();
 	// A concurrency of 0 is one operation for each processor.
 	if (getConcurrency() == 0) {
