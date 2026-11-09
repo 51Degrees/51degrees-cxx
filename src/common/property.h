@@ -286,7 +286,9 @@ typedef enum e_fiftyone_degrees_property_text {
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the 0 based index of the property, or -1 when no property has the
- * name or a property or a name cannot be read
+ * name or reading a property or a name sets the exception. A property whose
+ * name the strings collection gives nothing for is taken as the one named,
+ * so its index is returned.
  */
 EXTERNAL int fiftyoneDegreesPropertyGetIndexByName(
 	fiftyoneDegreesCollection *properties,

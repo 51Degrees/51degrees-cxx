@@ -1176,7 +1176,9 @@ EXTERNAL uint32_t fiftyoneDegreesIpiGetPropertyCount(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h
  * @return the index of the property, or -1 when the data file has no
- * property of that name or a property cannot be read
+ * property of that name or reading a property or a name sets the exception.
+ * A property whose name the strings collection gives nothing for is taken as
+ * the one named.
  */
 EXTERNAL int fiftyoneDegreesIpiGetPropertyIndex(
 	fiftyoneDegreesDataSetIpi *dataSet,
