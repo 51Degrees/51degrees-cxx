@@ -162,3 +162,16 @@ TEST_F(Threading, Mutex_OneThreadAtATime) {
 
     ASSERT_EQ(threadCount * additionsPerThread, total);
 }
+
+/**
+ * Checks the processor count is at least one and no more than a pool can
+ * hold, and is one when the library is single threaded.
+ */
+TEST_F(Threading, ProcessorCount) {
+    const uint16_t count = fiftyoneDegreesThreadingGetProcessorCount();
+    EXPECT_GE(count, 1);
+    EXPECT_LE(count, FIFTYONE_DEGREES_PROCESSOR_COUNT_MAX);
+    if (fiftyoneDegreesThreadingGetIsThreadSafe() == false) {
+        EXPECT_EQ(1, count);
+    }
+}

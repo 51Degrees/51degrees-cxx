@@ -80,10 +80,13 @@
 #include "../results-dd.h"
 #include "graph.h"
 
-/** Default value for the cache concurrency used in the default configuration. */
+/**
+ * Default value for the concurrency used in the default configurations, where
+ * 0 is one operation for each processor the system has.
+ */
 #ifndef FIFTYONE_DEGREES_CACHE_CONCURRENCY
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-#define FIFTYONE_DEGREES_CACHE_CONCURRENCY 10
+#define FIFTYONE_DEGREES_CACHE_CONCURRENCY 0
 #else
 #define FIFTYONE_DEGREES_CACHE_CONCURRENCY 1
 #endif

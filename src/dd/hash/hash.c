@@ -29,6 +29,7 @@
 #include "hash.h"
 #include "fiftyone.h"
 #include "../../common/collectionKeyTypes.h"
+#include "../../common/threading.h"
 
 MAP_TYPE(Collection)
 
@@ -167,6 +168,10 @@ static unsigned int POWERS[129] = {
 
 #define MAX_CONCURRENCY(t) if (config->t.concurrency > concurrency) { \
 concurrency = config->t.concurrency; }
+
+/* A concurrency of 0 is one operation for each processor. */
+#define DEFAULT_CONCURRENCY(c,t) if ((c)->t.concurrency == 0) { \
+(c)->t.concurrency = ThreadingGetProcessorCount(); }
 
 #define COLLECTION_CREATE_MEMORY(t) \
 dataSet->t = CollectionCreateFromMemory( \
@@ -2530,6 +2535,16 @@ static void initDataSet(DataSetHash *dataSet, ConfigHash **config) {
 	// available in cases where the source configuration gets freed.
 	memcpy((void*)&dataSet->config, *config, sizeof(ConfigHash));
 	dataSet->b.b.config = &dataSet->config;
+	ConfigHash *copy = (ConfigHash*)&dataSet->config;
+	DEFAULT_CONCURRENCY(copy, strings);
+	DEFAULT_CONCURRENCY(copy, components);
+	DEFAULT_CONCURRENCY(copy, maps);
+	DEFAULT_CONCURRENCY(copy, properties);
+	DEFAULT_CONCURRENCY(copy, values);
+	DEFAULT_CONCURRENCY(copy, profiles);
+	DEFAULT_CONCURRENCY(copy, rootNodes);
+	DEFAULT_CONCURRENCY(copy, nodes);
+	DEFAULT_CONCURRENCY(copy, profileOffsets);
 }
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY

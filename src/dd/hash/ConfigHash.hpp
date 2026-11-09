@@ -170,12 +170,19 @@ namespace FiftyoneDegrees {
 				void setUsePredictiveGraph(bool use);
 
 				/**
-				 * Set the expected concurrent requests for all the data set's
-				 * collections. All collections in the data set which use
-				 * cached elements will have their caches constructued to allow
-				 * for the concurrency value set here.
+				 * Set the expected number of operations that use the engine
+				 * at the same time, which defaults to the number of
+				 * processors. It is the number of file handles in the pool, up
+				 * to 64, and an operation that has to read the file when every
+				 * handle is in use waits for one. Each cache is split into
+				 * as many parts as this, or fewer so that every part holds an
+				 * item for each operation, and a smaller cache is made that
+				 * large. It has no effect when every collection is held in
+				 * memory, and choosing a performance profile does not change
+				 * it.
 				 * See CollectionConfig::setConcurrency
-				 * @param concurrency expected concurrent requests
+				 * @param concurrency expected operations at the same time, or
+				 * 0 for one for each processor
 				 */
 				void setConcurrency(uint16_t concurrency);
 
@@ -321,6 +328,9 @@ namespace FiftyoneDegrees {
 
 				/** The underlying profiles configuration structure */
 				CollectionConfig profiles;
+
+				/** The underlying root nodes configuration structure */
+				CollectionConfig rootNodes;
 
 				/** The underlying nodes configuration structure */
 				CollectionConfig nodes;

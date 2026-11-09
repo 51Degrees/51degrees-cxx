@@ -25,6 +25,7 @@
 #include "../common/config.h"
 #include "constantsIpi.h"
 #include "../common/collectionKeyTypes.h"
+#include "../common/threading.h"
 #include "graph/graph.h"
 
 MAP_TYPE(Collection)
@@ -70,6 +71,10 @@ MAP_TYPE(Collection)
 
 #define MAX_CONCURRENCY(t) if (config->t.concurrency > concurrency) { \
 concurrency = config->t.concurrency; }
+
+/* A concurrency of 0 is one operation for each processor. */
+#define DEFAULT_CONCURRENCY(c,t) if ((c)->t.concurrency == 0) { \
+(c)->t.concurrency = ThreadingGetProcessorCount(); }
 
 #define COLLECTION_CREATE_MEMORY(t) \
 dataSet->t = CollectionCreateFromMemory( \
@@ -967,6 +972,18 @@ static void initDataSet(DataSetIpi* dataSet, ConfigIpi** config) {
 	// available in cases where the source configuration gets freed.
 	memcpy((void*)&dataSet->config, *config, sizeof(ConfigIpi));
 	dataSet->b.b.config = &dataSet->config;
+	ConfigIpi *copy = (ConfigIpi*)&dataSet->config;
+	DEFAULT_CONCURRENCY(copy, strings);
+	DEFAULT_CONCURRENCY(copy, components);
+	DEFAULT_CONCURRENCY(copy, maps);
+	DEFAULT_CONCURRENCY(copy, properties);
+	DEFAULT_CONCURRENCY(copy, values);
+	DEFAULT_CONCURRENCY(copy, profiles);
+	DEFAULT_CONCURRENCY(copy, graphs);
+	DEFAULT_CONCURRENCY(copy, profileGroups);
+	DEFAULT_CONCURRENCY(copy, profileOffsets);
+	DEFAULT_CONCURRENCY(copy, propertyTypes);
+	DEFAULT_CONCURRENCY(copy, graph);
 }
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
