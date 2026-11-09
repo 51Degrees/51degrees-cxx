@@ -20,9 +20,9 @@ jobs:
       matrix:
         include:
           - label: tests only (red expected)
-            sha: 517755d5
+            sha: 4649441a
           - label: tests and fix (green expected)
-            sha: 9fa1a67b
+            sha: 037be121
     timeout-minutes: 120
     defaults:
       run:
@@ -66,17 +66,17 @@ jobs:
         run: |
           git -C $env:REPO checkout --detach $env:SHA
           git -C $env:REPO log --oneline -1
-      - name: Build the Hash and IP Intelligence tests
+      - name: Build the IP Intelligence tests
         run: |
           cmake -S $env:REPO -B build -DCMAKE_BUILD_TYPE=Release -DFIFTYONE_COMMON_CXX_BUILD_TESTING=OFF | Out-Null
-          $log = cmake --build build --config Release --parallel 4 --target HashTests IpiTests 2>&1
+          $log = cmake --build build --config Release --parallel 4 --target IpiTests 2>&1
           if ($LASTEXITCODE -ne 0) { $log | Select-Object -Last 80; throw "The build failed" }
           "built"
       - name: Run the by-name tests
         run: |
           Push-Location $env:REPO
           $failed = $false
-          foreach ($t in @('HashTests', 'IpiTests')) {
+          foreach ($t in @('IpiTests')) {
             $start = Get-Date
             & "../build/bin/$t" --gtest_filter='*FoundByName*'
             if ($LASTEXITCODE -ne 0) { $failed = $true }
