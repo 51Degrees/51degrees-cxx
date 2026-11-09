@@ -1050,7 +1050,7 @@ TEST_F(IpiPropertyTypeTests, EveryDataFile) {
 					dataSet->properties, i, &item, exception);
 			ASSERT_NE(nullptr, property) << path << " property " << i;
 			std::unique_ptr<PropertyMetaData> metaData(
-				PropertyMetaDataBuilderIpi::build(dataSet, property));
+				PropertyMetaDataBuilderIpi::build(dataSet, i));
 			EXPECT_EQ(ipiTypeName(property), metaData->getType()) <<
 				fileName << " " << metaData->getName();
 			FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->properties, &item);

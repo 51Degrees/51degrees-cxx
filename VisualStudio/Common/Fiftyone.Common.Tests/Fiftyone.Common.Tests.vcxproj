@@ -45,6 +45,7 @@
     <ClCompile Include="..\..\..\test\common\MemoryLeakTests.cpp" />
     <ClCompile Include="..\..\..\test\common\OverridesTests.cpp" />
     <ClCompile Include="..\..\..\test\common\pch.cpp" />
+    <ClCompile Include="..\..\..\test\common\MetaDataTextTests.cpp" />
     <ClCompile Include="..\..\..\test\common\PoolTests.cpp" />
     <ClCompile Include="..\..\..\test\common\ProfileTests.cpp" />
     <ClCompile Include="..\..\..\test\common\PropertiesTests.cpp" />

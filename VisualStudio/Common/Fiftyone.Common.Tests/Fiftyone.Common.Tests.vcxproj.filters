@@ -126,6 +126,9 @@
     <ClCompile Include="..\..\..\test\common\ProfileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\common\MetaDataTextTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\common\StringsTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

@@ -76,9 +76,6 @@ namespace FiftyoneDegrees {
 			private:
 				/** Pointer to the data set managed by the resource manager */
 				fiftyoneDegreesDataSetHash *dataSet;
-
-				/** Pointer to the underlying properties collection */
-				fiftyoneDegreesCollection *properties;
 			};
 		}
 	}

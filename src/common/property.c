@@ -199,12 +199,19 @@ fiftyoneDegreesProperty* fiftyoneDegreesPropertyGet(
 		exception);
 }
 
-const fiftyoneDegreesProperty* fiftyoneDegreesPropertyGetByName(
-	fiftyoneDegreesCollection *properties,
-	fiftyoneDegreesCollection *strings,
-	const char *requiredPropertyName,
-	fiftyoneDegreesCollectionItem *item,
-	fiftyoneDegreesException *exception) {
+/**
+ * Finds the first property named `requiredPropertyName` and returns it with
+ * `item` holding it and `index` set to its index, or returns NULL. A property
+ * whose name the strings collection gives nothing for is taken as the one
+ * named, as is one whose name could not be read, which sets the exception.
+ */
+static const Property* findPropertyByName(
+	Collection * const properties,
+	Collection * const strings,
+	const char * const requiredPropertyName,
+	Item * const item,
+	uint32_t * const index,
+	Exception * const exception) {
 	Item propertyNameItem;
 	const String *name;
 	const Property *property = NULL;
@@ -214,6 +221,7 @@ const fiftyoneDegreesProperty* fiftyoneDegreesPropertyGetByName(
 	while (i < propertiesCount && property == NULL && EXCEPTION_OKAY) {
 		
 		// Get the property for this index.
+		*index = i;
 		const CollectionKey propertyKey = {
 			i++,
 			CollectionKeyType_Property,
@@ -249,6 +257,211 @@ const fiftyoneDegreesProperty* fiftyoneDegreesPropertyGetByName(
 		}
 	}
 	return property;
+}
+
+const fiftyoneDegreesProperty* fiftyoneDegreesPropertyGetByName(
+	fiftyoneDegreesCollection *properties,
+	fiftyoneDegreesCollection *strings,
+	const char *requiredPropertyName,
+	fiftyoneDegreesCollectionItem *item,
+	fiftyoneDegreesException *exception) {
+	uint32_t index = 0;
+	return findPropertyByName(
+		properties,
+		strings,
+		requiredPropertyName,
+		item,
+		&index,
+		exception);
+}
+
+int fiftyoneDegreesPropertyGetIndexByName(
+	fiftyoneDegreesCollection *properties,
+	fiftyoneDegreesCollection *strings,
+	const char *propertyName,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	uint32_t index = 0;
+	DataReset(&item.data);
+	const Property * const property = findPropertyByName(
+		properties,
+		strings,
+		propertyName,
+		&item,
+		&index,
+		exception);
+	if (property == NULL) {
+		return -1;
+	}
+	COLLECTION_RELEASE(properties, &item);
+	return EXCEPTION_OKAY ? (int)index : -1;
+}
+
+/**
+ * An empty string, which is the text of a string a property does not have.
+ * The size of a string counts its terminating null.
+ */
+static const StoredBinaryValue propertyNoText = { { 1, '\0' } };
+
+/**
+ * Writes the string at `offset` in the strings collection as text, as the
+ * metadata gives it. An absent string, or one the collection gives nothing
+ * for, is an empty text.
+ */
+static char* getPropertyStringText(
+	const Collection * const strings,
+	const uint32_t offset,
+	const bool isAbsent,
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const value = isAbsent
+		? NULL
+		: StoredBinaryValueGet(
+			strings,
+			offset,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			&item,
+			exception);
+	if (value == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: StoredBinaryValueToText(
+				&propertyNoText,
+				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+				0,
+				buffer,
+				bufferLength,
+				exception);
+	}
+	char *text = NULL;
+	if (EXCEPTION_OKAY) {
+		// A string has no decimal places.
+		text = StoredBinaryValueToText(
+			value,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			0,
+			buffer,
+			bufferLength,
+			exception);
+	}
+	COLLECTION_RELEASE(strings, &item);
+	return text;
+}
+
+char* fiftyoneDegreesPropertyGetText(
+	const fiftyoneDegreesCollection *values,
+	const fiftyoneDegreesCollection *strings,
+	const fiftyoneDegreesCollection *propertyTypes,
+	const fiftyoneDegreesProperty *property,
+	fiftyoneDegreesPropertyText text,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	switch (text) {
+	case FIFTYONE_DEGREES_PROPERTY_TEXT_NAME:
+		return getPropertyStringText(
+			strings,
+			property->nameOffset,
+			false,
+			buffer,
+			bufferLength,
+			exception);
+	case FIFTYONE_DEGREES_PROPERTY_TEXT_DESCRIPTION:
+		return getPropertyStringText(
+			strings,
+			property->descriptionOffset,
+			(int32_t)property->descriptionOffset == -1,
+			buffer,
+			bufferLength,
+			exception);
+	case FIFTYONE_DEGREES_PROPERTY_TEXT_CATEGORY:
+		return getPropertyStringText(
+			strings,
+			property->categoryOffset,
+			(int32_t)property->categoryOffset == -1,
+			buffer,
+			bufferLength,
+			exception);
+	case FIFTYONE_DEGREES_PROPERTY_TEXT_URL:
+		// A property with no URL points at offset 0, which holds the first
+		// string in the file rather than a URL.
+		return getPropertyStringText(
+			strings,
+			property->urlOffset,
+			(int32_t)property->urlOffset <= 0,
+			buffer,
+			bufferLength,
+			exception);
+	case FIFTYONE_DEGREES_PROPERTY_TEXT_DEFAULT_VALUE:
+		return ValueGetDefaultText(
+			values,
+			strings,
+			propertyTypes,
+			property,
+			buffer,
+			bufferLength,
+			exception);
+	default:
+		EXCEPTION_SET(INVALID_INPUT);
+		return NULL;
+	}
+}
+
+char* fiftyoneDegreesPropertyGetMapText(
+	const fiftyoneDegreesCollection *strings,
+	const fiftyoneDegreesCollection *maps,
+	const fiftyoneDegreesProperty *property,
+	uint32_t mapIndex,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	if (mapIndex >= property->mapCount) {
+		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+		return NULL;
+	}
+	const uint32_t offset = (uint32_t)CollectionGetInteger32(
+		maps,
+		property->firstMapIndex + mapIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return NULL;
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const name = StoredBinaryValueGet(
+		strings,
+		offset,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		&item,
+		exception);
+	if (name == NULL) {
+		return NULL;
+	}
+	char *text = NULL;
+	if (EXCEPTION_OKAY) {
+		text = StoredBinaryValueToText(
+			name,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			0,
+			buffer,
+			bufferLength,
+			exception);
+	}
+	COLLECTION_RELEASE(strings, &item);
+	return text;
+}
+
+uint32_t fiftyoneDegreesPropertyGetValueCount(
+	const fiftyoneDegreesCollection *values,
+	const fiftyoneDegreesProperty *property) {
+	const uint32_t first = property->firstValueIndex;
+	const uint32_t last = property->lastValueIndex;
+	return first <= last && last < CollectionGetCount(values)
+		? last - first + 1
+		: 0;
 }
 
 byte fiftyoneDegreesPropertyGetValueType(
