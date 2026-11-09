@@ -763,7 +763,7 @@ bool fiftyoneDegreesFileGetExistingTempFile(
 		// Look in the directories provided.
 		for (i = 0; i < count; i++) {
 			if (iterateFiles(
-				paths[0],
+				paths[i],
 				&state,
 				iteratorFileCompare,
 				iteratorFileMatch) == true) {
