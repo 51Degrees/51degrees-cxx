@@ -21,10 +21,12 @@
  * ********************************************************************* */
 
 #include "../../common/pch.h"
+#include <memory>
 #include <string>
 #include <vector>
 #include "../Constants.hpp"
 #include "../../common/Base.hpp"
+#include "../../../src/dd/hash/PropertyMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/ValueMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/fiftyone.h"
 
@@ -870,6 +872,84 @@ TEST_F(HashCTests, ValueDescriptions) {
 #endif
 }
 #endif
+
+/**
+ * The type name the property meta data gives for each value type a Hash data
+ * file holds, or nullptr for a type no Hash data file holds.
+ */
+static const char* hashTypeName(const Property *property) {
+	switch (property->valueType) {
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
+		return property->isList != 0 ? "string[]" : "string";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER:
+		return "int";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE:
+		return "double";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN:
+		return "bool";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT:
+		return "javascript";
+	default:
+		return nullptr;
+	}
+}
+
+class HashPropertyTypeTests : public Base {};
+
+/**
+ * The type name of every property of each Hash data file found, through the
+ * meta data the language wrappers read. A property of a type hashTypeName
+ * does not name fails, because each language maps these names to types of its
+ * own, and a type new to Hash data files needs a mapping there first.
+ */
+TEST_F(HashPropertyTypeTests, EveryDataFile) {
+	using FiftyoneDegrees::DeviceDetection::Hash::PropertyMetaDataBuilderHash;
+	int files = 0;
+	for (int f = 0; f < _HashFileNamesLength; f++) {
+		const string path = GetFilePath(_dataFolderName, _HashFileNames[f]);
+		if (path.empty()) {
+			continue;
+		}
+		files++;
+		EXCEPTION_CREATE;
+		ResourceManager manager;
+		PropertiesRequired properties = PropertiesDefault;
+		ConfigHash config = HashDefaultConfig;
+		ASSERT_EQ(SUCCESS, HashInitManagerFromFile(
+			&manager,
+			&config,
+			&properties,
+			path.c_str(),
+			exception)) << path;
+		DataSetHash *dataSet = DataSetHashGet(&manager);
+		for (uint32_t i = 0; i < dataSet->header.properties.count; i++) {
+			Item item;
+			DataReset(&item.data);
+			const Property *property = PropertyGet(
+				dataSet->properties, i, &item, exception);
+			ASSERT_NE(nullptr, property) << path << " property " << i;
+			std::unique_ptr<FiftyoneDegrees::Common::PropertyMetaData> metaData(
+				PropertyMetaDataBuilderHash::build(dataSet, property));
+			const char *expected = hashTypeName(property);
+			if (expected == nullptr) {
+				ADD_FAILURE() << _HashFileNames[f] << " " <<
+					metaData->getName() << " has value type " <<
+					(int)property->valueType << ", which is named " <<
+					metaData->getType();
+			}
+			else {
+				EXPECT_EQ(expected, metaData->getType()) <<
+					_HashFileNames[f] << " " << metaData->getName();
+			}
+			COLLECTION_RELEASE(dataSet->properties, &item);
+		}
+		DataSetHashRelease(dataSet);
+		ResourceManagerFree(&manager);
+	}
+	if (files == 0) {
+		GTEST_SKIP() << "No Hash data file was found.";
+	}
+}
 
 class HashCOverridesTests : public Base {
 public:

@@ -28,11 +28,13 @@
 #define _stricmp strcasecmp
 #endif
 #endif
+#include <memory>
 #include <regex>
 
 #include "Constants.hpp"
 #include "EngineIpIntelligenceTests.hpp"
 #include "../../src/ipi/EngineIpi.hpp"
+#include "../../src/ipi/PropertyMetaDataBuilderIpi.hpp"
 #include "../../src/common/file.h"
 #include "../../src/common/memory.h"
 
@@ -957,3 +959,105 @@ void EngineIpIntelligenceTests::reloadMemoryFailure() {
 }
 
 ENGINE_TEST_CONFIGS(Ipi)
+
+/**
+ * The type name the property meta data gives a property, from its value type
+ * and list flag.
+ */
+static const char* ipiTypeName(const fiftyoneDegreesProperty *property) {
+	switch (property->valueType) {
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
+		return property->isList != 0 ? "string[]" : "string";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER:
+		return "int";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE:
+		return "double";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN:
+		return "bool";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT:
+		return "javascript";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT:
+		return "single";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_COORDINATE:
+		return "coordinate";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS:
+		return "ipaddress";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB:
+		return "wkb";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R:
+		return "wkbr";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_STRING:
+		return "weightedstring";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_INT:
+		return "weightedint";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_DOUBLE:
+		return "weighteddouble";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_BOOL:
+		return "weightedbool";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_SINGLE:
+		return "weightedsingle";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_BYTE:
+		return "weightedbyte";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_IP_ADDRESS:
+		return "weightedipaddress";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_WKB_R:
+		return "weightedwkbr";
+	default:
+		return "string";
+	}
+}
+
+class IpiPropertyTypeTests : public Base {};
+
+/**
+ * The type name of every property of each IP Intelligence data file found,
+ * through the meta data the language wrappers read.
+ */
+TEST_F(IpiPropertyTypeTests, EveryDataFile) {
+	static const char *const fileNames[] = {
+		_IpiFileNames[0],
+		_IpiFileNames[1],
+		"51Degrees-IPIV4AsnIpiV41.ipi"
+	};
+	int files = 0;
+	for (const char *fileName : fileNames) {
+		const string path = GetFilePath(_dataFolderName, fileName);
+		if (path.empty()) {
+			continue;
+		}
+		files++;
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		fiftyoneDegreesResourceManager manager;
+		fiftyoneDegreesPropertiesRequired properties =
+			fiftyoneDegreesPropertiesDefault;
+		fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiDefaultConfig;
+		ASSERT_EQ(
+			FIFTYONE_DEGREES_STATUS_SUCCESS,
+			fiftyoneDegreesIpiInitManagerFromFile(
+				&manager,
+				&config,
+				&properties,
+				path.c_str(),
+				exception)) << path;
+		fiftyoneDegreesDataSetIpi *dataSet =
+			fiftyoneDegreesDataSetIpiGet(&manager);
+		for (uint32_t i = 0; i < dataSet->header.properties.count; i++) {
+			fiftyoneDegreesCollectionItem item;
+			fiftyoneDegreesDataReset(&item.data);
+			const fiftyoneDegreesProperty *property =
+				fiftyoneDegreesPropertyGet(
+					dataSet->properties, i, &item, exception);
+			ASSERT_NE(nullptr, property) << path << " property " << i;
+			std::unique_ptr<PropertyMetaData> metaData(
+				PropertyMetaDataBuilderIpi::build(dataSet, property));
+			EXPECT_EQ(ipiTypeName(property), metaData->getType()) <<
+				fileName << " " << metaData->getName();
+			FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->properties, &item);
+		}
+		fiftyoneDegreesDataSetIpiRelease(dataSet);
+		fiftyoneDegreesResourceManagerFree(&manager);
+	}
+	if (files == 0) {
+		GTEST_SKIP() << "No IP Intelligence data file was found.";
+	}
+}

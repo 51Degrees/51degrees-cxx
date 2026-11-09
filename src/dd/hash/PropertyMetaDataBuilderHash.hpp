@@ -78,14 +78,6 @@ namespace FiftyoneDegrees {
 					string *name);
 
 				/**
-				 * Get a copy of the type name for the underlying property
-				 * provided.
-				 * @param property pointer to the property to get the type of
-				 * @return copy of the type string
-				 */
-				static string getPropertyType(const fiftyoneDegreesProperty *property);
-
-				/**
 				 * Get the list of data set maps which contain the requested
 				 * property.
 				 * @param strings collection of strings containing the map
