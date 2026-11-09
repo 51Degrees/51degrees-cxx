@@ -123,6 +123,11 @@ namespace FiftyoneDegrees {
 							localProperties->getByIndex(i));
 						cout << property->getName() << " - " << property->getDescription() << "\n";
 					}
+
+					// On the free Lite data file, say what the Enterprise data
+					// file adds and where to ask for a copy.
+					offerEnterprise(
+						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-hash-metadata.cpp&utm_term=lite-data-file");
 				}
 			};
 		}

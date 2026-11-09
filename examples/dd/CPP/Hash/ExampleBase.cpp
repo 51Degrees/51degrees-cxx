@@ -24,8 +24,11 @@
 
 using namespace FiftyoneDegrees::Examples::Hash;
 
-const char *RequiredProperties = 
-	"ScreenPixelsWidth,IsMobile,BrowserName,PlatformName,PlatformVersion";
+// HardwareVendor, HardwareName and DeviceType are only in the Enterprise data
+// file. The examples ask for them to show what it adds.
+const char *RequiredProperties =
+	"ScreenPixelsWidth,IsMobile,BrowserName,PlatformName,PlatformVersion,"
+	"HardwareVendor,HardwareName,DeviceType";
 
 const char *ExampleBase::mobileUserAgent = (
 	"Mozilla/5.0 (iPhone; CPU iPhone OS 7_1 like Mac OS X) "
@@ -100,6 +103,25 @@ fiftyoneDegreesStatusCode ExampleBase::getFilePath(
 		fileName,
 		destination,
 		size);
+}
+
+bool ExampleBase::hasProperty(const char *name) const {
+	Collection<string, PropertyMetaData> *fileProperties =
+		engine->getMetaData()->getProperties();
+	PropertyMetaData *property = fileProperties->getByKey(name);
+	bool found = property != nullptr;
+	delete property;
+	delete fileProperties;
+	return found;
+}
+
+void ExampleBase::offerEnterprise(const char *contactUs) const {
+	if (engine->getProduct().rfind("Lite", 0) == 0) {
+		cout << "\nThis example is using the free Lite data file. The "
+			"Enterprise data file adds many more properties, such as "
+			"HardwareVendor, HardwareName and DeviceType. Contact us for a "
+			"copy at " << contactUs << "\n";
+	}
 }
 
 unsigned long ExampleBase::generateHash(unsigned char *value) {

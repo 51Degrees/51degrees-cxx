@@ -111,6 +111,26 @@ namespace FiftyoneDegrees {
 				{};
 
 				/**
+				 * Prints a property only the Enterprise data file has, or
+				 * that it needs the Enterprise data file when the data file in
+				 * use does not have it.
+				 */
+				void printEnterpriseValue(
+					DeviceDetection::Hash::ResultsHash *results,
+					const char *name) {
+					if (!hasProperty(name)) {
+						cout << name << ": " <<
+							FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE << "\n";
+						return;
+					}
+					Common::Value<string> value =
+						results->getValueAsString(name);
+					cout << name << ": " << (value.hasValue() ?
+						value.getValue() :
+						value.getNoValueMessage()) << "\n";
+				}
+
+				/**
 				 * @copydoc ExampleBase::run
 				 */
 				void run() {
@@ -138,6 +158,7 @@ namespace FiftyoneDegrees {
 					else {
 						cout << "Non-Mobile\n";
 					}
+					printEnterpriseValue(results.get(), "HardwareVendor");
 
 					// Carries out a match for a desktop User-Agent.
 					cout << "\nDesktop User-Agent: " <<
@@ -151,6 +172,7 @@ namespace FiftyoneDegrees {
 					else {
 						cout << "Non-Mobile\n";
 					}
+					printEnterpriseValue(results.get(), "HardwareVendor");
 
 					// Carries out a match for a MediaHub User-Agent.
 					cout << "\nMediaHub User-Agent: " <<
@@ -164,6 +186,12 @@ namespace FiftyoneDegrees {
 					else {
 						cout << "Non-Mobile\n";
 					}
+					printEnterpriseValue(results.get(), "HardwareVendor");
+
+					// On the free Lite data file, say what the Enterprise data
+					// file adds and where to ask for a copy.
+					offerEnterprise(
+						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-hash-stronglytyped.cpp&utm_term=lite-data-file");
 				}
 			};
 		}

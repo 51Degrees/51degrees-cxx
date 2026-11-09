@@ -93,11 +93,12 @@ individual lookups would.
 ## Requirements
 
 The example requires an enterprise IP Intelligence data file that
-includes the weighted country code properties. It stops with a clear
-message, and a distinct exit code, when the data file does not include
-them, which is the case for the Lite data file. To obtain an enterprise
-data file see our
-[pricing](https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=enterprise-data-file).
+includes the weighted country code properties. When the data file does not
+include them, which is the case for the free data files, it says which it
+needs and where to ask for a copy, and stops. The function then returns a
+distinct code, and the program exits cleanly.
+[Contact us](https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=enterprise-data-file)
+for a copy of the Enterprise data file.
 
 Only IPv4 is swept. IPv6 addresses are too numerous to check one by one,
 although individual IPv6 addresses can be checked with the probe option.
@@ -1729,10 +1730,11 @@ int fiftyoneDegreesIpiCountryOverlap(
 		// is the expected outcome for the Lite data file.
 		if (status == REQ_PROP_NOT_PRESENT) {
 			printf(
-				"The data file does not include the properties required "
-				"by this example (%s). An enterprise IP Intelligence "
-				"data file is required. To obtain one see "
-				"https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=properties-missing\n",
+				"Measuring how often IP addresses overlap country "
+				"borders needs properties only the Enterprise data file "
+				"has (%s), and the data file in use has none of them, so "
+				"the example stops here. Contact us for a copy of the "
+				"Enterprise data file at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=properties-missing\n",
 				countryOverlapProperties);
 			return COUNTRY_OVERLAP_PROPERTIES_MISSING;
 		}
@@ -2398,7 +2400,7 @@ int main(int argc, char* argv[]) {
 	const double minSecondaryPercent = argc > 5 ?
 		atof(argv[5]) : DEFAULT_MIN_SECONDARY_PERCENT;
 
-	return fiftyoneDegreesIpiCountryOverlap(
+	const int result = fiftyoneDegreesIpiCountryOverlap(
 		dataFilePath,
 		NULL,
 		outputPath,
@@ -2406,6 +2408,10 @@ int main(int argc, char* argv[]) {
 		0,
 		totalChunks,
 		minSecondaryPercent);
+
+	// A data file without the properties is explained, not a failure.
+	return result == COUNTRY_OVERLAP_PROPERTIES_MISSING ?
+		COUNTRY_OVERLAP_OK : result;
 }
 
 #endif

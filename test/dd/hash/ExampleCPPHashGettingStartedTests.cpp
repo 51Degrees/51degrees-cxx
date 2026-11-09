@@ -36,9 +36,25 @@ public:
 		GettingStarted gettingStarted(dataFilePath, config);
 		gettingStarted.run();
 
-		// Don't print the stdout
+		// Only the free Lite data file lacks the properties the example
+		// marks as needing the Enterprise data file.
 		std::string output = testing::internal::GetCapturedStdout();
+		bool lite = dataFilePath.find("Lite") != std::string::npos;
+		EXPECT_EQ(lite, output.find(
+			FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE) != std::string::npos) <<
+			output;
+		EXPECT_EQ(lite, output.find(
+			"utm_term=lite-data-file") != std::string::npos) << output;
 	}
 };
 
 EXAMPLE_HASH_TESTS(ExampleCPPHashTestGettingStarted)
+
+// A fresh clone has the free Lite data file, which the example runs on.
+TEST_F(ExampleCPPHashTestGettingStarted, LiteDataFile) {
+	dataFilePath = getLiteDataFilePath();
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The Lite data file is not present.";
+	}
+	run(fiftyoneDegreesHashInMemoryConfig);
+}

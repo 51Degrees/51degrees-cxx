@@ -129,12 +129,32 @@ void EngineHash::init() {
 
 void EngineHash::init(
 	fiftyoneDegreesDataSetHash *dataSet) {
-	EngineDeviceDetection::init(&dataSet->b);
+	setKeys(buildKeys(dataSet));
 	initMetaData();
-	
-	// Two new override properties available.
-	addKey("query.51D_ProfileIds");
-	addKey("cookie.51D_ProfileIds");
+}
+
+vector<string> EngineHash::buildKeys(fiftyoneDegreesDataSetHash *dataSet) {
+	return readKeys([dataSet](
+		char *buffer,
+		size_t length,
+		const char *separator) {
+		return HashGetEvidenceKeys(dataSet, buffer, length, separator);
+	});
+}
+
+void EngineHash::reloadKeys() const {
+	DataSetHash *dataSet = DataSetHashGet(manager.get());
+	vector<string> refreshedKeys;
+	try {
+		refreshedKeys = buildKeys(dataSet);
+	}
+	catch (...) {
+		// The engine keeps the keys it had rather than none.
+		DataSetHashRelease(dataSet);
+		throw;
+	}
+	DataSetHashRelease(dataSet);
+	setKeys(std::move(refreshedKeys));
 }
 
 void* EngineHash::copyData(void *data, size_t length) const {
@@ -216,6 +236,8 @@ void EngineHash::refreshData() const {
 		throw StatusCodeException(status, getDataFilePath().c_str());
 	}
 	EXCEPTION_THROW;
+	// The new data set may hold other headers or overridable properties.
+	reloadKeys();
 }
 
 void EngineHash::refreshData(const char *fileName) const {
@@ -228,6 +250,8 @@ void EngineHash::refreshData(const char *fileName) const {
 		throw StatusCodeException(status, fileName);
 	}
 	EXCEPTION_THROW;
+	// The new data set may hold other headers or overridable properties.
+	reloadKeys();
 }
 
 void EngineHash::refreshData(void *data, long length) const {
@@ -256,6 +280,8 @@ void EngineHash::refreshData(void *data, long length) const {
 		throw StatusCodeException(status);
 	}
 	EXCEPTION_THROW;
+	// The new data set may hold other headers or overridable properties.
+	reloadKeys();
 }
 
 void EngineHash::refreshData(

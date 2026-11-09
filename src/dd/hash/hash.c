@@ -181,16 +181,19 @@ if (dataSet->t == NULL) { \
 	return CORRUPT_DATA; \
 }
 
-#define COLLECTION_CREATE_FILE(t,f) \
+#define COLLECTION_CREATE_FILE_WITH_CONFIG(t,f,c) \
 dataSet->t = CollectionCreateFromFile( \
 	file, \
 	&dataSet->b.b.filePool, \
-	&dataSet->config.t, \
+	c, \
 	dataSet->header.t, \
 	f); \
 if (dataSet->t == NULL) { \
 	return CORRUPT_DATA; \
 }
+
+#define COLLECTION_CREATE_FILE(t,f) \
+COLLECTION_CREATE_FILE_WITH_CONFIG(t,f,&dataSet->config.t)
 
 /**
  * Returns true if either unmatched nodes are allowed, or the match method is
@@ -276,6 +279,15 @@ typedef struct detection_component_state_t {
 } detectionComponentState;
 
 /**
+ * State for iterating the evidence that holds special values such as GHEV
+ * or SUA, which records whether any value gave headers.
+ */
+typedef struct special_headers_state_t {
+	detectionComponentState* state; /* Component state to add headers to */
+	bool set; /* True if a value gave at least one header */
+} specialHeadersState;
+
+/**
  * Used to find an existing evidence pair for the header.
  */
 typedef struct set_special_headers_find_state_t {
@@ -316,7 +328,8 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig = {
 	0,
 	false, // Performance graph
 	true, // Predictive graph
-	false // Trace
+	false, // Trace
+	false // Load required properties only
 };
 #undef FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY
 #define FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY \
@@ -337,7 +350,8 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig = {
 	0,
 	false, // Performance graph
 	true, // Predictive graph
-	false // Trace
+	false, // Trace
+	true // Load required properties only
 };
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
@@ -355,7 +369,8 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
 	0,
 	false, // Performance graph
 	true, // Predictive graph
-	false // Trace
+	false, // Trace
+	false // Load required properties only
 };
 
 #define FIFTYONE_DEGREES_HASH_CONFIG_BALANCED \
@@ -2565,9 +2580,304 @@ static StatusCode readHeaderFromFile(
 	return SUCCESS;
 }
 
+/**
+ * HOLDING WHAT THE REQUIRED PROPERTIES READ
+ *
+ * With loadRequiredPropertiesOnly, a caller that names some of the properties
+ * only reads part of the values and the strings. Only the values of the
+ * required properties, and the strings those values use, are held in memory,
+ * in whole records, and the rest of both reads from the file with no cache.
+ * The profiles, nodes and every other collection follow their own settings.
+ *
+ * The strings are created reading from the file, as the required properties
+ * are not known yet. The values are created as configured, as creating the
+ * property index reads the values of every profile, and are replaced once the
+ * data set is created.
+ */
+
+/** What is worked out before anything is held. */
+typedef struct held_plan_t {
+	byte* buffer; /* Used to scan records */
+	CollectionHeldStrings strings; /* The strings the required values use */
+	CollectionHeldRange* values; /* The stretches of the values to hold */
+	uint32_t valuesCount; /* Number of stretches of the values */
+} heldPlan;
+
+/** What creating a values collection needs. */
+typedef struct held_create_t {
+	DataSetHash* dataSet;
+	FILE* file;
+} heldCreateState;
+
+static void heldPlanFree(heldPlan* plan) {
+	if (plan->buffer != NULL) {
+		Free(plan->buffer);
+	}
+	if (plan->values != NULL) {
+		Free(plan->values);
+	}
+	CollectionHeldStringsFree(&plan->strings);
+}
+
+static void heldPlanScanValue(void* state, const byte* record) {
+	heldPlan* const plan = (heldPlan*)state;
+	CollectionHeldStringsAdd(
+		&plan->strings,
+		(uint32_t)((const Value*)record)->nameOffset,
+		0);
+}
+
+/**
+ * Gets the offset after the string at the offset provided.
+ */
+static uint32_t heldStringEnd(
+	void* state,
+	const uint32_t offset,
+	const uint32_t tag,
+	Exception* exception) {
+	const DataSetHash* const dataSet = (const DataSetHash*)state;
+	Item item;
+	uint32_t end = offset;
+	(void)tag;
+	DataReset(&item.data);
+	const String* const string = StringGet(
+		dataSet->strings,
+		offset,
+		&item,
+		exception);
+	if (string != NULL) {
+		if (EXCEPTION_OKAY) {
+			end += (uint32_t)(sizeof(uint16_t) + string->size);
+		}
+		COLLECTION_RELEASE(dataSet->strings, &item);
+	}
+	return end;
+}
+
+/**
+ * Plans to hold the values of each required property, and records the strings
+ * they use.
+ */
+static StatusCode heldPlanProperties(
+	DataSetHash* dataSet,
+	FILE* file,
+	heldPlan* plan,
+	Exception* exception) {
+	const PropertiesAvailable* const available = dataSet->b.b.available;
+	const uint32_t valueCount = dataSet->values->count;
+	const uint32_t valueBytes = dataSet->values->elementSize;
+	plan->values = (CollectionHeldRange*)Malloc(
+		sizeof(CollectionHeldRange) * available->count);
+	if (plan->values == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	for (uint32_t i = 0; i < available->count; i++) {
+		Item item;
+		DataReset(&item.data);
+		const Property* const property = PropertyGet(
+			dataSet->properties,
+			available->items[i].propertyIndex,
+			&item,
+			exception);
+		if (property == NULL || EXCEPTION_FAILED) {
+			if (property != NULL) {
+				COLLECTION_RELEASE(dataSet->properties, &item);
+			}
+			return COLLECTION_FAILURE;
+		}
+		const uint32_t first = property->firstValueIndex;
+		const uint32_t last = property->lastValueIndex;
+		COLLECTION_RELEASE(dataSet->properties, &item);
+		if (first <= last && last < valueCount) {
+			CollectionHeldRangeAdd(
+				plan->values,
+				&plan->valuesCount,
+				first,
+				last + 1);
+			const StatusCode status = CollectionHeldScan(
+				file,
+				plan->buffer,
+				(uint64_t)dataSet->header.values.startPosition +
+					(uint64_t)first * valueBytes,
+				last - first + 1,
+				valueBytes,
+				heldPlanScanValue,
+				plan);
+			if (status != SUCCESS) {
+				return status;
+			}
+		}
+	}
+	return SUCCESS;
+}
+
+/**
+ * Creates a values collection from the file, reading it or loading it into
+ * memory as the configuration says.
+ */
+static StatusCode heldCreateValues(
+	void* state,
+	const fiftyoneDegreesCollectionConfig* config,
+	CollectionHeader header,
+	Collection** collection) {
+	const heldCreateState* const create = (const heldCreateState*)state;
+	*collection = CollectionCreateFromFile(
+		create->file,
+		&create->dataSet->b.b.filePool,
+		config,
+		header,
+		CollectionReadFileFixed);
+	return *collection == NULL ? CORRUPT_DATA : SUCCESS;
+}
+
+/**
+ * Holds what the plan says to hold. The strings stay, as the names of the
+ * required properties are read from them while the data set is created and
+ * released through them when it is freed. The values the data set was created
+ * with are replaced by the held ones. Anything allocated is freed with the
+ * data set if this fails.
+ */
+static StatusCode heldPlanApply(
+	DataSetHash* dataSet,
+	FILE* file,
+	heldPlan* plan) {
+	static const fiftyoneDegreesCollectionConfig readFromFile = { false, 0, 0 };
+	heldCreateState create;
+	Collection* source = NULL;
+	StatusCode status = CollectionHeldApply(
+		&dataSet->strings,
+		file,
+		dataSet->header.strings,
+		0,
+		false,
+		plan->strings.ranges,
+		plan->strings.count,
+		NULL,
+		NULL);
+	if (status != SUCCESS) {
+		return status;
+	}
+	create.dataSet = dataSet;
+	create.file = file;
+	status = heldCreateValues(
+		&create,
+		&readFromFile,
+		dataSet->header.values,
+		&source);
+	if (status != SUCCESS) {
+		return status;
+	}
+	Collection* const configured = dataSet->values;
+	dataSet->values = source;
+	status = CollectionHeldApply(
+		&dataSet->values,
+		file,
+		dataSet->header.values,
+		0,
+		true,
+		plan->values,
+		plan->valuesCount,
+		heldCreateValues,
+		&create);
+	FIFTYONE_DEGREES_COLLECTION_FREE(configured);
+	return status;
+}
+
+/**
+ * Holds in memory what the required properties read.
+ */
+static StatusCode heldInit(DataSetHash* dataSet, Exception* exception) {
+	FILE* file;
+	heldPlan plan;
+	memset(&plan, 0, sizeof(plan));
+	if (dataSet->b.b.available->count == 0) {
+		return SUCCESS;
+	}
+	StatusCode status = FileOpen(dataSet->b.b.fileName, &file);
+	if (status != SUCCESS) {
+		return status;
+	}
+	plan.buffer = (byte*)Malloc(
+		FIFTYONE_DEGREES_COLLECTION_HELD_SCAN_BUFFER_BYTES);
+	status = CollectionHeldStringsInit(
+		&plan.strings,
+		dataSet->header.strings.length);
+	if (plan.buffer == NULL || status != SUCCESS) {
+		status = INSUFFICIENT_MEMORY;
+	}
+	else {
+		status = heldPlanProperties(dataSet, file, &plan, exception);
+	}
+	if (status == SUCCESS && EXCEPTION_OKAY) {
+		status = CollectionHeldStringsPlan(
+			&plan.strings,
+			heldStringEnd,
+			dataSet,
+			exception);
+	}
+	if (status == SUCCESS && EXCEPTION_OKAY) {
+		// The memory used to work out the plan goes before anything is held.
+		Free(plan.buffer);
+		plan.buffer = NULL;
+		CollectionHeldStringsFreeOffsets(&plan.strings);
+		status = heldPlanApply(dataSet, file, &plan);
+	}
+	heldPlanFree(&plan);
+	fclose(file);
+	if (status == SUCCESS && EXCEPTION_FAILED) {
+		status = COLLECTION_FAILURE;
+	}
+	return status;
+}
+
+/**
+ * True when loadRequiredPropertiesOnly is set, the data set reads the file,
+ * and the caller has named fewer properties than the data file has.
+ */
+static bool heldIsWanted(
+	const DataSetHash* dataSet,
+	const PropertiesRequired* properties) {
+	if (dataSet->config.loadRequiredPropertiesOnly == false ||
+		dataSet->config.b.b.allInMemory) {
+		return false;
+	}
+	return PropertiesRequiredNamesFewerThan(
+		properties,
+		dataSet->header.properties.count);
+}
+
+/**
+ * Gets the configuration to create the strings with, which reads from the file
+ * when what the required properties read is to be held, as they are not known
+ * yet.
+ */
+static const fiftyoneDegreesCollectionConfig* heldConfig(
+	const fiftyoneDegreesCollectionConfig* config,
+	const bool hold) {
+	static const fiftyoneDegreesCollectionConfig readFromFile = { false, 0, 0 };
+	return hold ? &readFromFile : config;
+}
+
+/**
+ * Checks that the strings and values the hold reads from lie within the file,
+ * as a collection loaded into memory is checked when it is loaded.
+ */
+static StatusCode heldFileStatus(const DataSetHash* dataSet) {
+	const uint64_t stringsEnd =
+		(uint64_t)dataSet->header.strings.startPosition +
+		dataSet->header.strings.length;
+	const uint64_t valuesEnd =
+		(uint64_t)dataSet->header.values.startPosition +
+		dataSet->header.values.length;
+	const uint64_t length = (uint64_t)dataSet->b.b.filePool.length;
+	return stringsEnd > length || valuesEnd > length ? CORRUPT_DATA : SUCCESS;
+}
+
 static StatusCode readDataSetFromFile(
 	DataSetHash *dataSet,
 	FILE *file,
+	const PropertiesRequired *properties,
+	bool *hold,
 	Exception *exception) {
 	StatusCode status = SUCCESS;
 
@@ -2584,10 +2894,22 @@ static StatusCode readDataSetFromFile(
 		return status;
 	}
 
-	// Create the strings collection.
+	// Create the strings collection. When only what the required properties
+	// read will be held, the strings read from the file until the required
+	// properties are known.
+	*hold = heldIsWanted(dataSet, properties);
+	if (*hold) {
+		status = heldFileStatus(dataSet);
+		if (status != SUCCESS) {
+			return status;
+		}
+	}
 	uint32_t stringsCount = dataSet->header.strings.count;
 	*(uint32_t*)(&dataSet->header.strings.count) = 0;
-	COLLECTION_CREATE_FILE(strings, fiftyoneDegreesStringRead);
+	COLLECTION_CREATE_FILE_WITH_CONFIG(
+		strings,
+		fiftyoneDegreesStringRead,
+		heldConfig(&dataSet->config.strings, *hold));
 	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
 
 	// Override the header count so that the variable collection can work.
@@ -2645,7 +2967,11 @@ static uint16_t getMaxConcurrency(const ConfigHash *config) {
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
-static StatusCode initWithFile(DataSetHash *dataSet, Exception *exception) {
+static StatusCode initWithFile(
+	DataSetHash *dataSet,
+	const PropertiesRequired *properties,
+	bool *hold,
+	Exception *exception) {
 	StatusCode status;
 	FileHandle handle;
 
@@ -2669,7 +2995,12 @@ static StatusCode initWithFile(DataSetHash *dataSet, Exception *exception) {
 	}
 
 	// Read the data set from the source.
-	status = readDataSetFromFile(dataSet, handle.file, exception);
+	status = readDataSetFromFile(
+		dataSet,
+		handle.file,
+		properties,
+		hold,
+		exception);
 	if (status != SUCCESS || EXCEPTION_FAILED) {
 		fclose(handle.file);
 		return status;
@@ -2705,6 +3036,9 @@ static StatusCode initDataSetFromFileIndexing(
 	DataSetHash *dataSet = (DataSetHash*)dataSetBase;
 	ConfigHash *config = (ConfigHash*)configBase;
 	StatusCode status = NOT_SET;
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+	bool hold = false;
+#endif
 
 	// Common data set initialisation actions.
 	initDataSet(dataSet, &config);
@@ -2727,7 +3061,7 @@ static StatusCode initDataSetFromFileIndexing(
 	}
 	else {
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
-		status = initWithFile(dataSet, exception);
+		status = initWithFile(dataSet, properties, &hold, exception);
 #else
 		status = INVALID_CONFIG;
 #endif
@@ -2796,6 +3130,19 @@ static StatusCode initDataSetFromFileIndexing(
 	}
 
 	initGetHighEntropyValues(dataSet, exception);
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+	// Now the data set is created, hold what the required properties read.
+	if (hold && EXCEPTION_OKAY) {
+		status = heldInit(dataSet, exception);
+		if (status != SUCCESS || EXCEPTION_FAILED) {
+			if (config->b.b.useTempFile == true) {
+				FileDelete(dataSet->b.b.fileName);
+			}
+			return status;
+		}
+	}
+#endif
 
 	return status;
 }
@@ -3598,13 +3945,14 @@ static bool setStructuredUserAgentHeader(
 }
 
 // Checks for special evidence headers and tries to add additional headers to
-// the headers array.
+// the headers array. Stops iterating once a value has given headers.
 static bool setSpecialHeaders(
 	void* state,
 	EvidenceKeyValuePair* pair) {
-	detectionComponentState* s = (detectionComponentState*)state;
-	if(setGetHighEntropyValuesHeader(s, pair) || 
-		setStructuredUserAgentHeader(s, pair)) {
+	specialHeadersState* s = (specialHeadersState*)state;
+	if(setGetHighEntropyValuesHeader(s->state, pair) || 
+		setStructuredUserAgentHeader(s->state, pair)) {
+		s->set = true;
 		return false; // stop iterating
 	}
 	return true; // continue iterating
@@ -3933,16 +4281,24 @@ static void resultsHashFromEvidence_handleComponentEvidence(
 }
 
 // If there are GHEV or SUA headers then these need to be transformed into 
-// additional headers in the evidence array.
+// additional headers in the evidence array. Query evidence is used in
+// preference to cookie evidence whatever order the pairs were added in, so
+// the cookie is only considered when no query value gave a header.
 static void resultsHashFromEvidence_setSpecialHeaders(
 	detectionComponentState* state) {
 	Exception* exception = state->exception;
+	specialHeadersState special = { state, false };
 	do {
 		EvidenceIterate(
 			state->evidence,
-			FIFTYONE_DEGREES_EVIDENCE_QUERY |
+			FIFTYONE_DEGREES_EVIDENCE_QUERY,
+			&special,
+			setSpecialHeaders);
+		if (EXCEPTION_FAILED || special.set) { break; }
+		EvidenceIterate(
+			state->evidence,
 			FIFTYONE_DEGREES_EVIDENCE_COOKIE,
-			state,
+			&special,
 			setSpecialHeaders);
 		if (EXCEPTION_FAILED) { break; }
 	} while (false); // once
@@ -4637,6 +4993,147 @@ fiftyoneDegreesDataSetHash* fiftyoneDegreesDataSetHashGet(
 void fiftyoneDegreesDataSetHashRelease(
 	fiftyoneDegreesDataSetHash *dataSet) {
 	DataSetDeviceDetectionRelease(&dataSet->b);
+}
+
+/**
+ * An evidence key as the parts that, joined in order, make the key.
+ */
+typedef struct evidence_key_t {
+	const char *prefix; /* The evidence prefix and its dot */
+	const char *infix; /* Text between the prefix and the name, or empty */
+	const char *name; /* The header or property name, or NULL for no key */
+} evidenceKey;
+
+/**
+ * The keys a data set accepts that do not come from the data file, when it
+ * processes special evidence. They follow the keys that do.
+ */
+static const evidenceKey fixedEvidenceKeys[] = {
+	{ "query.", "", FIFTYONE_DEGREES_EVIDENCE_DEVICE_ID },
+	{ "query.", "", FIFTYONE_DEGREES_EVIDENCE_HIGH_ENTROPY_VALUES },
+	{ "query.", "", FIFTYONE_DEGREES_EVIDENCE_STRUCTURED_USER_AGENT },
+	{ "cookie.", "", FIFTYONE_DEGREES_EVIDENCE_HIGH_ENTROPY_VALUES },
+	{ "cookie.", "", FIFTYONE_DEGREES_EVIDENCE_STRUCTURED_USER_AGENT },
+	{ "query.", FIFTYONE_DEGREES_COMMON_COOKIE_PREFIX, "ProfileIds" },
+	{ "cookie.", FIFTYONE_DEGREES_COMMON_COOKIE_PREFIX, "ProfileIds" }
+};
+
+/**
+ * Gets the evidence key at the index, counting a key under header. and then
+ * query. for each unique header, then a key under cookie. and then query.
+ * for each overridable property, then the fixed keys. A pseudo header gives
+ * no key, as a request never carries one, so its name is set to NULL. The
+ * override and fixed keys are only read when the data set processes special
+ * evidence, so they are only counted then.
+ * @return false if the index is past the last key
+ */
+static bool getEvidenceKey(
+	DataSetHash *dataSet,
+	uint32_t index,
+	evidenceKey *key) {
+	static const char * const headerPrefixes[] = { "header.", "query." };
+	static const char * const overridePrefixes[] = { "cookie.", "query." };
+	Headers * const headers = dataSet->b.b.uniqueHeaders;
+	OverridePropertyArray * const overrides = dataSet->b.b.overridable;
+	const bool special = dataSet->config.b.processSpecialEvidence;
+	const uint32_t headerKeys = headers == NULL ? 0 : headers->count * 2;
+	const uint32_t overrideKeys = special == false || overrides == NULL ?
+		0 : overrides->count * 2;
+	const uint32_t fixedKeys = special == false ? 0 :
+		(uint32_t)(sizeof(fixedEvidenceKeys) / sizeof(fixedEvidenceKeys[0]));
+	const char *name;
+	if (index < headerKeys) {
+		name = headers->items[index / 2].name;
+		key->prefix = headerPrefixes[index % 2];
+		key->infix = dataSet->config.b.b.usesUpperPrefixedHeaders ?
+			"HTTP_" : "";
+		key->name = (name == NULL ||
+			strchr(name, FIFTYONE_DEGREES_PSEUDO_HEADER_SEP) != NULL) ?
+			NULL : name;
+		return true;
+	}
+	index -= headerKeys;
+	if (index < overrideKeys) {
+		key->prefix = overridePrefixes[index % 2];
+		key->infix = overrides->prefix ?
+			FIFTYONE_DEGREES_COMMON_COOKIE_PREFIX : "";
+		key->name = STRING( // name is string
+			overrides->items[index / 2].available->name.data.ptr);
+		return true;
+	}
+	index -= overrideKeys;
+	if (index < fixedKeys) {
+		*key = fixedEvidenceKeys[index];
+		return true;
+	}
+	return false;
+}
+
+/**
+ * True if the two keys are the same text once their parts are joined.
+ */
+static bool evidenceKeysEqual(const evidenceKey *a, const evidenceKey *b) {
+	const char * const aParts[] = { a->prefix, a->infix, a->name };
+	const char * const bParts[] = { b->prefix, b->infix, b->name };
+	const int lastPart = 2;
+	int aPart = 0, bPart = 0;
+	const char *aNext = aParts[0], *bNext = bParts[0];
+	for (;;) {
+		while (*aNext == '\0' && aPart < lastPart) {
+			aNext = aParts[++aPart];
+		}
+		while (*bNext == '\0' && bPart < lastPart) {
+			bNext = bParts[++bPart];
+		}
+		if (*aNext != *bNext) {
+			return false;
+		}
+		if (*aNext == '\0') {
+			return true;
+		}
+		aNext++;
+		bNext++;
+	}
+}
+
+size_t fiftyoneDegreesHashGetEvidenceKeys(
+	fiftyoneDegreesDataSetHash *dataSet,
+	char *buffer,
+	size_t length,
+	const char *separator) {
+	uint32_t i, j;
+	size_t added;
+	evidenceKey key, earlier;
+	const size_t separatorLength = separator == NULL ? 0 : strlen(separator);
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilderInit(&builder);
+	for (i = 0; getEvidenceKey(dataSet, i, &key); i++) {
+		if (key.name == NULL) {
+			continue;
+		}
+
+		// A key is written once, where it is first listed. The list is short,
+		// so each key is compared with those before it, which needs no
+		// memory and gives the same answer when the buffer is too short.
+		for (j = 0; j < i; j++) {
+			getEvidenceKey(dataSet, j, &earlier);
+			if (earlier.name != NULL && evidenceKeysEqual(&key, &earlier)) {
+				break;
+			}
+		}
+		if (j < i) {
+			continue;
+		}
+		if (builder.added > 0) {
+			StringBuilderAddChars(&builder, separator, separatorLength);
+		}
+		StringBuilderAddChars(&builder, key.prefix, strlen(key.prefix));
+		StringBuilderAddChars(&builder, key.infix, strlen(key.infix));
+		StringBuilderAddChars(&builder, key.name, strlen(key.name));
+	}
+	added = builder.added;
+	StringBuilderComplete(&builder);
+	return added;
 }
 
 /**

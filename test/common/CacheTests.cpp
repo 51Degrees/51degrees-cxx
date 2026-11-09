@@ -544,3 +544,41 @@ TEST_F(CacheTestHalfFour, ThreadSafety2) { multiThreadRandom(2); }
 TEST_F(CacheTestHalfFour, ThreadSafety4) { multiThreadRandom(4); }
 
 TEST_F(CacheTestHalfTwo, ThreadSafety2) { multiThreadRandom(2); }
+
+/**
+ * Gives every key a hash whose low 32 bits are the most negative int, which
+ * has no positive int.
+ */
+static int64_t hashLowestInt(const void *key) {
+	(void)key;
+	return (int64_t)INT32_MIN;
+}
+
+/**
+ * Check that a key whose hash has the most negative int in its low 32 bits
+ * is served from one of the cache's shards, for a concurrency that is not a
+ * power of two.
+ */
+TEST_F(CacheTest, LowestIntHash_ChoosesAShard) {
+	FIFTYONE_DEGREES_EXCEPTION_CREATE
+	for (uint16_t concurrency : { (uint16_t)3, (uint16_t)10 }) {
+		cache = fiftyoneDegreesCacheCreate(
+			(uint32_t)concurrency * concurrency,
+			concurrency,
+			load,
+			hashLowestInt,
+			TEST_STRINGS);
+		ASSERT_NE(nullptr, cache) << "Concurrency " << concurrency;
+		int key = 0;
+		fiftyoneDegreesCacheNode *node =
+			fiftyoneDegreesCacheGet(cache, &key, exception);
+		ASSERT_NE(nullptr, node) << "Concurrency " << concurrency;
+		EXPECT_GE(node->shard, cache->shards) <<
+			"Concurrency " << concurrency;
+		EXPECT_LE(node->shard, cache->shards + concurrency - 1) <<
+			"Concurrency " << concurrency;
+		fiftyoneDegreesCacheRelease(node);
+		fiftyoneDegreesCacheFree(cache);
+		cache = NULL;
+	}
+}
