@@ -54,20 +54,9 @@ TEST(ParseAddress, ParseAddress_Ipv6_AbbreviatedStart)
 
 TEST(ParseAddress, ParseAddress_Invalid_ipv4OutOfRange)
 {
-	const char * const ipv4OutOfRange = "256.256.256.256";
-	constexpr byte expected[IPV4_LENGTH] =
-		{255, 255, 255, 255};
-
-	auto const ipAddress = FiftyoneDegrees::IpIntelligence::IpAddress(ipv4OutOfRange);
-
-	EXPECT_TRUE(ipAddress.getType() == IP_TYPE_IPV4) <<
-		"IP address version was not identified correctly where the " <<
-		"IP address is " << ipv4OutOfRange << ".";
-
-	EXPECT_TRUE(
-		CheckResult(ipAddress.getIpAddress(), expected, IPV4_LENGTH)) <<
-		"The value of the out of range IPv4 address is not correctly restricted "
-		"at 255.";
+	EXPECT_ANY_THROW(
+		FiftyoneDegrees::IpIntelligence::IpAddress("256.256.256.256")) <<
+		"An IPv4 address with parts above 255 should not be read.";
 }
 
 TEST(ParseAddress, ParseAddress_Ipv6_BasicIpv6Address)

@@ -24,6 +24,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 #include "Constants.hpp"
 #include "../common/Base.hpp"
@@ -176,6 +177,86 @@ protected:
 		return results->getValueAsString("Asn").getValue();
 	}
 
+	// The target address of the results as text, or "none" where no address
+	// was read.
+	static string targetOf(Ipi::ResultsIpi* results) {
+		Common::Value<Ipi::IpAddress> target = results->getTargetIpAddress();
+		if (!target.hasValue()) {
+			return "none";
+		}
+		stringstream text;
+		const int length = target.getValue().getType() ==
+			FIFTYONE_DEGREES_IP_TYPE_IPV4 ?
+			FIFTYONE_DEGREES_IPV4_LENGTH : FIFTYONE_DEGREES_IPV6_LENGTH;
+		text << "type " << (int)target.getValue().getType() << ":";
+		for (int i = 0; i < length; i++) {
+			text << " " << (int)target.getValue().getIpAddress()[i];
+		}
+		return text.str();
+	}
+
+	// The target address when the text is given as an address.
+	string targetOfAddress(const char* ipAddress) {
+		unique_ptr<Ipi::ResultsIpi> results(engine->process(ipAddress));
+		return targetOf(results.get());
+	}
+
+	// The target address when each value is given under its key.
+	string targetOfEvidence(const vector<pair<string, string>>& items) {
+		Ipi::EvidenceIpi evidence;
+		for (const pair<string, string>& item : items) {
+			evidence[item.first.c_str()] = item.second.c_str();
+		}
+		unique_ptr<Ipi::ResultsIpi> results(engine->process(&evidence));
+		return targetOf(results.get());
+	}
+
+	// The client IP keys that start with the prefix, in the data file's order.
+	vector<string> keysWithPrefix(const string& prefix) {
+		vector<string> keys;
+		for (const string& key : *engine->getKeys()) {
+			if (key.compare(0, prefix.size(), prefix) == 0) {
+				keys.push_back(key);
+			}
+		}
+		return keys;
+	}
+
+	// Runs the C evidence lookup, which is where a value is chosen, and
+	// returns the status it raised and the number of results it made.
+	fiftyoneDegreesStatusCode cStatusOfEvidence(
+		const vector<pair<string, string>>& items,
+		uint32_t* resultCount) {
+		Ipi::EvidenceIpi evidence;
+		for (const pair<string, string>& item : items) {
+			evidence[item.first.c_str()] = item.second.c_str();
+		}
+		EXCEPTION_CREATE;
+		fiftyoneDegreesResultsIpi* results =
+			fiftyoneDegreesResultsIpiCreate(&manager);
+		fiftyoneDegreesResultsIpiFromEvidence(
+			results,
+			evidence.get(),
+			exception);
+		*resultCount = results->count;
+		fiftyoneDegreesResultsIpiFree(results);
+		return exception->status;
+	}
+
+	// The status the C lookup of an address held as text raised.
+	fiftyoneDegreesStatusCode cStatusOfAddress(const char* ipAddress) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesResultsIpi* results =
+			fiftyoneDegreesResultsIpiCreate(&manager);
+		fiftyoneDegreesResultsIpiFromIpAddressString(
+			results,
+			ipAddress,
+			strlen(ipAddress),
+			exception);
+		fiftyoneDegreesResultsIpiFree(results);
+		return exception->status;
+	}
+
 	void expectNoProfile(initializer_list<const char*> ipAddresses) {
 		for (const char* ipAddress : ipAddresses) {
 			const vector<uint32_t> offsets = rawOffsets(ipAddress);
@@ -291,6 +372,163 @@ TEST_F(IpiAddressAnswerTests, OtherFormsStayIpv6) {
 	EXPECT_NE(rawOffsets("8.8.8.8"), rawOffsets("64:ff9b::808:808"));
 	EXPECT_NE(answerOf("1.0.0.0"), answerOf("64:ff9b::1.0.0.0"));
 	EXPECT_NE(answerOf("1.0.0.0"), answerOf("64:ff9b::100:0"));
+}
+
+// Values of a client IP key that are not read as a whole address.
+static const char* const notReadValues[] = {
+	"1.0.0.0/24",
+	"1.0.0.0 x",
+	"1.0.0.0, 8.8.8.8",
+	"1.0.0.0,8.8.8.8",
+	" 1.0.0.0",
+	"1.0.0.0 ",
+	"2001:4:112::/48",
+	"fe80::1%eth0",
+	"fe80::1%25eth0",
+	"[fe80::1%eth0]:80",
+	"[fe80::1%25eth0]",
+	"[1.0.0.0]",
+	"[2001:4:112::",
+	"1.0.0.0:",
+	"1.0.0.0:65536",
+	"256.0.0.1",
+	"01.0.0.0",
+	"1.0.0.04",
+	"00.0.0.0",
+	"2001:4:112::1::",
+	"unknown",
+	"junk",
+	"" };
+
+// Each form of an address that is read gets what the plain address gets.
+TEST_F(IpiAddressAnswerTests, ClientIpFormsAreRead) {
+	const vector<string> queryKeys = keysWithPrefix("query.");
+	ASSERT_FALSE(queryKeys.empty());
+	const string ipv4 = targetOfAddress("1.0.0.0");
+	const string ipv6 = targetOfAddress("2001:4:112::");
+	ASSERT_NE("none", ipv4);
+	ASSERT_NE("none", ipv6);
+	ASSERT_NE(ipv4, ipv6);
+	for (const char* value : {
+		"1.0.0.0",
+		"1.0.0.0:80",
+		"1.0.0.0:65535",
+		"::ffff:1.0.0.0",
+		"::FFFF:1.0.0.0",
+		"[::ffff:1.0.0.0]:80" }) {
+		EXPECT_EQ(ipv4, targetOfEvidence({ { queryKeys[0], value } })) <<
+			value;
+	}
+	for (const char* value : {
+		"2001:4:112::",
+		"2001:4:112:0:0:0:0:0",
+		"2001:0004:0112::",
+		"2001:4:112::0",
+		"[2001:4:112::]",
+		"[2001:4:112::]:443",
+		"[2001:4:112:0:0:0:0:0]:0" }) {
+		EXPECT_EQ(ipv6, targetOfEvidence({ { queryKeys[0], value } })) <<
+			value;
+	}
+}
+
+// A value that is not read gives no address, and the lookup raises no error.
+TEST_F(IpiAddressAnswerTests, ClientIpNotReadGivesNoAddress) {
+	const vector<string> queryKeys = keysWithPrefix("query.");
+	const vector<string> serverKeys = keysWithPrefix("server.");
+	ASSERT_FALSE(queryKeys.empty());
+	ASSERT_FALSE(serverKeys.empty());
+	for (const char* value : notReadValues) {
+		EXPECT_EQ("none", targetOfEvidence({ { queryKeys[0], value } })) <<
+			"query: '" << value << "'";
+		EXPECT_EQ("none", targetOfEvidence({ { serverKeys[0], value } })) <<
+			"server: '" << value << "'";
+		uint32_t count = 1;
+		EXPECT_EQ(
+			FIFTYONE_DEGREES_STATUS_NOT_SET,
+			cStatusOfEvidence({ { queryKeys[0], value } }, &count)) <<
+			"'" << value << "'";
+		EXPECT_EQ(0u, count) << "'" << value << "'";
+	}
+}
+
+// A value that is not read under the query prefix does not hide a value under
+// the server prefix.
+TEST_F(IpiAddressAnswerTests, ClientIpNotReadFallsToServerKey) {
+	const vector<string> queryKeys = keysWithPrefix("query.");
+	const vector<string> serverKeys = keysWithPrefix("server.");
+	ASSERT_FALSE(queryKeys.empty());
+	ASSERT_FALSE(serverKeys.empty());
+	const string expected = targetOfAddress("1.0.0.0");
+	for (const char* value : notReadValues) {
+		EXPECT_EQ(expected, targetOfEvidence({
+			{ queryKeys[0], value },
+			{ serverKeys[0], "1.0.0.0" } })) << "'" << value << "'";
+		uint32_t count = 0;
+		EXPECT_EQ(
+			FIFTYONE_DEGREES_STATUS_NOT_SET,
+			cStatusOfEvidence({
+				{ queryKeys[0], value },
+				{ serverKeys[0], "1.0.0.0" } },
+				&count)) << "'" << value << "'";
+		EXPECT_GT(count, 0u) << "'" << value << "'";
+	}
+}
+
+// A value that is not read under one key does not hide a value under a key of
+// the same prefix that comes later in the data file's order.
+TEST_F(IpiAddressAnswerTests, ClientIpNotReadFallsToLowerKey) {
+	const vector<string> queryKeys = keysWithPrefix("query.");
+	const vector<string> serverKeys = keysWithPrefix("server.");
+	ASSERT_GE(queryKeys.size(), 2u);
+	ASSERT_GE(serverKeys.size(), 2u);
+	const string expected = targetOfAddress("1.0.0.0");
+	for (const char* value : notReadValues) {
+		EXPECT_EQ(expected, targetOfEvidence({
+			{ queryKeys[0], value },
+			{ queryKeys[1], "1.0.0.0" } })) << "query: '" << value << "'";
+		EXPECT_EQ(expected, targetOfEvidence({
+			{ serverKeys[0], value },
+			{ serverKeys[1], "1.0.0.0" } })) << "server: '" << value << "'";
+		EXPECT_EQ(expected, targetOfEvidence({
+			{ queryKeys[0], value },
+			{ queryKeys[1], value },
+			{ serverKeys[0], "1.0.0.0" } })) << "both: '" << value << "'";
+	}
+}
+
+// Values that are read keep the order of precedence.
+TEST_F(IpiAddressAnswerTests, ClientIpReadKeepsTheOrderOfPrecedence) {
+	const vector<string> queryKeys = keysWithPrefix("query.");
+	const vector<string> serverKeys = keysWithPrefix("server.");
+	ASSERT_GE(queryKeys.size(), 2u);
+	ASSERT_FALSE(serverKeys.empty());
+	const string first = targetOfAddress("1.0.0.0");
+	ASSERT_NE(first, targetOfAddress("8.8.8.8"));
+	EXPECT_EQ(first, targetOfEvidence({
+		{ queryKeys[0], "1.0.0.0" },
+		{ queryKeys[1], "8.8.8.8" } }));
+	EXPECT_EQ(first, targetOfEvidence({
+		{ queryKeys[0], "1.0.0.0:80" },
+		{ serverKeys[0], "8.8.8.8" } }));
+	EXPECT_EQ(first, targetOfEvidence({
+		{ queryKeys[1], "1.0.0.0" },
+		{ serverKeys[0], "8.8.8.8" } }));
+}
+
+// The call that takes one address as text has no key to try next, so a value
+// that is not read is an error.
+TEST_F(IpiAddressAnswerTests, AddressTextNotReadIsAnError) {
+	for (const char* value : notReadValues) {
+		EXPECT_EQ(
+			FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT,
+			cStatusOfAddress(value)) << "'" << value << "'";
+	}
+	for (const char* value : { "1.0.0.0", "1.0.0.0:80", "[2001:4:112::]:80" }) {
+		EXPECT_EQ(
+			FIFTYONE_DEGREES_STATUS_NOT_SET,
+			cStatusOfAddress(value)) << "'" << value << "'";
+	}
 }
 
 class IpiMappedAddressRangeTests : public Base {};

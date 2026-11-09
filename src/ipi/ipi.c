@@ -2805,24 +2805,22 @@ static bool setResultsFromEvidence(
 			pair->item.keyLength);
 		// Only the current header index should be considered
 		if (headerIndex >= 0 && headerIndex == (int)curHeaderIndex) {
-			// Get the parsed Value
 			const char *ipAddressString = (const char *)pair->parsedValue;
-			// Obtain the byte array first
 			IpAddress ipAddress;
-			const bool parsed =
-				fiftyoneDegreesIpAddressParse(ipAddressString, ipAddressString + strlen(ipAddressString), &ipAddress);
-			// Check if the IP address was successfully created
-			if (!parsed || (ipAddress.type == IP_TYPE_INVALID)) {
-				EXCEPTION_SET(INCORRECT_IP_ADDRESS_FORMAT);
-				return false;
+			// A value that is not read as one whole address is skipped, so
+			// the next key in the order of precedence is tried.
+			if (ipAddressString != NULL &&
+				fiftyoneDegreesIpAddressParse(
+					ipAddressString,
+					ipAddressString + strlen(ipAddressString),
+					&ipAddress)) {
+				// Configure the next result in the array of results.
+				addResultsFromIpAddressNoChecks(
+					results,
+					ipAddress.value,
+					ipAddress.type,
+					exception);
 			}
-
-			// Configure the next result in the array of results.
-			addResultsFromIpAddressNoChecks(
-				results,
-				ipAddress.value,
-				ipAddress.type,
-				exception);
 		}
 	}
 

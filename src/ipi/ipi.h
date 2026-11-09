@@ -848,6 +848,10 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddress(
  * Process a single IP Address and populate the IP range offset in the results
  * structure.
  *
+ * The string must be all one address, as #fiftyoneDegreesIpAddressParse
+ * describes. Otherwise the exception is set to
+ * #FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT.
+ *
  * When the caller named the properties the data set was created with, the
  * graph of each component a named property belongs to is walked here, and a
  * walk that fails sets the exception. Otherwise populating the results walks
@@ -869,6 +873,13 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddressString(
 /**
  * Processes the evidence value pairs in the evidence collection and
  * populates the result in the results structure.
+ *
+ * The keys are tried in the order of precedence, the query prefix before the
+ * server prefix and the data file's order within a prefix, and the first value
+ * that is read as one whole address is used. A value that is not, such as
+ * "1.2.3.4/24", "1.2.3.4, 5.6.7.8" or "fe80::1%eth0", is skipped without
+ * setting the exception, and when no value is read the results hold no
+ * address. See #fiftyoneDegreesIpAddressParse for the forms that are read.
  *
  * When the caller named the properties the data set was created with, the
  * graph of each component a named property belongs to is walked here, and a
