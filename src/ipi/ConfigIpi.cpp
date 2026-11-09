@@ -166,6 +166,22 @@ uint16_t ConfigIpi::getConcurrency() const {
 		concurrencies + (sizeof(concurrencies) / sizeof(uint16_t)));
 }
 
+void ConfigIpi::setLoadRequiredPropertiesOnly(bool load) {
+	config.loadRequiredPropertiesOnly = load;
+}
+
+void ConfigIpi::setDefaultValuesInMemory(bool inMemory) {
+	config.defaultValuesInMemory = inMemory;
+}
+
+bool ConfigIpi::getLoadRequiredPropertiesOnly() const {
+	return config.loadRequiredPropertiesOnly;
+}
+
+bool ConfigIpi::getDefaultValuesInMemory() const {
+	return config.defaultValuesInMemory;
+}
+
 void ConfigIpi::setConcurrency(uint16_t concurrency) {
 	strings.setConcurrency(concurrency);
 	components.setConcurrency(concurrency);

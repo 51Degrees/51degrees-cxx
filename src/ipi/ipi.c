@@ -201,7 +201,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiInMemoryConfig = {
 	{0,0,0}, // ProfileGroups
 	{0,0,0}, // PropertyTypes
 	{0,0,0}, // ProfileOffsets
-	{0,0,0}  // Graph
+	{0,0,0}, // Graph
+	false, // LoadRequiredPropertiesOnly
+	true // DefaultValuesInMemory
 };
 #undef FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY
 #define FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY \
@@ -219,7 +221,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiHighPerformanceConfig = {
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileGroups
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // PropertyTypes
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileOffsets
-	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }  // Graph
+	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Graph
+	true, // LoadRequiredPropertiesOnly
+	true // DefaultValuesInMemory
 };
 
 fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
@@ -234,7 +238,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileGroups
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // PropertyTypes
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // ProfileOffsets
-	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }  // Graph
+	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Graph
+	false, // LoadRequiredPropertiesOnly
+	true // DefaultValuesInMemory
 };
 
 // The profile offsets and the property types are read for each property of every
@@ -251,7 +257,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig = {
 { FIFTYONE_DEGREES_PROFILE_GROUPS_LOADED, FIFTYONE_DEGREES_PROFILE_GROUPS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileGroups */ \
 { FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */ \
 { FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* PropertyTypes */ \
-{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY } /* Graph */
+{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Graph */ \
+false, /* LoadRequiredPropertiesOnly */ \
+true /* DefaultValuesInMemory */
 
 fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig = {
 	FIFTYONE_DEGREES_IPI_CONFIG_BALANCED
@@ -288,7 +296,9 @@ fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedTempConfig = {
 	{ FIFTYONE_DEGREES_PROFILE_GROUPS_LOADED, FIFTYONE_DEGREES_PROFILE_GROUPS_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileGroups */
 	{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* ProfileOffsets */
 	{ FIFTYONE_DEGREES_PROPERTY_LOADED, FIFTYONE_DEGREES_PROPERTY_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* PropertyTypes */
-	{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY } /* Graph */
+	{ FIFTYONE_DEGREES_IP_GRAPH_LOADED, FIFTYONE_DEGREES_IP_GRAPH_CACHE_SIZE, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Graph */
+	false, /* LoadRequiredPropertiesOnly */
+	true /* DefaultValuesInMemory */
 };
 #undef FIFTYONE_DEGREES_CONFIG_USE_TEMP_FILE
 #define FIFTYONE_DEGREES_CONFIG_USE_TEMP_FILE \
@@ -1069,14 +1079,17 @@ static StatusCode createProfilesFromFile(
 /**
  * HOLDING WHAT THE REQUIRED PROPERTIES READ
  *
- * With the HighPerformance preset, a caller that names some of the properties
- * only reads part of the data file. Only that part is loaded into memory, and
- * the rest reads from the file. Each stretch held is made of whole records, so
- * a lookup that reads the named properties reads nothing from the file, and
- * anything else still gets the same answer, more slowly.
+ * With loadRequiredPropertiesOnly, a caller that names some of the properties
+ * only reads part of the data file. Only that part of the strings, values,
+ * profiles, profile groups and profile offsets is held in memory, with the
+ * graphs of the components named, and the rest reads from the file. Each
+ * stretch held is made of whole records, so a lookup that reads the named
+ * properties reads none of those collections from the file, and anything else
+ * still gets the same answer, more slowly.
  *
- * With the Balanced preset, the default value of each required property is
- * held, which a lookup reads for each mandatory property its profile has no
+ * With defaultValuesInMemory, the default value of each required property is
+ * held, with what reading it takes from the strings and the property types. A
+ * lookup reads the default for each mandatory property its profile has no
  * value for.
  */
 
@@ -1946,47 +1959,159 @@ static StatusCode heldInit(DataSetIpi* dataSet, Exception* exception) {
 	}
 	heldPlanFree(&plan);
 	fclose(file);
+	if (status == SUCCESS && EXCEPTION_FAILED) {
+		status = COLLECTION_FAILURE;
+	}
 	return status;
 }
 
 /**
- * Holds the default value of each required property, so that reading one takes
- * no lock and reads nothing from the file. Anything allocated is freed with the
- * data set if this fails.
+ * What holding the default values holds, from each collection not loaded into
+ * memory.
+ */
+typedef struct held_defaults_t {
+	heldRange* values; /* The default value records */
+	uint32_t valuesCount; /* Number of ranges of the values */
+	heldRange* strings; /* What the default values read from the strings */
+	uint32_t stringsCount; /* Number of ranges of the strings */
+	heldRange* types; /* The property types the default values read */
+	uint32_t typesCount; /* Number of ranges of the property types */
+} heldDefaults;
+
+/**
+ * Plans to hold the default value of a property, with what reading it takes
+ * from the strings and the property types, from each of those collections not
+ * loaded into memory. Every read follows what a lookup reads for a default.
+ */
+static StatusCode heldDefaultsPlan(
+	const DataSetIpi* dataSet,
+	const uint32_t propertyIndex,
+	heldDefaults* defaults,
+	Exception* exception) {
+	const ConfigIpi* const config = &dataSet->config;
+	Item item;
+	DataReset(&item.data);
+	const Property* const property = PropertyGet(
+		dataSet->properties,
+		propertyIndex,
+		&item,
+		exception);
+	if (property == NULL || EXCEPTION_FAILED) {
+		if (property != NULL) {
+			COLLECTION_RELEASE(dataSet->properties, &item);
+		}
+		return COLLECTION_FAILURE;
+	}
+	const uint32_t index = property->defaultValueIndex;
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	if (index >= dataSet->values->count) {
+		return SUCCESS;
+	}
+	if (config->values.loaded == false) {
+		heldRangeAdd(
+			defaults->values,
+			&defaults->valuesCount,
+			index,
+			index + 1);
+	}
+	if (config->strings.loaded && config->propertyTypes.loaded) {
+		return SUCCESS;
+	}
+	DataReset(&item.data);
+	const Value* const value = ValueGet(
+		dataSet->values,
+		index,
+		&item,
+		exception);
+	if (value == NULL || EXCEPTION_FAILED) {
+		if (value != NULL) {
+			COLLECTION_RELEASE(dataSet->values, &item);
+		}
+		return COLLECTION_FAILURE;
+	}
+	const uint32_t typeIndex = (uint32_t)value->propertyIndex;
+	const uint32_t offset = (uint32_t)value->nameOffset;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	if (typeIndex >= dataSet->header.propertyTypes.count) {
+		return SUCCESS;
+	}
+	if (config->propertyTypes.loaded == false) {
+		heldRangeAdd(
+			defaults->types,
+			&defaults->typesCount,
+			typeIndex,
+			typeIndex + 1);
+	}
+	if (config->strings.loaded || offset >= dataSet->header.strings.length) {
+		return SUCCESS;
+	}
+	const PropertyValueType type = PropertyGetStoredTypeByIndex(
+		dataSet->propertyTypes,
+		typeIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return COLLECTION_FAILURE;
+	}
+	DataReset(&item.data);
+	const StoredBinaryValue* const stored = StoredBinaryValueGet(
+		dataSet->strings,
+		offset,
+		type,
+		&item,
+		exception);
+	if (stored == NULL || EXCEPTION_FAILED) {
+		if (stored != NULL) {
+			COLLECTION_RELEASE(dataSet->strings, &item);
+		}
+		return COLLECTION_FAILURE;
+	}
+	heldRangeAdd(
+		defaults->strings,
+		&defaults->stringsCount,
+		offset,
+		offset + item.data.used);
+	COLLECTION_RELEASE(dataSet->strings, &item);
+	return SUCCESS;
+}
+
+/**
+ * Holds the default value of each required property, with what reading it
+ * takes from the strings and the property types, so that reading one takes no
+ * lock and reads nothing from the file. Nothing is copied from a collection
+ * loaded into memory, so this does nothing when all three are. Anything
+ * allocated is freed with the data set if this fails.
  */
 static StatusCode heldDefaultsInit(DataSetIpi* dataSet, Exception* exception) {
 	const PropertiesAvailable* const available = dataSet->b.b.available;
-	const uint32_t valueCount = dataSet->values->count;
-	uint32_t count = 0;
+	const ConfigIpi* const config = &dataSet->config;
+	heldDefaults defaults;
 	FILE* file;
-	if (available->count == 0) {
+	if (available->count == 0 ||
+		(config->values.loaded &&
+			config->strings.loaded &&
+			config->propertyTypes.loaded)) {
 		return SUCCESS;
 	}
 	heldRange* const ranges = (heldRange*)Malloc(
-		sizeof(heldRange) * available->count);
+		sizeof(heldRange) * (size_t)available->count * 3);
 	if (ranges == NULL) {
 		return INSUFFICIENT_MEMORY;
 	}
-	for (uint32_t i = 0; i < available->count; i++) {
-		Item item;
-		DataReset(&item.data);
-		const Property* const property = PropertyGet(
-			dataSet->properties,
-			available->items[i].propertyIndex,
-			&item,
-			exception);
-		if (property == NULL || EXCEPTION_FAILED) {
-			Free(ranges);
-			return COLLECTION_FAILURE;
-		}
-		const uint32_t index = property->defaultValueIndex;
-		COLLECTION_RELEASE(dataSet->properties, &item);
-		if (index < valueCount) {
-			heldRangeAdd(ranges, &count, index, index + 1);
-		}
-	}
+	memset(&defaults, 0, sizeof(defaults));
+	defaults.values = ranges;
+	defaults.strings = ranges + available->count;
+	defaults.types = ranges + (size_t)available->count * 2;
 	StatusCode status = SUCCESS;
-	if (count > 0) {
+	for (uint32_t i = 0; i < available->count && status == SUCCESS; i++) {
+		status = heldDefaultsPlan(
+			dataSet,
+			available->items[i].propertyIndex,
+			&defaults,
+			exception);
+	}
+	const uint32_t rangeCount =
+		defaults.valuesCount + defaults.stringsCount + defaults.typesCount;
+	if (status == SUCCESS && rangeCount > 0) {
 		status = FileOpen(dataSet->b.b.fileName, &file);
 		if (status == SUCCESS) {
 			status = heldCreate(
@@ -1994,12 +2119,33 @@ static StatusCode heldDefaultsInit(DataSetIpi* dataSet, Exception* exception) {
 				file,
 				(uint64_t)dataSet->header.values.startPosition,
 				dataSet->values->elementSize,
-				ranges,
-				count);
+				defaults.values,
+				defaults.valuesCount);
+			if (status == SUCCESS) {
+				status = heldCreate(
+					&dataSet->strings,
+					file,
+					(uint64_t)dataSet->header.strings.startPosition,
+					1,
+					defaults.strings,
+					defaults.stringsCount);
+			}
+			if (status == SUCCESS) {
+				status = heldCreate(
+					&dataSet->propertyTypes,
+					file,
+					(uint64_t)dataSet->header.propertyTypes.startPosition,
+					dataSet->propertyTypes->elementSize,
+					defaults.types,
+					defaults.typesCount);
+			}
 			fclose(file);
 		}
 	}
 	Free(ranges);
+	if (status == SUCCESS && EXCEPTION_FAILED) {
+		status = COLLECTION_FAILURE;
+	}
 	return status;
 }
 
@@ -2021,44 +2167,14 @@ static uint32_t heldCountNames(const char* list) {
 }
 
 /**
- * True for the shape of the Balanced preset, which holds the strings and the
- * graphs in memory and reads the values and the profiles from the file.
- */
-static bool heldIsBalanced(const ConfigIpi* config) {
-	return config->b.allInMemory == false &&
-		config->strings.loaded &&
-		config->graph.loaded &&
-		config->values.loaded == false &&
-		config->profiles.loaded == false;
-}
-
-/**
- * True for the shape of the HighPerformance preset, which loads every
- * collection into memory from the file.
- */
-static bool heldIsHighPerformance(const ConfigIpi* config) {
-	return config->b.allInMemory == false &&
-		config->strings.loaded &&
-		config->components.loaded &&
-		config->maps.loaded &&
-		config->properties.loaded &&
-		config->values.loaded &&
-		config->profiles.loaded &&
-		config->graphs.loaded &&
-		config->profileGroups.loaded &&
-		config->profileOffsets.loaded &&
-		config->propertyTypes.loaded &&
-		config->graph.loaded;
-}
-
-/**
- * True for the shape of the HighPerformance preset when the caller has named
- * fewer properties than the data file has.
+ * True when loadRequiredPropertiesOnly is set, the data set reads the file,
+ * and the caller has named fewer properties than the data file has.
  */
 static bool heldIsWanted(
 	const DataSetIpi* dataSet,
 	const PropertiesRequired* properties) {
-	if (heldIsHighPerformance(&dataSet->config) == false ||
+	if (dataSet->config.loadRequiredPropertiesOnly == false ||
+		dataSet->config.b.allInMemory ||
 		properties == NULL) {
 		return false;
 	}
@@ -2354,7 +2470,8 @@ static StatusCode initDataSetFromFile(
 			return status;
 		}
 	}
-	else if (heldIsBalanced(&dataSet->config)) {
+	else if (dataSet->config.defaultValuesInMemory &&
+		dataSet->config.b.allInMemory == false) {
 		status = heldDefaultsInit(dataSet, exception);
 		if (status != SUCCESS || EXCEPTION_FAILED) {
 			if (config->b.useTempFile == true) {

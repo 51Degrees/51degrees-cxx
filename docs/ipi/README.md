@@ -30,15 +30,33 @@ same for every product in this repository, and are described in the
 
 ## Memory and the required properties
 
-The HighPerformance configuration (`fiftyoneDegreesIpiHighPerformanceConfig`, or `setHighPerformance()` in C++) loads the data file into memory. When the required properties name some but not all of the properties in the data file, it loads only what they read:
+Two settings of the configuration, `fiftyoneDegreesConfigIpi` in C and `ConfigIpi` in C++, hold in memory what the required properties read. Each preset sets both, and any configuration can set either.
 
-- The graphs, profile offsets, profile groups and profiles of the components the named properties belong to.
+`loadRequiredPropertiesOnly` (`setLoadRequiredPropertiesOnly()` in C++) applies when the required properties name some but not all of the properties in the data file. Only what they read is then loaded into memory:
+
+- The graphs of the components the named properties belong to, each following the graph setting. The graphs of other components read from the file.
+- The profile offsets, profile groups and profiles of those components.
 - The values of the named properties, with their default values.
 - The strings of those values, leaving on file any stretch of at least 64 KiB that no named property reads. For example, the polygons of `Areas` stay on file unless `Areas` is named.
 
-The components, maps, properties and property types are always loaded. A lookup that reads the named properties reads nothing from the file. Anything else reads from the file, so it still works, more slowly and allocating memory. That covers a direct graph call for a component with no named property, and meta data for what was not named. A property that was not named gives no value, as it does with every other configuration. Naming no properties, or every one, loads everything.
+Each part is held in whole records, and the rest of those collections reads from the file when needed, with no cache. The components, maps, properties, property types and the collection that lists the graphs follow their own settings. Anything not held reads from the file, so it still works, more slowly and allocating memory. That covers a direct graph call for a component with no named property, and meta data for what was not named. A property that was not named gives no value, as it does with every other configuration. The setting has no effect when no property or every property is named, or when the whole data file is in memory.
 
-The Balanced configuration (`fiftyoneDegreesIpiBalancedConfig`, or `setBalanced()` in C++) holds the strings, the graphs, the profile offsets and the property types in memory, and reads values, profiles and profile groups through caches of 100,000 values, 20,000 profiles and 50,000 profile groups. The default value of each required property is held in memory too, and the profile of each result is read through the cache once for each lookup rather than once for each property, which uses 512 bytes for each component in each set of results. A lookup reads the default of each mandatory property its profile has no value for, so holding the defaults means those reads take no lock and read nothing from the file. Naming the required properties does not change what Balanced holds. The C API uses Balanced when no configuration is given.
+`defaultValuesInMemory` (`setDefaultValuesInMemory()` in C++) holds the default value of each required property in memory when the data set is created, with what reading it takes from the strings and the property types. A lookup reads the default of each mandatory property its profile has no value for, so holding the defaults means those reads take no lock and read nothing from the file. Nothing is copied from a collection that is already in memory, so the setting has no effect where the values, strings and property types are all loaded, as in HighPerformance with no properties named. It also has no effect when the whole data file is in memory, or when `loadRequiredPropertiesOnly` applies, as both already hold the default values.
+
+The presets set them as follows. Choosing a preset in C++ replaces both settings with the preset's.
+
+| Preset | `loadRequiredPropertiesOnly` | `defaultValuesInMemory` |
+| --- | --- | --- |
+| InMemory (`setMaxPerformance()`) | false | true, with no effect |
+| HighPerformance | true | true |
+| Balanced, BalancedTemp and the default | false | true |
+| LowMemory | false | true |
+
+The HighPerformance configuration (`fiftyoneDegreesIpiHighPerformanceConfig`, or `setHighPerformance()` in C++) loads the data file into memory, so with some properties named it loads only what they read and a lookup that reads them reads nothing from the file. Naming no properties, or every one, loads everything.
+
+The Balanced configuration (`fiftyoneDegreesIpiBalancedConfig`, or `setBalanced()` in C++) holds the strings, the graphs, the profile offsets and the property types in memory, and reads values, profiles and profile groups through caches of 100,000 values, 20,000 profiles and 50,000 profile groups. The default value of each required property is held in memory too, and the profile of each result is read through the cache once for each lookup rather than once for each property, which uses 512 bytes for each component in each set of results. Naming the required properties does not change what Balanced holds. The C API uses Balanced when no configuration is given.
+
+The LowMemory configuration (`fiftyoneDegreesIpiLowMemoryConfig`, or `setLowMemory()` in C++) holds only the default values in memory, and reads everything else from the file with no cache.
 
 ## Address forms
 
