@@ -652,6 +652,93 @@ TEST_F(File, TempExists_Delete) {
 	removeDir(tempPath1);
 }
 
+/**
+ * Check that an existing temporary file is found when it is only in the
+ * second of the directories passed to the method, and that the path returned
+ * is the path of that file.
+ */
+TEST_F(File, TempExists_SecondPath) {
+	const char *paths[] = { tempPath1, tempPath2 };
+	char tempFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	char foundFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	tempFileName[0] = '\0';
+	foundFileName[0] = '\0';
+	createDir(tempPath1);
+	createDir(tempPath2);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileNewTempFile(
+			fileName,
+			&paths[1],
+			1,
+			tempFileName,
+			FIFTYONE_DEGREES_FILE_MAX_PATH)) <<
+		"A temporary file was not created in the second directory.";
+
+	EXPECT_TRUE(fiftyoneDegreesFileGetExistingTempFile(
+		fileName,
+		paths,
+		2,
+		-1,
+		foundFileName)) <<
+		"The existing temporary file in the second directory was not found.";
+	EXPECT_STREQ(tempFileName, foundFileName) <<
+		"The matching file name was not written to the memory passed in.";
+
+	removeFile(tempFileName);
+	removeDir(tempPath1);
+	removeDir(tempPath2);
+}
+
+/**
+ * Check that unused temporary files are deleted from every directory passed
+ * to the delete method, and not only the first, and that the number of
+ * deleted files returned counts both.
+ */
+TEST_F(File, TempExists_DeleteEveryPath) {
+	const char *paths[] = { tempPath1, tempPath2 };
+	char tempFileName1[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	char tempFileName2[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	tempFileName1[0] = '\0';
+	tempFileName2[0] = '\0';
+	createDir(tempPath1);
+	createDir(tempPath2);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileNewTempFile(
+			fileName,
+			&paths[0],
+			1,
+			tempFileName1,
+			FIFTYONE_DEGREES_FILE_MAX_PATH)) <<
+		"A temporary file was not created in the first directory.";
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileNewTempFile(
+			fileName,
+			&paths[1],
+			1,
+			tempFileName2,
+			FIFTYONE_DEGREES_FILE_MAX_PATH)) <<
+		"A temporary file was not created in the second directory.";
+
+	EXPECT_EQ(2,
+		fiftyoneDegreesFileDeleteUnusedTempFiles(fileName, paths, 2, -1)) <<
+		"2 temporary files should have been deleted.";
+
+	EXPECT_FALSE(fileExists(tempFileName1)) <<
+		"The temporary file in the first directory was not deleted.";
+	EXPECT_FALSE(fileExists(tempFileName2)) <<
+		"The temporary file in the second directory was not deleted.";
+
+	// Remove anything left behind so the directories can be removed.
+	if (fileExists(tempFileName1)) {
+		removeFile(tempFileName1);
+	}
+	if (fileExists(tempFileName2)) {
+		removeFile(tempFileName2);
+	}
+	removeDir(tempPath1);
+	removeDir(tempPath2);
+}
+
 #ifndef __APPLE__
 
 /**
