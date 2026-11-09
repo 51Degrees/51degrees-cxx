@@ -537,6 +537,45 @@ TEST(ParseIpWhole, ParseIpWhole_EmbeddedNulIsNotRead)
 	const char terminated[] = "1.2.3.4";
 	EXPECT_FALSE(parseIpAddressStringOfLength(terminated, sizeof(terminated)));
 }
+// ------------------------------------------------------------------------------
+// Zone indexes and leading zeros
+//
+// A value with an IPv6 zone index, or an IPv4 part with a leading zero, is not
+// read. Neither is read with the zone index or the zero dropped.
+// ------------------------------------------------------------------------------
+TEST(ParseIpRefused, ParseIpRefused_ZoneIndex)
+{
+	expectNotRead("fe80::1%eth0");
+	expectNotRead("fe80::1%25eth0");
+	expectNotRead("fe80::1%1");
+	expectNotRead("[fe80::1%eth0]");
+	expectNotRead("[fe80::1%eth0]:80");
+	expectNotRead("[fe80::1%25eth0]");
+	expectNotRead("[fe80::1%25eth0]:80");
+	expectNotRead("2001:db8::1%eth0");
+	expectNotRead("::ffff:1.2.3.4%eth0");
+}
+TEST(ParseIpRefused, ParseIpRefused_LeadingZeroIpv4)
+{
+	expectNotRead("01.2.3.4");
+	expectNotRead("1.02.3.4");
+	expectNotRead("1.2.03.4");
+	expectNotRead("1.2.3.04");
+	expectNotRead("00.0.0.0");
+	expectNotRead("0.0.0.00");
+	expectNotRead("010.0.0.1");
+	expectNotRead("01.2.3.4:80");
+	expectNotRead("::ffff:01.2.3.4");
+	expectNotRead("[::ffff:1.2.3.04]:80");
+}
+TEST(ParseIpRefused, ParseIpRefused_PlainIpv4StillRead)
+{
+	expectRead("0.0.0.0", { 0, 0, 0, 0 });
+	expectRead("1.2.3.4", { 1, 2, 3, 4 });
+	expectRead("10.0.0.1", { 10, 0, 0, 1 });
+	expectRead("10.0.0.1:80", { 10, 0, 0, 1 });
+}
+
 TEST(ParseIpWhole, ParseIpWhole_NotReadLeavesTheAddressAlone)
 {
 	IpAddress address;
