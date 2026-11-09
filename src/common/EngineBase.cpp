@@ -38,6 +38,7 @@ EngineBase::EngineBase(
 	this->requiredProperties = requiredProperties;
 	this->config = config;
 	metaData = nullptr;
+	keyLists.emplace_back(new vector<string>());
 }
 
 EngineBase::~EngineBase() {
@@ -102,8 +103,17 @@ bool EngineBase::getAutomaticUpdatesEnabled() const {
 	return getDataUpdateUrl().empty() == false;
 }
 
+void EngineBase::setKeys(vector<string> &&newKeys) const {
+	std::lock_guard<std::mutex> lock(keysMutex);
+	if (*keyLists.back() == newKeys) {
+		return;
+	}
+	keyLists.emplace_back(new vector<string>(std::move(newKeys)));
+}
+
 const vector<string>* EngineBase::getKeys() const {
-	return &keys;
+	std::lock_guard<std::mutex> lock(keysMutex);
+	return keyLists.back().get();
 }
 
 vector<string> EngineBase::getRequiredProperties() const {

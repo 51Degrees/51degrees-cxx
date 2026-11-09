@@ -235,6 +235,24 @@ namespace FiftyoneDegrees {
 				void init(fiftyoneDegreesDataSetHash *dataSet);
 
 			private:
+				/**
+				 * Gets the evidence keys of a data set without changing the
+				 * engine's own list.
+				 * @param dataSet to get the keys of
+				 * @return the evidence keys, in the order the data set lists
+				 * them
+				 */
+				static vector<string> buildKeys(
+					fiftyoneDegreesDataSetHash *dataSet);
+
+				/**
+				 * Rebuilds the evidence keys from the data set the resource
+				 * manager now holds, after a refresh, so that getKeys()
+				 * describes the data set in use. A new list is made only when
+				 * the keys differ, and the list a caller holds is not changed.
+				 */
+				void reloadKeys() const;
+
 				void initMetaData();
 
 				void init();

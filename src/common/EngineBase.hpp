@@ -27,6 +27,7 @@
 #include <vector>
 #include <sstream>
 #include <memory>
+#include <mutex>
 #include <algorithm>
 #include <functional>
 #include "Exceptions.hpp"
@@ -233,7 +234,9 @@ namespace FiftyoneDegrees {
 			/**
 			 * Get the list of keys which the engine accepts as evidence. This
 			 * is a pointer to an internal vector should not (and cannot) be
-			 * freed.
+			 * freed. The list is never changed once returned, and a refresh
+			 * that changes the keys gives later calls another list, so the
+			 * pointer stays valid until the engine is destroyed.
 			 * @return pointer to the list of evidence keys
 			 */
 			const vector<string>* getKeys() const;
@@ -288,8 +291,23 @@ namespace FiftyoneDegrees {
 			/** The default key to use when adding the results to a dictionary. */
 			string defaultDataKey;
 
-			/** Keys which should be added to evidence. */
-			vector<string> keys;
+			/**
+			 * Every list of evidence keys the engine has had, the last being
+			 * current. A replaced list is kept until the engine is destroyed,
+			 * so the pointer getKeys() returned for it stays valid.
+			 */
+			mutable vector<std::unique_ptr<const vector<string>>> keyLists;
+
+			/** Guards keyLists. */
+			mutable std::mutex keysMutex;
+
+			/**
+			 * Makes a list the engine's evidence keys unless it is the same
+			 * as the current list. The list getKeys() returned before is not
+			 * changed.
+			 * @param newKeys the evidence keys
+			 */
+			void setKeys(vector<string> &&newKeys) const;
 
 			/**
 			 * Gets a string from a strings collection, and appends to a stream.
