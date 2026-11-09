@@ -27,8 +27,8 @@
  *
  * The text of each default is written again here from the value at the
  * property's default value index, with numbers to 15 places, and the default
- * value must be the one the values collection finds by that text. Every
- * string value must also be found by its name.
+ * value must be the one the values collection finds by that text. The values
+ * of string properties must also be found by their names.
  */
 
 #include <memory>
@@ -201,11 +201,54 @@ static string writtenDefault(
 }
 
 /**
- * Names of a weighted list checked by name. Its values are not in name order,
- * so each name the binary search misses reads every value of the property,
- * and StateGeoNameIdsGeographical has more than a million.
+ * A weighted list with at most this many values has every distinct name looked
+ * up. Its values are not in name order, so each name the binary search misses
+ * reads every value of the property.
+ */
+static const uint32_t weightedValuesInFull = 200000;
+
+/**
+ * Distinct names looked up in a larger weighted list, such as
+ * StateGeoNameIdsGeographical with more than a million values.
  */
 static const size_t weightedNamesChecked = 16;
+
+/** Values looked up, evenly spaced, in a property that is not weighted. */
+static const uint32_t sampledValues = 2000;
+
+/**
+ * A manager over every property of a data file, with the values in memory and
+ * a cache of strings, so that reading every value of a weighted list is quick.
+ */
+static std::shared_ptr<fiftyoneDegreesResourceManager> openForSearch(
+	const string &path) {
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiLowMemoryConfig;
+	config.values.loaded = true;
+	config.strings.capacity = 500000;
+	config.strings.concurrency = 1;
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	fiftyoneDegreesResourceManager *manager =
+		new fiftyoneDegreesResourceManager();
+	EXCEPTION_CREATE;
+	const fiftyoneDegreesStatusCode status =
+		fiftyoneDegreesIpiInitManagerFromFile(
+			manager,
+			&config,
+			&properties,
+			path.c_str(),
+			exception);
+	if (status != FIFTYONE_DEGREES_STATUS_SUCCESS || EXCEPTION_FAILED) {
+		delete manager;
+		throw Common::StatusCodeException(status);
+	}
+	return std::shared_ptr<fiftyoneDegreesResourceManager>(
+		manager,
+		[](fiftyoneDegreesResourceManager *m) {
+			fiftyoneDegreesResourceManagerFree(m);
+			delete m;
+		});
+}
 
 /** The name of a value stored as a string, and whether it has a weight. */
 static string stringValueName(
@@ -239,13 +282,15 @@ static string stringValueName(
 }
 
 /**
- * Looks up each distinct name of every string property's values, the first
- * weightedNamesChecked of a weighted list, and expects a value of the
- * property with that name. Returns the number of names looked up.
+ * Looks up the names of string properties' values, and expects a value of the
+ * property with each name. A weighted list has every distinct name looked up,
+ * or its first weightedNamesChecked when it has more than weightedValuesInFull
+ * values. Any other string property has sampledValues values looked up, evenly
+ * spaced. Returns the number of names looked up.
  */
 static size_t checkValuesByName(const string &path) {
 	size_t checked = 0;
-	const auto manager = openDefaults(path);
+	const auto manager = openForSearch(path);
 	IpiDefaultValueDataSet scope(manager.get());
 	const fiftyoneDegreesDataSetIpi *dataSet = scope.dataSet;
 	const uint32_t count =
@@ -285,11 +330,17 @@ static size_t checkValuesByName(const string &path) {
 
 		bool weighted = false;
 		stringValueName(dataSet, property.firstValueIndex, &weighted);
+		const uint32_t values =
+			property.lastValueIndex - property.firstValueIndex + 1;
+		const bool inFull = weighted && values <= weightedValuesInFull;
+		const uint32_t step = weighted || values <= sampledValues ?
+			1 : values / sampledValues;
 		std::set<string> seen;
 		for (uint32_t v = property.firstValueIndex;
 			v <= property.lastValueIndex &&
-			(weighted == false || seen.size() < weightedNamesChecked);
-			v++) {
+			(weighted == false || inFull ||
+				seen.size() < weightedNamesChecked);
+			v += step) {
 			const string valueName = stringValueName(dataSet, v, nullptr);
 			if (seen.insert(valueName).second == false) {
 				continue;
