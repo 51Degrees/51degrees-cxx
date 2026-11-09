@@ -27,7 +27,9 @@
  * written here with a stream, being the value followed by a colon and the
  * weight when the property has more than one value or the weight is not
  * whole. Every property is read for the IP addresses of the comparison with
- * the .NET packages and for a spread of other addresses.
+ * the .NET packages and for a spread of other addresses. The weight on its
+ * own, from fiftyoneDegreesIpiGetWeightText, is checked against the stream
+ * for a spread of raw weightings without a data file.
  */
 
 #include <cstring>
@@ -114,6 +116,38 @@ static const int valueTextsIpv4Last = 223;
 
 /** Weights below this have an exponent in the text. */
 static const double valueTextsExponentBelow = 0.0001;
+
+/**
+ * Raw weightings at the ends of the range, either side of 0.0001 where the
+ * exponent starts, and ones that round up to the next power of ten.
+ */
+static const uint32_t valueTextsRawWeightings[] = {
+	0,
+	1,
+	2,
+	65535,
+	65536,
+	429483,
+	429484,
+	4294835,
+	4294836,
+	2147418112u,
+	4294836224u,
+	FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT,
+};
+
+/** Every raw weighting below this is checked, all but 0 with an exponent. */
+static const uint32_t valueTextsEveryRawBelow = 10000;
+
+/** The step between the raw weightings checked across the whole range. */
+static const uint32_t valueTextsRawStep = 99991;
+
+/** Bytes given for a weight, so writing past the most it needs is seen. */
+static const size_t valueTextsWeightBytes =
+	FIFTYONE_DEGREES_IPI_WEIGHT_TEXT_LENGTH * 2;
+
+/** What the bytes given for a weight hold before it is written. */
+static const char valueTextsUnwritten = '#';
 
 /** What the reads compared. */
 struct ValueTextsCounts {
@@ -235,6 +269,33 @@ static bool valueTextsFromC(
 		fiftyoneDegreesFree(text);
 	}
 	return true;
+}
+
+/**
+ * The text fiftyoneDegreesIpiGetWeightText writes for the raw weighting,
+ * expecting no more than FIFTYONE_DEGREES_IPI_WEIGHT_TEXT_LENGTH characters
+ * and nothing written past the count it returns.
+ */
+static string valueTextsWeight(const uint32_t raw) {
+	char text[valueTextsWeightBytes];
+	memset(text, valueTextsUnwritten, sizeof(text));
+	const size_t written = fiftyoneDegreesIpiGetWeightText(text, raw);
+	EXPECT_LE(written, (size_t)FIFTYONE_DEGREES_IPI_WEIGHT_TEXT_LENGTH) <<
+		raw;
+	bool untouched = true;
+	for (size_t i = written; i < sizeof(text); i++) {
+		untouched = untouched && text[i] == valueTextsUnwritten;
+	}
+	EXPECT_TRUE(untouched) << raw << " was written past its count.";
+	return string(text, written < sizeof(text) ? written : sizeof(text));
+}
+
+/** The weight written by a stream, as the C++ wrote it. */
+static string valueTextsStreamedWeight(const uint32_t raw) {
+	std::stringstream stream;
+	stream << static_cast<double>(raw) /
+		static_cast<double>(FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT);
+	return stream.str();
 }
 
 class IpiValueTextsTests : public Base {
@@ -448,4 +509,39 @@ TEST_F(IpiValueTextsTests, NoTextForAPropertyThatIsNotRequired) {
 		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY) << index;
 	}
 	fiftyoneDegreesResultsIpiFree(results);
+}
+
+/**
+ * Needs no data file, so the weight writer is checked with and without an
+ * exponent whatever weights the data file holds.
+ */
+TEST(IpiWeightTextTests, EveryWeightHasTheStreamForm) {
+	uint32_t exponents = 0;
+	const auto expectStreamForm = [&](const uint32_t raw) {
+		const string text = valueTextsWeight(raw);
+		EXPECT_EQ(valueTextsStreamedWeight(raw), text) << raw;
+		if (text.find('e') != string::npos) {
+			exponents++;
+		}
+	};
+	for (const uint32_t raw : valueTextsRawWeightings) {
+		expectStreamForm(raw);
+	}
+	for (uint32_t raw = 0; raw < valueTextsEveryRawBelow; raw++) {
+		expectStreamForm(raw);
+	}
+	for (uint64_t raw = 0; raw <= FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT;
+		raw += valueTextsRawStep) {
+		expectStreamForm((uint32_t)raw);
+	}
+	EXPECT_GT(exponents, 0u) << "Some weights should have an exponent.";
+
+	// The same texts as printf's %g, so a change to the stream is seen too.
+	EXPECT_EQ("2.32838e-10", valueTextsWeight(1));
+	EXPECT_EQ("9.99999e-05", valueTextsWeight(429483));
+	EXPECT_EQ("0.0001", valueTextsWeight(429484));
+	EXPECT_EQ("0.001", valueTextsWeight(4294835));
+	EXPECT_EQ("0.5", valueTextsWeight(2147418112u));
+	EXPECT_EQ("1", valueTextsWeight(4294836224u));
+	EXPECT_EQ("1", valueTextsWeight(FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT));
 }

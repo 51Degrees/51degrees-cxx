@@ -1097,6 +1097,29 @@ EXTERNAL char* fiftyoneDegreesResultsIpiGetValueTexts(
 	fiftyoneDegreesException* exception);
 
 /**
+ * The most characters fiftyoneDegreesIpiGetWeightText writes, as in
+ * `2.32838e-10` for a raw weighting of 1.
+ */
+#define FIFTYONE_DEGREES_IPI_WEIGHT_TEXT_LENGTH 11
+
+/**
+ * Writes a weight as fiftyoneDegreesResultsIpiGetValueTexts writes it after a
+ * value's colon. The weight is the raw weighting over
+ * FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT, written to six significant
+ * figures with no trailing zeros, and with an exponent when it rounds to less
+ * than 0.0001, as printf's %g and a C++ stream write a double. No null is
+ * written after it.
+ * @param text where the weight is written, with room for
+ * FIFTYONE_DEGREES_IPI_WEIGHT_TEXT_LENGTH characters
+ * @param rawWeighting the weight out of
+ * FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT
+ * @return the number of characters written
+ */
+EXTERNAL size_t fiftyoneDegreesIpiGetWeightText(
+	char* text,
+	uint32_t rawWeighting);
+
+/**
  * Get the network id string from the single result provided. This contains
  * profile ids for all components and their percentages for the matched
  * IP range, delimited by ':'. The profile id percentage pairs are concatenated

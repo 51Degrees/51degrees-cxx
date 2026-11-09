@@ -3846,29 +3846,21 @@ size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
 
 /**
  * Bytes kept after the text of a value for a colon, its weight and the null
- * that ends it. The longest weight is 11 characters, such as 2.32838e-10 for
- * a raw weighting of 1.
+ * that ends it.
  */
-#define VALUE_TEXT_WEIGHT_BYTES 13
+#define VALUE_TEXT_WEIGHT_BYTES (FIFTYONE_DEGREES_IPI_WEIGHT_TEXT_LENGTH + 2)
 
-/**
- * Writes the weight, being the raw weighting over
- * FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT, to WEIGHT_FIGURES significant
- * figures, as printf's %g and a C++ stream write a double. Trailing zeros are
- * left out, and a weight that rounds to less than 0.0001 is written with an
- * exponent.
- *
- * The figures are worked out from the two whole numbers rather than from the
- * double, which gives the same figures. The maximum is odd, so the exact
- * weight is never half way between two numbers of six figures, and it is
- * always further from half way than the double is from the exact weight.
- * Working from whole numbers also leaves the locale out, as a C++ stream does.
- * @param text where the weight is written, with room for 11 characters
- * @param rawWeighting the weight out of
- * FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT
- * @return the number of characters written
+/*
+ * The figures are worked out from the raw weighting and the maximum as whole
+ * numbers rather than from the double, which gives the same figures. The
+ * maximum is odd, so the exact weight is never half way between two numbers
+ * of six figures, and it is always further from half way than the double is
+ * from the exact weight. Working from whole numbers also leaves the locale
+ * out, as a C++ stream does.
  */
-static size_t addWeightFigures(char * const text, const uint32_t rawWeighting) {
+size_t fiftyoneDegreesIpiGetWeightText(
+	char * const text,
+	const uint32_t rawWeighting) {
 	const uint64_t max = FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT;
 	char figures[WEIGHT_FIGURES];
 	size_t written = 0;
@@ -4019,7 +4011,7 @@ static bool valueTextsAdd(
 	texts->used += valueLength;
 	if (withWeight) {
 		texts->text[texts->used++] = ':';
-		texts->used += addWeightFigures(
+		texts->used += IpiGetWeightText(
 			texts->text + texts->used,
 			item->rawWeighting);
 	}
