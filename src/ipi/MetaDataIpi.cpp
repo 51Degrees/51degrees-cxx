@@ -112,15 +112,8 @@ ProfileMetaData* MetaDataIpi::getDefaultProfileForComponent(
 
 ValueMetaData* MetaDataIpi::getDefaultValueForProperty(
 	PropertyMetaData *property) const {
-	ValueMetaData *result = nullptr;
-	Collection<ValueMetaDataKey, ValueMetaData> *values = getValues();
-	if (values != nullptr) {
-		result = values->getByKey(ValueMetaDataKey(
-			property->getName(), 
-			property->getDefaultValue()));
-		delete values;
-	}
-	return result;
+	ValueMetaDataCollectionIpi values(manager.get());
+	return values.getDefaultForProperty(property->getName());
 }
 
 Collection<string, PropertyMetaData>*

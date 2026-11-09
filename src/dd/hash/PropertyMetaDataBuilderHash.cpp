@@ -57,7 +57,7 @@ PropertyMetaData* PropertyMetaDataBuilderHash::build(
 		(int)property->descriptionOffset != -1 ?
 		getString(dataSet->strings, property->descriptionOffset) :
 		string(),
-		getDefaultValue(dataSet, property->defaultValueIndex),
+		getDefaultValue(dataSet, property),
 		getComponentId(dataSet, property),
 		getEvidenceProperties(dataSet, property));
 }
@@ -106,25 +106,19 @@ vector<uint32_t> PropertyMetaDataBuilderHash::getEvidenceProperties(
 }
 string PropertyMetaDataBuilderHash::getDefaultValue(
 	fiftyoneDegreesDataSetHash *dataSet,
-	uint32_t valueIndex) {
+	const fiftyoneDegreesProperty *property) {
 	EXCEPTION_CREATE;
-	string result;
-	Item item;
-	const Value *value;
-	if (valueIndex != UINT32_MAX) {
-		DataReset(&item.data);
-		value = ValueGet(
-			dataSet->values,
-			valueIndex,
-			&item,
-			exception);
-		EXCEPTION_THROW;
-			if (value != nullptr) {
-				result = getString(dataSet->strings, value->nameOffset);
-				COLLECTION_RELEASE(dataSet->values, &item);
-			}
-	}
-	return result;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	// Every Hash value is a string, so there are no property types.
+	char * const text = ValueGetDefaultText(
+		dataSet->values,
+		dataSet->strings,
+		nullptr,
+		property,
+		buffer,
+		sizeof(buffer),
+		exception);
+	return takeText(text, buffer, exception);
 }
 
 bool PropertyMetaDataBuilderHash::propertyIsAvailable(

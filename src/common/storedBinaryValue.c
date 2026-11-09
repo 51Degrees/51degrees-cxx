@@ -119,6 +119,119 @@ int fiftyoneDegreesStoredBinaryValueCompareWithString(
     return result;
 }
 
+/**
+ * Bytes the text of the value is expected to need, counting its terminating
+ * null, or 0 when that is not known before it is written. A string needs its
+ * size, and an area normally needs at most
+ * FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE for each byte, though a reduced
+ * area written to more than 4 places can need more.
+ */
+static size_t textBytesExpected(
+    const StoredBinaryValue * const value,
+    const PropertyValueType storedValueType) {
+    switch (storedValueType) {
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
+            return value->stringValue.size > 0
+                ? (size_t)value->stringValue.size
+                : (size_t)1;
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB:
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R:
+            return (size_t)value->byteArrayValue.size *
+                FIFTYONE_DEGREES_TEXT_PER_GEOMETRY_BYTE + 1;
+        default:
+            return 0;
+    }
+}
+
+/**
+ * Writes the text of the value into the `length` bytes at `text`, where
+ * `length` is at least 1, and returns the bytes the whole text needs,
+ * counting its terminating null, which is more than `length` when it did not
+ * fit. Returns 0 when the value cannot be written.
+ */
+static size_t writeText(
+    const StoredBinaryValue * const value,
+    const PropertyValueType storedValueType,
+    const uint8_t decimalPlaces,
+    char * const text,
+    const size_t length,
+    Exception * const exception) {
+    StringBuilder builder = { text, length };
+    StringBuilderInit(&builder);
+    StringBuilderAddStringValue(
+        &builder,
+        value,
+        storedValueType,
+        decimalPlaces,
+        exception);
+    StringBuilderComplete(&builder);
+    if (EXCEPTION_FAILED) {
+        return 0;
+    }
+    // The builder counts every character, written or not, and always keeps a
+    // byte for the null, which Complete counts too, so the count is the bytes
+    // the text needs whether or not it fitted.
+    return builder.added;
+}
+
+char* fiftyoneDegreesStoredBinaryValueToText(
+    const StoredBinaryValue * const value,
+    const PropertyValueType storedValueType,
+    const uint8_t decimalPlaces,
+    char * const buffer,
+    const size_t bufferLength,
+    Exception * const exception) {
+    if (value == NULL) {
+        EXCEPTION_SET(NULL_POINTER);
+        return NULL;
+    }
+    const size_t expected = textBytesExpected(value, storedValueType);
+    size_t needed;
+    if (buffer != NULL && bufferLength > 0 && expected <= bufferLength) {
+        needed = writeText(
+            value,
+            storedValueType,
+            decimalPlaces,
+            buffer,
+            bufferLength,
+            exception);
+        if (needed == 0) {
+            return NULL;
+        }
+        if (needed <= bufferLength) {
+            return buffer;
+        }
+    }
+    else {
+        needed = expected > 0 ? expected : REASONABLE_WKT_STRING_LENGTH;
+    }
+    // At most twice, as a write that does not fit counts the bytes it needs.
+    for (int attempt = 0; attempt < 2; attempt++) {
+        const size_t length = needed;
+        char * const text = (char*)Malloc(length);
+        if (text == NULL) {
+            EXCEPTION_SET(INSUFFICIENT_MEMORY);
+            return NULL;
+        }
+        needed = writeText(
+            value,
+            storedValueType,
+            decimalPlaces,
+            text,
+            length,
+            exception);
+        if (needed > 0 && needed <= length) {
+            return text;
+        }
+        Free(text);
+        if (needed == 0) {
+            return NULL;
+        }
+    }
+    EXCEPTION_SET(INSUFFICIENT_CAPACITY);
+    return NULL;
+}
+
 int fiftyoneDegreesStoredBinaryValueToIntOrDefault(
     const fiftyoneDegreesStoredBinaryValue * const value,
     const fiftyoneDegreesPropertyValueType storedValueType,

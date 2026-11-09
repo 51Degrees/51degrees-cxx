@@ -138,6 +138,12 @@
     <ClCompile Include="..\..\..\test\ipi\IpiDoubleTextTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiDefaultValueTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiDefaultValueReloadTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\IpiGraphLeafTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
