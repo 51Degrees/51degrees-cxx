@@ -3864,7 +3864,8 @@ size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
  * always further from half way than the double is from the exact weight.
  * Working from whole numbers also leaves the locale out, as a C++ stream does.
  * @param text where the weight is written, with room for 11 characters
- * @param rawWeighting the weight out of FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT
+ * @param rawWeighting the weight out of
+ * FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT
  * @return the number of characters written
  */
 static size_t addWeightFigures(char * const text, const uint32_t rawWeighting) {
