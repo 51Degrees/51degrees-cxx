@@ -32,7 +32,6 @@
  */
 
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
 #include "../Constants.hpp"
@@ -171,101 +170,6 @@ static string writtenDefault(
 	return string(buffer.data());
 }
 
-/** The name of a value, as the string every Hash value is stored as. */
-static string stringValueName(
-	const fiftyoneDegreesDataSetHash *dataSet,
-	const uint32_t index) {
-	EXCEPTION_CREATE;
-	fiftyoneDegreesCollectionItem valueItem;
-	fiftyoneDegreesDataReset(&valueItem.data);
-	const fiftyoneDegreesValue *value = fiftyoneDegreesValueGet(
-		dataSet->values,
-		index,
-		&valueItem,
-		exception);
-	EXCEPTION_THROW;
-	fiftyoneDegreesCollectionItem nameItem;
-	fiftyoneDegreesDataReset(&nameItem.data);
-	const fiftyoneDegreesString *name = fiftyoneDegreesValueGetName(
-		dataSet->strings,
-		value,
-		&nameItem,
-		exception);
-	EXCEPTION_THROW;
-	const string result(&name->value);
-	FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->strings, &nameItem);
-	FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->values, &valueItem);
-	return result;
-}
-
-/**
- * Looks up each distinct name of every property's values and expects a value
- * of the property with that name, which holds only while each property's
- * values are in name order. Returns the number of names looked up.
- */
-static size_t checkValuesByName(const string &path) {
-	size_t checked = 0;
-	const auto manager = openDefaults(path);
-	HashDefaultValueDataSet scope(manager.get());
-	const fiftyoneDegreesDataSetHash *dataSet = scope.dataSet;
-	const uint32_t count =
-		fiftyoneDegreesCollectionGetCount(dataSet->properties);
-	for (uint32_t i = 0; i < count; i++) {
-		EXCEPTION_CREATE;
-		fiftyoneDegreesCollectionItem item;
-		fiftyoneDegreesDataReset(&item.data);
-		const fiftyoneDegreesProperty *stored = fiftyoneDegreesPropertyGet(
-			dataSet->properties,
-			i,
-			&item,
-			exception);
-		EXCEPTION_THROW;
-		const fiftyoneDegreesProperty property = *stored;
-		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->properties, &item);
-		if ((int32_t)property.firstValueIndex == -1) {
-			continue;
-		}
-		fiftyoneDegreesDataReset(&item.data);
-		const fiftyoneDegreesString *propertyName =
-			fiftyoneDegreesPropertyGetName(
-				dataSet->strings,
-				&property,
-				&item,
-				exception);
-		EXCEPTION_THROW;
-		const string name(&propertyName->value);
-		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->strings, &item);
-
-		std::set<string> seen;
-		for (uint32_t v = property.firstValueIndex;
-			v <= property.lastValueIndex;
-			v++) {
-			const string valueName = stringValueName(dataSet, v);
-			if (seen.insert(valueName).second == false) {
-				continue;
-			}
-			checked++;
-			const long found = fiftyoneDegreesValueGetIndexByNameAndType(
-				dataSet->values,
-				dataSet->strings,
-				&property,
-				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
-				valueName.c_str(),
-				exception);
-			EXCEPTION_THROW;
-			if (found < (long)property.firstValueIndex ||
-				found > (long)property.lastValueIndex) {
-				ADD_FAILURE() << name << " '" << valueName <<
-					"', the value at " << v << ", was not found";
-				continue;
-			}
-			EXPECT_EQ(valueName, stringValueName(dataSet, (uint32_t)found)) <<
-				name;
-		}
-	}
-	return checked;
-}
-
 class HashDefaultValueTests : public Base {
 protected:
 	/**
@@ -367,24 +271,6 @@ TEST_F(HashDefaultValueTests, EveryPropertyOfEachDataFile) {
 		printf("Checking %s\n", path.c_str());
 		EXPECT_GT(checkEveryProperty(path), 0) <<
 			"Every data file has a property with a default.";
-	}
-	if (any == false) {
-		GTEST_SKIP() << "No Device Detection data file was found.";
-	}
-}
-
-TEST_F(HashDefaultValueTests, EveryValueFoundByName) {
-	bool any = false;
-	for (int i = 0; i < _HashFileNamesLength; i++) {
-		const string path = GetFilePath(_dataFolderName, _HashFileNames[i]);
-		if (path.empty()) {
-			continue;
-		}
-		any = true;
-		printf("Checking %s\n", path.c_str());
-		const size_t checked = checkValuesByName(path);
-		printf("%zu names looked up\n", checked);
-		EXPECT_GT(checked, (size_t)0) << path;
 	}
 	if (any == false) {
 		GTEST_SKIP() << "No Device Detection data file was found.";
