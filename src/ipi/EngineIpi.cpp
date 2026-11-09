@@ -96,16 +96,25 @@ EngineIpi::EngineIpi(
 
 void EngineIpi::init() {
 	DataSetIpi *dataSet = DataSetIpiGet(manager.get());
-	initHttpHeaderKeys(dataSet->b.b.uniqueHeaders);
+	keys = buildKeys(dataSet);
 	initMetaData();
 	DataSetIpiRelease(dataSet);
+}
+
+vector<string> EngineIpi::buildKeys(fiftyoneDegreesDataSetIpi *dataSet) {
+	return readKeys([dataSet](
+		char *buffer,
+		size_t length,
+		const char *separator) {
+		return IpiGetEvidenceKeys(dataSet, buffer, length, separator);
+	});
 }
 
 void EngineIpi::reloadKeys() const {
 	DataSetIpi *dataSet = DataSetIpiGet(manager.get());
 	vector<string> refreshedKeys;
 	try {
-		refreshedKeys = buildHttpHeaderKeys(dataSet->b.b.uniqueHeaders);
+		refreshedKeys = buildKeys(dataSet);
 	}
 	catch (...) {
 		// Release the reference before unwinding, and leave the engine with
@@ -166,23 +175,23 @@ string EngineIpi::getType() const {
 }
 
 /**
- * @return the date that 51Degrees published the data file.
+ * @return the date that 51Degrees published the data file, or a year, month
+ * and day of zero when its header holds no valid date.
  */
 Date EngineIpi::getPublishedTime() const {
-	DataSetIpi*dataSet = DataSetIpiGet(manager.get());
-	Date date = Date(&dataSet->header.published);
-	DataSetIpiRelease(dataSet);
-	return date;
+	fiftyoneDegreesDate date;
+	IpiGetPublished(manager.get(), &date);
+	return Date(&date);
 }
 
 /**
- * @return the date that 51Degrees will publish an updated data file.
+ * @return the date that 51Degrees will publish an updated data file, or a
+ * year, month and day of zero when its header holds no valid date.
  */
 Date EngineIpi::getUpdateAvailableTime() const {
-	DataSetIpi *dataSet = DataSetIpiGet(manager.get());
-	Date date = Date(&dataSet->header.nextUpdate);
-	DataSetIpiRelease(dataSet);
-	return date;
+	fiftyoneDegreesDate date;
+	IpiGetNextUpdate(manager.get(), &date);
+	return Date(&date);
 }
 
 string EngineIpi::getDataFilePath() const {
@@ -369,36 +378,6 @@ Common::ResultsBase* EngineIpi::processBase(
 		EXCEPTION_THROW;
 	}
 	return giveResults(results, manager);
-}
-
-vector<string> EngineIpi::buildHttpHeaderKeys(
-	fiftyoneDegreesHeaders *uniqueHeaders) const {
-	static const char * const prefixes[] = { "query.", "server." };
-	static const size_t prefixesCount =
-		sizeof(prefixes) / sizeof(const char*);
-	const uint32_t headersCount = uniqueHeaders ? uniqueHeaders->count : 0;
-	vector<string> headerKeys;
-	headerKeys.reserve((size_t)headersCount * prefixesCount);
-	for (uint32_t headerIndex = 0; headerIndex < headersCount; headerIndex++) {
-		for (size_t prefixIndex = 0; prefixIndex < prefixesCount; prefixIndex++) {
-			string key = string(prefixes[prefixIndex]);
-			key.append(uniqueHeaders->items[headerIndex].name);
-			if (find(headerKeys.begin(), headerKeys.end(), key)
-				== headerKeys.end()) {
-				headerKeys.push_back(key);
-			}
-		}
-	}
-	return headerKeys;
-}
-
-void EngineIpi::initHttpHeaderKeys(fiftyoneDegreesHeaders *uniqueHeaders) {
-	const vector<string> headerKeys = buildHttpHeaderKeys(uniqueHeaders);
-	for (vector<string>::const_iterator key = headerKeys.begin();
-		key != headerKeys.end();
-		++key) {
-		addKey(*key);
-	}
 }
 
 void EngineIpi::initMetaData() {

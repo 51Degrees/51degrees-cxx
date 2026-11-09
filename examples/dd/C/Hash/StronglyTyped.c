@@ -171,6 +171,9 @@ static bool getPropertyValueAsBool(
 	return value;
 }
 
+// A property only the Enterprise data file has.
+#define ENTERPRISE_PROPERTY "HardwareVendor"
+
 static void printBoolValues(ResultsHash *results) {
 	uint32_t i;
 	const char *propertyName;
@@ -178,10 +181,16 @@ static void printBoolValues(ResultsHash *results) {
 	for (i = 0; i < dataSet->available->count; i++) {
 		propertyName = STRING(
 			dataSet->available->items[i].name.data.ptr);
+		if (strcmp(propertyName, ENTERPRISE_PROPERTY) == 0) {
+			// Shown below, with a note when the data file lacks it.
+			continue;
+		}
 		printf("   %s: %d\n",
 			propertyName,
 			getPropertyValueAsBool(results, propertyName));
 	}
+	fiftyoneDegreesExampleOutputEnterpriseValue(
+		results, ENTERPRISE_PROPERTY);
 }
 
 /**
@@ -202,7 +211,8 @@ void fiftyoneDegreesHashStronglyTyped(
 
 	// Set the properties to be returned for each User-Agent.
 	PropertiesRequired properties = PropertiesDefault;
-	properties.string = "ScreenPixelsWidth,HardwareModel,IsMobile,BrowserName";
+	properties.string =
+		"ScreenPixelsWidth,HardwareModel,IsMobile,BrowserName,HardwareVendor";
 
 	// Initialise the manager for device detection.
 	StatusCode status = HashInitManagerFromFile(
@@ -269,6 +279,9 @@ void fiftyoneDegreesHashStronglyTyped(
 		exception);
 	EXCEPTION_THROW;
 	printBoolValues(results);
+
+	// Say what the Enterprise data file adds, on a free data file.
+	fiftyoneDegreesExampleOfferEnterprise(&manager);
 
 	// Ensure the results are freed to avoid memory leaks.
 	ResultsHashFree(results);

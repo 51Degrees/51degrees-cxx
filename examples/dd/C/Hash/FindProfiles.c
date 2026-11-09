@@ -146,7 +146,7 @@ void fiftyoneDegreesHashFindProfiles(
 
 	// Set the properties to be returned for each User-Agent.
 	PropertiesRequired properties = PropertiesDefault;
-	properties.string = "IsMobile";
+	properties.string = "IsMobile,HardwareVendor";
 
 	// Initialise the manager for device detection.
 	StatusCode status = HashInitManagerFromFile(
@@ -163,6 +163,9 @@ void fiftyoneDegreesHashFindProfiles(
 	}
 
 	run(&manager);
+
+	// Say what the Enterprise data file adds, on a free data file.
+	fiftyoneDegreesExampleOfferEnterprise(&manager);
 
 	// Free the manager and related data structures.
 	ResourceManagerFree(&manager);

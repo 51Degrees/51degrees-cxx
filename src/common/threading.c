@@ -22,6 +22,12 @@
 
 #include "threading.h"
 #include "fiftyone.h"
+#if defined(_WIN32) && !defined(_MSC_VER)
+#include <windows.h>
+#endif
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 #ifdef _MSC_VER
 Signal* SignalCreate()  {
@@ -155,5 +161,25 @@ bool fiftyoneDegreesThreadingGetIsThreadSafe() {
 	return false;
 #else
 	return true;
+#endif
+}
+
+uint16_t fiftyoneDegreesThreadingGetProcessorCount() {
+#if FIFTYONE_DEGREES_NO_THREADING
+	return 1;
+#else
+#ifdef _WIN32
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	const long count = (long)info.dwNumberOfProcessors;
+#else
+	const long count = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+	if (count < 1) {
+		return 1;
+	}
+	return count > FIFTYONE_DEGREES_PROCESSOR_COUNT_MAX ?
+		FIFTYONE_DEGREES_PROCESSOR_COUNT_MAX :
+		(uint16_t)count;
 #endif
 }

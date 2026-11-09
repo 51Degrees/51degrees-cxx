@@ -111,13 +111,38 @@ namespace FiftyoneDegrees {
 				{};
 
 				/**
+				 * Prints a property only the Enterprise data file has, or
+				 * that it needs the Enterprise data file when the data file in
+				 * use does not have it.
+				 */
+				void printEnterpriseValue(
+					DeviceDetection::Hash::ResultsHash *results,
+					const char *name) {
+					if (!hasProperty(name)) {
+						cout << name << ": " <<
+							FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE << "\n";
+						return;
+					}
+					Common::Value<string> value =
+						results->getValueAsString(name);
+					cout << name << ": " << (value.hasValue() ?
+						value.getValue() :
+						value.getNoValueMessage()) << "\n";
+				}
+
+				/**
 				 * @copydoc ExampleBase::run
 				 */
 				void run() {
-					DeviceDetection::Hash::ResultsHash *results;
+					// Each std::unique_ptr in this example frees what it holds
+					// when it is reset or goes out of scope, including when an
+					// exception is thrown. Results hold a reference to the
+					// engine's data set, so they must always be freed.
+					std::unique_ptr<DeviceDetection::Hash::ResultsHash> results;
 
 					// Create an evidence instance to store and process User-Agents.
-					EvidenceDeviceDetection *evidence = new EvidenceDeviceDetection();
+					std::unique_ptr<EvidenceDeviceDetection> evidence(
+						new EvidenceDeviceDetection());
 
 					cout << "Starting Strongly Typed Example.\n";
 
@@ -126,45 +151,47 @@ namespace FiftyoneDegrees {
 						mobileUserAgent << "\n";
 					evidence->operator[]("header.user-agent")
 						= mobileUserAgent;
-					results = engine->process(evidence);
+					results.reset(engine->process(evidence.get()));
 					if (*results->getValueAsBool("IsMobile")) {
 						cout << "Mobile\n";
 					}
 					else {
 						cout << "Non-Mobile\n";
 					}
-					delete results;
+					printEnterpriseValue(results.get(), "HardwareVendor");
 
 					// Carries out a match for a desktop User-Agent.
 					cout << "\nDesktop User-Agent: " <<
 						desktopUserAgent << "\n";
 					evidence->operator[]("header.user-agent")
 						= desktopUserAgent;
-					results = engine->process(evidence);
+					results.reset(engine->process(evidence.get()));
 					if (*results->getValueAsBool("IsMobile")) {
 						cout << "Mobile\n";
 					}
 					else {
 						cout << "Non-Mobile\n";
 					}
-					delete results;
+					printEnterpriseValue(results.get(), "HardwareVendor");
 
 					// Carries out a match for a MediaHub User-Agent.
 					cout << "\nMediaHub User-Agent: " <<
 						mediaHubUserAgent << "\n";
 					evidence->operator[]("header.user-agent")
 						= mediaHubUserAgent;
-					results = engine->process(evidence);
+					results.reset(engine->process(evidence.get()));
 					if (*results->getValueAsBool("IsMobile")) {
 						cout << "Mobile\n";
 					}
 					else {
 						cout << "Non-Mobile\n";
 					}
-					delete results;
+					printEnterpriseValue(results.get(), "HardwareVendor");
 
-					// Free the evidence.
-					delete evidence;
+					// On the free Lite data file, say what the Enterprise data
+					// file adds and where to ask for a copy.
+					offerEnterprise(
+						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-hash-stronglytyped.cpp&utm_term=lite-data-file");
 				}
 			};
 		}
@@ -183,10 +210,10 @@ extern "C" void fiftyoneDegreesExampleCPPStronglyTypedRun(
 		new DeviceDetection::Hash::ConfigHash(&configHash);
 
 	try {
-		StronglyTyped *stronglyTyped = new StronglyTyped(
-			params->dataFilePath, cppConfig);
-		stronglyTyped->run();
-		delete stronglyTyped;
+		// The example, and the engine it holds, is freed when it goes out of
+		// scope, including when an exception is thrown.
+		StronglyTyped stronglyTyped(params->dataFilePath, cppConfig);
+		stronglyTyped.run();
 	}
 	catch (const StatusCodeException &e) {
 		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);

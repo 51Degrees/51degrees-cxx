@@ -40,13 +40,17 @@ public:
 		EXPECT_EQ(status, FIFTYONE_DEGREES_STATUS_SUCCESS) <<
 			"Failed to load the data file into memory";
 
-		ReloadFromMemory* reloadFromMemory = new ReloadFromMemory(
-			reader.startByte,
-			reader.length,
-			userAgentFilePath,
-			config);
-		reloadFromMemory->run();
-		delete reloadFromMemory;
+		// The example owns the configuration, and is freed with its engine
+		// at the end of the block, even if it throws. The memory is freed
+		// after the engine using it has gone.
+		{
+			ReloadFromMemory reloadFromMemory(
+				reader.startByte,
+				reader.length,
+				userAgentFilePath,
+				config);
+			reloadFromMemory.run();
+		}
 		// Free the memory for the test.
 		fiftyoneDegreesFree(reader.startByte);
 

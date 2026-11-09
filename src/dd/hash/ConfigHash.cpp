@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include "ConfigHash.hpp"
+#include "../../common/threading.h"
 
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
@@ -29,6 +30,10 @@ ConfigHash::ConfigHash()
 	: ConfigDeviceDetection(&this->config.b) {
 	config = fiftyoneDegreesHashDefaultConfig;
 	initCollectionConfig();
+	// A concurrency of 0 is one operation for each processor.
+	if (getConcurrency() == 0) {
+		setConcurrency(fiftyoneDegreesThreadingGetProcessorCount());
+	}
 }
 
 ConfigHash::ConfigHash(fiftyoneDegreesConfigHash *config)
@@ -36,10 +41,16 @@ ConfigHash::ConfigHash(fiftyoneDegreesConfigHash *config)
 	this->config = config != nullptr ?
 		*config : fiftyoneDegreesHashBalancedConfig;
 	initCollectionConfig();
+	// A concurrency of 0 is one operation for each processor.
+	if (getConcurrency() == 0) {
+		setConcurrency(fiftyoneDegreesThreadingGetProcessorCount());
+	}
 }
 
 void ConfigHash::setPerformanceFromExistingConfig(
 	fiftyoneDegreesConfigHash *existing) {
+	// The profile sets how each collection is held, not the concurrency.
+	const uint16_t concurrency = getConcurrency();
 	config.strings = existing->strings;
 	config.properties = existing->properties;
 	config.values = existing->values;
@@ -49,6 +60,8 @@ void ConfigHash::setPerformanceFromExistingConfig(
 	config.maps = existing->maps;
 	config.components = existing->components;
 	config.b.b.allInMemory = existing->b.b.allInMemory;
+	config.loadRequiredPropertiesOnly = existing->loadRequiredPropertiesOnly;
+	setConcurrency(concurrency);
 }
 
 void ConfigHash::setHighPerformance() {
@@ -89,6 +102,14 @@ void ConfigHash::setUsePredictiveGraph(bool use) {
 
 void ConfigHash::setTraceRoute(bool shouldTrace) {
 	config.traceRoute = shouldTrace;
+}
+
+void ConfigHash::setLoadRequiredPropertiesOnly(bool load) {
+	config.loadRequiredPropertiesOnly = load;
+}
+
+bool ConfigHash::getLoadRequiredPropertiesOnly() const {
+	return config.loadRequiredPropertiesOnly;
 }
 
 void ConfigHash::setIndexedProperties(std::vector<std::string> names) {
@@ -148,6 +169,7 @@ void ConfigHash::initCollectionConfig() {
 	properties = CollectionConfig(&config.properties);
 	values = CollectionConfig(&config.values);
 	profiles = CollectionConfig(&config.profiles);
+	rootNodes = CollectionConfig(&config.rootNodes);
 	nodes = CollectionConfig(&config.nodes);
 	profileOffsets = CollectionConfig(&config.profileOffsets);
 	maps = CollectionConfig(&config.maps);
@@ -172,6 +194,7 @@ uint16_t ConfigHash::getConcurrency() const {
 		properties.getConcurrency(),
 		values.getConcurrency(),
 		profiles.getConcurrency(),
+		rootNodes.getConcurrency(),
 		nodes.getConcurrency(),
 		profileOffsets.getConcurrency(),
 		maps.getConcurrency(),
@@ -185,6 +208,7 @@ void ConfigHash::setConcurrency(uint16_t concurrency) {
 	properties.setConcurrency(concurrency);
 	values.setConcurrency(concurrency);
 	profiles.setConcurrency(concurrency);
+	rootNodes.setConcurrency(concurrency);
 	nodes.setConcurrency(concurrency);
 	profileOffsets.setConcurrency(concurrency);
 	maps.setConcurrency(concurrency);

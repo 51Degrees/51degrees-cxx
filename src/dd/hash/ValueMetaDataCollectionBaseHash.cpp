@@ -72,3 +72,43 @@ ValueMetaData* ValueMetaDataCollectionBaseHash::getByKey(
 	}
 	return result;
 }
+
+ValueMetaData* ValueMetaDataCollectionBaseHash::getDefaultForProperty(
+	const std::string &propertyName) const {
+	EXCEPTION_CREATE;
+	Item propertyItem, valueItem;
+	ValueMetaData *result = nullptr;
+	DataReset(&propertyItem.data);
+	const Property *property = PropertyGetByName(
+		dataSet->properties,
+		dataSet->strings,
+		propertyName.c_str(),
+		&propertyItem,
+		exception);
+	EXCEPTION_THROW;
+	if (property != nullptr) {
+		// Every Hash value is a string, so there are no property types.
+		const long index = ValueGetDefaultIndex(
+			dataSet->values,
+			dataSet->strings,
+			nullptr,
+			property,
+			exception);
+		COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+		EXCEPTION_THROW;
+		if (index >= 0) {
+			DataReset(&valueItem.data);
+			const Value *value = ValueGet(
+				dataSet->values,
+				(uint32_t)index,
+				&valueItem,
+				exception);
+			EXCEPTION_THROW;
+			if (value != nullptr) {
+				result = ValueMetaDataBuilderHash::build(dataSet, value);
+				COLLECTION_RELEASE(dataSet->values, &valueItem);
+			}
+		}
+	}
+	return result;
+}

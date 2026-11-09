@@ -25,7 +25,7 @@
 
 class ExampleTestPerformanceLegacy : public ExampleIpIntelligenceTest {
 public:
-    void run(fiftyoneDegreesConfigIpi config) {
+    std::string run(fiftyoneDegreesConfigIpi config) {
         // Capture stdout for the test.
         testing::internal::CaptureStdout();
 
@@ -34,8 +34,8 @@ public:
             evidenceFilePath.c_str(),
             config);
 
-        // Don't print the stdout
-        std::string output = testing::internal::GetCapturedStdout();
+        // Returned for the tests to check.
+        return testing::internal::GetCapturedStdout();
     }
 };
 
@@ -46,4 +46,16 @@ TEST_F(ExampleTestPerformanceLegacy, LowMemory) {
     if (fiftyoneDegreesCollectionGetIsMemoryOnly() == false) {
         run(fiftyoneDegreesIpiLowMemoryConfig);
     }
+}
+
+// The example uses the free ASN data file by default, and reads AsnName,
+// which that file has in place of RegisteredName.
+TEST_F(ExampleTestPerformanceLegacy, AsnDataFile) {
+    dataFilePath = getAsnDataFilePath();
+    if (dataFilePath.empty()) {
+        GTEST_SKIP() << "The free ASN data file is not present.";
+    }
+    std::string output = run(fiftyoneDegreesIpiInMemoryConfig);
+    EXPECT_NE(output.find("Average matching per second"),
+        std::string::npos) << output;
 }

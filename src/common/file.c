@@ -126,8 +126,10 @@ static FileOffset setLength(FilePool *reader, Exception *exception) {
 	FileHandle *handle;
 	reader->length = 0;
 	handle = FileHandleGet(reader, exception);
-	if (handle != NULL && EXCEPTION_OKAY) {
-		reader->length = fileGetSize(handle->file);
+	if (handle != NULL) {
+		if (EXCEPTION_OKAY) {
+			reader->length = fileGetSize(handle->file);
+		}
 		FileHandleRelease(handle);
 	}
 	return reader->length;
@@ -1007,6 +1009,9 @@ fiftyoneDegreesStatusCode fiftyoneDegreesFilePoolInit(
 	StatusCode status = SUCCESS;
 	if (concurrency <= 0) {
 		return INVALID_COLLECTION_CONFIG;
+	}
+	if (concurrency > FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES) {
+		concurrency = FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES;
 	}
 	if (PoolInit(
 			&filePool->pool,
