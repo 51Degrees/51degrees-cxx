@@ -203,14 +203,16 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Get the date at which the current data set was published.
-			 * @return data set published date
+			 * @return data set published date, or a year, month and day of
+			 * zero when the data file holds no valid date
 			 */
 			virtual Date getPublishedTime() const = 0;
 
 			/**
 			 * Get the date at which a new data file will be available to
 			 * download from the URL returned by #getDataUpdateUrl().
-			 * @return new data set available date
+			 * @return new data set available date, or a year, month and day
+			 * of zero when the data file holds no valid date
 			 */
 			virtual Date getUpdateAvailableTime() const = 0;
 

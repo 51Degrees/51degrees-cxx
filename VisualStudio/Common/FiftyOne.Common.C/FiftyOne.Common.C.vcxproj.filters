@@ -173,6 +173,9 @@
     <ClCompile Include="..\..\..\src\common\dataset.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\src\common\date.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\src\common\exceptionsc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
