@@ -2750,6 +2750,55 @@ void fiftyoneDegreesDataSetIpiRelease(fiftyoneDegreesDataSetIpi* dataSet) {
 }
 
 /**
+ * True if a header before the one at the index has the same name.
+ */
+static bool isHeaderNameRepeated(Headers *headers, uint32_t index) {
+	uint32_t i;
+	for (i = 0; i < index; i++) {
+		if (headers->items[i].name != NULL &&
+			strcmp(headers->items[i].name, headers->items[index].name) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+size_t fiftyoneDegreesIpiGetEvidenceKeys(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	char *buffer,
+	size_t length,
+	const char *separator) {
+	static const char * const prefixes[] = { "query.", "server." };
+	uint32_t i, p;
+	size_t added;
+	const char *name;
+	Headers * const headers = dataSet->b.b.uniqueHeaders;
+	const uint32_t count = headers == NULL ? 0 : headers->count;
+	const size_t separatorLength = separator == NULL ? 0 : strlen(separator);
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilderInit(&builder);
+	for (i = 0; i < count; i++) {
+		name = headers->items[i].name;
+
+		// The prefixes differ from their first character, so a header gives
+		// keys already written only when an earlier header has its name.
+		if (name == NULL || isHeaderNameRepeated(headers, i)) {
+			continue;
+		}
+		for (p = 0; p < sizeof(prefixes) / sizeof(prefixes[0]); p++) {
+			if (builder.added > 0) {
+				StringBuilderAddChars(&builder, separator, separatorLength);
+			}
+			StringBuilderAddChars(&builder, prefixes[p], strlen(prefixes[p]));
+			StringBuilderAddChars(&builder, name, strlen(name));
+		}
+	}
+	added = builder.added;
+	StringBuilderComplete(&builder);
+	return added;
+}
+
+/**
  * Sets the date to the next update date in the header when next is true, or
  * to the published date otherwise, if that date is valid, and to zeros if not,
  * so a caller that ignores the result still never reads an invalid date.

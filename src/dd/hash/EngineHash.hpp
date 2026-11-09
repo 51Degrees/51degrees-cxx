@@ -227,14 +227,10 @@ namespace FiftyoneDegrees {
 				 */
 
 			protected:
-				/*
-				 * Using the super class init function here
-				 * so that it is not hidden by the overloaded
-				 * functions.
-				 */
-				using EngineDeviceDetection::init;
 				/**
-				 * @copydoc EngineDeviceDetection::init
+				 * Initialise the evidence keys and the metadata from the data
+				 * set provided.
+				 * @param dataSet pointer to the data used by the engine
 				 */
 				void init(fiftyoneDegreesDataSetHash *dataSet);
 

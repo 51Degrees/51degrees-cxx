@@ -28,6 +28,7 @@
 #include <sstream>
 #include <memory>
 #include <algorithm>
+#include <functional>
 #include "Exceptions.hpp"
 #include "RequiredPropertiesConfig.hpp"
 #include "Date.hpp"
@@ -315,28 +316,15 @@ namespace FiftyoneDegrees {
 				uint32_t offset) const;
 
 			/**
-			 * Initialise the HTTP header keys which are used by this engine.
-			 * These are the pieces of evidence which should be passed in if
-			 * available.
-			 * @param uniqueHeaders to get the keys from
+			 * Gets the evidence keys that a C function writes as one string
+			 * with a separator between them. The function is called once to
+			 * find the length needed and once to fill a buffer of that length.
+			 * @param write calls the C function with the buffer, its length
+			 * and the separator, and returns the length the keys need
+			 * @return the keys in the order they were written
 			 */
-			virtual void initHttpHeaderKeys(fiftyoneDegreesHeaders *uniqueHeaders);
-
-			/**
-			 * Initialise the override keys which are used by this engine.
-			 * These are additional pieces of evidence which should be passed
-			 * in if available.
-			 * @param overrideProperties to get the keys from
-			 */
-			void initOverrideKeys(
-				fiftyoneDegreesOverridePropertyArray *overrideProperties);
-
-			/**
-			 * Adds a key to the list of keys which should be added as evidence.
-			 * This is called by the key init methods.
-			 * @param key to add
-			 */
-			void addKey(string key);
+			static vector<string> readKeys(
+				const std::function<size_t(char*, size_t, const char*)> &write);
 		};
 	FIFTYONE_DEGREES_COMMON_CXX_END
 	}

@@ -4640,6 +4640,141 @@ void fiftyoneDegreesDataSetHashRelease(
 }
 
 /**
+ * An evidence key as the parts that, joined in order, make the key.
+ */
+typedef struct evidence_key_t {
+	const char *prefix; /* The evidence prefix and its dot */
+	const char *infix; /* Text between the prefix and the name, or empty */
+	const char *name; /* The header or property name, or NULL for no key */
+} evidenceKey;
+
+/**
+ * The keys a data set accepts that do not come from the data file. They
+ * follow the keys that do.
+ */
+static const evidenceKey fixedEvidenceKeys[] = {
+	{ "query.", "", FIFTYONE_DEGREES_EVIDENCE_DEVICE_ID },
+	{ "query.", "", FIFTYONE_DEGREES_EVIDENCE_HIGH_ENTROPY_VALUES },
+	{ "query.", "", FIFTYONE_DEGREES_EVIDENCE_STRUCTURED_USER_AGENT },
+	{ "cookie.", "", FIFTYONE_DEGREES_EVIDENCE_HIGH_ENTROPY_VALUES },
+	{ "cookie.", "", FIFTYONE_DEGREES_EVIDENCE_STRUCTURED_USER_AGENT },
+	{ "query.", FIFTYONE_DEGREES_COMMON_COOKIE_PREFIX, "ProfileIds" },
+	{ "cookie.", FIFTYONE_DEGREES_COMMON_COOKIE_PREFIX, "ProfileIds" }
+};
+
+/**
+ * Gets the evidence key at the index, counting a key under header. and then
+ * query. for each unique header, then a key under cookie. and then query.
+ * for each overridable property, then the fixed keys. A pseudo header gives
+ * no key, as a request never carries one, so its name is set to NULL.
+ * @return false if the index is past the last key
+ */
+static bool getEvidenceKey(
+	DataSetHash *dataSet,
+	uint32_t index,
+	evidenceKey *key) {
+	static const char * const headerPrefixes[] = { "header.", "query." };
+	static const char * const overridePrefixes[] = { "cookie.", "query." };
+	Headers * const headers = dataSet->b.b.uniqueHeaders;
+	OverridePropertyArray * const overrides = dataSet->b.b.overridable;
+	const uint32_t headerKeys = headers == NULL ? 0 : headers->count * 2;
+	const uint32_t overrideKeys = overrides == NULL ? 0 : overrides->count * 2;
+	const char *name;
+	if (index < headerKeys) {
+		name = headers->items[index / 2].name;
+		key->prefix = headerPrefixes[index % 2];
+		key->infix = dataSet->config.b.b.usesUpperPrefixedHeaders ?
+			"HTTP_" : "";
+		key->name = (name == NULL ||
+			strchr(name, FIFTYONE_DEGREES_PSEUDO_HEADER_SEP) != NULL) ?
+			NULL : name;
+		return true;
+	}
+	index -= headerKeys;
+	if (index < overrideKeys) {
+		key->prefix = overridePrefixes[index % 2];
+		key->infix = overrides->prefix ?
+			FIFTYONE_DEGREES_COMMON_COOKIE_PREFIX : "";
+		key->name = STRING( // name is string
+			overrides->items[index / 2].available->name.data.ptr);
+		return true;
+	}
+	index -= overrideKeys;
+	if (index < sizeof(fixedEvidenceKeys) / sizeof(fixedEvidenceKeys[0])) {
+		*key = fixedEvidenceKeys[index];
+		return true;
+	}
+	return false;
+}
+
+/**
+ * True if the two keys are the same text once their parts are joined.
+ */
+static bool evidenceKeysEqual(const evidenceKey *a, const evidenceKey *b) {
+	const char * const aParts[] = { a->prefix, a->infix, a->name };
+	const char * const bParts[] = { b->prefix, b->infix, b->name };
+	const int lastPart = 2;
+	int aPart = 0, bPart = 0;
+	const char *aNext = aParts[0], *bNext = bParts[0];
+	for (;;) {
+		while (*aNext == '\0' && aPart < lastPart) {
+			aNext = aParts[++aPart];
+		}
+		while (*bNext == '\0' && bPart < lastPart) {
+			bNext = bParts[++bPart];
+		}
+		if (*aNext != *bNext) {
+			return false;
+		}
+		if (*aNext == '\0') {
+			return true;
+		}
+		aNext++;
+		bNext++;
+	}
+}
+
+size_t fiftyoneDegreesHashGetEvidenceKeys(
+	fiftyoneDegreesDataSetHash *dataSet,
+	char *buffer,
+	size_t length,
+	const char *separator) {
+	uint32_t i, j;
+	size_t added;
+	evidenceKey key, earlier;
+	const size_t separatorLength = separator == NULL ? 0 : strlen(separator);
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilderInit(&builder);
+	for (i = 0; getEvidenceKey(dataSet, i, &key); i++) {
+		if (key.name == NULL) {
+			continue;
+		}
+
+		// A key is written once, where it is first listed. The list is short,
+		// so each key is compared with those before it, which needs no
+		// memory and gives the same answer when the buffer is too short.
+		for (j = 0; j < i; j++) {
+			getEvidenceKey(dataSet, j, &earlier);
+			if (earlier.name != NULL && evidenceKeysEqual(&key, &earlier)) {
+				break;
+			}
+		}
+		if (j < i) {
+			continue;
+		}
+		if (builder.added > 0) {
+			StringBuilderAddChars(&builder, separator, separatorLength);
+		}
+		StringBuilderAddChars(&builder, key.prefix, strlen(key.prefix));
+		StringBuilderAddChars(&builder, key.infix, strlen(key.infix));
+		StringBuilderAddChars(&builder, key.name, strlen(key.name));
+	}
+	added = builder.added;
+	StringBuilderComplete(&builder);
+	return added;
+}
+
+/**
  * Sets the date to the next update date in the header when next is true, or
  * to the published date otherwise, if that date is valid, and to zeros if not,
  * so a caller that ignores the result still never reads an invalid date.

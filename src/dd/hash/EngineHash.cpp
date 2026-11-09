@@ -129,12 +129,13 @@ void EngineHash::init() {
 
 void EngineHash::init(
 	fiftyoneDegreesDataSetHash *dataSet) {
-	EngineDeviceDetection::init(&dataSet->b);
+	keys = readKeys([dataSet](
+		char *buffer,
+		size_t length,
+		const char *separator) {
+		return HashGetEvidenceKeys(dataSet, buffer, length, separator);
+	});
 	initMetaData();
-	
-	// Two new override properties available.
-	addKey("query.51D_ProfileIds");
-	addKey("cookie.51D_ProfileIds");
 }
 
 void* EngineHash::copyData(void *data, size_t length) const {

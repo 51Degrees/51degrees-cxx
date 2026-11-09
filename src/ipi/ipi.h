@@ -539,6 +539,32 @@ EXTERNAL fiftyoneDegreesDataSetIpi* fiftyoneDegreesDataSetIpiGet(
 EXTERNAL void fiftyoneDegreesDataSetIpiRelease(fiftyoneDegreesDataSetIpi* dataset);
 
 /**
+ * Writes the evidence keys the data set accepts, each with its prefix, with
+ * the separator between them. For each header the data set reads the client
+ * IP address from, in the data set's order, there is a key under `query.`
+ * and then one under `server.`, for example `query.client-ip-51d` and
+ * `server.client-ip-51d`. A header named more than once gives its keys once.
+ * The order is the order of the headers. A lookup from evidence tries every
+ * `query.` key before any `server.` key, whatever the order here.
+ *
+ * Call with a NULL buffer to find the length needed, then with a buffer one
+ * longer than that.
+ * @param dataSet the data set to list the keys of
+ * @param buffer to write the keys to, or NULL to only find their length
+ * @param length of the buffer, including room for the null terminator
+ * @param separator written between keys. A comma suits, as no HTTP header
+ * name holds one.
+ * @return the number of characters the keys and separators need, not
+ * counting the null terminator. When the buffer is shorter than that plus
+ * one, it holds as many characters as fit followed by a null terminator.
+ */
+EXTERNAL size_t fiftyoneDegreesIpiGetEvidenceKeys(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	char *buffer,
+	size_t length,
+	const char *separator);
+
+/**
  * Gets the date the data file in use was published, from its header.
  * @param manager the resource manager containing an IP Intelligence data set
  * initialised by one of the IP Intelligence data set init methods
