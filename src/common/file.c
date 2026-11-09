@@ -725,7 +725,7 @@ int fiftyoneDegreesFileDeleteUnusedTempFiles(
 		// Look in the directories provided.
 		for (i = 0; i < count; i++) {
 			iterateFiles(
-				paths[0],
+				paths[i],
 				&state,
 				iteratorFileCompare,
 				iteratorFileDelete);
