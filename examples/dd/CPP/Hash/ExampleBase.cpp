@@ -48,46 +48,42 @@ const char* ExampleBase::uachPlatform = ("\"Windows\"");
 
 const char* ExampleBase::uachPlatformVersion = ("\"14.0.0\"");
 
+// The members own what they point to, so if the engine cannot be created the
+// configuration and properties are still freed.
 ExampleBase::ExampleBase(
-	byte *data, 
-	long length, 
-	DeviceDetection::Hash::ConfigHash *config) {
-	this->config = config;
+	byte *data,
+	long length,
+	DeviceDetection::Hash::ConfigHash *config) : config(config) {
 
 	// Set the properties to be returned for each User-Agent.
-	properties = new RequiredPropertiesConfig(RequiredProperties);
+	properties.reset(new RequiredPropertiesConfig(RequiredProperties));
 
 	// Initialise the engine for device detection.
-	engine = new EngineHash(
+	engine.reset(new EngineHash(
 		data,
 		length,
 		config,
-		properties);
+		properties.get()));
 }
 
 ExampleBase::ExampleBase(
-	string dataFilePath, 
-	DeviceDetection::Hash::ConfigHash *config) {
-	this->config = config;
+	string dataFilePath,
+	DeviceDetection::Hash::ConfigHash *config) : config(config) {
 
 	// Set the properties to be returned for each User-Agent.
-	properties = new RequiredPropertiesConfig(RequiredProperties);
+	properties.reset(new RequiredPropertiesConfig(RequiredProperties));
 
 	// Initialise the engine for device detection.
-	engine = new EngineHash(
+	engine.reset(new EngineHash(
 		dataFilePath,
 		config,
-		properties);
+		properties.get()));
 }
 
 ExampleBase::ExampleBase(string dataFilePath)
 	: ExampleBase(dataFilePath, new DeviceDetection::Hash::ConfigHash()) { }
 
-ExampleBase::~ExampleBase() {
-	delete engine;
-	delete config;
-	delete properties;
-}
+ExampleBase::~ExampleBase() = default;
 
 void ExampleBase::reportStatus(
 	fiftyoneDegreesStatusCode status,
@@ -143,12 +139,10 @@ void ExampleBase::processUserAgent(
 	void *state) {
 	ThreadState *thread = (ThreadState*)state;
 
-	DeviceDetection::Hash::ResultsHash *results = 
-		thread->engine->process(userAgent);
+	std::unique_ptr<DeviceDetection::Hash::ResultsHash> results(
+		thread->engine->process(userAgent));
 
-	thread->hashCode ^= getHashCode(results);
-
-	delete results;
+	thread->hashCode ^= getHashCode(results.get());
 }
 
 void ExampleBase::SharedState::processUserAgentsSingle() {

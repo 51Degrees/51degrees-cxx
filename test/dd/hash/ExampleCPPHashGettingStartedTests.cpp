@@ -29,13 +29,12 @@ public:
 		// Capture stdout for the test.
 		testing::internal::CaptureStdout();
 
-		DeviceDetection::Hash::ConfigHash* config = 
+		// The example owns the configuration, and is freed with its engine
+		// when it goes out of scope, even if it throws.
+		DeviceDetection::Hash::ConfigHash* config =
 			new DeviceDetection::Hash::ConfigHash(&configHash);
-		GettingStarted* gettingStarted = new GettingStarted(
-			dataFilePath, 
-			config);
-		gettingStarted->run();
-		delete gettingStarted;
+		GettingStarted gettingStarted(dataFilePath, config);
+		gettingStarted.run();
 
 		// Only the free Lite data file lacks the properties the example
 		// marks as needing the Enterprise data file.

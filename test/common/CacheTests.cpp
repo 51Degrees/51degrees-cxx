@@ -73,6 +73,23 @@ public:
 			data->used = (uint32_t)size;
 		}
 	}
+
+	/**
+	 * Loads the value as load does, but fails for keys beyond the test
+	 * strings.
+	 */
+	static void loadOrFail(
+		const void *state,
+		fiftyoneDegreesData *data,
+		const void *key,
+		fiftyoneDegreesException *exception) {
+		if (*(int*)key >= TEST_STRINGS_COUNT) {
+			FIFTYONE_DEGREES_EXCEPTION_SET(
+				FIFTYONE_DEGREES_STATUS_CORRUPT_DATA);
+			return;
+		}
+		load(state, data, key, exception);
+	}
 #ifdef _MSC_VER
 #pragma warning (default: 4100)
 #endif
@@ -187,6 +204,36 @@ public:
 		ASSERT_EQ(NULL, node) <<
 			"Get should have returned null, there are no free nodes to load the "
 			"new value into.";
+	}
+
+	/**
+	* Check that a load which fails returns null with the failure and leaves
+	* its node free, so that more failures than the cache has nodes still
+	* leave every value loadable.
+	*/
+	void failedLoads() {
+		fiftyoneDegreesCacheFree(cache);
+		cache = fiftyoneDegreesCacheCreate(
+			2,
+			1,
+			loadOrFail,
+			fiftyoneDegreesCacheHash32,
+			TEST_STRINGS);
+		ASSERT_NE(nullptr, cache);
+		int missing = TEST_STRINGS_COUNT;
+		for (int32_t i = 0; i <= cache->capacity; i++) {
+			FIFTYONE_DEGREES_EXCEPTION_CREATE
+			fiftyoneDegreesCacheNode *node = fiftyoneDegreesCacheGet(
+				cache,
+				&missing,
+				exception);
+			ASSERT_EQ(nullptr, node) <<
+				"A load that failed should not return a node.";
+			ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(
+				FIFTYONE_DEGREES_STATUS_CORRUPT_DATA)) <<
+				"A load that failed should report the failure.";
+		}
+		getAndCheck(0, TEST_STRINGS_COUNT - 1);
 	}
 
 	/**
@@ -331,6 +378,9 @@ ASSERT_EQ((void*)cache, (void*)NULL) <<
 }
 TEST_F(CacheTestOneHalf, Evict) {
 	evict(TEST_STRINGS_COUNT / 2, TEST_STRINGS_COUNT / 2);
+}
+TEST_F(CacheTestOneTwo, FailedLoads) {
+	failedLoads();
 }
 
 /**

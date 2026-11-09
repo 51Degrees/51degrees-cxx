@@ -30,11 +30,12 @@ public:
 		// Capture stdout for the test.
 		testing::internal::CaptureStdout();
 
-		DeviceDetection::Hash::ConfigHash* config = 
+		// The example owns the configuration, and is freed with its engine
+		// when it goes out of scope, even if it throws.
+		DeviceDetection::Hash::ConfigHash* config =
 			new DeviceDetection::Hash::ConfigHash(&configHash);
-		MetaDataExample* metaData = new MetaDataExample(dataFilePath, config);
-		metaData->run();
-		delete metaData;
+		MetaDataExample metaData(dataFilePath, config);
+		metaData.run();
 
 		// Only on the free Lite data file does the example say what the
 		// Enterprise data file adds.

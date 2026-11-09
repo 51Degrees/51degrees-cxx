@@ -77,14 +77,13 @@ void EngineTests::TearDown() { Base::TearDown(); }
 EngineBase* EngineTests::getEngine() { return nullptr; }
 
 void EngineTests::properties() {
-	Collection<string, PropertyMetaData> *properties =
-		getEngine()->getMetaData()->getProperties();
-	PropertyMetaData *property;
+	std::unique_ptr<Collection<string, PropertyMetaData>> properties(
+		getEngine()->getMetaData()->getProperties());
 	uint32_t i;
 	vector<string>::iterator mapIt;
 	vector<string> maps;
 	for (i = 0; i < properties->getSize(); i++) {
-		property = properties->getByIndex(i);
+		std::unique_ptr<PropertyMetaData> property(properties->getByIndex(i));
 		ASSERT_FALSE(property->getName().empty());
 		ASSERT_FALSE(property->getType().empty());
 
@@ -92,9 +91,7 @@ void EngineTests::properties() {
 		for (mapIt = maps.begin(); mapIt < maps.end(); mapIt++) {
 			ASSERT_FALSE((*mapIt).empty());
 		}
-		delete property;
 	}
-	delete properties;
 }
 
 void EngineTests::testProduct(string expected) {
@@ -361,68 +358,56 @@ void EngineTests::verifyWithEvidence(EvidenceBase *evidence) {
 void EngineTests::verifyComponentMetaDataDefaultProfile(
 	MetaData *metaData, 
 	ComponentMetaData *component) {
-	ProfileMetaData *defaultProfile =
-		metaData->getDefaultProfileForComponent(component);
-	ComponentMetaData *otherComponent =
-		metaData->getComponentForProfile(defaultProfile);
+	std::unique_ptr<ProfileMetaData> defaultProfile(
+		metaData->getDefaultProfileForComponent(component));
+	std::unique_ptr<ComponentMetaData> otherComponent(
+		metaData->getComponentForProfile(defaultProfile.get()));
 	ASSERT_EQ(*component, *otherComponent) <<
 		L"The component and its default profile are not linked." <<
 		L"\nComponent Id = " << (int)component->getComponentId() <<
 		L"\nOther Component Id = " << (int)otherComponent->getComponentId() <<
 		L"\nProfile Id = " << defaultProfile->getProfileId();
-
-	delete otherComponent;
-	delete defaultProfile;
 }
 
 void EngineTests::verifyComponentMetaData(MetaData *metaData) {
-	Collection<byte, ComponentMetaData> *components =
-		metaData->getComponents();
-	ASSERT_NE(nullptr, components) << L"Components should not be null.";
+	std::unique_ptr<Collection<byte, ComponentMetaData>> components(
+		metaData->getComponents());
+	ASSERT_NE(nullptr, components.get()) << L"Components should not be null.";
 	uint32_t componentIndex, propertyIndex;
-	ComponentMetaData *component, *otherComponent;
-	Collection<string, PropertyMetaData> *properties;
-	PropertyMetaData *property;
 	for (componentIndex = 0;
 		componentIndex < components->getSize();
 		componentIndex++) {
-		component = components->getByIndex(componentIndex);
-		otherComponent = components->getByKey(component->getKey());
+		std::unique_ptr<ComponentMetaData> component(
+			components->getByIndex(componentIndex));
+		std::unique_ptr<ComponentMetaData> otherComponent(
+			components->getByKey(component->getKey()));
 		ASSERT_EQ(*component, *otherComponent) <<
 			L"The same component should be returned for the same key.";
-		ASSERT_NE(component, otherComponent) <<
+		ASSERT_NE(component.get(), otherComponent.get()) <<
 			L"The component should be a unique instance.";
-		delete otherComponent;
-		verifyComponentMetaDataDefaultProfile(metaData, component);
-		properties = metaData->getPropertiesForComponent(component);
+		verifyComponentMetaDataDefaultProfile(metaData, component.get());
+		std::unique_ptr<Collection<string, PropertyMetaData>> properties(
+			metaData->getPropertiesForComponent(component.get()));
 		for (propertyIndex = 0;
 			propertyIndex < properties->getSize();
 			propertyIndex++) {
-			property = properties->getByIndex(propertyIndex);
-			otherComponent = metaData->getComponentForProperty(property);
+			std::unique_ptr<PropertyMetaData> property(
+				properties->getByIndex(propertyIndex));
+			otherComponent.reset(
+				metaData->getComponentForProperty(property.get()));
 			ASSERT_EQ(*component, *otherComponent) <<
 				L"The component and its properties are not linked." <<
 				L"\nComponent Id = " << (int)component->getComponentId() <<
 				L"\nOther Component Id = " << (int)otherComponent->getComponentId() <<
 				L"\nProperty = " << property->getName() << L".";
-			delete property;
-			delete otherComponent;
 		}
-		delete properties;
-		delete component;
 	}
-	delete components;
 }
 
 void EngineTests::verifyPropertyMetaData(MetaData *metaData) {
-	Collection<string, PropertyMetaData> *properties =
-		metaData->getProperties();
-	ASSERT_NE(nullptr, properties) << L"Properties should not be null.";
-	PropertyMetaData *property, *otherProperty;
-	ValueMetaData *value;
-	ComponentMetaData *component;
-	Collection<string, PropertyMetaData> *componentProperties;
-	Collection<ValueMetaDataKey, ValueMetaData> *values;
+	std::unique_ptr<Collection<string, PropertyMetaData>> properties(
+		metaData->getProperties());
+	ASSERT_NE(nullptr, properties.get()) << L"Properties should not be null.";
 	uint32_t propertyIndex, valueIndex, componentPropertyIndex;
 	for (propertyIndex = 0;
 		propertyIndex < properties->getSize();
@@ -430,63 +415,55 @@ void EngineTests::verifyPropertyMetaData(MetaData *metaData) {
 			properties->getSize() > PROPERTY_SAMPLE_SIZE ?
 			properties->getSize() / PROPERTY_SAMPLE_SIZE :
 			1) {
-		property = properties->getByIndex(propertyIndex);
-		value = metaData->getDefaultValueForProperty(property);
+		std::unique_ptr<PropertyMetaData> property(
+			properties->getByIndex(propertyIndex));
+		std::unique_ptr<ValueMetaData> value(
+			metaData->getDefaultValueForProperty(property.get()));
 		if (value != nullptr) {
-			otherProperty = metaData->getPropertyForValue(value);
+			std::unique_ptr<PropertyMetaData> otherProperty(
+				metaData->getPropertyForValue(value.get()));
 			ASSERT_EQ(*property, *otherProperty) <<
 				L"The property and its default value are not linked.";
-			delete otherProperty;
 		}
-		delete value;
-		values = metaData->getValuesForProperty(property);
+		std::unique_ptr<Collection<ValueMetaDataKey, ValueMetaData>> values(
+			metaData->getValuesForProperty(property.get()));
 		for (valueIndex = 0;
 			valueIndex < values->getSize();
 			valueIndex++) {
-			value = values->getByIndex(valueIndex);
-			otherProperty = metaData->getPropertyForValue(value);
+			value.reset(values->getByIndex(valueIndex));
+			std::unique_ptr<PropertyMetaData> otherProperty(
+				metaData->getPropertyForValue(value.get()));
 			ASSERT_EQ(*property, *otherProperty) <<
 				L"The property and its values are not linked." <<
 				L"\nProperty = " << property->getName() <<
 				L"\nOther Property = " << otherProperty->getName();
-			delete otherProperty;
-			delete value;
 		}
-		delete values;
 		bool found = false;
-		component = metaData->getComponentForProperty(property);
-		componentProperties = metaData->getPropertiesForComponent(component);
+		std::unique_ptr<ComponentMetaData> component(
+			metaData->getComponentForProperty(property.get()));
+		std::unique_ptr<Collection<string, PropertyMetaData>>
+			componentProperties(
+				metaData->getPropertiesForComponent(component.get()));
 		for (componentPropertyIndex = 0;
 			componentPropertyIndex < componentProperties->getSize();
 			componentPropertyIndex++) {
-			otherProperty = componentProperties->getByIndex(
-				componentPropertyIndex);
+			std::unique_ptr<PropertyMetaData> otherProperty(
+				componentProperties->getByIndex(componentPropertyIndex));
 			if (*property == *otherProperty) {
 				found = true;
-				delete otherProperty;
 				break;
 			}
-			delete otherProperty;
 		}
-		delete componentProperties;
 		ASSERT_TRUE(found) << L"The property was not added to its component." <<
 			L"\nProperty = " << property->getName() <<
 			L"\nCopmonent Id = " << component->getComponentId();
-		delete component;
-		delete property;
 	}
-	delete properties;
 }
 
 void EngineTests::verifyProfileMetaData(MetaData *metaData) {
-	Collection<uint32_t, ProfileMetaData> *profiles =
-		metaData->getProfiles();
-	ASSERT_NE(nullptr, profiles) << L"Profiles should not be null.";
-	ProfileMetaData *profile;
-	ComponentMetaData *component, *otherComponent;
-	ValueMetaData *value;
-	PropertyMetaData *property;
-	Collection<ValueMetaDataKey, ValueMetaData> *values;
+	std::unique_ptr<Collection<uint32_t, ProfileMetaData>> profiles(
+		metaData->getProfiles());
+	ASSERT_NE(nullptr, profiles.get()) << L"Profiles should not be null.";
 	uint32_t profileIndex, valueIndex;
 	for (profileIndex = 0;
 		profileIndex < profiles->getSize();
@@ -494,40 +471,36 @@ void EngineTests::verifyProfileMetaData(MetaData *metaData) {
 			profiles->getSize() > PROFILE_SAMPLE_SIZE ?
 			profiles->getSize() / PROFILE_SAMPLE_SIZE :
 			1) {
-		profile = profiles->getByIndex(profileIndex);
-		component = metaData->getComponentForProfile(profile);
-		ASSERT_NE(nullptr, component) <<
+		std::unique_ptr<ProfileMetaData> profile(
+			profiles->getByIndex(profileIndex));
+		std::unique_ptr<ComponentMetaData> component(
+			metaData->getComponentForProfile(profile.get()));
+		ASSERT_NE(nullptr, component.get()) <<
 			L"The component was not set in the profile";
-		values = metaData->getValuesForProfile(profile);
+		std::unique_ptr<Collection<ValueMetaDataKey, ValueMetaData>> values(
+			metaData->getValuesForProfile(profile.get()));
 		for (valueIndex = 0;
 			valueIndex < values->getSize();
 			valueIndex++) {
-			value = values->getByIndex(valueIndex);
-			property = metaData->getPropertyForValue(value);
-			otherComponent = metaData->getComponentForProperty(property);
+			std::unique_ptr<ValueMetaData> value(
+				values->getByIndex(valueIndex));
+			std::unique_ptr<PropertyMetaData> property(
+				metaData->getPropertyForValue(value.get()));
+			std::unique_ptr<ComponentMetaData> otherComponent(
+				metaData->getComponentForProperty(property.get()));
 			ASSERT_EQ(*component, *otherComponent) <<
 				L"The profile should not contain a value for a different component." <<
 				L"\nComponent Id = " << (int)component->getComponentId() <<
 				L"\nOther Component Id = " << (int)otherComponent->getComponentId() <<
 				L"\nValue = " << value->getName();
-			delete otherComponent;
-			delete property;
-			delete value;
 		}
-		delete values;
-		delete component;
-		delete profile;
 	}
-	delete profiles;
 }
 
 void EngineTests::verifyValueMetaData(MetaData *metaData) {
-	Collection<ValueMetaDataKey, ValueMetaData> *values =
-		metaData->getValues();
-	ASSERT_NE(nullptr, values) << L"Values should not be null.";
-	ValueMetaData *value, *otherValue;
-	PropertyMetaData *property;
-	Collection<ValueMetaDataKey, ValueMetaData> *otherValues;
+	std::unique_ptr<Collection<ValueMetaDataKey, ValueMetaData>> values(
+		metaData->getValues());
+	ASSERT_NE(nullptr, values.get()) << L"Values should not be null.";
 	uint32_t valueIndex, propertyValueIndex;
 	for (valueIndex = 0;
 		valueIndex < values->getSize();
@@ -535,30 +508,26 @@ void EngineTests::verifyValueMetaData(MetaData *metaData) {
 			values->getSize() > VALUE_SAMPLE_SIZE ?
 			values->getSize() / VALUE_SAMPLE_SIZE :
 			1) {
-		value = values->getByIndex(valueIndex);
+		std::unique_ptr<ValueMetaData> value(values->getByIndex(valueIndex));
 		bool found = false;
-		property = metaData->getPropertyForValue(value);
-		otherValues = metaData->getValuesForProperty(property);
+		std::unique_ptr<PropertyMetaData> property(
+			metaData->getPropertyForValue(value.get()));
+		std::unique_ptr<Collection<ValueMetaDataKey, ValueMetaData>>
+			otherValues(metaData->getValuesForProperty(property.get()));
 		for (propertyValueIndex = 0;
 			propertyValueIndex < otherValues->getSize();
 			propertyValueIndex++) {
-			otherValue = otherValues->getByIndex(propertyValueIndex);
+			std::unique_ptr<ValueMetaData> otherValue(
+				otherValues->getByIndex(propertyValueIndex));
 			if (*value == *otherValue) {
 				found = true;
-				delete otherValue;
 				break;
 			}
-			delete otherValue;
 		}
 		ASSERT_TRUE(found) << L"The value was not added to its property." <<
 			L"\nValue = " << value->getName() <<
 			L"\nProperty = " << property->getName();
-		delete otherValues;
-		delete property;
-		delete value; 
-
 	}
-	delete values;
 }
 
 void EngineTests::verifyMetaData(EngineBase *engine) {

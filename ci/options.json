@@ -54,6 +54,7 @@
     "Arch": "x64",
     "BuildMethod": "cmake",
     "RunPerformance": true,
+    "InstallCheck": true,
     "Products": ["common", "dd", "ipi"]
   },
   {
@@ -118,6 +119,7 @@
     "Configuration": "Release",
     "Arch": "x64",
     "CxxBothProducts": true,
+    "InstallCheck": true,
     "Products": ["dd", "ipi"]
   },
   {
@@ -142,6 +144,7 @@
     "Name": "Mac_arm64_Debug",
     "Configuration": "Debug",
     "Arch": "arm64",
+    "InstallCheck": true,
     "Products": ["common", "dd"]
   }
 ]

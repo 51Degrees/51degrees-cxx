@@ -70,10 +70,12 @@ static StatusMessage messages[] = {
 		"an empty profile, there is no profile which can be returned." },
 	{ COLLECTION_FAILURE,
 		"There was an error getting an item from a collection within the "
-		"data set (file: '%s'). This is likely to be caused by too many concurrent "
-		"operations. Increase the concurrency option in the collection "
-		"configuration to allow more threads to access the collection "
-		"simultaneously." },
+		"data set (file: '%s'). Reading the item from the data file failed, for "
+		"example because the file was shortened or could not be read. In a "
+		"build without threading it also happens when every file handle is in "
+		"use, as a thread there cannot wait for one to be released. A build "
+		"with threading waits for a handle, so more concurrency does not "
+		"prevent this." },
 	{ FILE_COPY_ERROR,
 		"There was an error copying the source file ('%s') to the destination. "
 		"Verify sufficient space is available at the destination." },
@@ -108,12 +110,13 @@ static StatusMessage messages[] = {
 		"The configuration provided was not valid, and has caused a failure "
 		"while building the resource it configures." },
 	{ INSUFFICIENT_HANDLES,
-		"Insufficient handles available in the pool. Verify the pool has "
-		"sufficient handles to support the maximum number of concurrent "
-		"threads. This can be set when creating the resource containg the "
-		"pool. Another way to avoid this is by using an in-memory "
-		"configuration, which avoids using file handles completely, and "
-		"removes any limit on concurrency. For info see "
+		"Every handle in the pool was in use. This can only happen in a build "
+		"without threading, where the one thread holds them all and cannot wait "
+		"for one to be released. Release results before getting more, or set "
+		"the concurrency when creating the resource containing the pool to "
+		"give it more handles. Another way to avoid this is by using an "
+		"in-memory configuration, which avoids using file handles completely. "
+		"For info see "
 		"https://51degrees.com/documentation/4.5/_device_detection__features__concurrent_processing.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-cxx&utm_content=status.c&utm_term=insufficient_handles"},
 	{ COLLECTION_INDEX_OUT_OF_RANGE,
 		"Index used to retrieve an item from a collection was out of range." },
