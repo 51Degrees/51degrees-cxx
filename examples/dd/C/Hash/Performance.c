@@ -468,16 +468,20 @@ void runPerformanceThread(void* state) {
 			}
 		}
 
-		// Walk any graph the reads did not, which is every graph when only
-		// detecting, so that the iterations count every walk.
-		ResultsEvaluateAll(&results->b.b, exception);
+		// Update the total iterations for the thread. Reading them walks any
+		// graph the reads did not, which is every graph when only detecting,
+		// so that they count every walk.
+		int32_t iterations;
+		ResultsHashGetMatchMetrics(
+			results,
+			NULL,
+			NULL,
+			NULL,
+			&iterations,
+			NULL,
+			exception);
 		EXCEPTION_THROW;
-
-		// Update the total iterations for the thread.
-		for (uint32_t i = 0; i < results->count; i++) {
-			thisState->iterations +=
-				(unsigned long long)results->items[i].iterations;
-		}
+		thisState->iterations += (unsigned long long)iterations;
 
 		// Move to the next node.
 		node = node->next;
