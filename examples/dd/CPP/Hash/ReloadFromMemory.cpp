@@ -110,7 +110,9 @@ namespace FiftyoneDegrees {
 				void run() {
 					int numberOfReloads = 0;
 					int numberOfReloadFails = 0;
-					ExampleBase::SharedState state(engine, userAgentFilePath);
+					ExampleBase::SharedState state(
+						engine.get(),
+						userAgentFilePath);
 
 					if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
 						printf("** Multi Threaded Reload Example **\r\n");
@@ -164,9 +166,6 @@ namespace FiftyoneDegrees {
  * Need to wrapped with 'extern "C"' as this will be called in C.
  */
 extern "C" void fiftyoneDegreesExampleCPPReloadFromMemoryRun(ExampleParameters *params) {
-	// Call the actual function.
-	DeviceDetection::Hash::ConfigHash *cppConfig = new DeviceDetection::Hash::ConfigHash();
-	cppConfig->setConcurrency(THREAD_COUNT);
 	// Read the data file into memory for the initialise and reload operations.
 	fiftyoneDegreesMemoryReader reader;
 	fiftyoneDegreesStatusCode status = fiftyoneDegreesFileReadToByteArray(
@@ -176,14 +175,18 @@ extern "C" void fiftyoneDegreesExampleCPPReloadFromMemoryRun(ExampleParameters *
 		exit(1);
 	}
 
+	// Call the actual function.
+	DeviceDetection::Hash::ConfigHash *cppConfig = new DeviceDetection::Hash::ConfigHash();
+	cppConfig->setConcurrency(THREAD_COUNT);
 	try {
-		ReloadFromMemory *reloadFromMemory = new ReloadFromMemory(
+		// The example, and the engine it holds, is freed when it goes out of
+		// scope, including when an exception is thrown.
+		ReloadFromMemory reloadFromMemory(
 			reader.startByte,
 			reader.length,
 			params->evidenceFilePath,
 			cppConfig);
-		reloadFromMemory->run();
-		delete reloadFromMemory;
+		reloadFromMemory.run();
 	}
 	catch (const StatusCodeException &e) {
 		// The engine only has the memory, so the file name is added here.

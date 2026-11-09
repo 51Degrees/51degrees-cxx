@@ -4640,6 +4640,44 @@ void fiftyoneDegreesDataSetHashRelease(
 }
 
 /**
+ * Sets the date to the next update date in the header when next is true, or
+ * to the published date otherwise, if that date is valid, and to zeros if not,
+ * so a caller that ignores the result still never reads an invalid date.
+ */
+static bool getHeaderDate(
+	ResourceManager *manager,
+	bool next,
+	fiftyoneDegreesDate *date) {
+	DataSetHash *dataSet = DataSetHashGet(manager);
+	if (next) {
+		*date = dataSet->header.nextUpdate;
+	}
+	else {
+		*date = dataSet->header.published;
+	}
+	DataSetHashRelease(dataSet);
+	if (DateIsValid(date)) {
+		return true;
+	}
+	date->year = 0;
+	date->month = 0;
+	date->day = 0;
+	return false;
+}
+
+bool fiftyoneDegreesHashGetPublished(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date) {
+	return getHeaderDate(manager, false, date);
+}
+
+bool fiftyoneDegreesHashGetNextUpdate(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date) {
+	return getHeaderDate(manager, true, date);
+}
+
+/**
  * Definition of the reload methods from the data set macro.
  */
 FIFTYONE_DEGREES_DATASET_RELOAD(Hash)
@@ -4976,6 +5014,44 @@ size_t fiftyoneDegreesResultsHashGetValuesString(
 	return charactersAdded;
 }
 
+/**
+ * The hardware profile script starts with this, as the body pushes onto the
+ * profileIds array without declaring it.
+ */
+static const char hardwareProfileScriptStart[] = "var profileIds = []\n";
+
+/**
+ * The hardware profile script ends with this, which writes the ids the body
+ * found to the cookie the engine reads them back from. The engine takes each
+ * run of digits in the cookie as a profile id, so any other character, here
+ * '|', separates them.
+ */
+static const char hardwareProfileScriptEnd[] =
+	"\ndocument.cookie = \"51D_ProfileIds=\" + profileIds.join(\"|\")";
+
+size_t fiftyoneDegreesHashGetHardwareProfileScript(
+	const char *body,
+	char *buffer,
+	size_t length) {
+	size_t added;
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilderInit(&builder);
+	StringBuilderAddChars(
+		&builder,
+		hardwareProfileScriptStart,
+		sizeof(hardwareProfileScriptStart) - 1);
+	if (body != NULL) {
+		StringBuilderAddChars(&builder, body, strlen(body));
+	}
+	StringBuilderAddChars(
+		&builder,
+		hardwareProfileScriptEnd,
+		sizeof(hardwareProfileScriptEnd) - 1);
+	added = builder.added;
+	StringBuilderComplete(&builder);
+	return added;
+}
+
 ResultHash* getResultForPropertyIndex(
 	ResultsHash* results,
 	uint32_t propertyIndex,
@@ -5162,16 +5238,12 @@ static fiftyoneDegreesResultsNoValueReason resultsHashGetNoValueReason(
 	const Property *property = (const Property*)results->propertyItem.data.ptr;
 
 	if (result == NULL) {
-		// In the unified result shape (issue #362) value selection returns no
-		// result for the property's component when none of the result items
-		// carries a matched profile for it and unmatched results are disabled
-		// (allowUnmatched == false). A result item still exists for the
-		// component (count > 0 is guaranteed by the NO_RESULTS check above) - it
-		// simply has a null profile - so report NULL_PROFILE, whose message
-		// points the caller at lenient matching, rather than the generic
-		// NO_RESULT_FOR_PROPERTY. Before #362 removed the single User-Agent fast
-		// path, this same case produced one coalesced result and correctly
-		// reported NULL_PROFILE.
+		// Value selection returns no result when none of the result items
+		// carries a matched profile for the property's component and
+		// allowUnmatched is false. A result item still exists for the
+		// component, with a null profile, so report NULL_PROFILE, whose
+		// message points the caller at lenient matching, rather than the
+		// generic NO_RESULT_FOR_PROPERTY.
 		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE;
 	}
 	else if (result->profileOffsets[property->componentIndex] == NULL_PROFILE_OFFSET) {
@@ -5595,6 +5667,126 @@ char* fiftyoneDegreesHashGetDeviceIdFromResults(
 			buffer,
 			length);
 	}
+}
+
+// The match metrics of one result, or of several taken together.
+typedef struct match_metrics_t {
+	HashMatchMethod method; // The highest method used
+	int32_t difference; // Sum of the differences
+	int32_t drift; // Sum of the drifts
+	int32_t iterations; // Sum of the iterations
+	int32_t matchedNodes; // Sum of the matched nodes
+} matchMetrics;
+
+// Adds the result's metrics to those taken so far, so that adding one result
+// to the zero metrics gives that result's.
+static void matchMetricsAdd(matchMetrics *metrics, const ResultHash *result) {
+	if (result->method > metrics->method) {
+		metrics->method = result->method;
+	}
+	metrics->difference += result->difference;
+	metrics->drift += result->drift;
+	metrics->iterations += result->iterations;
+	metrics->matchedNodes += result->matchedNodes;
+}
+
+// Sets each metric the caller asked for, being those whose pointer is not
+// NULL.
+static void matchMetricsCopy(
+	const matchMetrics *metrics,
+	HashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes) {
+	if (method != NULL) {
+		*method = metrics->method;
+	}
+	if (difference != NULL) {
+		*difference = metrics->difference;
+	}
+	if (drift != NULL) {
+		*drift = metrics->drift;
+	}
+	if (iterations != NULL) {
+		*iterations = metrics->iterations;
+	}
+	if (matchedNodes != NULL) {
+		*matchedNodes = metrics->matchedNodes;
+	}
+}
+
+void fiftyoneDegreesResultsHashGetMatchMetrics(
+	fiftyoneDegreesResultsHash *results,
+	fiftyoneDegreesHashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes,
+	fiftyoneDegreesException *exception) {
+	uint32_t i;
+	matchMetrics metrics = {
+		FIFTYONE_DEGREES_HASH_MATCH_METHOD_NONE, 0, 0, 0, 0 };
+	if (results != NULL) {
+
+		// The walk of each component's graph sets its result's metrics.
+		ResultsEvaluateAll(&results->b.b, exception);
+		if (EXCEPTION_OKAY) {
+			for (i = 0; i < results->count; i++) {
+				matchMetricsAdd(&metrics, &results->items[i]);
+			}
+		}
+	}
+	matchMetricsCopy(
+		&metrics,
+		method,
+		difference,
+		drift,
+		iterations,
+		matchedNodes);
+}
+
+bool fiftyoneDegreesResultsHashGetMatchMetricsForResult(
+	fiftyoneDegreesResultsHash *results,
+	uint32_t resultIndex,
+	fiftyoneDegreesHashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes,
+	fiftyoneDegreesException *exception) {
+	bool found = false;
+	matchMetrics metrics = {
+		FIFTYONE_DEGREES_HASH_MATCH_METHOD_NONE, 0, 0, 0, 0 };
+	if (results != NULL) {
+		ResultsEvaluateAll(&results->b.b, exception);
+		if (EXCEPTION_OKAY && resultIndex < results->count) {
+			matchMetricsAdd(&metrics, &results->items[resultIndex]);
+			found = true;
+		}
+	}
+	matchMetricsCopy(
+		&metrics,
+		method,
+		difference,
+		drift,
+		iterations,
+		matchedNodes);
+	return found;
+}
+
+const char* fiftyoneDegreesResultsHashGetMatchedUserAgent(
+	fiftyoneDegreesResultsHash *results,
+	uint32_t resultIndex,
+	fiftyoneDegreesException *exception) {
+	if (results == NULL) {
+		return NULL;
+	}
+	ResultsEvaluateAll(&results->b.b, exception);
+	if (EXCEPTION_FAILED || resultIndex >= results->count) {
+		return NULL;
+	}
+	return results->items[resultIndex].b.matchedUserAgent;
 }
 
 size_t fiftyoneDegreesResultsHashGetValuesJson(

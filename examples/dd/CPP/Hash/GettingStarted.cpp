@@ -158,9 +158,12 @@ namespace FiftyoneDegrees {
 				 */
 				void run() {
 					// Create an evidence instance to store and process
-					// User-Agents.
-					EvidenceDeviceDetection *evidence =
-						new EvidenceDeviceDetection();
+					// User-Agents. Each std::unique_ptr in this example frees
+					// what it holds when it goes out of scope, including when
+					// an exception is thrown. Results hold a reference to the
+					// engine's data set, so they must always be freed.
+					std::unique_ptr<EvidenceDeviceDetection> evidence(
+						new EvidenceDeviceDetection());
 
 					cout << "Starting Getting Started Example.\n";
 
@@ -174,10 +177,10 @@ namespace FiftyoneDegrees {
 						evidence->operator[]("header.user-agent")
 							= mobileUserAgent;
 
-						DeviceDetection::Hash::ResultsHash* results = engine->process(evidence);
-						printResults(results);
+						std::unique_ptr<DeviceDetection::Hash::ResultsHash>
+							results(engine->process(evidence.get()));
+						printResults(results.get());
 						deviceId_mobile = results->getDeviceId();
-						delete results;
 					};
 					{
                         evidence->clear();
@@ -188,9 +191,9 @@ namespace FiftyoneDegrees {
 						evidence->operator[]("header.user-agent")
 							= desktopUserAgent;
 
-						DeviceDetection::Hash::ResultsHash* results = engine->process(evidence);
-						printResults(results);
-						delete results;
+						std::unique_ptr<DeviceDetection::Hash::ResultsHash>
+							results(engine->process(evidence.get()));
+						printResults(results.get());
 					};
 					{
                         evidence->clear();
@@ -201,9 +204,9 @@ namespace FiftyoneDegrees {
 						evidence->operator[]("header.user-agent")
 							= mediaHubUserAgent;
 
-						DeviceDetection::Hash::ResultsHash* results = engine->process(evidence);
-						printResults(results);
-						delete results;
+						std::unique_ptr<DeviceDetection::Hash::ResultsHash>
+							results(engine->process(evidence.get()));
+						printResults(results.get());
 					};
 					std::string deviceId_hintedHub;
 					{
@@ -220,10 +223,10 @@ namespace FiftyoneDegrees {
 						evidence->operator[]("header.Sec-CH-UA-Platform-Version")
 							= uachPlatformVersion;
 
-						DeviceDetection::Hash::ResultsHash* results = engine->process(evidence);
-						printResults(results);
+						std::unique_ptr<DeviceDetection::Hash::ResultsHash>
+							results(engine->process(evidence.get()));
+						printResults(results.get());
 						deviceId_hintedHub = results->getDeviceId();
-						delete results;
 					};
 					{
                         evidence->clear();
@@ -234,10 +237,10 @@ namespace FiftyoneDegrees {
 						evidence->operator[]("query.51D_deviceId")
 							= deviceId_mobile.c_str();
 
-						DeviceDetection::Hash::ResultsHash* results = engine->process(evidence);
-						printResults(results);
+						std::unique_ptr<DeviceDetection::Hash::ResultsHash>
+							results(engine->process(evidence.get()));
+						printResults(results.get());
 						cout << "  [control platform ID: " << deviceId_hintedHub << " -- MediaHub (hinted, no-deviceId)]\n";
-						delete results;
 					};
 					{
                         evidence->clear();
@@ -249,16 +252,16 @@ namespace FiftyoneDegrees {
 						evidence->operator[]("query.51D_deviceId")
 							= deviceId_dummy;
 
-						DeviceDetection::Hash::ResultsHash* results = engine->process(evidence);
-						printResults(results);
+						std::unique_ptr<DeviceDetection::Hash::ResultsHash>
+							results(engine->process(evidence.get()));
+						printResults(results.get());
 						cout << "  [control platform ID: " << deviceId_hintedHub << " -- MediaHub (hinted, no-deviceId)]\n";
-						delete results;
 					};
 					{
 						// Carries out a match for a mobile User-Agent with hinted MediaHub DeviceID.
 
-						EvidenceDeviceDetection* const evidence2 =
-							new EvidenceDeviceDetection();
+						std::unique_ptr<EvidenceDeviceDetection> const evidence2(
+							new EvidenceDeviceDetection());
 
 						cout << "\n[---]\n";
 						cout << "Mobile User-Agent: " <<
@@ -271,12 +274,11 @@ namespace FiftyoneDegrees {
 						evidence2->operator[]("query.51d_dEVIcEiD")
 							= deviceId_hintedHub.c_str();
 
-						DeviceDetection::Hash::ResultsHash* results = engine->process(evidence2);
-						printResults(results);
+						std::unique_ptr<DeviceDetection::Hash::ResultsHash>
+							results(engine->process(evidence2.get()));
+						printResults(results.get());
 
 						cout << "  [control platform ID: " << deviceId_mobile << " -- Mobile (no-deviceId)]\n";
-						delete results;
-						delete evidence2;
 					};
 					{
                         evidence->clear();
@@ -296,9 +298,9 @@ namespace FiftyoneDegrees {
 						evidence->operator[]("query.51D_gethighentropyvalues")
 							= ghev_dummy;
 
-						DeviceDetection::Hash::ResultsHash* results = engine->process(evidence);
-						printResults(results);
-						delete results;
+						std::unique_ptr<DeviceDetection::Hash::ResultsHash>
+							results(engine->process(evidence.get()));
+						printResults(results.get());
 					};
                     {
                         evidence->clear();
@@ -306,13 +308,10 @@ namespace FiftyoneDegrees {
                         const char * const sua = "{\"browsers\":[{\"brand\":\"Chromium\",\"version\":[\"124\",\"0\",\"6367\",\"91\"]},{\"brand\":\"Google Chrome\",\"version\":[\"124\",\"0\",\"6367\",\"91\"]},{\"brand\":\"Not-A.Brand\",\"version\":[\"99\",\"0\",\"0\",\"0\"]}],\"platform\":{\"brand\":\"Windows\",\"version\":[\"14\",\"0\",\"0\"]},\"mobile\":0,\"architecture\":\"x86\",\"source\":2}";
                         evidence->operator[]("query.51D_structureduseragent") = sua;
                         cout << "SUA:" << sua << std::endl;
-                        DeviceDetection::Hash::ResultsHash* results = engine->process(evidence);
-                        printResults(results);
-                        delete results;
+                        std::unique_ptr<DeviceDetection::Hash::ResultsHash>
+                            results(engine->process(evidence.get()));
+                        printResults(results.get());
                     };
-
-					// Free the evidence.
-					delete evidence;
 
 					cout << "\n";
 				}
@@ -337,10 +336,10 @@ extern "C" void fiftyoneDegreesExampleCPPGettingStartedRun(
 	cppConfig->setProcessSpecialEvidence(true);
 
 	try {
-		GettingStarted *gettingStarted = new GettingStarted(
-			params->dataFilePath, cppConfig);
-		gettingStarted->run();
-		delete gettingStarted;
+		// The example, and the engine it holds, is freed when it goes out of
+		// scope, including when an exception is thrown.
+		GettingStarted gettingStarted(params->dataFilePath, cppConfig);
+		gettingStarted.run();
 	}
 	catch (const StatusCodeException &e) {
 		ExampleBase::reportStatus(e.getCode(), params->dataFilePath);

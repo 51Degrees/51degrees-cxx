@@ -329,6 +329,9 @@ namespace FiftyoneDegrees {
 				/** The underlying profiles configuration structure */
 				CollectionConfig profiles;
 
+				/** The underlying root nodes configuration structure */
+				CollectionConfig rootNodes;
+
 				/** The underlying nodes configuration structure */
 				CollectionConfig nodes;
 

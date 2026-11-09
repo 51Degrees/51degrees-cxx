@@ -73,6 +73,19 @@ namespace {
 typedef std::map<std::string, std::string> Values;
 typedef std::map<std::string, Values> Lookups;
 
+/** Results that are freed on every way out of a test. */
+typedef std::unique_ptr<
+	fiftyoneDegreesResultsHash,
+	decltype(&fiftyoneDegreesResultsHashFree)> OwnedResults;
+
+/**
+ * Frees an initialised manager on every way out of a test. Declare it before
+ * any results made from the manager, so that the results are freed first.
+ */
+typedef std::unique_ptr<
+	fiftyoneDegreesResourceManager,
+	decltype(&fiftyoneDegreesResourceManagerFree)> ManagerGuard;
+
 const std::string invalidProperty = "no value, reason " +
 	std::to_string(
 		(int)FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY);
@@ -241,11 +254,13 @@ TEST_F(HashPositionsTests, C_IndexesFollowTheNamesGiven) {
 	const std::string joined = join(names);
 	fiftyoneDegreesResourceManager manager;
 	ASSERT_NO_FATAL_FAILURE(initSmall(&manager, joined.c_str()));
-	fiftyoneDegreesResultsHash *results =
-		fiftyoneDegreesResultsHashCreate(&manager, 0, 0);
+	ManagerGuard managerGuard(&manager, fiftyoneDegreesResourceManagerFree);
+	OwnedResults results(
+		fiftyoneDegreesResultsHashCreate(&manager, 0, 0),
+		fiftyoneDegreesResultsHashFree);
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	fiftyoneDegreesResultsHashFromUserAgent(
-		results,
+		results.get(),
 		positionUserAgents[0],
 		strlen(positionUserAgents[0]),
 		exception);
@@ -269,8 +284,8 @@ TEST_F(HashPositionsTests, C_IndexesFollowTheNamesGiven) {
 		ASSERT_NE(nullptr, name) << i;
 		EXPECT_EQ(names[i], std::string(&name->value)) << i;
 		EXPECT_EQ(
-			valuesByName(results, names[i].c_str()),
-			valuesAt(results, (int)i)) << names[i];
+			valuesByName(results.get(), names[i].c_str()),
+			valuesAt(results.get(), (int)i)) << names[i];
 	}
 
 	const fiftyoneDegreesString *missing =
@@ -278,15 +293,15 @@ TEST_F(HashPositionsTests, C_IndexesFollowTheNamesGiven) {
 	ASSERT_NE(nullptr, missing);
 	EXPECT_STREQ(missingName, &missing->value);
 	EXPECT_FALSE(fiftyoneDegreesResultsHashGetHasValues(
-		results,
+		results.get(),
 		0,
 		exception));
 	EXPECT_EQ(
 		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY,
-		fiftyoneDegreesResultsHashGetNoValueReason(results, 0, exception));
-
-	fiftyoneDegreesResultsHashFree(results);
-	fiftyoneDegreesResourceManagerFree(&manager);
+		fiftyoneDegreesResultsHashGetNoValueReason(
+			results.get(),
+			0,
+			exception));
 }
 
 /**
