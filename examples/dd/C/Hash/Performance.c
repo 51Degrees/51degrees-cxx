@@ -455,6 +455,12 @@ void runPerformanceThread(void* state) {
 		for (uint32_t j = 0; detectionOnly == false &&
 			j < PropertiesGetRequiredPropertyCount(dataSet->b.b.available);
 			j++) {
+			// A property the data file does not have keeps its index but
+			// has no available index, and reading it is an error.
+			if (PropertiesGetAvailableIndex(dataSet->b.b.available, (int)j)
+				< 0) {
+				continue;
+			}
 			if (ResultsHashGetValues(
 				results,
 				j,
@@ -600,7 +606,8 @@ void executeBenchmark(
 
 	PropertiesRequired properties = PropertiesDefault;
 	if (config.allProperties == false) {
-		properties.string = "IsMobile";
+		// HardwareVendor is only in the Enterprise data file.
+		properties.string = "IsMobile,HardwareVendor";
 	}
 
 	// Multi graph operation is being deprecated. There is only one graph.
@@ -645,8 +652,7 @@ void executeBenchmark(
 
 	// Check data file
 	DataSetHash* dataset = DataSetHashGet(&state->manager);
-	state->availableProperties = PropertiesGetRequiredPropertyCount(
-		dataset->b.b.available);
+	state->availableProperties = (int)dataset->b.b.available->count;
 	fiftyoneDegreesExampleCheckDataFile(dataset);
 	DataSetHashRelease(dataset);
 
