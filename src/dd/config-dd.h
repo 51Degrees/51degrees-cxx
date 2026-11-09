@@ -100,10 +100,11 @@ FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_UPDATE_DEFAULT
 /**
  * Default limit in bytes for maxMatchedUserAgentLength. No RFC or browser sets
  * a limit on these headers. In the 20,000 evidence sample the longest pseudo
- * header is 316 bytes and the longest User-Agent 331, with none over 500, but
- * longer values do occur in real traffic. A longer value is ignored, because
- * the buffer for the matched value is sized from this limit when results are
- * created, never during detection.
+ * header is 316 bytes and the longest User-Agent 331, with none over 500 in
+ * that sample, but longer values do occur in real traffic. A longer value is
+ * ignored, because the buffers for pseudo headers, transformed evidence and the
+ * matched value are sized from this limit when results are created, never
+ * during detection.
  */
 #define FIFTYONE_DEGREES_CONFIG_DEVICE_DETECTION_DEFAULT_MAX_LENGTH 500
 
