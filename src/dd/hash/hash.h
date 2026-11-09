@@ -1303,15 +1303,14 @@ EXTERNAL char* fiftyoneDegreesHashGetDeviceIdFromResults(
 /**
  * @name Metadata
  *
- * The properties of the data file, their values, its components and its
- * profiles, with the answers the C++ metadata classes give. Each function
- * takes a data set from #fiftyoneDegreesDataSetHashGet, which the caller
- * holds while it reads so that every answer comes from the same data file. A
- * property is found by its index in the data file, which counts every
- * property the file defines, including those the data set was not created
- * with. A function that gives text writes it into the buffer provided when it
- * fits, and otherwise into memory the caller frees with fiftyoneDegreesFree
- * when the pointer returned is not the buffer, as
+ * The properties of the data file, with the answers the C++ property metadata
+ * gives. Each function takes a data set from #fiftyoneDegreesDataSetHashGet,
+ * which the caller holds while it reads so that every answer comes from the
+ * same data file. A property is found by its index in the data file, which
+ * counts every property the file defines, including those the data set was
+ * not created with. A function that gives text writes it into the buffer
+ * provided when it fits, and otherwise into memory the caller frees with
+ * fiftyoneDegreesFree when the pointer returned is not the buffer, as
  * #fiftyoneDegreesStoredBinaryValueToText describes.
  * @{
  */
