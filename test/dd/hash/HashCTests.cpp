@@ -929,7 +929,7 @@ TEST_F(HashPropertyTypeTests, EveryDataFile) {
 				dataSet->properties, i, &item, exception);
 			ASSERT_NE(nullptr, property) << path << " property " << i;
 			std::unique_ptr<FiftyoneDegrees::Common::PropertyMetaData> metaData(
-				PropertyMetaDataBuilderHash::build(dataSet, property));
+				PropertyMetaDataBuilderHash::build(dataSet, i));
 			const char *expected = hashTypeName(property);
 			if (expected == nullptr) {
 				ADD_FAILURE() << _HashFileNames[f] << " " <<

@@ -2805,24 +2805,22 @@ static bool setResultsFromEvidence(
 			pair->item.keyLength);
 		// Only the current header index should be considered
 		if (headerIndex >= 0 && headerIndex == (int)curHeaderIndex) {
-			// Get the parsed Value
 			const char *ipAddressString = (const char *)pair->parsedValue;
-			// Obtain the byte array first
 			IpAddress ipAddress;
-			const bool parsed =
-				fiftyoneDegreesIpAddressParse(ipAddressString, ipAddressString + strlen(ipAddressString), &ipAddress);
-			// Check if the IP address was successfully created
-			if (!parsed || (ipAddress.type == IP_TYPE_INVALID)) {
-				EXCEPTION_SET(INCORRECT_IP_ADDRESS_FORMAT);
-				return false;
+			// A value that is not read as one whole address is skipped, so
+			// the next key in the order of precedence is tried.
+			if (ipAddressString != NULL &&
+				fiftyoneDegreesIpAddressParse(
+					ipAddressString,
+					ipAddressString + strlen(ipAddressString),
+					&ipAddress)) {
+				// Configure the next result in the array of results.
+				addResultsFromIpAddressNoChecks(
+					results,
+					ipAddress.value,
+					ipAddress.type,
+					exception);
 			}
-
-			// Configure the next result in the array of results.
-			addResultsFromIpAddressNoChecks(
-				results,
-				ipAddress.value,
-				ipAddress.type,
-				exception);
 		}
 	}
 
@@ -3876,4 +3874,229 @@ uint32_t fiftyoneDegreesIpiIterateProfilesForPropertyAndValue(
 		exception);
 	DataSetIpiRelease(dataSet);
 	return count;
+}
+
+/**
+ * Gets the data file property at `propertyIndex` into `item` and returns it,
+ * or returns NULL, releasing a property read with an exception set.
+ */
+static const Property* ipiMetaDataProperty(
+	DataSetIpi * const dataSet,
+	const uint32_t propertyIndex,
+	Item * const item,
+	Exception * const exception) {
+	DataReset(&item->data);
+	const Property * const property = PropertyGet(
+		dataSet->properties,
+		propertyIndex,
+		item,
+		exception);
+	if (property != NULL && EXCEPTION_FAILED) {
+		COLLECTION_RELEASE(dataSet->properties, item);
+		return NULL;
+	}
+	return property;
+}
+
+uint32_t fiftyoneDegreesIpiGetPropertyCount(
+	fiftyoneDegreesDataSetIpi *dataSet) {
+	return CollectionGetCount(dataSet->properties);
+}
+
+int fiftyoneDegreesIpiGetPropertyIndex(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	const char *propertyName,
+	fiftyoneDegreesException *exception) {
+	return PropertyGetIndexByName(
+		dataSet->properties,
+		dataSet->strings,
+		propertyName,
+		exception);
+}
+
+bool fiftyoneDegreesIpiGetProperty(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t propertyIndex,
+	uint8_t *valueType,
+	uint8_t *componentId,
+	uint8_t *displayOrder,
+	bool *isMandatory,
+	bool *isList,
+	bool *isObsolete,
+	bool *show,
+	bool *showValues,
+	uint32_t *mapCount,
+	bool *isAvailable,
+	int *requiredPropertyIndex,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Property * const held = ipiMetaDataProperty(
+		dataSet,
+		propertyIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return false;
+	}
+	// A copy, so the name is read with no other item held.
+	const Property property = *held;
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	if (componentId != NULL) {
+		if (property.componentIndex >= dataSet->componentsList.count) {
+			EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+			return false;
+		}
+		*componentId = ((Component*)dataSet->componentsList.items[
+			property.componentIndex].data.ptr)->componentId;
+	}
+	if (valueType != NULL) {
+		*valueType = property.valueType;
+	}
+	if (displayOrder != NULL) {
+		*displayOrder = property.displayOrder;
+	}
+	if (isMandatory != NULL) {
+		*isMandatory = property.isMandatory != 0;
+	}
+	if (isList != NULL) {
+		*isList = property.isList != 0;
+	}
+	if (isObsolete != NULL) {
+		*isObsolete = property.isObsolete != 0;
+	}
+	if (show != NULL) {
+		*show = property.show != 0;
+	}
+	if (showValues != NULL) {
+		*showValues = property.showValues != 0;
+	}
+	if (mapCount != NULL) {
+		*mapCount = property.mapCount;
+	}
+	if (isAvailable != NULL || requiredPropertyIndex != NULL) {
+		// The available properties are found by name, matched ignoring case.
+		DataReset(&item.data);
+		const String * const name = PropertyGetName(
+			dataSet->strings,
+			&property,
+			&item,
+			exception);
+		if (EXCEPTION_FAILED) {
+			if (name != NULL) {
+				COLLECTION_RELEASE(dataSet->strings, &item);
+			}
+			return false;
+		}
+		const char * const value = STRING(name);
+		if (isAvailable != NULL) {
+			*isAvailable = value != NULL &&
+				PropertiesGetPropertyIndexFromName(
+					dataSet->b.b.available,
+					value) >= 0;
+		}
+		if (requiredPropertyIndex != NULL) {
+			*requiredPropertyIndex = value == NULL
+				? -1
+				: PropertiesGetRequiredPropertyIndexFromName(
+					dataSet->b.b.available,
+					value);
+		}
+		if (name != NULL) {
+			COLLECTION_RELEASE(dataSet->strings, &item);
+		}
+	}
+	return true;
+}
+
+bool fiftyoneDegreesIpiGetPropertyValueIndexes(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t propertyIndex,
+	uint32_t *firstValueIndex,
+	uint32_t *valueCount,
+	long *defaultValueIndex,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Property * const held = ipiMetaDataProperty(
+		dataSet,
+		propertyIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return false;
+	}
+	// A copy, so the default value is found with no other item held.
+	const Property property = *held;
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	if (firstValueIndex != NULL) {
+		*firstValueIndex = property.firstValueIndex;
+	}
+	if (valueCount != NULL) {
+		*valueCount = PropertyGetValueCount(dataSet->values, &property);
+	}
+	if (defaultValueIndex != NULL) {
+		*defaultValueIndex = ValueGetDefaultIndex(
+			dataSet->values,
+			dataSet->strings,
+			dataSet->propertyTypes,
+			&property,
+			exception);
+	}
+	return EXCEPTION_OKAY;
+}
+
+char* fiftyoneDegreesIpiGetPropertyText(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t propertyIndex,
+	fiftyoneDegreesPropertyText text,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Property * const property = ipiMetaDataProperty(
+		dataSet,
+		propertyIndex,
+		&item,
+		exception);
+	if (property == NULL) {
+		return NULL;
+	}
+	char * const result = PropertyGetText(
+		dataSet->values,
+		dataSet->strings,
+		dataSet->propertyTypes,
+		property,
+		text,
+		buffer,
+		bufferLength,
+		exception);
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	return result;
+}
+
+char* fiftyoneDegreesIpiGetPropertyMapText(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t propertyIndex,
+	uint32_t mapIndex,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Property * const property = ipiMetaDataProperty(
+		dataSet,
+		propertyIndex,
+		&item,
+		exception);
+	if (property == NULL) {
+		return NULL;
+	}
+	char * const result = PropertyGetMapText(
+		dataSet->strings,
+		dataSet->maps,
+		property,
+		mapIndex,
+		buffer,
+		bufferLength,
+		exception);
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	return result;
 }

@@ -70,7 +70,8 @@ static InterlockDoubleWidth emptyCounter() {
 // optimization should be switch off on the involved variables. To do so
 // variables of these types should always be marked with 'volatile' qualifier.
 #define COUNTER __declspec(align(ALIGN_SIZE)) volatile InterlockDoubleWidth
-#define HANDLE __declspec(align(ALIGN_SIZE)) volatile ResourceHandle
+#define FIFTYONE_DEGREES_RESOURCE_HANDLE \
+	__declspec(align(ALIGN_SIZE)) volatile ResourceHandle
 #else
 typedef InterlockDoubleWidth AlignedInterlockDoubleWidth
 	__attribute__ ((aligned (ALIGN_SIZE)));
@@ -78,7 +79,7 @@ typedef InterlockDoubleWidth AlignedInterlockDoubleWidth
 
 typedef ResourceHandle AlignedResourceHandle
 	__attribute__ ((aligned (ALIGN_SIZE)));
-#define HANDLE AlignedResourceHandle
+#define FIFTYONE_DEGREES_RESOURCE_HANDLE AlignedResourceHandle
 #endif
 #else
 #define VOLATILE
@@ -93,7 +94,7 @@ static InterlockDoubleWidth emptyCounter() {
 	return empty;
 }
 #define COUNTER InterlockDoubleWidth
-#define HANDLE ResourceHandle
+#define FIFTYONE_DEGREES_RESOURCE_HANDLE ResourceHandle
 #endif
 
 static void add(VOLATILE InterlockDoubleWidth* counter, int32_t value) {
@@ -265,7 +266,7 @@ void fiftyoneDegreesResourceHandleDecUse(
 #ifdef _MSC_VER
 // Disable warning against the difference in the use of 'volatile' qualifier.
 // Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and HANDLE macros.
+// of COUNTER and RESOURCE_HANDLE macros.
 #pragma warning (disable: 4090)
 #endif
 	} while (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
@@ -299,7 +300,7 @@ void fiftyoneDegreesResourceHandleDecUse(
 #ifdef _MSC_VER
 // Disable warning against the difference in the use of 'volatile' qualifier.
 // Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and HANDLE macros.
+// of COUNTER and RESOURCE_HANDLE macros.
 #pragma warning (disable: 4090)
 #endif
 		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
@@ -339,7 +340,7 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 #ifdef _MSC_VER
 // Disable warning against the difference in the use of 'volatile' qualifier.
 // Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and HANDLE macros.
+// of COUNTER and RESOURCE_HANDLE macros.
 #pragma warning (disable: 4090)
 #endif
 		// A null self pointer means the handle was replaced and its resource
@@ -373,14 +374,14 @@ int32_t fiftyoneDegreesResourceHandleGetUse(
 #ifdef _MSC_VER
 // Disable warning against the difference in the use of 'volatile' qualifier.
 // Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and HANDLE macros.
+// of COUNTER and RESOURCE_HANDLE macros.
 #pragma warning (disable: 4090)
 #endif
 void fiftyoneDegreesResourceReplace(
 	fiftyoneDegreesResourceManager *manager,
 	void *newResource,
 	fiftyoneDegreesResourceHandle **newResourceHandle) {
-	HANDLE* oldHandle = NULL;
+	FIFTYONE_DEGREES_RESOURCE_HANDLE* oldHandle = NULL;
 	
 	// Add the new resource to the manager replacing the existing one.
 	setupResource(

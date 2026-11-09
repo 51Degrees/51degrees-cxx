@@ -33,7 +33,6 @@ PropertyMetaDataCollectionHash::PropertyMetaDataCollectionHash(
 	if (dataSet == nullptr) {
 		throw runtime_error("Data set pointer can not be null");
 	}
-	properties = dataSet->properties;
 }
 
 PropertyMetaDataCollectionHash::~PropertyMetaDataCollectionHash() {
@@ -42,44 +41,18 @@ PropertyMetaDataCollectionHash::~PropertyMetaDataCollectionHash() {
 
 PropertyMetaData* PropertyMetaDataCollectionHash::getByIndex(
 	uint32_t index) const {
-	EXCEPTION_CREATE;
-	Item item;
-	Property *property;
-	PropertyMetaData *result = nullptr;
-	DataReset(&item.data);
-	property = PropertyGet(
-		dataSet->properties,
-		index,
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	if (property != nullptr) {
-		result = PropertyMetaDataBuilderHash::build(dataSet, property);
-		COLLECTION_RELEASE(item.collection, &item);
-	}
-	return result;
+	return PropertyMetaDataBuilderHash::build(dataSet, index);
 }
 
 PropertyMetaData* PropertyMetaDataCollectionHash::getByKey(string name) const {
 	EXCEPTION_CREATE;
-	Item item;
-	const Property *property;
-	PropertyMetaData *result = nullptr;
-	DataReset(&item.data);
-	property = PropertyGetByName(
-		dataSet->properties,
-		dataSet->strings,
-		name.c_str(),
-		&item,
-		exception);
+	const int index = HashGetPropertyIndex(dataSet, name.c_str(), exception);
 	EXCEPTION_THROW;
-	if (property != nullptr) {
-		result = PropertyMetaDataBuilderHash::build(dataSet, property);
-		COLLECTION_RELEASE(item.collection, &item);
-	}
-	return result;
+	return index < 0
+		? nullptr
+		: PropertyMetaDataBuilderHash::build(dataSet, (uint32_t)index);
 }
 
 uint32_t PropertyMetaDataCollectionHash::getSize() const {
-	return CollectionGetCount(properties);
+	return HashGetPropertyCount(dataSet);
 }
