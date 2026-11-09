@@ -1086,7 +1086,10 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
  * exception occurs. See exceptions.h.
  * @return the text, or NULL when the results hold no values for the property,
  * and NULL with the exception set when a value cannot be written or memory
- * cannot be allocated
+ * cannot be allocated. The text can also be returned with `count` set to 0,
+ * when the results have the property's component but none of its values, so
+ * read `count` rather than only testing for NULL. Text with no values is
+ * freed in the same way when it is not `buffer`
  */
 EXTERNAL char* fiftyoneDegreesResultsIpiGetValueTexts(
 	fiftyoneDegreesResultsIpi* results,
