@@ -1702,3 +1702,22 @@ TEST_F(HashSpecialEvidencePrecedenceTests, InvalidQuerySuaLeavesTheCookie) {
 	EXPECT_EQ(windows11Version, platformVersion({ cookie, query })) <<
 		"Cookie added before the invalid query, the cookie should be used.\n";
 }
+
+/*
+ * Check that the reasons the typed readers give without a value each have
+ * their own message, and not the one for an unknown reason.
+ */
+TEST(HashNoValueMessages, EachReasonHasItsOwnMessage) {
+	const char *unknown = fiftyoneDegreesResultsHashGetNoValueReasonMessage(
+		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN);
+	const fiftyoneDegreesResultsNoValueReason reasons[] = {
+		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY,
+		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES };
+	for (fiftyoneDegreesResultsNoValueReason reason : reasons) {
+		const char *message =
+			fiftyoneDegreesResultsHashGetNoValueReasonMessage(reason);
+		ASSERT_NE(nullptr, message) << (int)reason;
+		EXPECT_STRNE("", message) << (int)reason;
+		EXPECT_STRNE(unknown, message) << (int)reason;
+	}
+}
