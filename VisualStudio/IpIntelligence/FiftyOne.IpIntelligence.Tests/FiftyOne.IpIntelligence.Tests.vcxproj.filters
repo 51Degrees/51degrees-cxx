@@ -27,6 +27,9 @@
     <ClCompile Include="..\..\..\test\ipi\DataFilePathTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\EnvironmentVariableNameTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\EngineIpiAddressAnswerTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
