@@ -715,20 +715,24 @@ protected:
 						failures++;
 					}
 					for (int i = 0; i < positionCount(results); i++) {
+						// A property the data set does not have keeps its
+						// position, and has no values to read.
 						FIFTYONE_DEGREES_EXCEPTION_CLEAR;
-						fiftyoneDegreesResultsHashGetHasValues(
+						const bool hasValues = fiftyoneDegreesResultsHashGetHasValues(
 							results,
 							i,
 							exception);
 						if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
 							failures++;
 						}
-						fiftyoneDegreesResultsHashGetValues(
-							results,
-							i,
-							exception);
-						if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
-							failures++;
+						if (hasValues) {
+							fiftyoneDegreesResultsHashGetValues(
+								results,
+								i,
+								exception);
+							if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
+								failures++;
+							}
 						}
 					}
 					fiftyoneDegreesResultsHashFree(results);
