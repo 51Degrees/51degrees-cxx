@@ -5,7 +5,7 @@
     <ClCompile Include="..\..\..\src\common\CollectionConfig.cpp" />
     <ClCompile Include="..\..\..\src\common\ComponentMetaData.cpp" />
     <ClCompile Include="..\..\..\src\common\ConfigBase.cpp" />
-    <ClCompile Include="..\..\..\src\common\Date.cpp" />
+    <ClCompile Include="..\..\..\src\common\date_pp.cpp" />
     <ClCompile Include="..\..\..\src\common\EngineBase.cpp" />
     <ClCompile Include="..\..\..\src\common\EvidenceBase.cpp" />
     <ClCompile Include="..\..\..\src\common\Exceptions.cpp" />
