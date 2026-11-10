@@ -80,8 +80,10 @@ static int run(fiftyoneDegreesResourceManager *manager) {
 	int count = 0;
 	ResultsIpi *results = ResultsIpiCreate(manager);
 	while (fgets(ipAddress, sizeof(ipAddress), stdin) != 0) {
+		// The line ending is not part of the address.
+		ipAddress[strcspn(ipAddress, "\r\n")] = '\0';
 		if (!strlen(ipAddress)) {
-			break;
+			continue;
 		}
 		StringBuilder builder = { output, sizeof(output) };
 		StringBuilderInit(&builder);
@@ -106,6 +108,21 @@ static int run(fiftyoneDegreesResourceManager *manager) {
 	return count;
 }
 
+/**
+ * On a free data file, says on standard error what the Enterprise data file
+ * adds and where to ask for a copy.
+ */
+static void offerEnterprise(fiftyoneDegreesResourceManager *manager) {
+	DataSetIpi *dataset = DataSetIpiGet(manager);
+	if (fiftyoneDegreesExampleHasProperty(dataset, "IpRangeStart") ==
+		false) {
+		fprintf(stderr, "This example is using a free data file. The "
+			"Enterprise data file adds the location, range and connection "
+			"properties. Contact us for a copy at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-procipi.c&utm_term=free-data-file\n");
+	}
+	DataSetIpiRelease(dataset);
+}
+
 int fiftyoneDegreesProcIpiRun(
 	const char *dataFilePath,
 	const char *requiredProperties,
@@ -128,6 +145,11 @@ int fiftyoneDegreesProcIpiRun(
 	else {
 		EXCEPTION_THROW;
 		count = run(&manager);
+
+		// Standard output holds the processed addresses, so the note goes
+		// to standard error.
+		offerEnterprise(&manager);
+
 		ResourceManagerFree(&manager);
 	}
 	return count;

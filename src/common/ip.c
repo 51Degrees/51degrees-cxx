@@ -22,256 +22,177 @@
 
 #include "ip.h"
 #include "fiftyone.h"
+#include <string.h>
 
-typedef void(*parseIterator)(
-	void *state,
-	IpType segmentType,
-	const char *start,
-	const char *end);
+/** The largest port number, the largest value of 16 bits. */
+#define MAX_PORT 65535
+
+/** The most decimal digits in one part of an IPv4 address. */
+#define MAX_IPV4_PART_DIGITS 3
+
+/** The most hexadecimal digits in one group of an IPv6 address. */
+#define MAX_IPV6_GROUP_DIGITS 4
+
+/** The number of bytes in one group of an IPv6 address. */
+#define IPV6_GROUP_LENGTH 2
+
+static int getHexValue(const char c) {
+	if ('0' <= c && c <= '9') {
+		return c - '0';
+	}
+	if ('a' <= c && c <= 'f') {
+		return c - 'a' + 10;
+	}
+	if ('A' <= c && c <= 'F') {
+		return c - 'A' + 10;
+	}
+	return -1;
+}
 
 /**
- * State is an integer which is increased every time the method is called.
+ * Reads an IPv4 address in dotted-decimal form. The address must fill the
+ * range from current to end, and no part may have a leading zero.
  */
-static void callbackIpAddressCount(
-	void * const state,
-	const IpType segmentType,
-	const char * const start,
-	const char * const end) {
-	if (start <= end) {
-		if (segmentType != IP_TYPE_INVALID) {
-			(*(int*)state)++;
-			if (segmentType == IP_TYPE_IPV6) {
-				(*(int*)state)++;
+static bool readIpv4(
+	const char *current,
+	const char * const end,
+	byte * const value) {
+	byte parts[IPV4_LENGTH];
+	for (int i = 0; i < IPV4_LENGTH; i++) {
+		const char * const partStart = current;
+		int part = 0;
+		while (current < end && '0' <= *current && *current <= '9') {
+			part = part * 10 + (*current - '0');
+			current++;
+			if (current - partStart > MAX_IPV4_PART_DIGITS) {
+				return false;
 			}
 		}
-	}
-}
-
-/*
- * Make sure each byte in the Ipv4 or Ipv6 address
- * stays within the bound 0,255
- * @parsedValue The value parsed from string
- * @return the adjusted value
- * if the value is out of the range then return
- * the closest boundary value (0 or 255)
- */
-static byte getIpByte(int parsedValue) {
-	if (parsedValue < 0) {
-		parsedValue = 0;
-	}
-	else if (parsedValue > UINT8_MAX) {
-		parsedValue = UINT8_MAX;
-	}
-	return (byte)parsedValue;
-}
-
-typedef struct {
-	IpAddress * const address;
-	byte *current;
-	int bytesPresent;
-	int abbreviationsFilled;
-} fiftyoneDegreeIpAddressBuildState;
-typedef fiftyoneDegreeIpAddressBuildState IpAddressBuildState;
-
-static void parseIpV6Segment(
-	IpAddressBuildState * const buildState,
-	const char * const start,
-	const char * const end) {
-	int i;
-	char first[3], second[3], val; // "FF" + '\0'
-	if (start > end) {
-		// This is an abbreviation, so fill it in.
-		if (buildState->abbreviationsFilled) {
-			return;
+		const int digits = (int)(current - partStart);
+		if (digits == 0 ||
+			(digits > 1 && *partStart == '0') ||
+			part > UINT8_MAX) {
+			return false;
 		}
-		buildState->abbreviationsFilled++;
-		for (i = 0; i < IPV6_LENGTH - buildState->bytesPresent; i++) {
-			*buildState->current = (byte)0;
-			buildState->current++;
+		parts[i] = (byte)part;
+		if (i < IPV4_LENGTH - 1) {
+			if (current >= end || *current != '.') {
+				return false;
+			}
+			current++;
+		}
+	}
+	if (current != end) {
+		return false;
+	}
+	memcpy(value, parts, IPV4_LENGTH);
+	return true;
+}
+
+/**
+ * Reads an IPv6 address in any of the text forms of RFC 4291 section 2.2. The
+ * address must fill the range from current to end.
+ */
+static bool readIpv6(
+	const char *current,
+	const char * const end,
+	byte * const value) {
+	byte bytes[IPV6_LENGTH] = { 0 };
+	// The number of bytes read, and the number of bytes before the "::".
+	int count = 0;
+	int gap = -1;
+
+	if (current < end && *current == ':') {
+		if (end - current < 2 || current[1] != ':') {
+			return false;
+		}
+		gap = 0;
+		current += 2;
+	}
+	while (current < end) {
+		const char * const groupStart = current;
+		int group = 0;
+		while (current < end && getHexValue(*current) >= 0) {
+			if (current - groupStart == MAX_IPV6_GROUP_DIGITS) {
+				return false;
+			}
+			group = group * 16 + getHexValue(*current);
+			current++;
+		}
+		if (current == groupStart) {
+			return false;
+		}
+		if (current < end && *current == '.') {
+			// An IPv4 address is the last 32 bits.
+			if (count + IPV4_LENGTH > IPV6_LENGTH ||
+				readIpv4(groupStart, end, bytes + count) == false) {
+				return false;
+			}
+			count += IPV4_LENGTH;
+			break;
+		}
+		if (count + IPV6_GROUP_LENGTH > IPV6_LENGTH) {
+			return false;
+		}
+		bytes[count++] = (byte)(group >> 8);
+		bytes[count++] = (byte)(group & 0xFF);
+		if (current == end) {
+			break;
+		}
+		if (*current != ':') {
+			return false;
+		}
+		current++;
+		if (current == end) {
+			// A single colon at the end.
+			return false;
+		}
+		if (*current == ':') {
+			if (gap >= 0) {
+				return false;
+			}
+			gap = count;
+			current++;
+		}
+	}
+
+	if (gap < 0) {
+		if (count != IPV6_LENGTH) {
+			return false;
 		}
 	}
 	else {
-		// Add the two bytes of the segment.
-		first[2] = '\0';
-		second[2] = '\0';
-		for (i = 0; i < IPV4_LENGTH; i++) {
-			if (end - i >= start) val = end[-i];
-			else val = '0';
-
-			if (i < 2) second[1 - i] = val;
-			else first[3 - i] = val;
+		// The "::" stands for at least one group of zeros.
+		if (count > IPV6_LENGTH - IPV6_GROUP_LENGTH) {
+			return false;
 		}
-		*buildState->current = getIpByte((int)strtol(first, NULL, 16));
-		buildState->current++;
-		*buildState->current = getIpByte((int)strtol(second, NULL, 16));
-		buildState->current++;
+		const int tail = count - gap;
+		memmove(bytes + IPV6_LENGTH - tail, bytes + gap, (size_t)tail);
+		memset(bytes + gap, 0, (size_t)(IPV6_LENGTH - count));
 	}
-}
-
-static void callbackIpAddressBuild(
-	void * const state,
-	const IpType segmentType,
-	const char * const start,
-	const char * const end) {
-	fiftyoneDegreeIpAddressBuildState *const buildState = state;
-	if (segmentType == IP_TYPE_IPV4) {
-		*buildState->current = getIpByte(atoi(start));
-		buildState->current++;
-	}
-	else if (segmentType == IP_TYPE_IPV6) {
-		parseIpV6Segment(buildState, start, end);
-	}
-}
-
-static IpType getIpTypeFromSeparator(const char separator) {
-	switch (separator) {
-		case '.':
-			return IP_TYPE_IPV4;
-		case ':':
-			return IP_TYPE_IPV6;
-		default:
-			return IP_TYPE_INVALID;
-	}
-}
-
-static IpType getSegmentTypeWithSeparator(
-	const char separator,
-	const IpType ipType,
-	const IpType lastSeparatorType) {
-	switch (ipType) {
-		case IP_TYPE_IPV4:
-			return IP_TYPE_IPV4;
-		case IP_TYPE_IPV6:
-			switch (separator) {
-				case ':':
-					return IP_TYPE_IPV6;
-				case '.':
-					return IP_TYPE_IPV4;
-				default:
-					return lastSeparatorType;
-			}
-		default:
-			return getIpTypeFromSeparator(separator);
-	}
-}
-
-typedef enum {
-	FIFTYONE_DEGREES_IP_NON_BREAK_CHAR = 0,
-	FIFTYONE_DEGREES_IP_SEGMENT_BREAK_CHAR,
-	FIFTYONE_DEGREES_IP_ADDRESS_BREAK_CHAR,
-	FIFTYONE_DEGREES_IP_INVALID_CHAR,
-} IpStringSeparatorType;
-
-#define IP_NON_BREAK_CHAR FIFTYONE_DEGREES_IP_NON_BREAK_CHAR
-#define IP_SEGMENT_BREAK_CHAR FIFTYONE_DEGREES_IP_SEGMENT_BREAK_CHAR
-#define IP_ADDRESS_BREAK_CHAR FIFTYONE_DEGREES_IP_ADDRESS_BREAK_CHAR
-#define IP_INVALID_CHAR FIFTYONE_DEGREES_IP_INVALID_CHAR
-
-static IpStringSeparatorType getSeparatorCharType(
-	const char ipChar,
-	const IpType ipType) {
-
-	switch (ipChar) {
-		case ':':
-			return ((ipType == IP_TYPE_IPV4)
-				? IP_ADDRESS_BREAK_CHAR : IP_SEGMENT_BREAK_CHAR);
-		case '.':
-			return IP_SEGMENT_BREAK_CHAR;
-		case ',':
-		case ' ':
-		case ']':
-		case '/':
-		case '\0':
-		case '\n':
-			return IP_ADDRESS_BREAK_CHAR;
-		default:
-			break;
-	}
-	if ('0' <= ipChar && ipChar <= '9') {
-		return IP_NON_BREAK_CHAR;
-	}
-	if (('a' <= ipChar && ipChar <= 'f') || ('A' <= ipChar && ipChar <= 'F')) {
-		return (ipType == IP_TYPE_IPV4
-			? IP_INVALID_CHAR : IP_NON_BREAK_CHAR);
-	}
-	return IP_INVALID_CHAR;
-}
-
-static int8_t getMaxSegmentLengthForIpType(const IpType ipType) {
-	return (ipType == IP_TYPE_IPV4) ? 3 : 4; // "255" or "FFFF"
+	memcpy(value, bytes, IPV6_LENGTH);
+	return true;
 }
 
 /**
- * Calls the callback method every time a byte is identified in the value
- * when parsed left to right.
+ * True when the range from current to end is a port, being decimal digits
+ * with a value up to MAX_PORT.
  */
-static IpType iterateIpAddress(
-	const char *start,
-	const char * const end,
-	void * const state,
-	int * const springCount,
-	IpType type,
-	const parseIterator foundSegment) {
-
-	const char * const postEnd = end + 1;
-
-	*springCount = 0;
-	if (*start == '[') {
-		if (type == IP_TYPE_IPV4) {
-			return IP_TYPE_INVALID;
-		}
-		start++;
+static bool isPort(const char *current, const char * const end) {
+	if (current >= end) {
+		return false;
 	}
-
-	IpType currentSegmentType =
-		IP_TYPE_INVALID;
-
-	const char *current = start;
-	const char *nextSegment = current;
-	for (; current <= postEnd && nextSegment <= postEnd; ++current) {
-		char nextChar = 0;
-		if (current < postEnd) {
-			nextChar = *current;
+	int port = 0;
+	for (; current < end; current++) {
+		if (*current < '0' || *current > '9') {
+			return false;
 		}
-		IpStringSeparatorType separatorType =
-			getSeparatorCharType(nextChar, type);
-		if (!separatorType) {
-			continue;
+		port = port * 10 + (*current - '0');
+		if (port > MAX_PORT) {
+			return false;
 		}
-		if (separatorType == IP_INVALID_CHAR) {
-			return IP_TYPE_INVALID;
-		}
-
-		currentSegmentType = getSegmentTypeWithSeparator(
-			nextChar, type, currentSegmentType);
-		if (type == IP_TYPE_INVALID) {
-			type = currentSegmentType;
-		}
-
-		if (current - nextSegment > getMaxSegmentLengthForIpType(type)) {
-			return IP_TYPE_INVALID;
-		}
-
-		// Check if it is leading abbreviation
-		if (current - 1 >= start) {
-			foundSegment(state, currentSegmentType,
-				nextSegment, current - 1);
-		}
-		if (separatorType == IP_ADDRESS_BREAK_CHAR) {
-			return type;
-		}
-		if (current == nextSegment && current != start) {
-			++*springCount;
-		}
-		nextSegment = current + 1;
 	}
-	if (nextSegment < current
-		&& type != IP_TYPE_INVALID) {
-
-		foundSegment(state, currentSegmentType,
-			nextSegment, current - 1);
-	}
-	return type;
+	return true;
 }
 
 bool fiftyoneDegreesIpAddressParse(
@@ -279,54 +200,55 @@ bool fiftyoneDegreesIpAddressParse(
 	const char * const end,
 	IpAddress * const address) {
 
-	if (!start) {
+	if (start == NULL || end == NULL || start >= end || address == NULL) {
 		return false;
 	}
 
-	int byteCount = 0;
-	int springCount = 0;
-	IpType type = iterateIpAddress(
-		start,
-		end,
-		&byteCount,
-		&springCount,
-		IP_TYPE_INVALID,
-		callbackIpAddressCount);
+	byte value[IPV6_LENGTH];
+	IpType type;
+	const size_t length = (size_t)(end - start);
 
-	switch (type) {
-		case IP_TYPE_IPV4:
-			if (byteCount != IPV4_LENGTH || springCount) {
-				return false;
-			}
-			break;
-		case IP_TYPE_IPV6:
-			if (byteCount > IPV6_LENGTH ||
-				springCount > 1 ||
-				(byteCount < IPV6_LENGTH && !springCount)) {
-				return false;
-			}
-			break;
-		default:
+	if (*start == '[') {
+		// An IPv6 address in brackets, followed by a port or nothing.
+		const char * const bracket = memchr(start, ']', length);
+		if (bracket == NULL ||
+			(bracket + 1 < end &&
+				(bracket[1] != ':' || isPort(bracket + 2, end) == false)) ||
+			readIpv6(start + 1, bracket, value) == false) {
 			return false;
+		}
+		type = IP_TYPE_IPV6;
+	}
+	else {
+		const char * const colon = memchr(start, ':', length);
+		if (colon == NULL) {
+			// Only an IPv4 address has no colon.
+			if (readIpv4(start, end, value) == false) {
+				return false;
+			}
+			type = IP_TYPE_IPV4;
+		}
+		else if (memchr(start, '.', (size_t)(colon - start)) != NULL) {
+			// A dot before the first colon means an IPv4 address and a port.
+			if (readIpv4(start, colon, value) == false ||
+				isPort(colon + 1, end) == false) {
+				return false;
+			}
+			type = IP_TYPE_IPV4;
+		}
+		else {
+			if (readIpv6(start, end, value) == false) {
+				return false;
+			}
+			type = IP_TYPE_IPV6;
+		}
 	}
 
-	address->type = type;
-	IpAddressBuildState buildState = {
-		address,
+	memcpy(
 		address->value,
-		byteCount,
-		0,
-	};
-
-	// Add the bytes from the source value and get the type of address.
-	iterateIpAddress(
-		start,
-		end,
-		&buildState,
-		&springCount,
-		type,
-		callbackIpAddressBuild);
-
+		value,
+		type == IP_TYPE_IPV4 ? IPV4_LENGTH : IPV6_LENGTH);
+	address->type = (byte)type;
 	return true;
 }
 

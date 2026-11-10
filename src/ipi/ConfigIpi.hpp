@@ -92,14 +92,15 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Set the collections to use the high performance
-			 * configuration.
+			 * configuration. It turns on setLoadRequiredPropertiesOnly,
+			 * so naming some of the required properties loads only what
+			 * they read into memory.
 			 * See #fiftyoneDegreesIpiHighPerformanceConfig
 			 */
 			void setHighPerformance();
 
 			/**
-			 * Set the collections to use the balanced configuration. Naming
-			 * the required properties decides what this holds in memory.
+			 * Set the collections to use the balanced configuration.
 			 * See #fiftyoneDegreesIpiBalancedConfig
 			 */
 			void setBalanced();
@@ -124,15 +125,55 @@ namespace FiftyoneDegrees {
 			void setMaxPerformance();
 
 			/**
-			 * Set the expected concurrent requests for all the data set's
-			 * collections. All collections in the data set which use
-			 * cached elements will have their caches constructued to allow
-			 * for the concurrency value set here.
+			 * Set the expected number of operations that use the engine at
+			 * the same time, which defaults to the number of processors. It
+			 * is the number of file handles in the pool, up to 64, and an
+			 * operation that has to read the file when every handle is in use
+			 * waits for one. Each cache is split into as many parts as this, or
+			 * fewer so that every part holds an item for each operation, and
+			 * a smaller cache is made that large. It has no effect when every
+			 * collection is held in memory, and choosing a performance
+			 * profile does not change it.
 			 * See CollectionConfig::setConcurrency
-			 * @param concurrency expected concurrent requests
+			 * @param concurrency expected operations at the same time, or 0
+			 * for one for each processor
 			 */
 			void setConcurrency(uint16_t concurrency);
 
+			/**
+			 * Set whether only the data the required properties read is
+			 * loaded into memory. When true, and the required properties are
+			 * some but not all of the properties in the data file, only that
+			 * data is loaded. That is the parts of the strings, values,
+			 * profiles, profile groups and profile offsets they reach, in
+			 * whole records, with the rest read from the file when needed
+			 * with no cache, and the graphs of their components, each
+			 * following the graph setting, with the graphs of other
+			 * components read from the file. Other collections follow their
+			 * own settings. It has no effect when no property or every
+			 * property is required, or when everything is in memory. True in
+			 * the high performance profile only, and choosing a performance
+			 * profile replaces it with the profile's setting.
+			 * @param load true to load only what the required properties read
+			 */
+			void setLoadRequiredPropertiesOnly(bool load);
+
+			/**
+			 * Set whether the default value of each required property is
+			 * held in memory when the data set is created, with what reading
+			 * it takes from the strings and the property types, so reading a
+			 * default value reads nothing from the file and takes no lock.
+			 * Nothing is copied from a collection already loaded into memory,
+			 * so it has no effect where the values, strings and property
+			 * types are all loaded, as in the high performance profile when
+			 * no properties are named. It has no effect when everything is in
+			 * memory or when setLoadRequiredPropertiesOnly applies, as both
+			 * already hold the default values. True in every performance
+			 * profile, and choosing a profile replaces it with the profile's
+			 * setting.
+			 * @param inMemory true to hold the default values in memory
+			 */
+			void setDefaultValuesInMemory(bool inMemory);
 
 			/**
 			 * @}
@@ -211,6 +252,21 @@ namespace FiftyoneDegrees {
 			 * @return a 16 bit integer with the minimum concurrency value.
 			 */
 			uint16_t getConcurrency() const override;
+
+			/**
+			 * Get whether only the data the required properties read is
+			 * loaded into memory. See setLoadRequiredPropertiesOnly.
+			 * @return true if only what the required properties read is
+			 * loaded
+			 */
+			bool getLoadRequiredPropertiesOnly() const;
+
+			/**
+			 * Get whether the default value of each required property is held
+			 * in memory. See setDefaultValuesInMemory.
+			 * @return true if the default values are held in memory
+			 */
+			bool getDefaultValuesInMemory() const;
 
 			 /**
 			  * Gets the configuration data structure for use in C code.

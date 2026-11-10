@@ -33,9 +33,11 @@ $Projects = @{
 }
 
 # Test folders with no Visual Studio project. test/both links both products
-# into one program, test/common/performance holds a benchmark, and
-# test/dd/tools runs a tool from a CMake script.
-$NoProject = @('test/both', 'test/common/performance', 'test/dd/tools')
+# into one program, test/common/performance holds a benchmark,
+# test/dd/tools runs a tool from a CMake script, and test/install builds
+# against an install of the libraries.
+$NoProject = @('test/both', 'test/common/performance', 'test/dd/tools',
+    'test/install')
 
 function Get-RelativePath([string]$Path) {
     [IO.Path]::GetRelativePath($RepoPath, $Path) -replace '\\', '/'

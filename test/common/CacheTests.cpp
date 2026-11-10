@@ -73,6 +73,23 @@ public:
 			data->used = (uint32_t)size;
 		}
 	}
+
+	/**
+	 * Loads the value as load does, but fails for keys beyond the test
+	 * strings.
+	 */
+	static void loadOrFail(
+		const void *state,
+		fiftyoneDegreesData *data,
+		const void *key,
+		fiftyoneDegreesException *exception) {
+		if (*(int*)key >= TEST_STRINGS_COUNT) {
+			FIFTYONE_DEGREES_EXCEPTION_SET(
+				FIFTYONE_DEGREES_STATUS_CORRUPT_DATA);
+			return;
+		}
+		load(state, data, key, exception);
+	}
 #ifdef _MSC_VER
 #pragma warning (default: 4100)
 #endif
@@ -103,8 +120,8 @@ public:
 	void verify(int minCapacity, int concurrency) {
 		ASSERT_LE(minCapacity, cache->capacity) <<
 			"The cache capacity was not set correctly.";
-		ASSERT_EQ(concurrency, cache->concurrency) <<
-			"The cache concurrency was not set correctly.";
+		ASSERT_EQ(concurrency, cache->shardCount) <<
+			"The cache should have a shard for each operation.";
 		ASSERT_EQ((void*)TEST_STRINGS, (void*)cache->loaderState) <<
 			"The cache parameters were not set correctly.";
 		ASSERT_EQ(&load, (void*)cache->load) <<
@@ -113,7 +130,7 @@ public:
 			"The cache hits were not initialised to zero.";
 		ASSERT_EQ(0, cache->misses) <<
 			"The cache misses were not initialised to zero.";
-		EXPECT_LE(cache->concurrency, minCapacity / cache->concurrency) <<
+		EXPECT_LE(cache->shardCount, minCapacity / cache->shardCount) <<
 			"Concurrency is too low for a successful test.";
 	}
 	
@@ -187,6 +204,36 @@ public:
 		ASSERT_EQ(NULL, node) <<
 			"Get should have returned null, there are no free nodes to load the "
 			"new value into.";
+	}
+
+	/**
+	* Check that a load which fails returns null with the failure and leaves
+	* its node free, so that more failures than the cache has nodes still
+	* leave every value loadable.
+	*/
+	void failedLoads() {
+		fiftyoneDegreesCacheFree(cache);
+		cache = fiftyoneDegreesCacheCreate(
+			2,
+			1,
+			loadOrFail,
+			fiftyoneDegreesCacheHash32,
+			TEST_STRINGS);
+		ASSERT_NE(nullptr, cache);
+		int missing = TEST_STRINGS_COUNT;
+		for (int32_t i = 0; i <= cache->capacity; i++) {
+			FIFTYONE_DEGREES_EXCEPTION_CREATE
+			fiftyoneDegreesCacheNode *node = fiftyoneDegreesCacheGet(
+				cache,
+				&missing,
+				exception);
+			ASSERT_EQ(nullptr, node) <<
+				"A load that failed should not return a node.";
+			ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(
+				FIFTYONE_DEGREES_STATUS_CORRUPT_DATA)) <<
+				"A load that failed should report the failure.";
+		}
+		getAndCheck(0, TEST_STRINGS_COUNT - 1);
 	}
 
 	/**
@@ -318,19 +365,108 @@ TEST_CACHE_METHODS(OneTwo, 2, 1, 0, TEST_STRINGS_COUNT * 2)
 TEST_CACHE_METHODS_BASIC(OneOne, 1, 1, 0, TEST_STRINGS_COUNT * 2)
 
 /**
- * Check that a cache is not returned when an attempt is made to create a cache
- * with a concurrency setting which is too high. When the concurrency is high
- * enough that the number of nodes in a single shard is greater than the
- * concurrency, then null should be returned as the cache would not be safe for
- * that many threads.
+ * Check that a cache too small for as many shards as the concurrency is still
+ * created, with fewer shards that each hold a node for every concurrent
+ * operation, and that it returns the right values.
  */
 TEST_CACHE(HighConcurrency, TEST_STRINGS_COUNT, 100);
-TEST_F(CacheTestHighConcurrency, FailHighConcurrency) {
-ASSERT_EQ((void*)cache, (void*)NULL) <<
-	"An unsafe cache was returned. Construction should have failed.";
+TEST_F(CacheTestHighConcurrency, FewerShards) {
+	ASSERT_NE(nullptr, cache) <<
+		"No concurrency should stop the cache being created.";
+	EXPECT_LT(cache->shardCount, 100) <<
+		"The cache is too small for a shard for each operation.";
+	for (uint16_t i = 0; i < cache->shardCount; i++) {
+		EXPECT_GE(cache->shards[i].capacity, 100u) <<
+			"Each shard should hold a node for every operation.";
+	}
+	random();
 }
+
+/**
+ * Check the shards for capacities and concurrencies either side of the point
+ * where the cache becomes too small for a shard for each operation, and that
+ * a cache smaller than the concurrency grows to it.
+ */
+TEST_F(CacheTest, ShardsFollowConcurrency) {
+	struct ShardCase {
+		uint32_t capacity;
+		uint16_t concurrency;
+		uint16_t shards;
+	};
+	const ShardCase cases[] = {
+		{ 500, 10, 10 },
+		{ 500, 32, 15 },
+		{ 50, 10, 5 },
+		{ 5, 10, 1 },
+		{ 10, 100, 1 },
+		{ 0, 0, 1 },
+	};
+	for (const ShardCase& c : cases) {
+		createCache(c.capacity, c.concurrency);
+		ASSERT_NE(nullptr, cache) <<
+			c.capacity << " items with concurrency " << c.concurrency;
+		const uint32_t operations = c.concurrency == 0 ? 1 : c.concurrency;
+		EXPECT_EQ(c.shards, cache->shardCount) <<
+			c.capacity << " items with concurrency " << c.concurrency;
+		EXPECT_GE((uint32_t)cache->capacity, operations) <<
+			c.capacity << " items with concurrency " << c.concurrency;
+		for (uint16_t i = 0; i < cache->shardCount; i++) {
+			EXPECT_GE(cache->shards[i].capacity, operations) <<
+				c.capacity << " items with concurrency " << c.concurrency;
+		}
+		fiftyoneDegreesCacheFree(cache);
+		cache = NULL;
+	}
+}
+// Keys, and the size of the cache that holds them.
+static const int negativeShardKeys = 30;
+
+// Whether hashNegative gives keys negative hashes, rather than hashes whose
+// low 32 bits are the most negative int.
+static bool negativeShardHashes = false;
+
+/**
+ * Gives each key its own hash. The low 32 bits are either the most negative
+ * int, which has no positive value, as for an offset of 2 GB, or the whole
+ * hash is negative.
+ */
+static int64_t hashNegative(const void *key) {
+	const int64_t k = *(const int*)key;
+	return negativeShardHashes ? -k - 1 : (int64_t)0x80000000 + (k << 32);
+}
+
+TEST_F(CacheTest, NegativeHashes_ChooseAShard) {
+	FIFTYONE_DEGREES_EXCEPTION_CREATE
+	for (bool negative : { false, true }) {
+		negativeShardHashes = negative;
+		cache = fiftyoneDegreesCacheCreate(
+			negativeShardKeys,
+			3,
+			load,
+			hashNegative,
+			TEST_STRINGS);
+		ASSERT_NE(nullptr, cache);
+		ASSERT_EQ((uint16_t)3, cache->shardCount);
+		for (int i = 0; i < negativeShardKeys; i++) {
+			fiftyoneDegreesCacheNode *node = fiftyoneDegreesCacheGet(
+				cache,
+				&i,
+				exception);
+			ASSERT_NE(nullptr, node) << "Key " << i;
+			EXPECT_STREQ(TEST_STRINGS[i], (const char*)node->data.ptr) <<
+				"Key " << i;
+			fiftyoneDegreesCacheRelease(node);
+		}
+		fiftyoneDegreesCacheFree(cache);
+		cache = NULL;
+	}
+}
+
 TEST_F(CacheTestOneHalf, Evict) {
 	evict(TEST_STRINGS_COUNT / 2, TEST_STRINGS_COUNT / 2);
+}
+TEST_F(CacheTestOneTwo, FailedLoads) {
+	failedLoads();
 }
 
 /**
@@ -408,3 +544,41 @@ TEST_F(CacheTestHalfFour, ThreadSafety2) { multiThreadRandom(2); }
 TEST_F(CacheTestHalfFour, ThreadSafety4) { multiThreadRandom(4); }
 
 TEST_F(CacheTestHalfTwo, ThreadSafety2) { multiThreadRandom(2); }
+
+/**
+ * Gives every key a hash whose low 32 bits are the most negative int, which
+ * has no positive int.
+ */
+static int64_t hashLowestInt(const void *key) {
+	(void)key;
+	return (int64_t)INT32_MIN;
+}
+
+/**
+ * Check that a key whose hash has the most negative int in its low 32 bits
+ * is served from one of the cache's shards, for a concurrency that is not a
+ * power of two.
+ */
+TEST_F(CacheTest, LowestIntHash_ChoosesAShard) {
+	FIFTYONE_DEGREES_EXCEPTION_CREATE
+	for (uint16_t concurrency : { (uint16_t)3, (uint16_t)10 }) {
+		cache = fiftyoneDegreesCacheCreate(
+			(uint32_t)concurrency * concurrency,
+			concurrency,
+			load,
+			hashLowestInt,
+			TEST_STRINGS);
+		ASSERT_NE(nullptr, cache) << "Concurrency " << concurrency;
+		int key = 0;
+		fiftyoneDegreesCacheNode *node =
+			fiftyoneDegreesCacheGet(cache, &key, exception);
+		ASSERT_NE(nullptr, node) << "Concurrency " << concurrency;
+		EXPECT_GE(node->shard, cache->shards) <<
+			"Concurrency " << concurrency;
+		EXPECT_LE(node->shard, cache->shards + concurrency - 1) <<
+			"Concurrency " << concurrency;
+		fiftyoneDegreesCacheRelease(node);
+		fiftyoneDegreesCacheFree(cache);
+		cache = NULL;
+	}
+}

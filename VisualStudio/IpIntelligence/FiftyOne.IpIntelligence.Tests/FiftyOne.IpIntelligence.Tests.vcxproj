@@ -18,7 +18,7 @@
     <ClCompile Include="..\..\..\test\ipi\DataFileHeaderTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\DataFilePathTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiAddressAnswerTests.cpp" />
-    <ClCompile Include="..\..\..\test\ipi\EngineIpiBalancedTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\EngineIpiPresetTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiGraphFilterTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiInitTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpIntelligenceTests.cpp" />
@@ -39,6 +39,15 @@
     <ClCompile Include="..\..\..\test\ipi\HeaderStatusTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\InvalidVersionTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiDoubleTextTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiEvidenceKeysTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiDefaultValueTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiValueTextsTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiMetaDataTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiDefaultValueReloadTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiConcurrencyTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiConcurrentReadTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiDateTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiFailedReadTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadFileTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadRuleTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadTests.cpp" />

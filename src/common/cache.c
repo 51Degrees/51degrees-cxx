@@ -73,7 +73,7 @@ static void cacheValidateShard(CacheShard *shard) {
 
 static int cacheValidate(const Cache *cache) {
 	uint16_t i = 0;
-	for (i = 0; i < cache->concurrency; i++) {
+	for (i = 0; i < cache->shardCount; i++) {
 		cacheValidateShard(&cache->shards[i]);
 	}
 	return true;
@@ -115,10 +115,10 @@ static void cacheInitShard(CacheShard *shard) {
 /**
  * Gets the capacity of each shard in the cache.
  * @param capacity minimum capacity for the cache overall
- * @param concurrency the expected maximum number of concurrent accesses
+ * @param shardCount the number of shards
  */
-static uint32_t cacheShardCapacity(uint32_t capacity, uint16_t concurrency) {
-	return (capacity % concurrency) + (capacity /concurrency);
+static uint32_t cacheShardCapacity(uint32_t capacity, uint16_t shardCount) {
+	return (capacity % shardCount) + (capacity / shardCount);
 }
 
 /**
@@ -129,10 +129,10 @@ static uint32_t cacheShardCapacity(uint32_t capacity, uint16_t concurrency) {
 static void cacheInit(Cache *cache) {
 	uint16_t i;
 	CacheShard *shard;
-	for (i = 0; i < cache->concurrency; i++) {
+	for (i = 0; i < cache->shardCount; i++) {
 		shard = &cache->shards[i];
 		shard->cache = cache;
-		shard->capacity = cache->capacity / cache->concurrency;
+		shard->capacity = cache->capacity / cache->shardCount;
 		shard->allocated = 0;
 		shard->nodes = &cache->nodes[shard->capacity * i];
 		cacheInitShard(shard);
@@ -206,6 +206,27 @@ static void cacheAddToHead(CacheNode *node) {
 }
 
 /**
+ * Adds the node at the end of the linked list so that it is the next to be
+ * reused.
+ * @param node to add
+ */
+static void cacheAddToTail(CacheNode *node) {
+	CacheShard *shard = node->shard;
+	assert(node->listNext == NULL);
+	assert(node->listPrevious == NULL);
+	node->listPrevious = shard->last;
+	if (shard->last != NULL) {
+		shard->last->listNext = node;
+	}
+
+	shard->last = node;
+
+	if (shard->first == NULL) {
+		shard->first = shard->last;
+	}
+}
+
+/**
  * Returns the next free node from the cache which can be used to add a
  * new entry to. Once the cache is full then the node returned is the one
  * at the end of the linked list which will contain the least recently used
@@ -238,15 +259,18 @@ static CacheNode *cacheGetNextFree(CacheShard *shard) {
 		assert(node->activeCount == 0);
 		cacheRemoveFromList(node);
 
-		// Remove the last result from the binary tree.
-		#ifdef FIFTYONE_DEGREES_CACHE_VALIDATE
-		countBefore = TreeCount(&shard->root);
-		#endif
-		TreeDelete(&node->tree);
-		#ifdef FIFTYONE_DEGREES_CACHE_VALIDATE
-		countAfter = TreeCount(&shard->root);
-		assert(countBefore - 1 == countAfter);
-		#endif
+		// Remove the last result from the binary tree. A node whose load
+		// failed was never added to the tree.
+		if (node->tree.parent != &shard->root.empty) {
+			#ifdef FIFTYONE_DEGREES_CACHE_VALIDATE
+			countBefore = TreeCount(&shard->root);
+			#endif
+			TreeDelete(&node->tree);
+			#ifdef FIFTYONE_DEGREES_CACHE_VALIDATE
+			countAfter = TreeCount(&shard->root);
+			assert(countBefore - 1 == countAfter);
+			#endif
+		}
 	}
 
 	// Set the pointers of the node to null indicating that the
@@ -261,8 +285,8 @@ static CacheNode *cacheGetNextFree(CacheShard *shard) {
  * if one is available.
  * @param shard dictated by the key
  * @param key to get or load
- * @return pointer to the node with data for the key, or NULL if there are no 
- * free nodes
+ * @return pointer to the node with data for the key, or NULL if there are no
+ * free nodes or the load failed
  */
 static CacheNode* cacheLoad(
 	CacheShard *shard,
@@ -287,6 +311,14 @@ static CacheNode* cacheLoad(
 		if (EXCEPTION_OKAY) {
 			node->tree.key = keyHash;
 			TreeInsert(&node->tree);
+		}
+		else {
+			// The node holds nothing, so it goes back to the shard to be
+			// reused first rather than staying in use forever.
+			node->activeCount = 0;
+			node->data.used = 0;
+			cacheAddToTail(node);
+			node = NULL;
 		}
 	}
 	return node;
@@ -322,20 +354,30 @@ fiftyoneDegreesCache* fiftyoneDegreesCacheCreate(
 	fiftyoneDegreesCacheHashCodeMethod hash,
 	const void *state) {
 	size_t cacheSize, nodesSize, shardsSize;
+	uint16_t shardCount;
 	Cache *cache;
 
-	// The capacity of each shard in the cache must allow for a minimum of 
-	// one entry for each thread that could access the shard.
-	if (concurrency == 0 || capacity / concurrency < concurrency) {
-		return NULL;
+	// Each shard holds a node for every operation that can use the cache at
+	// the same time, as a node in use cannot be expelled and any operation
+	// can need any shard. So the cache holds at least that many nodes, and
+	// has fewer shards than the concurrency when it is too small for each to
+	// hold that many.
+	if (concurrency == 0) {
+		concurrency = 1;
 	}
+	if (capacity < concurrency) {
+		capacity = concurrency;
+	}
+	shardCount = capacity / concurrency < concurrency ?
+		(uint16_t)(capacity / concurrency) :
+		concurrency;
 
 	// Work out the total amount of memory used by the cache. Keep the list
 	// of nodes and header together so they're in the same continuous memory
 	// space and can be allocated and freed in a single operation.
-	shardsSize = sizeof(CacheShard) * concurrency;
-	nodesSize = sizeof(CacheNode) * 
-		cacheShardCapacity(capacity, concurrency) * concurrency;
+	shardsSize = sizeof(CacheShard) * shardCount;
+	nodesSize = sizeof(CacheNode) *
+		cacheShardCapacity(capacity, shardCount) * shardCount;
 	cacheSize = sizeof(Cache) + shardsSize + nodesSize;
 	cache = (Cache*)Malloc(cacheSize);
 	if (cache != NULL) {
@@ -344,7 +386,7 @@ fiftyoneDegreesCache* fiftyoneDegreesCacheCreate(
 		cache->shards = (CacheShard*)(cache + 1);
 
 		// The nodes are set to the byte after the shards.
-		cache->nodes = (CacheNode*)(cache->shards + concurrency);
+		cache->nodes = (CacheNode*)(cache->shards + shardCount);
 
 		// Set the parameters for the cache.
 		cache->load = load;
@@ -352,9 +394,9 @@ fiftyoneDegreesCache* fiftyoneDegreesCacheCreate(
 		cache->loaderState = state;
 		cache->hits = 0;
 		cache->misses = 0;
-		cache->concurrency = concurrency;
+		cache->shardCount = shardCount;
 		cache->capacity =
-			cacheShardCapacity(capacity, concurrency) * concurrency;
+			cacheShardCapacity(capacity, shardCount) * shardCount;
 
 		// Initialise the linked lists and binary tree.
 		cacheInit(cache);
@@ -373,7 +415,7 @@ void fiftyoneDegreesCacheFree(fiftyoneDegreesCache *cache) {
 
 	// Free any data items that are created and are marked to be freed by the
 	// cache and shards.
-	for (i = 0; i < cache->concurrency; i++) {
+	for (i = 0; i < cache->shardCount; i++) {
 		cacheShardFree(&cache->shards[i]);
 	}
 
@@ -387,7 +429,10 @@ fiftyoneDegreesCacheNode* fiftyoneDegreesCacheGet(
 	fiftyoneDegreesException *exception) {
 	CacheNode *node;
 	int64_t keyHash = cache->hash(key);
-	CacheShard *shard = &cache->shards[abs((int)keyHash) % cache->concurrency];
+	// Unsigned, as a negative hash, or one whose low 32 bits are the most
+	// negative int, would otherwise give a negative shard index.
+	CacheShard *shard =
+		&cache->shards[(uint64_t)keyHash % cache->shardCount];
 
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	FIFTYONE_DEGREES_MUTEX_LOCK(&shard->lock);

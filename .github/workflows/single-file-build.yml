@@ -1,0 +1,56 @@
+name: Single file build
+
+# The Go engines compile the C sources as one file, in the order of
+# ci/update-amalgamation.ps1 in 51degrees-go, with MinGW on Windows and gcc
+# elsewhere. A macro or include that is harmless file by file can break that
+# build, and the other workflows never compile this way.
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - '.github/workflows/single-file-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  single-file-build:
+    name: ${{ matrix.os }} ${{ matrix.product }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        product: [dd, ipi]
+    defaults:
+      run:
+        shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up MinGW-w64 gcc
+        if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc
+
+      - name: Compile the sources as one file
+        run: |
+          gcc --version | head -1
+          export LC_ALL=C
+          common="$(ls src/common/*.c | sort)"
+          if [ "${{ matrix.product }}" = dd ]; then
+            files="$common $(ls src/dd/*.c | sort) $(ls src/dd/hash/*.c | sort)"
+            defs=""
+          else
+            files="$common $(ls src/ipi/graph/*.c | sort) $(ls src/ipi/*.c | sort)"
+            defs="-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -D_FILE_OFFSET_BITS=64 -DFIFTYONE_DEGREES_REDUCED_FILE -DFIFTYONE_DEGREES_IPI_SYMBOLS"
+          fi
+          for f in $files; do echo "#include \"$f\""; done > single-file.c
+          cat single-file.c
+          # Warnings show in the log and do not fail the job, as in cgo.
+          gcc -c -fcommon $defs -I. -o single-file.o single-file.c

@@ -71,6 +71,17 @@ namespace FiftyoneDegrees {
 			/**
 			 * @}
 			 */
+
+			/**
+			 * Get the value the metadata gives as the default of the
+			 * property named, as fiftyoneDegreesValueGetDefaultIndex finds
+			 * it.
+			 * @param propertyName name of the property
+			 * @return the default value, or nullptr when the data set has no
+			 * such property or the property has no default among its values
+			 */
+			ValueMetaData* getDefaultForProperty(
+				const std::string &propertyName) const;
 		protected:
 			/** Pointer to the underlying data set containing the values. */
 			fiftyoneDegreesDataSetIpi *dataSet;

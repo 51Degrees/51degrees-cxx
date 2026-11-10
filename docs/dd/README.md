@@ -1,8 +1,8 @@
 # 51Degrees Device Detection API
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-device-detection-api "Data rewards the curious") **Device Detection**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-cxx/main/.github/images/logo-160.png "Data rewards the curious") **Device Detection**
 
-[C Documentation](https://51degrees.com/documentation/apis/device-detection-cxx/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-device-detection-api) and the [C++ Documentation](https://51degrees.com/documentation/apis/device-detection-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-device-detection-api).
+[C Documentation](https://51degrees.com/documentation/apis/device-detection-cxx/group___fifty_one_degrees_device_detection.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-device-detection-api) and the [C++ Documentation](https://51degrees.com/documentation/apis/device-detection-cxx/namespaces.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=51degrees-device-detection-api).
 
 The 51Degrees device detection API is built on the 51Degrees [common API](../../src/common/README.md).
 
@@ -16,7 +16,9 @@ available through the [data](https://github.com/51Degrees/data) submodule. To ob
 file with a more complete set of device properties see the 
 [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-cxx&utm_content=readme.md&utm_term=data-file). 
 To download the lite file into `data/device-detection`, run one of these from
-the repository root. The examples also download it when it is missing.
+the repository root. The examples also download it when it is missing. On the
+lite file, the examples show the properties only the Enterprise data file has,
+such as HardwareVendor, as needing it, with a link to ask for a copy.
 
 ```
 sh data/get-data-files.sh 51Degrees-LiteV4.1.hash
@@ -48,9 +50,38 @@ and for the Hash C++ API, the following are needed in addition:
 
 The CMake project also builds a single shared library containing everything. This is named `fiftyone-device-detection-complete` and can be referenced by any C or C++ project.
 
+A project that uses an installed copy of the libraries finds them with
+`find_package(51Degrees CONFIG REQUIRED)` and links `51Degrees::hash-c` or
+`51Degrees::hash-cxx`, which bring the libraries above. The headers are then
+included as, for example, `<51degrees/dd/hash/hash.h>`.
+[Installing](../../README.md#installing) in the repository README says how to
+install them.
+
 ## Visual Studio
 
 The Visual Studio solution contains static libraries which have all the dependencies set up correctly, so referencing these in a Visual Studio solution should be fairly self explanatory.
+
+# Memory and the required properties
+
+The configuration, `fiftyoneDegreesConfigHash` in C and `ConfigHash` in C++, has a setting `loadRequiredPropertiesOnly` (`setLoadRequiredPropertiesOnly()` in C++) that works as the setting of the same name does for [IP Intelligence](../ipi/README.md#memory-and-the-required-properties). It applies when the required properties name some but not all of the properties in the data file. Only what they read is then held in memory:
+
+- The values of the required properties.
+- The strings those values use, leaving on file any stretch of at least 64 KiB that no required value uses.
+
+Each part is held in whole records, and the rest of the values and strings reads from the file when needed, with no cache. Every other collection follows its own setting, including the profiles and the nodes that every lookup walks, the properties, the components and the maps. Anything not held reads from the file, so it still works, more slowly. A property that was not named gives no value, as it does with every other configuration. The setting has no effect when no property or every property is named, or when the whole data file is in memory.
+
+Creating the data set still reads more than it keeps. The strings are read from the file until the required properties are known, and the values are loaded as the configuration says until the index of each profile's values has been built, as that reads values for every profile. They are replaced by the held parts when the data set is created.
+
+The presets set the setting as follows. Choosing a preset in C++ replaces the setting with the preset's.
+
+| Preset | `loadRequiredPropertiesOnly` |
+| --- | --- |
+| InMemory (`setMaxPerformance()`) | false |
+| HighPerformance (`setHighPerformance()`) | true |
+| Balanced, BalancedTemp and the default | false |
+| LowMemory | false |
+
+IP Intelligence also has `defaultValuesInMemory`. Device Detection does not, because a Hash lookup uses no default value. The default value of a property is read only when meta data is built, and a property that a profile has no value for returns no value (the `addValuesFromProfile` path in `src/dd/hash/hash.c`).
 
 # Header length limit
 
@@ -106,10 +137,14 @@ from.
 Either way the values are the same whatever is read first, and the evidence
 can be freed once the results are populated.
 
-The match metrics, such as the iterations and the drift, and the device id
-are worked out from every component, so reading them walks every graph not yet
-walked. The C++ API does this itself. A C caller that reads the result items
-directly calls `fiftyoneDegreesResultsEvaluateAll` first.
+The match metrics, such as the iterations and the drift, the matched
+User-Agents and the device id are worked out from every component, so reading
+them walks every graph not yet walked. The C++ API does this itself, and so
+do the C functions `fiftyoneDegreesResultsHashGetMatchMetrics`,
+`fiftyoneDegreesResultsHashGetMatchMetricsForResult`,
+`fiftyoneDegreesResultsHashGetMatchedUserAgent` and
+`fiftyoneDegreesHashGetDeviceIdFromResults`, so a C caller reads them through
+those functions rather than from the result items.
 
 # Threads
 

@@ -25,7 +25,7 @@
 
 class ExampleTestPerformance : public ExampleIpIntelligenceTest {
 public:
-    void run() {
+    std::string run() {
         // Capture stdout for the test.
         testing::internal::CaptureStdout();
 
@@ -37,11 +37,23 @@ public:
             stdout,
             nullptr);
 
-        // Don't print the stdout
-        std::string output = testing::internal::GetCapturedStdout();
+        // Returned for the tests to check.
+        return testing::internal::GetCapturedStdout();
     }
 };
 
 TEST_F(ExampleTestPerformance, All) {
     run();
+}
+
+// The example uses the free ASN data file by default, and on it says what the
+// Enterprise data file adds and where to ask for a copy.
+TEST_F(ExampleTestPerformance, AsnDataFile) {
+    dataFilePath = getAsnDataFilePath();
+    if (dataFilePath.empty()) {
+        GTEST_SKIP() << "The free ASN data file is not present.";
+    }
+    std::string output = run();
+    EXPECT_NE(output.find("utm_term=free-data-file"), std::string::npos) <<
+        output;
 }

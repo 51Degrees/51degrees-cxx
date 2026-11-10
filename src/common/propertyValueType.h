@@ -27,6 +27,7 @@
 #include "ipiSymbols.h"
 #endif
 
+#include <stdbool.h>
 #include "common.h"
 
 /**
@@ -97,5 +98,21 @@ typedef enum e_fiftyone_degrees_property_value_type {
 EXTERNAL fiftyoneDegreesPropertyValueType
 fiftyoneDegreesPropertyValueTypeGetUnderlyingType(
     fiftyoneDegreesPropertyValueType type);
+
+/**
+ * Returns the name of a property's value type, which the property metadata
+ * gives as the type of the property, for example "int", "string[]" or
+ * "weightedstring". Each language maps the name to a type of its own.
+ *
+ * The list flag changes only the name of a string, which is "string[]" for a
+ * list. A type with no name of its own, and a number that is not a property
+ * value type, is named "string".
+ * @param type the value type of the property
+ * @param isList true if the property is a list
+ * @return the name, a constant string that is never NULL
+ */
+EXTERNAL const char* fiftyoneDegreesPropertyValueTypeGetName(
+    fiftyoneDegreesPropertyValueType type,
+    bool isList);
 
 #endif

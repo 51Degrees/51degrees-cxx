@@ -127,6 +127,11 @@ FiftyoneDegrees::Common::Value<string> ResultsBase::valueAsStringAt(
 		else if (values.size() != 0) {
 			result.setValue(*values.begin());
 		}
+		else {
+			const fiftyoneDegreesResultsNoValueReason reason =
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+			result.setNoValueReason(reason, getNoValueMessageInternal(reason));
+		}
 	}
 	return result;
 }
@@ -164,10 +169,16 @@ FiftyoneDegrees::Common::Value<bool> ResultsBase::valueAsBoolAt(
 		if (values.size() > 1) {
 			result.setNoValueReason(
 				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES,
-				nullptr);
+				getNoValueMessageInternal(
+					FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES));
 		}
 		else if (values.size() != 0) {
 			result.setValue((*values.begin()).compare("True") == 0);
+		}
+		else {
+			const fiftyoneDegreesResultsNoValueReason reason =
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+			result.setNoValueReason(reason, getNoValueMessageInternal(reason));
 		}
 	}
 	return result;
@@ -206,10 +217,16 @@ FiftyoneDegrees::Common::Value<int> ResultsBase::valueAsIntegerAt(
 		if (values.size() > 1) {
 			result.setNoValueReason(
 				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES,
-				nullptr);
+				getNoValueMessageInternal(
+					FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES));
 		}
 		else if (values.size() != 0) {
 			result.setValue(atoi(values.begin()->c_str()));
+		}
+		else {
+			const fiftyoneDegreesResultsNoValueReason reason =
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+			result.setNoValueReason(reason, getNoValueMessageInternal(reason));
 		}
 	}
 	return result;
@@ -248,10 +265,16 @@ FiftyoneDegrees::Common::Value<double> ResultsBase::valueAsDoubleAt(
 		if (values.size() > 1) {
 			result.setNoValueReason(
 				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES,
-				nullptr);
+				getNoValueMessageInternal(
+					FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES));
 		}
 		else if (values.size() != 0) {
 			result.setValue(strtod(values.begin()->c_str(), nullptr));
+		}
+		else {
+			const fiftyoneDegreesResultsNoValueReason reason =
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+			result.setNoValueReason(reason, getNoValueMessageInternal(reason));
 		}
 	}
 	return result;
@@ -286,10 +309,14 @@ template <class T> bool ResultsBase::getOneValueText(
 	if (values.size() > 1) {
 		result.setNoValueReason(
 			FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES,
-			nullptr);
+			getNoValueMessageInternal(
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES));
 		return false;
 	}
 	if (values.size() == 0) {
+		const fiftyoneDegreesResultsNoValueReason reason =
+			FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+		result.setNoValueReason(reason, getNoValueMessageInternal(reason));
 		return false;
 	}
 	text = *values.begin();

@@ -452,6 +452,17 @@ EXTERNAL bool fiftyoneDegreesPropertiesIsSetHeaderAvailable(
 	fiftyoneDegreesPropertiesAvailable* available);
 
 /**
+ * Checks whether the properties required name some properties, and fewer than
+ * the data file has.
+ * @param properties the caller's required properties, or NULL for all
+ * @param total number of properties in the data file
+ * @return true if some but not all of the properties are required
+ */
+EXTERNAL bool fiftyoneDegreesPropertiesRequiredNamesFewerThan(
+	const fiftyoneDegreesPropertiesRequired *properties,
+	uint32_t total);
+
+/**
  * Frees the memory and resources used by the properties results previously 
  * created using the #fiftyoneDegreesPropertiesCreate method.
  * @param available properties instance to be freed

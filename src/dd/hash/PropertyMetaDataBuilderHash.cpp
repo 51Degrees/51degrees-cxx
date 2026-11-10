@@ -26,163 +26,123 @@
 
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
+
 PropertyMetaData* PropertyMetaDataBuilderHash::build(
 	fiftyoneDegreesDataSetHash *dataSet,
-	const fiftyoneDegreesProperty *property) {
-	string name = getString(dataSet->strings, property->nameOffset);
+	uint32_t propertyIndex) {
+	EXCEPTION_CREATE;
+	uint8_t valueType = 0, componentId = 0, displayOrder = 0;
+	bool isMandatory = false, isList = false, isObsolete = false;
+	bool show = false, showValues = false, isAvailable = false;
+	uint32_t mapCount = 0;
+	if (HashGetProperty(
+		dataSet,
+		propertyIndex,
+		&valueType,
+		&componentId,
+		&displayOrder,
+		&isMandatory,
+		&isList,
+		&isObsolete,
+		&show,
+		&showValues,
+		&mapCount,
+		&isAvailable,
+		nullptr,
+		exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
+	string name = getText(
+		dataSet,
+		propertyIndex,
+		FIFTYONE_DEGREES_PROPERTY_TEXT_NAME);
 	return new PropertyMetaData(
 		name,
-		getPropertyMap(
-			dataSet->strings,
-			dataSet->maps,
-			property),
-		getPropertyType(property),
-		(int)property->categoryOffset != -1 ?
-		getString(dataSet->strings, property->categoryOffset) :
-		string(),
-		// A property with no URL points at offset 0, which holds the first
-		// string in the file rather than a URL.
-		(int)property->urlOffset > 0 ?
-		getString(dataSet->strings, property->urlOffset) :
-		string(),
-		propertyIsAvailable(dataSet, &name),
-		property->displayOrder,
-		property->isMandatory,
-		property->isList,
-		property->isObsolete,
-		property->show,
-		property->showValues,
-		(int)property->descriptionOffset != -1 ?
-		getString(dataSet->strings, property->descriptionOffset) :
-		string(),
-		getDefaultValue(dataSet, property->defaultValueIndex),
-		getComponentId(dataSet, property),
-		getEvidenceProperties(dataSet, property));
+		getPropertyMap(dataSet, propertyIndex, mapCount),
+		PropertyValueTypeGetName(
+			(PropertyValueType)valueType,
+			isList),
+		getText(
+			dataSet,
+			propertyIndex,
+			FIFTYONE_DEGREES_PROPERTY_TEXT_CATEGORY),
+		getText(dataSet, propertyIndex, FIFTYONE_DEGREES_PROPERTY_TEXT_URL),
+		isAvailable,
+		displayOrder,
+		isMandatory,
+		isList,
+		isObsolete,
+		show,
+		showValues,
+		getText(
+			dataSet,
+			propertyIndex,
+			FIFTYONE_DEGREES_PROPERTY_TEXT_DESCRIPTION),
+		getText(
+			dataSet,
+			propertyIndex,
+			FIFTYONE_DEGREES_PROPERTY_TEXT_DEFAULT_VALUE),
+		componentId,
+		getEvidenceProperties(dataSet, name));
 }
 
-byte PropertyMetaDataBuilderHash::getComponentId(
+string PropertyMetaDataBuilderHash::getText(
 	fiftyoneDegreesDataSetHash *dataSet,
-	const fiftyoneDegreesProperty *property) {
-	return ((Component*)dataSet->componentsList.items[
-		property->componentIndex].data.ptr)->componentId;
+	uint32_t propertyIndex,
+	fiftyoneDegreesPropertyText text) {
+	EXCEPTION_CREATE;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const result = HashGetPropertyText(
+		dataSet,
+		propertyIndex,
+		text,
+		buffer,
+		sizeof(buffer),
+		exception);
+	return takeText(result, buffer, exception);
 }
 
 vector<uint32_t> PropertyMetaDataBuilderHash::getEvidenceProperties(
 	fiftyoneDegreesDataSetHash *dataSet,
-	const fiftyoneDegreesProperty *property) {
-	EXCEPTION_CREATE;
+	const string &name) {
 	vector<uint32_t> indexes;
-	uint32_t i;
-	int index;
-	Item item;
-	const String* name;
-	DataReset(&item.data);
-	name = PropertyGetName(
-		dataSet->strings,
-		property,
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	index = PropertiesGetAvailableIndexFromName(
+	const int index = PropertiesGetAvailableIndexFromName(
 		dataSet->b.b.available,
-		&name->value);
-	COLLECTION_RELEASE(dataSet->strings, &item);
-
+		name.c_str());
 	if (index >= 0) {
 		fiftyoneDegreesEvidenceProperties* evidenceProperties =
 			dataSet->b.b.available->items[index].evidenceProperties;
-
 		indexes.reserve(evidenceProperties->count);
-		for (i = 0;
-			i < evidenceProperties->count;
-			i++) {
+		for (uint32_t i = 0; i < evidenceProperties->count; i++) {
 			indexes.push_back(evidenceProperties->items[i]);
 		}
 	}
 	return indexes;
-
-}
-string PropertyMetaDataBuilderHash::getDefaultValue(
-	fiftyoneDegreesDataSetHash *dataSet,
-	uint32_t valueIndex) {
-	EXCEPTION_CREATE;
-	string result;
-	Item item;
-	const Value *value;
-	if (valueIndex != UINT32_MAX) {
-		DataReset(&item.data);
-		value = ValueGet(
-			dataSet->values,
-			valueIndex,
-			&item,
-			exception);
-		EXCEPTION_THROW;
-			if (value != nullptr) {
-				result = getString(dataSet->strings, value->nameOffset);
-				COLLECTION_RELEASE(dataSet->values, &item);
-			}
-	}
-	return result;
-}
-
-bool PropertyMetaDataBuilderHash::propertyIsAvailable(
-	fiftyoneDegreesDataSetHash*dataSet,
-	string *name) {
-	return PropertiesGetPropertyIndexFromName(
-		dataSet->b.b.available,
-		name->c_str()) >= 0;
-}
-
-string PropertyMetaDataBuilderHash::getPropertyType(
-	const fiftyoneDegreesProperty *property) {
-	switch (property->valueType) {
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER:
-		return string("int");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN:
-		return string("bool");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE:
-		return string("double");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT:
-		return string("javascript");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
-		if (property->isList != 0) {
-			return string("string[]");
-		}
-		return string("string");
-	default:
-		return string("string");
-	}
 }
 
 vector<string> PropertyMetaDataBuilderHash::getPropertyMap(
-	const fiftyoneDegreesCollection *stringsCollection,
-	const fiftyoneDegreesCollection *mapsCollection,
-	const fiftyoneDegreesProperty *property) {
-	EXCEPTION_CREATE;
-	uint32_t i, offset;
-	const char *name;
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t propertyIndex,
+	uint32_t mapCount) {
 	vector<string> map;
-	Item item;
-	DataReset(&item.data);
-	map.reserve(property->mapCount);
-	for (i = property->firstMapIndex;
-		i < (uint32_t)(property->firstMapIndex + property->mapCount);
-		i++) {
-		offset = CollectionGetInteger32(
-			mapsCollection, 
-			i, 
+	map.reserve(mapCount);
+	for (uint32_t i = 0; i < mapCount; i++) {
+		EXCEPTION_CREATE;
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		char * const name = HashGetPropertyMapText(
+			dataSet,
+			propertyIndex,
+			i,
+			buffer,
+			sizeof(buffer),
 			exception);
-		EXCEPTION_THROW;
-		name = STRING(StringGet(
-			stringsCollection,
-			offset,
-			&item,
-			exception));
-		EXCEPTION_THROW;
 		if (name != nullptr) {
-			map.push_back(string(name));
+			map.push_back(takeText(name, buffer, exception));
 		}
-		COLLECTION_RELEASE(stringsCollection, &item);
+		else {
+			EXCEPTION_THROW;
+		}
 	}
 	return map;
 }

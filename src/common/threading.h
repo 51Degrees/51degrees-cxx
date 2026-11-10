@@ -53,6 +53,20 @@
 EXTERNAL bool fiftyoneDegreesThreadingGetIsThreadSafe();
 
 /**
+ * The most processors #fiftyoneDegreesThreadingGetProcessorCount returns,
+ * which leaves room for the null item a pool adds to its items.
+ */
+#define FIFTYONE_DEGREES_PROCESSOR_COUNT_MAX (UINT16_MAX - 1)
+
+/**
+ * Gets the number of processors the system has online, which is the default
+ * for the number of operations expected to use an engine at the same time.
+ * @return the number of processors, at least 1, and 1 in a single threaded
+ * build.
+ */
+EXTERNAL uint16_t fiftyoneDegreesThreadingGetProcessorCount();
+
+/**
  * A thread method passed to the #FIFTYONE_DEGREES_THREAD_CREATE macro.
  */
 #ifdef _MSC_VER

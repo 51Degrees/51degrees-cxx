@@ -191,30 +191,36 @@ long fiftyoneDegreesValueGetIndexByName(
 		exception);
 }
 
-long fiftyoneDegreesValueGetIndexByNameAndType(
-	const Collection *values,
-	const Collection *strings,
-	const Property *property,
-	fiftyoneDegreesPropertyValueType storedValueType,
-	const char *valueName,
-	Exception *exception) {
-	Item item;
+/**
+ * Searches the property's values for the one named, comparing each as
+ * `storedValueType`, and returns its index with the value in `item`, or -1.
+ * A value that is not a string is written for the comparison into a buffer
+ * three bytes longer than the name, with as many decimal places as that
+ * buffer has bytes, up to MAX_DOUBLE_DECIMAL_PLACES.
+ */
+static long searchByNameAndType(
+	const Collection * const values,
+	const Collection * const strings,
+	const Property * const property,
+	const PropertyValueType storedValueType,
+	const char * const valueName,
+	Item * const item,
+	Exception * const exception) {
 	valueSearch search;
-	long index;
-	DataReset(&item.data);
 	search.valueName = valueName;
 	search.strings = strings;
 	search.valueType = storedValueType;
 
-	const bool isString = (storedValueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING);
+	const bool isString =
+		storedValueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
 	const size_t requiredSize = strlen(valueName) + 3;
 	char * const buffer = isString ? NULL : Malloc(requiredSize);
 	StringBuilder tempBuilder = { buffer, requiredSize };
 	search.tempBuilder = isString ? NULL : &tempBuilder;
 
-	index = CollectionBinarySearch(
+	const long index = CollectionBinarySearch(
 		values,
-		&item,
+		item,
 		(CollectionIndexOrOffset){property->firstValueIndex},
 		(CollectionIndexOrOffset){property->lastValueIndex},
 		CollectionKeyType_Value,
@@ -224,6 +230,26 @@ long fiftyoneDegreesValueGetIndexByNameAndType(
 	if (buffer) {
 		Free(buffer);
 	}
+	return index;
+}
+
+long fiftyoneDegreesValueGetIndexByNameAndType(
+	const Collection *values,
+	const Collection *strings,
+	const Property *property,
+	fiftyoneDegreesPropertyValueType storedValueType,
+	const char *valueName,
+	Exception *exception) {
+	Item item;
+	DataReset(&item.data);
+	const long index = searchByNameAndType(
+		values,
+		strings,
+		property,
+		storedValueType,
+		valueName,
+		&item,
+		exception);
 	if (EXCEPTION_OKAY) {
 		COLLECTION_RELEASE(values, &item);
 	}
@@ -256,36 +282,216 @@ const Value* fiftyoneDegreesValueGetByNameAndType(
 	const char * const valueName,
 	CollectionItem * const item,
 	Exception * const exception) {
-	valueSearch search;
 	Value *value = NULL;
-	search.valueName = valueName;
-	search.strings = strings;
-	search.valueType = storedValueType;
-
-	const bool isString = (storedValueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING);
-	const size_t requiredSize = strlen(valueName) + 3;
-	char * const buffer = isString ? NULL : Malloc(requiredSize);
-	StringBuilder tempBuilder = { buffer, requiredSize };
-	search.tempBuilder = isString ? NULL : &tempBuilder;
-
 	if (
 		(int)property->firstValueIndex != -1 &&
-		CollectionBinarySearch(
+		searchByNameAndType(
 			values,
+			strings,
+			property,
+			storedValueType,
+			valueName,
 			item,
-			(CollectionIndexOrOffset){property->firstValueIndex},
-			(CollectionIndexOrOffset){property->lastValueIndex},
-			CollectionKeyType_Value,
-			(void*)&search,
-			compareValueByName,
 			exception) >= 0 &&
 		EXCEPTION_OKAY) {
 		value = (Value*)item->data.ptr;
 	}
-	if (buffer) {
-		Free(buffer);
-	}
 	return value;
+}
+
+/**
+ * Gives an empty text, in `buffer` when it has room and otherwise in memory
+ * the caller frees.
+ */
+static char* emptyText(
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	char * const text = buffer != NULL && bufferLength > 0
+		? buffer
+		: (char*)Malloc(1);
+	if (text == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
+		return NULL;
+	}
+	text[0] = '\0';
+	return text;
+}
+
+/**
+ * Gets the text of the value's name, as fiftyoneDegreesValueGetText does,
+ * except that a name which is read but cannot be written gives an empty text
+ * only when `emptyWhenUnwritable` is true, and NULL otherwise.
+ */
+static char* getNameText(
+	const Collection * const strings,
+	const Collection * const propertyTypes,
+	const Value * const value,
+	const uint8_t decimalPlaces,
+	const bool emptyWhenUnwritable,
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	PropertyValueType storedValueType =
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
+	if (propertyTypes != NULL) {
+		storedValueType = PropertyGetStoredTypeByIndex(
+			propertyTypes,
+			(uint32_t)value->propertyIndex,
+			exception);
+		if (EXCEPTION_FAILED) {
+			return NULL;
+		}
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const name = ValueGetContent(
+		strings,
+		value,
+		storedValueType,
+		&item,
+		exception);
+	if (name == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: emptyText(buffer, bufferLength, exception);
+	}
+	if (EXCEPTION_FAILED) {
+		COLLECTION_RELEASE(strings, &item);
+		return NULL;
+	}
+	char * const text = StoredBinaryValueToText(
+		name,
+		storedValueType,
+		decimalPlaces,
+		buffer,
+		bufferLength,
+		exception);
+	COLLECTION_RELEASE(strings, &item);
+	// Memory that cannot be allocated is a failure, not an unwritable name.
+	if (text == NULL &&
+		emptyWhenUnwritable &&
+		!EXCEPTION_CHECK(INSUFFICIENT_MEMORY)) {
+		EXCEPTION_CLEAR;
+		return emptyText(buffer, bufferLength, exception);
+	}
+	return text;
+}
+
+char* fiftyoneDegreesValueGetText(
+	const Collection * const strings,
+	const Collection * const propertyTypes,
+	const Value * const value,
+	const uint8_t decimalPlaces,
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	return getNameText(
+		strings,
+		propertyTypes,
+		value,
+		decimalPlaces,
+		true,
+		buffer,
+		bufferLength,
+		exception);
+}
+
+char* fiftyoneDegreesValueGetDefaultText(
+	const Collection * const values,
+	const Collection * const strings,
+	const Collection * const propertyTypes,
+	const Property * const property,
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	if (property->defaultValueIndex == UINT32_MAX) {
+		return emptyText(buffer, bufferLength, exception);
+	}
+	Item item;
+	DataReset(&item.data);
+	const Value * const held = ValueGet(
+		values,
+		property->defaultValueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: emptyText(buffer, bufferLength, exception);
+	}
+	if (EXCEPTION_FAILED) {
+		COLLECTION_RELEASE(values, &item);
+		return NULL;
+	}
+	// A copy, so the value is released before its name is read and only one
+	// item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(values, &item);
+	// A default that cannot be written fails, as an empty text would find a
+	// value with an empty name in fiftyoneDegreesValueGetDefaultIndex.
+	return getNameText(
+		strings,
+		propertyTypes,
+		&value,
+		MAX_DOUBLE_DECIMAL_PLACES,
+		false,
+		buffer,
+		bufferLength,
+		exception);
+}
+
+long fiftyoneDegreesValueGetDefaultIndex(
+	const Collection * const values,
+	const Collection * const strings,
+	const Collection * const propertyTypes,
+	const Property * const property,
+	Exception * const exception) {
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const text = ValueGetDefaultText(
+		values,
+		strings,
+		propertyTypes,
+		property,
+		buffer,
+		sizeof(buffer),
+		exception);
+	if (text == NULL) {
+		return -1;
+	}
+	PropertyValueType storedValueType =
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
+	if (propertyTypes != NULL) {
+		storedValueType = PropertyGetStoredType(
+			propertyTypes,
+			property,
+			exception);
+	}
+	long index = -1;
+	if (EXCEPTION_OKAY && (int)property->firstValueIndex != -1) {
+		Item item;
+		DataReset(&item.data);
+		index = searchByNameAndType(
+			values,
+			strings,
+			property,
+			storedValueType,
+			text,
+			&item,
+			exception);
+		// The search answers as found when it reads nothing for a value, so
+		// a value is only found when the item holds one.
+		if (index >= 0 && EXCEPTION_OKAY && item.data.ptr != NULL) {
+			COLLECTION_RELEASE(values, &item);
+		}
+		else {
+			index = -1;
+		}
+	}
+	if (text != buffer) {
+		Free(text);
+	}
+	return index;
 }
 
 bool fiftyoneDegreesValueIsWeighted(

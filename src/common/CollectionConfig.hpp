@@ -84,7 +84,9 @@ namespace FiftyoneDegrees {
 			void setCapacity(uint32_t capacity);
 
 			/**
-			 * Set the expected number of concurrent requests.
+			 * Set the expected number of operations that use the collection
+			 * at the same time. A data set takes 0 as one for each
+			 * processor.
 			 * @param concurrency to set
 			 */
 			void setConcurrency(uint16_t concurrency);

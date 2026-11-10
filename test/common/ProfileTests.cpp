@@ -383,6 +383,44 @@ TEST_F(ProfileTests, Values) {
 }
 
 /**
+ * Each property's default value index is its first value, so the default is
+ * that value's name and is found at that index. These data sets hold only
+ * strings, so there are no property types.
+ */
+TEST_F(ProfileTests, DefaultValues) {
+    for (int i = 0; i < N_PROPERTIES; i++) {
+        EXCEPTION_CREATE
+        const fiftyoneDegreesProperty *property = fiftyoneDegreesPropertyGet(
+            propertiesCollection, i, &item, exception);
+        EXCEPTION_THROW
+        char buffer[8];
+        char *text = fiftyoneDegreesValueGetDefaultText(
+            valuesCollection,
+            stringsCollection,
+            nullptr,
+            property,
+            buffer,
+            sizeof(buffer),
+            exception);
+        EXCEPTION_THROW
+        EXPECT_STREQ(strings[i * N_PER_PROPERTY + 1], text);
+        if (text != buffer) {
+            fiftyoneDegreesFree(text);
+        }
+        EXPECT_EQ(
+            (long)i * (N_PER_PROPERTY - 1),
+            fiftyoneDegreesValueGetDefaultIndex(
+                valuesCollection,
+                stringsCollection,
+                nullptr,
+                property,
+                exception));
+        EXCEPTION_THROW
+        COLLECTION_RELEASE(item.collection, &item);
+    }
+}
+
+/**
  * Compare two profiles for equality. All fields in the profiles are compared
  * using the EXPECT_EQ macro. The value arrays are compared element by element.
  */

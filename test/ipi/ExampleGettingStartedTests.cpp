@@ -31,8 +31,12 @@ public:
 
       fiftyoneDegreesIpiGettingStarted(dataFilePath.c_str(), &config);
 
-      // Don't print the stdout
+      // The Enterprise data file has every property the example prints.
       std::string output = testing::internal::GetCapturedStdout();
+      if (dataFilePath.find("Enterprise") != std::string::npos) {
+          EXPECT_EQ(output.find(FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE),
+              std::string::npos) << output;
+      }
     }
 };
 

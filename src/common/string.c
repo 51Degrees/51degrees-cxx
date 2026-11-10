@@ -119,12 +119,13 @@ const char *fiftyoneDegreesStringSubString(const char *a, const char *b) {
 	int d;
 	const char *a1, *b1;
 	for (; *a != '\0' && *b != '\0'; a++) {
-		d = tolower(*a) - tolower(*b);
+		d = toLowerAscii((unsigned char)*a) - toLowerAscii((unsigned char)*b);
 		if (d == 0) {
 			a1 = a + 1;
 			b1 = b + 1;
 			for (; *a1 != '\0' && *b1 != '\0'; a1++, b1++) {
-				d = tolower(*a1) - tolower(*b1);
+				d = toLowerAscii((unsigned char)*a1) -
+					toLowerAscii((unsigned char)*b1);
 				if (d != 0) {
 					break;
 				}

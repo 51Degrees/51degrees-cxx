@@ -265,6 +265,96 @@ EXTERNAL long fiftyoneDegreesValueGetIndexByName(
 	fiftyoneDegreesException *exception);
 
 /**
+ * Gets the text of the value's name as the metadata gives it. The name is
+ * read as the type the value's property is stored as, which `propertyTypes`
+ * gives by the value's property index, and a number is written to at most
+ * `decimalPlaces` places after the point. A data set that stores every value
+ * as a string has no property types and passes NULL. The text is written
+ * into `buffer` when it fits, and otherwise into memory the caller frees, as
+ * #fiftyoneDegreesStoredBinaryValueToText describes. A name the strings
+ * collection gives no value for has an empty text. So does a name that is
+ * read but cannot be written, such as an IP address of a length no address
+ * has or an area of an unknown geometry, and no exception is then set.
+ * @param strings collection containing the value names
+ * @param propertyTypes collection of the type each property's values are
+ * stored as, or NULL when every value is stored as a string
+ * @param value the value to get the text of
+ * @param decimalPlaces the most places to write after the decimal point
+ * @param buffer memory the text is written into when it fits
+ * @param bufferLength the bytes `buffer` holds
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the null terminated text, or NULL when the type or the name cannot
+ * be read or memory cannot be allocated
+ */
+EXTERNAL char* fiftyoneDegreesValueGetText(
+	const fiftyoneDegreesCollection *strings,
+	const fiftyoneDegreesCollection *propertyTypes,
+	const fiftyoneDegreesValue *value,
+	uint8_t decimalPlaces,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the text the metadata gives as the property's default value. This is
+ * the name of the value at the property's default value index, written as
+ * #fiftyoneDegreesValueGetText writes it with a number written to
+ * #FIFTYONE_DEGREES_MAX_DOUBLE_DECIMAL_PLACES places. Those are the most
+ * places the search in #fiftyoneDegreesValueGetDefaultIndex writes a number
+ * to, so a default stored with more places than the metadata shows for a
+ * value is still found. A property with no default value index has an empty
+ * text. A default that is read but cannot be written gives NULL rather than
+ * an empty text, so it is not taken for a value with an empty name. The text
+ * is written into `buffer` when it fits, and otherwise into memory the caller
+ * frees, as #fiftyoneDegreesStoredBinaryValueToText describes.
+ * @param values collection containing the property's values
+ * @param strings collection containing the value names
+ * @param propertyTypes collection of the type each property's values are
+ * stored as, or NULL when every value is stored as a string
+ * @param property the property to get the default value text of
+ * @param buffer memory the text is written into when it fits
+ * @param bufferLength the bytes `buffer` holds
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the null terminated text, or NULL when the default value, its type
+ * or its name cannot be read or written
+ */
+EXTERNAL char* fiftyoneDegreesValueGetDefaultText(
+	const fiftyoneDegreesCollection *values,
+	const fiftyoneDegreesCollection *strings,
+	const fiftyoneDegreesCollection *propertyTypes,
+	const fiftyoneDegreesProperty *property,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the index in the values collection of the value the metadata gives as
+ * the property's default. The text #fiftyoneDegreesValueGetDefaultText gives
+ * is searched for among the property's values, each compared as the type
+ * `propertyTypes` gives the property by its name. So a default that is not
+ * among the property's values has none, and a property with no default value
+ * index has the value with an empty name when it has one.
+ * @param values collection containing the property's values
+ * @param strings collection containing the value names
+ * @param propertyTypes collection of the type each property's values are
+ * stored as, or NULL when every value is stored as a string
+ * @param property the property to find the default value of
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the 0 based index of the value in the values collection, or -1
+ * when the property has no such value or a value, a type or a name cannot be
+ * read
+ */
+EXTERNAL long fiftyoneDegreesValueGetDefaultIndex(
+	const fiftyoneDegreesCollection *values,
+	const fiftyoneDegreesCollection *strings,
+	const fiftyoneDegreesCollection *propertyTypes,
+	const fiftyoneDegreesProperty *property,
+	fiftyoneDegreesException *exception);
+
+/**
  * Returns true if the value carries a masked weight.
  * A value is weighted when (urlOffsetOrWeight & 0xFFFF0000) == 0xFF000000.
  * This is distinct from -1 (0xFFFFFFFF, "no URL" sentinel) and from

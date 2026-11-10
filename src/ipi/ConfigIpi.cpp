@@ -22,28 +22,40 @@
 
 #include <algorithm>
 #include "ConfigIpi.hpp"
+#include "../common/threading.h"
 
 using namespace std;
 using namespace FiftyoneDegrees::IpIntelligence;
 
 ConfigIpi::ConfigIpi() : ConfigBase(&this->config.b) {
-	config = fiftyoneDegreesIpiInMemoryConfig;
+	config = fiftyoneDegreesIpiDefaultConfig;
 	initCollectionConfig();
+	// A concurrency of 0 is one operation for each processor.
+	if (getConcurrency() == 0) {
+		setConcurrency(fiftyoneDegreesThreadingGetProcessorCount());
+	}
 }
 
 ConfigIpi::ConfigIpi(fiftyoneDegreesConfigIpi *config) :
 	ConfigBase(&this->config.b) {
 	this->config = config != nullptr ?
-		*config : fiftyoneDegreesIpiInMemoryConfig;
+		*config : fiftyoneDegreesIpiDefaultConfig;
 	initCollectionConfig();
+	// A concurrency of 0 is one operation for each processor.
+	if (getConcurrency() == 0) {
+		setConcurrency(fiftyoneDegreesThreadingGetProcessorCount());
+	}
 }
 
 void ConfigIpi::setPerformanceFromExistingConfig(
 	const fiftyoneDegreesConfigIpi &existing) {
+	// The profile sets how each collection is held, not the concurrency.
+	const uint16_t concurrency = getConcurrency();
 	const fiftyoneDegreesConfigBase b = config.b;
 	config = existing;
 	config.b = b;
 	config.b.allInMemory = existing.b.allInMemory;
+	setConcurrency(concurrency);
 }
 
 void ConfigIpi::setHighPerformance() {
@@ -152,6 +164,22 @@ uint16_t ConfigIpi::getConcurrency() const {
 	};
 	return *min_element(concurrencies, 
 		concurrencies + (sizeof(concurrencies) / sizeof(uint16_t)));
+}
+
+void ConfigIpi::setLoadRequiredPropertiesOnly(bool load) {
+	config.loadRequiredPropertiesOnly = load;
+}
+
+void ConfigIpi::setDefaultValuesInMemory(bool inMemory) {
+	config.defaultValuesInMemory = inMemory;
+}
+
+bool ConfigIpi::getLoadRequiredPropertiesOnly() const {
+	return config.loadRequiredPropertiesOnly;
+}
+
+bool ConfigIpi::getDefaultValuesInMemory() const {
+	return config.defaultValuesInMemory;
 }
 
 void ConfigIpi::setConcurrency(uint16_t concurrency) {

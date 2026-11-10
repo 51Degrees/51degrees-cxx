@@ -237,12 +237,23 @@ includes `../../common/common.h`. The APIs for other languages compile these
 sources with their own build systems, so keep includes relative to the file
 rather than relying on include directories.
 
-## Balanced and required properties
+## Installing
 
-Naming fewer properties than the data file has changes what the Balanced preset
-holds in memory (`heldInit` in `src/ipi/ipi.c`). Anything not held reads from
-the file, so a mistake in what is held makes a lookup slower and never wrong.
-Memory must not rise above what naming nothing uses.
+`cmake/install.cmake` installs the libraries, a CMake package with the
+`51Degrees::` targets, and the headers under `include/51degrees` in the layout
+of `src`, which the relative includes need. A new library that an installed
+library links has to be added to its list, or the install fails to export the
+targets. Package managers build from a source archive, which has neither the
+submodules nor the Git history, so a build with `BUILD_TESTING` and
+`FIFTYONE_BUILD_EXAMPLES` off must not read `data` or download anything.
+
+## HighPerformance and required properties
+
+Naming fewer properties than the data file has changes what the HighPerformance
+preset loads into memory (`heldInit` in `src/ipi/ipi.c`). Anything not loaded
+reads from the file, so a mistake in what is loaded makes a lookup slower and
+never wrong. A lookup that reads the named properties must read nothing from
+the file. Balanced holds the same whatever is named.
 
 ## Data files
 
@@ -265,6 +276,10 @@ The workflows in `.github/workflows` call the shared workflows in
 tests. On a pull request, `ci/products.ps1` skips a product the change does
 not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
 docs and tools counts as touching every product.
+
+An entry with `InstallCheck` also runs `ci/check-install.ps1` after its build.
+It builds an archive of the commit with the tests and examples off, offline on
+Linux, installs it, and builds and runs `test/install` against the install.
 
 Pull requests target `rc`, not `main`, because every language takes
 each commit on `main` at its next nightly. The README's "Making changes" says

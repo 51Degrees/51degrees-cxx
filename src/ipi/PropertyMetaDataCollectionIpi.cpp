@@ -34,7 +34,6 @@ PropertyMetaDataCollectionIpi::PropertyMetaDataCollectionIpi(
 	if (dataSet == nullptr) {
 		throw runtime_error("Data set pointer can not be null");
 	}
-	properties = dataSet->properties;
 }
 
 PropertyMetaDataCollectionIpi::~PropertyMetaDataCollectionIpi() {
@@ -43,44 +42,18 @@ PropertyMetaDataCollectionIpi::~PropertyMetaDataCollectionIpi() {
 
 PropertyMetaData* PropertyMetaDataCollectionIpi::getByIndex(
 	uint32_t index) const {
-	EXCEPTION_CREATE;
-	Item item;
-	Property *property;
-	PropertyMetaData *result = nullptr;
-	DataReset(&item.data);
-	property = PropertyGet(
-		dataSet->properties,
-		index,
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	if (property != nullptr) {
-		result = PropertyMetaDataBuilderIpi::build(dataSet, property);
-		COLLECTION_RELEASE(item.collection, &item);
-	}
-	return result;
+	return PropertyMetaDataBuilderIpi::build(dataSet, index);
 }
 
 PropertyMetaData* PropertyMetaDataCollectionIpi::getByKey(string name) const {
 	EXCEPTION_CREATE;
-	Item item;
-	const Property *property;
-	PropertyMetaData *result = nullptr;
-	DataReset(&item.data);
-	property = PropertyGetByName(
-		dataSet->properties,
-		dataSet->strings,
-		name.c_str(),
-		&item,
-		exception);
+	const int index = IpiGetPropertyIndex(dataSet, name.c_str(), exception);
 	EXCEPTION_THROW;
-	if (property != nullptr) {
-		result = PropertyMetaDataBuilderIpi::build(dataSet, property);
-		COLLECTION_RELEASE(item.collection, &item);
-	}
-	return result;
+	return index < 0
+		? nullptr
+		: PropertyMetaDataBuilderIpi::build(dataSet, (uint32_t)index);
 }
 
 uint32_t PropertyMetaDataCollectionIpi::getSize() const {
-	return CollectionGetCount(properties);
+	return IpiGetPropertyCount(dataSet);
 }
