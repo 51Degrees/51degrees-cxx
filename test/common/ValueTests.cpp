@@ -23,6 +23,8 @@
 #include "pch.h"
 #include "Base.hpp"
 #include "../../src/common/Value.hpp"
+#include "../../src/common/ResultsBase.hpp"
+#include "../../src/common/dataset.h"
 
 using std::vector;
 using namespace FiftyoneDegrees::Common;
@@ -249,4 +251,122 @@ TEST_F(ValueTests, ConstAccessNoValue) {
 		L"getNoValueReason() should be callable on a const Value.";
 	EXPECT_STREQ(expected, constValue.getNoValueMessage()) <<
 		L"getNoValueMessage() should be callable on a const Value.";
+}
+
+/**
+ * Results with values set by the test, so the typed readers of ResultsBase
+ * can be tested without a data file. The message is the same for every
+ * reason, so a test can tell it came from getNoValueMessageInternal.
+ */
+class FakeResults : public ResultsBase {
+public:
+	static constexpr const char *Message = "message from the engine";
+
+	FakeResults(
+		fiftyoneDegreesResultsBase *base,
+		const vector<string> &values) :
+		ResultsBase(base, shared_ptr<fiftyoneDegreesResourceManager>()),
+		values(values) {
+	}
+
+protected:
+	void getValuesInternal(int, vector<string> &out) override {
+		out = values;
+	}
+	bool hasValuesInternal(int) override {
+		return true;
+	}
+	const char* getNoValueMessageInternal(
+		fiftyoneDegreesResultsNoValueReason) override {
+		return Message;
+	}
+	fiftyoneDegreesResultsNoValueReason getNoValueReasonInternal(
+		int) override {
+		return FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN;
+	}
+
+private:
+	vector<string> values;
+};
+
+/**
+ * Tests the typed readers of ResultsBase for a property which has values
+ * according to hasValuesInternal, but where the values are an empty or a
+ * multiple list.
+ */
+class ResultsBaseNoValueTests : public Base {
+protected:
+	void SetUp() {
+		Base::SetUp();
+		memset(dataSetBytes, 0, sizeof(dataSetBytes));
+		memset(&available, 0, sizeof(available));
+		memset(&named, 0, sizeof(named));
+		memset(&base, 0, sizeof(base));
+		available.named = &named;
+		reinterpret_cast<fiftyoneDegreesDataSetBase*>(dataSetBytes)
+			->available = &available;
+		base.dataSet = dataSetBytes;
+	}
+
+	void TearDown() {
+		Base::TearDown();
+	}
+
+	template <class T> void expectNoValue(
+		const Value<T> &value,
+		fiftyoneDegreesResultsNoValueReason reason,
+		const char *reader) {
+		EXPECT_FALSE(value.hasValue()) << reader;
+		EXPECT_EQ(reason, value.getNoValueReason()) << reader;
+		ASSERT_NE(nullptr, value.getNoValueMessage()) << reader;
+		EXPECT_STREQ(FakeResults::Message, value.getNoValueMessage())
+			<< reader;
+	}
+
+	// The data set holds const members, so it is a zeroed block of bytes.
+	alignas(fiftyoneDegreesDataSetBase)
+		unsigned char dataSetBytes[sizeof(fiftyoneDegreesDataSetBase)];
+	fiftyoneDegreesPropertiesAvailable available;
+	fiftyoneDegreesPropertyNamed named;
+	fiftyoneDegreesResultsBase base;
+};
+
+/**
+ * A property whose values list is empty must give the no result for
+ * property reason and a message from every typed reader, because the JSON
+ * Builder writes the message into the nullreason property.
+ */
+TEST_F(ResultsBaseNoValueTests, EmptyValuesGiveNoResultForPropertyMessage) {
+	FakeResults results(&base, vector<string>());
+	const fiftyoneDegreesResultsNoValueReason reason =
+		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+
+	expectNoValue(results.getValueAsString(0), reason, "string");
+	expectNoValue(results.getValueAsBool(0), reason, "bool");
+	expectNoValue(results.getValueAsInteger(0), reason, "integer");
+	expectNoValue(results.getValueAsDouble(0), reason, "double");
+	expectNoValue(results.getValueAsStrictBool(0), reason, "strict bool");
+	expectNoValue(
+		results.getValueAsStrictInteger(0), reason, "strict integer");
+	expectNoValue(
+		results.getValueAsStrictDouble(0), reason, "strict double");
+}
+
+/**
+ * A property with more than one value cannot be returned as one bool,
+ * integer or double, and the reason must carry a message.
+ */
+TEST_F(ResultsBaseNoValueTests, ManyValuesGiveTooManyValuesMessage) {
+	FakeResults results(&base, vector<string>({ "True", "False" }));
+	const fiftyoneDegreesResultsNoValueReason reason =
+		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES;
+
+	expectNoValue(results.getValueAsBool(0), reason, "bool");
+	expectNoValue(results.getValueAsInteger(0), reason, "integer");
+	expectNoValue(results.getValueAsDouble(0), reason, "double");
+	expectNoValue(results.getValueAsStrictBool(0), reason, "strict bool");
+	expectNoValue(
+		results.getValueAsStrictInteger(0), reason, "strict integer");
+	expectNoValue(
+		results.getValueAsStrictDouble(0), reason, "strict double");
 }
