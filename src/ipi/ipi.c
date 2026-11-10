@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include "ipi.h"
+#include "weightText.h"
 #include "fiftyone.h"
 #include "../common/config.h"
 #include "constantsIpi.h"
@@ -4009,7 +4010,7 @@ static bool valueTextsAdd(
 	texts->used += valueLength;
 	if (withWeight) {
 		texts->text[texts->used++] = ':';
-		texts->used += IpiGetWeightText(
+		texts->used += fiftyoneDegreesIpiGetWeightText(
 			texts->text + texts->used,
 			item->rawWeighting);
 	}

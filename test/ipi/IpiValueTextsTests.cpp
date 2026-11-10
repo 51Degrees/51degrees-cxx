@@ -41,6 +41,7 @@
 #include "../common/Base.hpp"
 #include "../../src/ipi/EngineIpi.hpp"
 #include "../../src/ipi/fiftyone.h"
+#include "../../src/ipi/weightText.h"
 
 using std::string;
 using std::vector;
