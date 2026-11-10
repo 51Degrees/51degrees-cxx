@@ -122,10 +122,11 @@ In PowerShell, pipe in an empty line instead, for example
 `'' | .\build\bin\Release\GettingStartedHashC.exe`.
 
 To use another data file, give its path as the first argument. The IP
-Intelligence examples also read a path from the `51DEGREES_IPI_PATH`
-environment variable. The name starts with a digit, so in a Linux shell set it
-with `env`, for example
-`env 51DEGREES_IPI_PATH=/path/to/file.ipi ./build/bin/GettingStartedC < /dev/null`.
+Intelligence examples also read a path from the `_51DEGREES_IPI_PATH`
+environment variable, for example
+`_51DEGREES_IPI_PATH=/path/to/file.ipi ./build/bin/GettingStartedC < /dev/null`.
+The name starts with an underscore because a POSIX shell cannot set a name
+that starts with a digit.
 
 ### Correct output
 

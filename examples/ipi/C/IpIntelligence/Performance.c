@@ -1059,7 +1059,7 @@ int main(int argc, char* argv[]) {
 	uint16_t numberOfThreads = DEFAULT_NUMBER_OF_THREADS;
 	int iterations = DEFAULT_ITERATIONS;
 	char *outFile = NULL;
-	const char *envDataFilePath = getenv("51DEGREES_IPI_PATH");
+	const char *envDataFilePath = getenv("_51DEGREES_IPI_PATH");
 	dataFilePath[0] = '\0';
 	evidenceFilePath[0] = '\0';
 
@@ -1151,12 +1151,12 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	// An explicit data file path can be supplied in the 51DEGREES_IPI_PATH
+	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
 	if (strlen(dataFilePath) == 0 &&
 		envDataFilePath != NULL && envDataFilePath[0] != '\0') {
 		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			printf("The data file path in the 51DEGREES_IPI_PATH "
+			printf("The data file path in the _51DEGREES_IPI_PATH "
 				"environment variable is too long.\n");
 #ifndef TEST
 			fgetc(stdin);
