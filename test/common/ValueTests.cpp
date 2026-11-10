@@ -298,13 +298,14 @@ class ResultsBaseNoValueTests : public Base {
 protected:
 	void SetUp() {
 		Base::SetUp();
-		memset(&dataSet, 0, sizeof(dataSet));
+		memset(dataSetBytes, 0, sizeof(dataSetBytes));
 		memset(&available, 0, sizeof(available));
 		memset(&named, 0, sizeof(named));
 		memset(&base, 0, sizeof(base));
 		available.named = &named;
-		dataSet.available = &available;
-		base.dataSet = &dataSet;
+		reinterpret_cast<fiftyoneDegreesDataSetBase*>(dataSetBytes)
+			->available = &available;
+		base.dataSet = dataSetBytes;
 	}
 
 	void TearDown() {
@@ -322,7 +323,9 @@ protected:
 			<< reader;
 	}
 
-	fiftyoneDegreesDataSetBase dataSet;
+	// The data set holds const members, so it is a zeroed block of bytes.
+	alignas(fiftyoneDegreesDataSetBase)
+		unsigned char dataSetBytes[sizeof(fiftyoneDegreesDataSetBase)];
 	fiftyoneDegreesPropertiesAvailable available;
 	fiftyoneDegreesPropertyNamed named;
 	fiftyoneDegreesResultsBase base;
