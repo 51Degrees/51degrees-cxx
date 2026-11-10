@@ -421,10 +421,11 @@ TEST_F(IpiPositionsTests, C_NothingNamedIndexesAreTheSortedPlaces) {
 }
 
 /**
- * An engine that named no properties has no required property indexes, so
- * an index reads nothing, while a name reads its values.
+ * An engine that named no properties has an index for each property of the
+ * data file, in the data set's order, so an index reads the property its
+ * name reads.
  */
-TEST_F(IpiPositionsTests, Cxx_NothingNamedRefusesIndexes) {
+TEST_F(IpiPositionsTests, Cxx_NothingNamedReadsByIndex) {
 	ConfigIpi config;
 	RequiredPropertiesConfig properties;
 	EngineIpi engine(smallPath.c_str(), &config, &properties);
@@ -433,16 +434,22 @@ TEST_F(IpiPositionsTests, Cxx_NothingNamedRefusesIndexes) {
 	EXPECT_EQ((int)smallNames.size(), results->getAvailableProperties());
 	int found = 0;
 	for (size_t i = 0; i < smallNames.size(); i++) {
-		const auto byName =
-			results->getValuesAsWeightedStringList(smallNames[i]);
+		const std::string &name = smallNames[i];
+		const auto byName = results->getValuesAsWeightedStringList(name);
 		found += byName.hasValue() ? 1 : 0;
 		EXPECT_EQ(
-			invalidProperty,
+			describe(byName),
 			describe(results->getValuesAsWeightedStringList((int)i))) << i;
-		EXPECT_FALSE(results->getValueAsString((int)i).hasValue()) << i;
-		EXPECT_FALSE(results->getValues((int)i).hasValue()) << i;
-		EXPECT_FALSE(results->getValueAsUTF8String((int)i).hasValue()) << i;
-		EXPECT_EQ(std::string(), results->getPropertyName((int)i)) << i;
+		EXPECT_EQ(
+			results->getValueAsString(name).hasValue(),
+			results->getValueAsString((int)i).hasValue()) << i;
+		EXPECT_EQ(
+			results->getValues(name).hasValue(),
+			results->getValues((int)i).hasValue()) << i;
+		EXPECT_EQ(
+			results->getValueAsUTF8String(name).hasValue(),
+			results->getValueAsUTF8String((int)i).hasValue()) << i;
+		EXPECT_EQ(name, results->getPropertyName((int)i)) << i;
 	}
 	EXPECT_GT(found, 0) << "No property had a value by name.";
 }
@@ -545,9 +552,10 @@ TEST_F(IpiPositionsReloadTests, Named_LargeThenSmallThenLarge) {
 
 /**
  * The case with nothing named. An engine on the small file reloaded with the
- * Enterprise file reads every property by name as a fresh engine on the
- * Enterprise file does, has every property of that file, and reads nothing
- * by index before or after.
+ * Enterprise file keeps the small file's properties as its names, in the
+ * same order, so each index reads what a fresh engine on the Enterprise file
+ * reads by that name. A property only the Enterprise file has has no index,
+ * so it reads as invalid.
  */
 TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	// A skip in SetUp does not stop the test with the Visual Studio
@@ -555,7 +563,6 @@ TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	if (names.empty()) {
 		GTEST_SKIP() << "The set up did not finish.";
 	}
-	const std::vector<std::string> largeNames = fileNames(largePath);
 	Lookups expected;
 	{
 		ConfigIpi config;
@@ -564,7 +571,7 @@ TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 		EngineIpi fresh(largePath.c_str(), &config, &properties);
 		for (const char *address : positionAddresses) {
 			std::unique_ptr<ResultsIpi> results(fresh.process(address));
-			expected[address] = readByName(results.get(), largeNames);
+			expected[address] = readByName(results.get(), smallNames);
 		}
 	}
 
@@ -572,23 +579,19 @@ TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	config.setLowMemory();
 	RequiredPropertiesConfig properties;
 	EngineIpi engine(smallPath.c_str(), &config, &properties);
-	{
-		std::unique_ptr<ResultsIpi> results(
-			engine.process(positionAddresses[1]));
-		EXPECT_EQ(
-			invalidProperty,
-			describe(results->getValuesAsWeightedStringList(0)));
-	}
+	EXPECT_EQ(smallNames, engine.getRequiredProperties());
 
 	engine.refreshData(largePath.c_str());
-	EXPECT_EQ(largeNames, engine.getRequiredProperties()) <<
-		"The reload must make every property of the new file available.";
+	EXPECT_EQ(smallNames, engine.getRequiredProperties()) <<
+		"The reload must keep the first file's names, in their order.";
+	EXPECT_EQ(expected, atPositions(engine, smallNames));
 	for (const char *address : positionAddresses) {
 		std::unique_ptr<ResultsIpi> results(engine.process(address));
-		EXPECT_EQ(expected[address], readByName(results.get(), largeNames)) <<
+		EXPECT_EQ(expected[address], readByName(results.get(), smallNames)) <<
 			address;
 		EXPECT_EQ(
 			invalidProperty,
-			describe(results->getValuesAsWeightedStringList(0))) << address;
+			describe(results->getValuesAsWeightedStringList(largeOnly))) <<
+			address;
 	}
 }

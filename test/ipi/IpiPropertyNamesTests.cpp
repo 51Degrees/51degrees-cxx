@@ -163,14 +163,6 @@ void expectNamesAtPositions(
 	}
 }
 
-/** An engine that names no properties gives nothing for a position. */
-void expectPositionsRefused(ResultsIpi *results, const size_t count) {
-	for (size_t i = 0; i < count; i++) {
-		EXPECT_EQ(invalidProperty, describeAt(results, (int)i)) << i;
-		EXPECT_EQ(std::string(), results->getPropertyName((int)i)) << i;
-	}
-}
-
 }
 
 class IpiPropertyNamesTests : public Base {
@@ -402,11 +394,14 @@ protected:
 	}
 
 	/**
-	 * An engine that names no properties reads by name, before and after a
-	 * reload, and a position reads nothing. The reload makes every property
-	 * of the new data file available, the renamed one included.
+	 * An engine that names no properties takes the first data file's
+	 * properties as its names, in the data set's order. A reload that drops
+	 * a property and moves the others keeps each position on its property,
+	 * the dropped one reading as one the data set does not have, and the
+	 * property only the new file has has no position, so its name reads as
+	 * invalid too.
 	 */
-	void expectNothingNamedReadsByName(
+	void expectNothingNamedKeepsPositions(
 		const Route route,
 		const Profile profile) {
 		ConfigIpi config;
@@ -418,30 +413,26 @@ protected:
 		{
 			std::unique_ptr<ResultsIpi> results(engine.process(namesAddress));
 			EXPECT_EQ(sortedNames, results->getProperties());
-			EXPECT_EQ(
-				(int)sortedNames.size(),
-				results->getAvailableProperties());
+			expectNamesAtPositions(results.get(), sortedNames);
 			expected = readByName(results.get(), sortedNames);
-			expectPositionsRefused(results.get(), sortedNames.size());
+			EXPECT_EQ(expected, readAtPositions(results.get(), sortedNames));
 		}
 		expectSomeValues(expected);
 
 		reload(engine, route, renamed);
 
-		const std::vector<std::string> after = engine.getRequiredProperties();
-		EXPECT_EQ(sortedNames.size(), after.size()) <<
-			"The reload must make every property of the new data file "
-			"available.";
-		Values kept = expected;
-		kept.erase(renamedName);
-		kept[newName] = expected[renamedName];
+		EXPECT_EQ(sortedNames, engine.getRequiredProperties()) <<
+			"The reload must keep the first file's names, in their order.";
+		Values missing = expected;
+		missing[renamedName] = invalidProperty;
 		{
 			std::unique_ptr<ResultsIpi> results(engine.process(namesAddress));
 			EXPECT_FALSE(results->containsProperty(renamedName));
-			EXPECT_TRUE(results->containsProperty(newName));
-			EXPECT_EQ(after, results->getProperties());
-			EXPECT_EQ(kept, readByName(results.get(), after));
-			expectPositionsRefused(results.get(), after.size());
+			EXPECT_FALSE(results->containsProperty(newName));
+			expectNamesAtPositions(results.get(), sortedNames);
+			EXPECT_EQ(missing, readAtPositions(results.get(), sortedNames));
+			EXPECT_EQ(missing, readByName(results.get(), sortedNames));
+			EXPECT_EQ(invalidProperty, describeByName(results.get(), newName));
 		}
 	}
 
@@ -516,8 +507,8 @@ protected:
 TEST_F(IpiPropertyNamesTests, r##_##p##_Reload_KeepsPositions) { \
 	expectPositionsSurviveReload(Route::r, Profile::p); \
 } \
-TEST_F(IpiPropertyNamesTests, r##_##p##_NothingNamed_ReadsByName) { \
-	expectNothingNamedReadsByName(Route::r, Profile::p); \
+TEST_F(IpiPropertyNamesTests, r##_##p##_NothingNamed_KeepsPositions) { \
+	expectNothingNamedKeepsPositions(Route::r, Profile::p); \
 } \
 TEST_F(IpiPropertyNamesTests, r##_##p##_FailedReload_KeepsPositions) { \
 	expectFailedReloadKeepsPositions(Route::r, Profile::p); \
