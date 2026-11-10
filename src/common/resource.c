@@ -266,7 +266,7 @@ void fiftyoneDegreesResourceHandleDecUse(
 #ifdef _MSC_VER
 // Disable warning against the difference in the use of 'volatile' qualifier.
 // Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and RESOURCE_HANDLE macros.
+// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
 #pragma warning (disable: 4090)
 #endif
 	} while (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
@@ -300,7 +300,7 @@ void fiftyoneDegreesResourceHandleDecUse(
 #ifdef _MSC_VER
 // Disable warning against the difference in the use of 'volatile' qualifier.
 // Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and RESOURCE_HANDLE macros.
+// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
 #pragma warning (disable: 4090)
 #endif
 		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
@@ -340,7 +340,7 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 #ifdef _MSC_VER
 // Disable warning against the difference in the use of 'volatile' qualifier.
 // Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and RESOURCE_HANDLE macros.
+// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
 #pragma warning (disable: 4090)
 #endif
 		// A null self pointer means the handle was replaced and its resource
@@ -374,7 +374,7 @@ int32_t fiftyoneDegreesResourceHandleGetUse(
 #ifdef _MSC_VER
 // Disable warning against the difference in the use of 'volatile' qualifier.
 // Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and RESOURCE_HANDLE macros.
+// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
 #pragma warning (disable: 4090)
 #endif
 void fiftyoneDegreesResourceReplace(
