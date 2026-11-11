@@ -554,8 +554,8 @@ TEST_F(IpiPositionsReloadTests, Named_LargeThenSmallThenLarge) {
  * The case with nothing named. An engine on the small file reloaded with the
  * Enterprise file keeps the small file's properties as its names, in the
  * same order, so each index reads what a fresh engine on the Enterprise file
- * reads by that name. A property only the Enterprise file has has no index,
- * so it reads as invalid.
+ * reads by that name. A property that only the Enterprise file holds gets no
+ * index, so it reads as invalid.
  */
 TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	// A skip in SetUp does not stop the test with the Visual Studio

@@ -727,10 +727,11 @@ protected:
 						// A property the data set does not have keeps its
 						// position, and has no values to read.
 						FIFTYONE_DEGREES_EXCEPTION_CLEAR;
-						const bool hasValues = fiftyoneDegreesResultsIpiGetHasValues(
-							results,
-							i,
-							exception);
+						const bool hasValues =
+							fiftyoneDegreesResultsIpiGetHasValues(
+								results,
+								i,
+								exception);
 						if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
 							failures++;
 						}

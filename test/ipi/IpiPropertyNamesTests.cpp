@@ -398,8 +398,8 @@ protected:
 	 * properties as its names, in the data set's order. A reload that drops
 	 * a property and moves the others keeps each position on its property,
 	 * the dropped one reading as one the data set does not have, and the
-	 * property only the new file has has no position, so its name reads as
-	 * invalid too.
+	 * property that only the new file holds gets no position, so its name
+	 * reads as invalid too.
 	 */
 	void expectNothingNamedKeepsPositions(
 		const Route route,

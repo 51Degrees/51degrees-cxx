@@ -34,8 +34,8 @@
  * does not have keeps its index, and reads as a property the data set does
  * not have. When the caller named no property, the names are those of the
  * first data set loaded, in the order of its list of available properties,
- * and a reload keeps them, so a property only a later data set has has no
- * index.
+ * and a reload keeps them, so a property that only a later data set holds
+ * gets no index.
  *
  * **Available Index** : the 0 based index of the property in the list of
  * available properties, which holds the properties the data has in ascending
@@ -378,9 +378,8 @@ EXTERNAL fiftyoneDegreesString*
  * Gets the number of required property indexes, which is the number of names
  * the caller gave, or when the caller named no property, the number of
  * properties the first data set loaded has. Use it, rather than the count
- * field, with
- * #fiftyoneDegreesPropertiesGetNameFromRequiredIndex and the reads that take
- * a required property index.
+ * field, with #fiftyoneDegreesPropertiesGetNameFromRequiredIndex and the
+ * reads that take a required property index.
  * @param available properties instance
  * @return number of required property indexes
  */

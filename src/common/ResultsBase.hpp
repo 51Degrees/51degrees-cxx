@@ -57,8 +57,8 @@ namespace FiftyoneDegrees {
 		 * does not change it, and a property the data file lacks reads as a
 		 * property the data set does not have. An engine that named no
 		 * properties takes the properties of the first data file it loads as
-		 * its names, in that data set's order, so a property only a later
-		 * data file has has no required property index.
+		 * its names, in that data set's order, so a property that only a
+		 * later data file holds gets no required property index.
 		 *
 		 * A results instance is used by one thread at a time, because
 		 * reading a value writes into the results. An engine created naming

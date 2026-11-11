@@ -524,7 +524,8 @@ TEST_F(HashPositionsReloadTests, Named_LargeThenSmallThenLarge) {
  * An engine that named nothing, reloaded from the Lite file to the TAC file,
  * keeps the Lite file's properties as its names, in the same order, so each
  * index reads what a fresh engine on the TAC file reads by that name. A
- * property only the TAC file has has no index, so it reads as invalid.
+ * property that only the TAC file holds gets no index, so it reads as
+ * invalid.
  */
 TEST_F(HashPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	// A skip in SetUp does not stop the test with the Visual Studio
