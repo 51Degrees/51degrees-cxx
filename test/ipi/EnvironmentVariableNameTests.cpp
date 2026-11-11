@@ -22,12 +22,13 @@
 
 /**
  * @file EnvironmentVariableNameTests.cpp
- * @brief Tests that every 51Degrees environment variable name in the
- * repository starts with an underscore, because a POSIX shell cannot set a
+ * @brief Tests that every 51Degrees environment variable name in the files
+ * git tracks starts with an underscore, because a POSIX shell cannot set a
  * name that starts with a digit.
  */
 
 #include "pch.h"
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -40,15 +41,6 @@ namespace fs = std::filesystem;
  * itself. */
 static const std::string digitInitial = std::string("5") + "1DEGREES_";
 
-/** The folders that hold the sources, scripts and documents. The data
- * submodules and build output are left out. */
-static const char *const scannedFolders[] = {
-	".github", "ci", "docs", "examples", "src", "test", "tools" };
-
-/** The extensions of the files at the root that are scanned. */
-static const char *const rootExtensions[] = {
-	".md", ".txt", ".json", ".yml", ".ps1", ".sh" };
-
 static bool isNameChar(char c) {
 	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
 		(c >= '0' && c <= '9') || c == '_';
@@ -58,22 +50,56 @@ static bool isNameChar(char c) {
  * empty when it is not found. */
 static fs::path findRoot() {
 	fs::path dir = fs::current_path();
-	while (true) {
+	while (dir != dir.parent_path()) {
 		if (fs::is_directory(dir / "examples" / "ipi") &&
 			fs::is_directory(dir / "src" / "ipi")) {
 			return dir;
 		}
-		if (dir == dir.parent_path()) {
-			return fs::path();
-		}
 		dir = dir.parent_path();
 	}
+	return fs::path();
+}
+
+/** The files git tracks under root, as paths relative to root. A submodule is
+ * listed as one entry, which is a folder rather than a file. */
+static std::vector<std::string> trackedFiles(const fs::path &root) {
+	std::vector<std::string> files;
+	const std::string command =
+		"git -C \"" + root.string() + "\" ls-files -z";
+#ifdef _WIN32
+	// Binary mode, so the separators are not read as text.
+	FILE *pipe = _popen(command.c_str(), "rb");
+#else
+	FILE *pipe = popen(command.c_str(), "r");
+#endif
+	if (pipe == nullptr) {
+		return files;
+	}
+	std::string name;
+	int c;
+	while ((c = fgetc(pipe)) != EOF) {
+		if (c == '\0') {
+			if (name.empty() == false) {
+				files.push_back(name);
+			}
+			name.clear();
+		}
+		else {
+			name.push_back(static_cast<char>(c));
+		}
+	}
+#ifdef _WIN32
+	_pclose(pipe);
+#else
+	pclose(pipe);
+#endif
+	return files;
 }
 
 /** Adds each name in the file that starts with the digit to found. */
 static void scan(
-	const fs::path &root,
 	const fs::path &file,
+	const std::string &name,
 	std::vector<std::string> &found) {
 	std::ifstream stream(file, std::ios::binary);
 	std::string line;
@@ -91,8 +117,7 @@ static void scan(
 			// counts.
 			if (at == 0 || isNameChar(line[at - 1]) == false) {
 				found.push_back(
-					fs::relative(file, root).generic_string() + ":" +
-					std::to_string(number) + ": " +
+					name + ":" + std::to_string(number) + ": " +
 					line.substr(at, end - at));
 			}
 			at = line.find(digitInitial, end);
@@ -101,32 +126,20 @@ static void scan(
 }
 
 /**
- * Check that no file names an environment variable starting with the digit,
- * which a POSIX shell refuses with "not a valid identifier".
+ * Check that no file git tracks names an environment variable starting with
+ * the digit, which a POSIX shell refuses with "not a valid identifier".
  */
 TEST(EnvironmentVariableNames, NoNameStartsWithADigit) {
 	const fs::path root = findRoot();
 	ASSERT_FALSE(root.empty()) <<
 		"The repository was not found above " << fs::current_path();
+	const std::vector<std::string> files = trackedFiles(root);
+	ASSERT_FALSE(files.empty()) << "git listed no files in " << root;
 	std::vector<std::string> found;
-	for (const fs::directory_entry &entry : fs::directory_iterator(root)) {
-		const std::string extension = entry.path().extension().string();
-		for (const char *rootExtension : rootExtensions) {
-			if (entry.is_regular_file() && extension == rootExtension) {
-				scan(root, entry.path(), found);
-			}
-		}
-	}
-	for (const char *folder : scannedFolders) {
-		const fs::path dir = root / folder;
-		if (fs::is_directory(dir) == false) {
-			continue;
-		}
-		for (const fs::directory_entry &entry :
-			fs::recursive_directory_iterator(dir)) {
-			if (entry.is_regular_file()) {
-				scan(root, entry.path(), found);
-			}
+	for (const std::string &name : files) {
+		const fs::path path = root / fs::u8path(name);
+		if (fs::is_regular_file(path)) {
+			scan(path, name, found);
 		}
 	}
 	std::ostringstream message;
