@@ -77,7 +77,8 @@ namespace FiftyoneDegrees {
 		 * using namespace FiftyoneDegrees::Common;
 		 * ResultsBase *results;
 		 *
-		 * // Iterate over the properties the data set has, by name
+		 * // Iterate over the properties the data set has, by name. A name
+		 * // with no required property index reads as invalid.
 		 * for (const string &name : results->getProperties()) {
 		 *
 		 *     // Get the value for the property as a string
@@ -150,8 +151,11 @@ namespace FiftyoneDegrees {
 			/**
 			 * Get the names of the properties the data set has, in ascending
 			 * order. A name's place in the vector is not its required
-			 * property index when the engine named its properties, so read
-			 * the values by name.
+			 * property index when the engine named its properties, or after a
+			 * reload of an engine that named none, so read the values by
+			 * name. After such a reload the names can include properties
+			 * only the new data file has, which have no required property
+			 * index and read as invalid.
 			 * @return vector containing the names of all available properties
 			 */
 			vector<string> getProperties() const;

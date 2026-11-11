@@ -6119,8 +6119,9 @@ bool fiftyoneDegreesHashGetProperty(
 		}
 		const char * const value = STRING(name);
 		if (isAvailable != NULL) {
+			// Available when it can be read, which needs a required index.
 			*isAvailable = value != NULL &&
-				PropertiesGetPropertyIndexFromName(
+				PropertiesGetRequiredPropertyIndexFromName(
 					dataSet->b.b.available,
 					value) >= 0;
 		}
