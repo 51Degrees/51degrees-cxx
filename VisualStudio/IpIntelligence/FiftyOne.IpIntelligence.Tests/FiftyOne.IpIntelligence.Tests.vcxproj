@@ -17,6 +17,7 @@
     <ClCompile Include="..\..\..\src\common\textfile.c" />
     <ClCompile Include="..\..\..\test\ipi\DataFileHeaderTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\DataFilePathTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\EnvironmentVariableNameTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiAddressAnswerTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiPresetTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiGraphFilterTests.cpp" />
