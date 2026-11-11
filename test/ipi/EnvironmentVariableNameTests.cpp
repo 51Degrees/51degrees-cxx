@@ -50,14 +50,16 @@ static bool isNameChar(char c) {
  * empty when it is not found. */
 static fs::path findRoot() {
 	fs::path dir = fs::current_path();
-	while (dir != dir.parent_path()) {
+	while (true) {
 		if (fs::is_directory(dir / "examples" / "ipi") &&
 			fs::is_directory(dir / "src" / "ipi")) {
 			return dir;
 		}
+		if (dir == dir.parent_path()) {
+			return fs::path();
+		}
 		dir = dir.parent_path();
 	}
-	return fs::path();
 }
 
 /** The files git tracks under root, as paths relative to root. A submodule is
