@@ -559,6 +559,12 @@ TEST_F(HashPositionsReloadTests, NothingNamed_SmallThenLarge) {
 		EXPECT_EQ(expected[userAgent], readByName(results.get(), smallNames));
 		EXPECT_EQ(invalidProperty, describe(results->getValues(largeOnly)));
 	}
+	std::unique_ptr<Collection<std::string, PropertyMetaData>> metaData(
+		engine.getMetaData()->getProperties());
+	std::unique_ptr<PropertyMetaData> property(metaData->getByKey(largeOnly));
+	ASSERT_NE(nullptr, property.get());
+	EXPECT_FALSE(property->getAvailable()) <<
+		"The metadata must not offer a property that has no index.";
 }
 
 /**

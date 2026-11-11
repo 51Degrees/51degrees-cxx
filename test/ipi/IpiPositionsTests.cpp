@@ -594,4 +594,10 @@ TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 			describe(results->getValuesAsWeightedStringList(largeOnly))) <<
 			address;
 	}
+	std::unique_ptr<Collection<std::string, PropertyMetaData>> metaData(
+		engine.getMetaData()->getProperties());
+	std::unique_ptr<PropertyMetaData> property(metaData->getByKey(largeOnly));
+	ASSERT_NE(nullptr, property.get());
+	EXPECT_FALSE(property->getAvailable()) <<
+		"The metadata must not offer a property that has no index.";
 }

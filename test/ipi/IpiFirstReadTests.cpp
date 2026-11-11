@@ -476,8 +476,11 @@ TEST_F(IpiFirstReadReloadTests, ReadAfterReload_WalksTheDataSetTheResultsHold) {
 	EXPECT_EQ(nameOf(held, 0), nameOf(reloaded, 0));
 	EXPECT_EQ(nameOf(held, 1), nameOf(reloaded, 1));
 	const std::map<int, std::string> after = readAll(reloaded, { 0, 1 });
-	EXPECT_NE(before.at(0), after.at(0)) <<
-		"The renamed property must read nothing after the reload.";
+	EXPECT_EQ(
+		"no value, reason " + std::to_string(
+			(int)FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY),
+		after.at(0)) <<
+		"The renamed property must read as invalid after the reload.";
 	EXPECT_EQ(before.at(1), after.at(1));
 	EXPECT_FALSE(reloadedWalks.empty()) <<
 		"The read after the reload walked nothing.";

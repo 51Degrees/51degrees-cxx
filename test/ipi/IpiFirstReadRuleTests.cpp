@@ -723,19 +723,22 @@ protected:
 					if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
 						failures++;
 					}
+					const fiftyoneDegreesPropertiesAvailable* available =
+						dataSetOf(results)->b.b.available;
 					for (int i = 0; i < positionCount(results); i++) {
-						// A property the data set does not have keeps its
-						// position, and has no values to read.
 						FIFTYONE_DEGREES_EXCEPTION_CLEAR;
-						const bool hasValues =
-							fiftyoneDegreesResultsIpiGetHasValues(
-								results,
-								i,
-								exception);
+						fiftyoneDegreesResultsIpiGetHasValues(
+							results,
+							i,
+							exception);
 						if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
 							failures++;
 						}
-						if (hasValues) {
+						// A property the data set does not have keeps its
+						// position, and has no values to read.
+						if (fiftyoneDegreesPropertiesGetAvailableIndex(
+							available,
+							i) >= 0) {
 							fiftyoneDegreesResultsIpiGetValues(
 								results,
 								i,

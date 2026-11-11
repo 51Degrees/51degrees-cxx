@@ -433,7 +433,19 @@ protected:
 			EXPECT_EQ(missing, readAtPositions(results.get(), sortedNames));
 			EXPECT_EQ(missing, readByName(results.get(), sortedNames));
 			EXPECT_EQ(invalidProperty, describeByName(results.get(), newName));
+			const std::vector<std::string> listed = results->getProperties();
+			EXPECT_NE(
+				listed.end(),
+				std::find(listed.begin(), listed.end(), newName)) <<
+				"The data set's properties include the new name.";
 		}
+		std::unique_ptr<Collection<std::string, PropertyMetaData>> metaData(
+			engine.getMetaData()->getProperties());
+		std::unique_ptr<PropertyMetaData> property(
+			metaData->getByKey(newName));
+		ASSERT_NE(nullptr, property.get());
+		EXPECT_FALSE(property->getAvailable()) <<
+			"The metadata must not offer a property that has no index.";
 	}
 
 	/**
