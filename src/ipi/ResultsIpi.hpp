@@ -154,8 +154,8 @@ namespace FiftyoneDegrees {
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return a vector of weighted boolean values for the property
 			 */
 			Common::Value<vector<WeightedValue<bool>>>
@@ -177,8 +177,8 @@ namespace FiftyoneDegrees {
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return a vector of weighted string values for the property
 			 */
 			Common::Value<vector<WeightedValue<std::vector<uint8_t>>>>
@@ -211,8 +211,8 @@ namespace FiftyoneDegrees {
 			 * value associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return a vector of weighted string values for the property
 			 */
 			Common::Value<std::vector<uint8_t>>
@@ -267,8 +267,8 @@ namespace FiftyoneDegrees {
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return a vector of weighted string values for the property
 			 */
 			Common::Value<vector<WeightedValue<string>>>
@@ -318,8 +318,8 @@ namespace FiftyoneDegrees {
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @param decimalPlaces precision (places after decimal dot)
 			 * @return a vector of weighted string values for the property
 			 */
@@ -365,8 +365,8 @@ namespace FiftyoneDegrees {
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return a vector of weighted integer values for the property
 			 */
 			Common::Value<vector<WeightedValue<int>>>
@@ -410,8 +410,8 @@ namespace FiftyoneDegrees {
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return a vector of weighted double values for the property
 			 */
 			Common::Value<vector<WeightedValue<double>>>
@@ -452,8 +452,8 @@ namespace FiftyoneDegrees {
 			 * with the required property index. If the index is not valid
 			 * then hasValue returns false with NoValueReason and its message.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return an IpAddress representation of the value for the property
 			 */
 			Common::Value<IpIntelligence::IpAddress> getValueAsIpAddress(

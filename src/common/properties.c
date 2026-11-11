@@ -86,6 +86,7 @@ static PropertiesAvailable* initRequiredPropertiesMemory(uint32_t count) {
 		available->count = 0;
 		available->capacity = count;
 		available->allComponentsRequired = false;
+		available->namesFromDataSet = false;
 		available->namedCount = 0;
 		available->named = NULL;
 		available->items = (PropertyAvailable*)(available + 1);
@@ -299,6 +300,35 @@ static PropertyNamed* copyNamesFromNamed(
 	return named;
 }
 
+/**
+ * Copies the names of the available properties, in their order, for a list
+ * created from a list that names no property.
+ */
+static PropertyNamed* copyNamesFromAvailable(
+	const PropertiesAvailable *existing,
+	uint32_t *count) {
+	uint32_t i;
+	const String *name;
+	namesSize size = { 0, 0 };
+	namesCopy copy;
+	for (i = 0; i < existing->count; i++) {
+		name = (const String*)existing->items[i].name.data.ptr;
+		addNameSize(&size, NULL, name == NULL ? 0 : (size_t)name->size - 1);
+	}
+	PropertyNamed *named = createNamed(&size, &copy);
+	if (named != NULL) {
+		for (i = 0; i < existing->count; i++) {
+			name = (const String*)existing->items[i].name.data.ptr;
+			addNameCopy(
+				&copy,
+				name == NULL ? "" : &name->value,
+				name == NULL ? 0 : (size_t)name->size - 1);
+		}
+		*count = copy.count;
+	}
+	return named;
+}
+
 static void iteratePropertiesFromNamed(
 	propertiesSource *source,
 	PropertiesAvailable *available,
@@ -478,7 +508,8 @@ static PropertyAvailable* findAvailable(
 /**
  * Sets the required property index of each available property, which is the
  * place of its name among the names given, and the available index of each
- * name given. Without names, each property's index is its own place.
+ * name given. Without names, each property's index is its own place. A
+ * property not among the names keeps an index of -1.
  */
 static void setRequiredPropertyIndexes(PropertiesAvailable *available) {
 	uint32_t i;
@@ -517,21 +548,26 @@ fiftyoneDegreesPropertiesAvailable* fiftyoneDegreesPropertiesCreate(
 	PropertyNamed *named = NULL;
 	uint32_t namedCount = 0;
 	bool allComponentsRequired = false;
+	bool namesFromDataSet = false;
 
 	// Copy the names the caller gave. Existing properties give the names they
 	// were created with, so a reload starts again from the caller's names.
+	// Existing properties that name nothing give the names of their data set,
+	// in its order, so a reload keeps each index on its property.
 	if (properties != NULL) {
 		if (properties->existing != NULL) {
 			allComponentsRequired =
 				properties->existing->allComponentsRequired;
-			if (properties->existing->named != NULL) {
-				named = copyNamesFromNamed(
+			namesFromDataSet = properties->existing->named == NULL ||
+				properties->existing->namesFromDataSet;
+			named = properties->existing->named != NULL ?
+				copyNamesFromNamed(
 					properties->existing->named,
 					properties->existing->namedCount,
-					&namedCount);
-				if (named == NULL) {
-					return NULL;
-				}
+					&namedCount) :
+				copyNamesFromAvailable(properties->existing, &namedCount);
+			if (named == NULL) {
+				return NULL;
 			}
 		}
 		else if (properties->array != NULL && properties->count > 0) {
@@ -552,7 +588,7 @@ fiftyoneDegreesPropertiesAvailable* fiftyoneDegreesPropertiesCreate(
 		}
 	}
 
-	if (named != NULL) {
+	if (named != NULL && namesFromDataSet == false) {
 		// Set the required properties from the names given.
 		available = initSpecificPropertiesFromNamed(
 			&source,
@@ -570,6 +606,7 @@ fiftyoneDegreesPropertiesAvailable* fiftyoneDegreesPropertiesCreate(
 		return NULL;
 	}
 	available->allComponentsRequired = allComponentsRequired;
+	available->namesFromDataSet = namesFromDataSet;
 	available->named = named;
 	available->namedCount = namedCount;
 
@@ -683,6 +720,7 @@ bool fiftyoneDegreesPropertiesRequiredNamesFewerThan(
 	}
 	if (properties->existing != NULL) {
 		return properties->existing->named != NULL &&
+			properties->existing->namesFromDataSet == false &&
 			properties->existing->namedCount < total;
 	}
 	if (properties->array != NULL && properties->count > 0) {
