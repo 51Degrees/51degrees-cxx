@@ -113,7 +113,7 @@ Common::Value<IpIntelligence::IpAddress>
 IpIntelligence::ResultsIpi::getValueAsIpAddress(
     int requiredPropertyIndex) {
     return valueAsIpAddressAt(
-        allowedRequiredPropertyIndex(requiredPropertyIndex));
+        requiredPropertyIndex);
 }
 
 Common::Value<IpIntelligence::IpAddress>
@@ -236,7 +236,7 @@ Common::Value<vector<WeightedValue<bool>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedBoolList(
     int requiredPropertyIndex) {
     return valuesAsWeightedBoolListAt(
-        allowedRequiredPropertyIndex(requiredPropertyIndex));
+        requiredPropertyIndex);
 }
 
 Common::Value<vector<WeightedValue<bool>>>
@@ -322,7 +322,7 @@ Common::Value<vector<WeightedValue<string>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedStringList(
     int requiredPropertyIndex) {
     return valuesAsWeightedStringListAt(
-        allowedRequiredPropertyIndex(requiredPropertyIndex));
+        requiredPropertyIndex);
 }
 
 Common::Value<vector<WeightedValue<string>>>
@@ -448,7 +448,7 @@ Common::Value<vector<WeightedValue<std::vector<uint8_t>>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedUTF8StringList(
     int requiredPropertyIndex) {
     return valuesAsWeightedUTF8StringListAt(
-        allowedRequiredPropertyIndex(requiredPropertyIndex));
+        requiredPropertyIndex);
 }
 
 Common::Value<vector<WeightedValue<std::vector<uint8_t>>>>
@@ -531,7 +531,7 @@ Common::Value<std::vector<uint8_t>>
 IpIntelligence::ResultsIpi::getValueAsUTF8String(
     int requiredPropertyIndex) {
     return valueAsUTF8StringAt(
-        allowedRequiredPropertyIndex(requiredPropertyIndex));
+        requiredPropertyIndex);
 }
 
 Common::Value<std::vector<uint8_t>>
@@ -628,7 +628,7 @@ IpIntelligence::ResultsIpi::getValuesAsWeightedWKTStringList(
     const int requiredPropertyIndex,
     const byte decimalPlaces) {
     return valuesAsWeightedWKTStringListAt(
-        allowedRequiredPropertyIndex(requiredPropertyIndex),
+        requiredPropertyIndex,
         decimalPlaces);
 }
 
@@ -720,7 +720,7 @@ Common::Value<vector<WeightedValue<int>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedIntegerList(
     int requiredPropertyIndex) {
     return valuesAsWeightedIntegerListAt(
-        allowedRequiredPropertyIndex(requiredPropertyIndex));
+        requiredPropertyIndex);
 }
 
 Common::Value<vector<WeightedValue<int>>>
@@ -806,7 +806,7 @@ Common::Value<vector<WeightedValue<double>>>
 IpIntelligence::ResultsIpi::getValuesAsWeightedDoubleList(
     int requiredPropertyIndex) {
     return valuesAsWeightedDoubleListAt(
-        allowedRequiredPropertyIndex(requiredPropertyIndex));
+        requiredPropertyIndex);
 }
 
 Common::Value<vector<WeightedValue<double>>>

@@ -379,9 +379,9 @@ int main(int argc, char* argv[]) {
 	// ConfigIpi config = IpiLowMemoryConfig;
 	// ConfigIpi config = IpiBalancedConfig;
 	char dataFilePath[FILE_MAX_PATH];
-	// An explicit data file path can be supplied in the 51DEGREES_IPI_PATH
+	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("51DEGREES_IPI_PATH");
+	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}

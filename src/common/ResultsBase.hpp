@@ -56,8 +56,9 @@ namespace FiftyoneDegrees {
 		 * of the property in the names the engine was created with. A reload
 		 * does not change it, and a property the data file lacks reads as a
 		 * property the data set does not have. An engine that named no
-		 * properties has no required property indexes, so its values are read
-		 * by name.
+		 * properties takes the properties of the first data file it loads as
+		 * its names, in that data set's order, so a property that only a
+		 * later data file holds gets no required property index.
 		 *
 		 * A results instance is used by one thread at a time, because
 		 * reading a value writes into the results. An engine created naming
@@ -76,7 +77,8 @@ namespace FiftyoneDegrees {
 		 * using namespace FiftyoneDegrees::Common;
 		 * ResultsBase *results;
 		 *
-		 * // Iterate over the properties the data set has, by name
+		 * // Iterate over the properties the data set has, by name. A name
+		 * // with no required property index reads as invalid.
 		 * for (const string &name : results->getProperties()) {
 		 *
 		 *     // Get the value for the property as a string
@@ -133,7 +135,7 @@ namespace FiftyoneDegrees {
 			 * Get the number of required property indexes, which is the
 			 * number of names the engine was created with, including any the
 			 * data file lacks. When the engine named no properties, it is the
-			 * number of properties the data set has.
+			 * number of properties the first data file it loaded has.
 			 * @return the number of required property indexes
 			 */
 			int getAvailableProperties() const;
@@ -149,8 +151,11 @@ namespace FiftyoneDegrees {
 			/**
 			 * Get the names of the properties the data set has, in ascending
 			 * order. A name's place in the vector is not its required
-			 * property index when the engine named its properties, so read
-			 * the values by name.
+			 * property index when the engine named its properties, or after a
+			 * reload of an engine that named none, so read the values by
+			 * name. After such a reload the names can include properties
+			 * only the new data file has, which have no required property
+			 * index and read as invalid.
 			 * @return vector containing the names of all available properties
 			 */
 			vector<string> getProperties() const;
@@ -161,8 +166,8 @@ namespace FiftyoneDegrees {
 			 * property the data file lacks gives the name the engine was
 			 * created with.
 			 * @param requiredPropertyIndex index of the property in the names
-			 * the engine was created with. When the engine named no properties
-			 * there is no name, as there are no indexes
+			 * the engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return the name of the property, or an empty string if not
 			 * valid
 			 */
@@ -209,8 +214,8 @@ namespace FiftyoneDegrees {
 			 * property index. If the index is not valid an empty vector is
 			 * returned.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return a vector of values for the property
 			 */
 			Value<vector<string>> getValues(int requiredPropertyIndex);
@@ -251,8 +256,8 @@ namespace FiftyoneDegrees {
 			 * string is returned. If the property relates to a list with more
 			 * than one value then values are separated by '|' characters.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return a string representation of the value for the property or
 			 * an empty string
 			 */
@@ -302,8 +307,8 @@ namespace FiftyoneDegrees {
 			 * kept for backwards compatibility. The remedy until version 5 is
 			 * #getValueAsStrictBool(int).
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return a boolean representation of the value for the property
 			 */
 			virtual Value<bool> getValueAsBool(int requiredPropertyIndex);
@@ -356,8 +361,8 @@ namespace FiftyoneDegrees {
 			 * kept for backwards compatibility. The remedy until version 5 is
 			 * #getValueAsStrictInteger(int).
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return an integer representation of the value for the property
 			 */
 			virtual Value<int> getValueAsInteger(int requiredPropertyIndex);
@@ -410,8 +415,8 @@ namespace FiftyoneDegrees {
 			 * kept for backwards compatibility. The remedy until version 5 is
 			 * #getValueAsStrictDouble(int).
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return a double representation of the value for the property
 			 */
 			virtual Value<double> getValueAsDouble(int requiredPropertyIndex);
@@ -439,8 +444,8 @@ namespace FiftyoneDegrees {
 			 * This is the remedy until version 5, as that accessor keeps its
 			 * behaviour for backwards compatibility.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return the value, or the reason there is no value
 			 */
 			Value<bool> getValueAsStrictBool(int requiredPropertyIndex);
@@ -468,8 +473,8 @@ namespace FiftyoneDegrees {
 			 * This is the remedy until version 5, as that accessor keeps its
 			 * behaviour for backwards compatibility.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return the value, or the reason there is no value
 			 */
 			Value<int> getValueAsStrictInteger(int requiredPropertyIndex);
@@ -497,8 +502,8 @@ namespace FiftyoneDegrees {
 			 * This is the remedy until version 5, as that accessor keeps its
 			 * behaviour for backwards compatibility.
 			 * @param requiredPropertyIndex index of the property in the names the
-			 * engine was created with. When the engine named no properties there
-			 * is no value, with the invalid property reason, so read by name
+			 * engine was created with, or when it named none, in the
+			 * properties of the first data file it loaded
 			 * @return the value, or the reason there is no value
 			 */
 			Value<double> getValueAsStrictDouble(int requiredPropertyIndex);
@@ -516,16 +521,6 @@ namespace FiftyoneDegrees {
 			 * @return 0 based index or -1 if not found
 			 */
 			int getRequiredPropertyIndex(const char *propertyName);
-
-			/**
-			 * Get the index a read by required property index uses, which is
-			 * the index given when the engine named its properties. When it
-			 * named none there are no required property indexes, so -1 is
-			 * given, which reads as a property the data set does not have.
-			 * @param requiredPropertyIndex index given by the caller
-			 * @return the index to read, or -1
-			 */
-			int allowedRequiredPropertyIndex(int requiredPropertyIndex) const;
 
 			/**
 			 * Get the values for the index in required properties and add them
@@ -599,10 +594,8 @@ namespace FiftyoneDegrees {
 				string &text);
 
 			/**
-			 * The reads behind the public methods. Those that take a
-			 * required property index check it is allowed first, and those
-			 * that take a name find its index, so a read by name works when
-			 * the engine named no properties.
+			 * The reads behind the public methods, which take a required
+			 * property index. Those that take a name find its index first.
 			 */
 			Value<vector<string>> valuesAt(int requiredPropertyIndex);
 			Value<string> valueAsStringAt(int requiredPropertyIndex);

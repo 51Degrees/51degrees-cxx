@@ -17,12 +17,10 @@ By default, the data file has to be in the `data/ip-intelligence` folder of this
 The examples resolve the location of the data file in the following order:
 
 1. A path supplied as a command line argument to the example.
-2. The `51DEGREES_IPI_PATH` environment variable containing an explicit path to the data file.
+2. The `_51DEGREES_IPI_PATH` environment variable containing an explicit path to the data file. The name starts with an underscore because a POSIX shell cannot set a name that starts with a digit, so `export _51DEGREES_IPI_PATH=/path/to/file.ipi` works.
 3. A search of the parent folder structure for the example's default file in the `data/ip-intelligence` folder, where the scripts save the free data files. Most examples default to the free Lite data file. The performance and reload examples default to the far smaller free ASN data file, as any data file will do for them. When the file is missing there, the example runs the data repository's script to download it.
 
 On a free data file, the examples show the properties only the Enterprise data file has as needing it, with a link to ask for a copy. The country overlap example needs properties only the Enterprise data file has, so on a free data file it says which, gives the link and stops.
-
-Note that on Linux shells the `51DEGREES_IPI_PATH` variable name starts with a digit, so it must be set with the `env` command, for example `env 51DEGREES_IPI_PATH=/path/to/file.ipi ./GettingStarted`, rather than a plain `export`.
 
 ## Building and testing
 

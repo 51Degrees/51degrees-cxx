@@ -112,8 +112,8 @@ public:
     // and no version of it takes a property name, as getValueAsUTF8String
     // already reads by name. The position is the index of the property in
     // the names the engine was created with, which a reload does not change.
-    // An engine that named no properties has no positions, so there is no
-    // value.
+    // An engine that named no properties takes the properties of the first
+    // data file it loaded as its names, in that data set's order.
     int copyValueAsUTF8String(
         int requiredPropertyIndex,
         unsigned char copy[],
