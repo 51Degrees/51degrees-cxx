@@ -263,14 +263,11 @@ directory for the folder `data/device-detection` or `data/ip-intelligence`.
 Those names are fixed. `data` is the data repository, a submodule at the root,
 which holds a `<file>.link` for each free data file rather than the file.
 `data/get-data-files.ps1` and `data/get-data-files.sh` download them, and an
-example whose file is missing runs the script for it. The
-`device-detection-data` and `ip-intelligence-data` submodules are kept only
-until the other language APIs read `data`, so nothing here uses them. The
-enterprise files used in CI are fetched by `ci/fetch-assets.ps1` and are never
-committed. CI takes every data file from common-ci's assets, which each run
-caches once, so no test job downloads one. A file added to the data
-repository needs an entry in common-ci's `steps/fetch-assets.ps1` before CI
-can use it.
+example whose file is missing runs the script for it. The enterprise files used
+in CI are fetched by `ci/fetch-assets.ps1` and are never committed. CI takes
+every data file from common-ci's assets, which each run caches once, so no test
+job downloads one. A file added to the data repository needs an entry in
+common-ci's `steps/fetch-assets.ps1` before CI can use it.
 
 ## CI
 
