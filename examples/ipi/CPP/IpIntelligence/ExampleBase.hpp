@@ -128,6 +128,14 @@ namespace FiftyoneDegrees {
 					const char *fileName,
 					char *destination,
 					size_t size);
+
+				/**
+				 * The data file path set in the _51DEGREES_IPI_PATH
+				 * environment variable, or in the deprecated name without the
+				 * leading underscore when that is unset or empty.
+				 * @return the path, or NULL when neither name is set
+				 */
+				static const char *getDataFilePathFromEnvironment();
 			
 			protected:
 				/**

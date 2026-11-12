@@ -414,7 +414,8 @@ int main(int argc, char* argv[]) {
 	char ipAddressFilePath[FILE_MAX_PATH];
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char* envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}
