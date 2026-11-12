@@ -177,6 +177,14 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 	return status;
 }
 
+const char* fiftyoneDegreesExampleGetDataFilePathFromEnvironment(void) {
+	const char *path = getenv("_51DEGREES_IPI_PATH");
+	if (path != NULL && path[0] != '\0') {
+		return path;
+	}
+	return NULL;
+}
+
 bool fiftyoneDegreesExampleHasProperty(
 	fiftyoneDegreesDataSetIpi *dataset,
 	const char *propertyName) {

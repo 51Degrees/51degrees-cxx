@@ -27,6 +27,7 @@
     <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsFile.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsMemory.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleCountryOverlapTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleEnvironmentVariableTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleFindProfilesTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleGettingStartedTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.cpp" />

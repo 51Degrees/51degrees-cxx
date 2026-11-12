@@ -158,6 +158,12 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
     size_t size);
 
 /**
+ * The data file path set in the _51DEGREES_IPI_PATH environment variable.
+ * @return the path, or NULL when the variable is unset or empty
+ */
+EXTERNAL const char* fiftyoneDegreesExampleGetDataFilePathFromEnvironment(void);
+
+/**
  * Function pointer for generic function to be handle IP address.
  * @param ipAddress IP address
  * @param state callback-specific state
