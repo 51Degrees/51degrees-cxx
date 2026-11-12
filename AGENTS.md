@@ -267,7 +267,10 @@ example whose file is missing runs the script for it. The
 `device-detection-data` and `ip-intelligence-data` submodules are kept only
 until the other language APIs read `data`, so nothing here uses them. The
 enterprise files used in CI are fetched by `ci/fetch-assets.ps1` and are never
-committed.
+committed. CI takes every data file from common-ci's assets, which each run
+caches once, so no test job downloads one. A file added to the data
+repository needs an entry in common-ci's `steps/fetch-assets.ps1` before CI
+can use it.
 
 ## CI
 
