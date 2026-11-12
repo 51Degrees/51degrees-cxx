@@ -50,7 +50,6 @@ cmake --build . --config Release
 | `tools/dd` | Command line tools, such as `js-snippet-export`, which exports the JavaScript snippets in a data file |
 | `VisualStudio` | Visual Studio solutions for each product |
 | `data` | The [data](https://github.com/51Degrees/data) submodule, whose `device-detection` and `ip-intelligence` folders hold the data files the tests and examples use |
-| `device-detection-data`, `ip-intelligence-data` | The earlier data submodules, kept for the other language APIs until they read `data`. Nothing here uses them |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
 
 ## Getting the code and data
