@@ -85,7 +85,7 @@ jobs:
           $bin = $IsWindows ? 'bin/Release/PerformanceC.exe' : 'bin/PerformanceC'
           $builds = '4.5.100', '4.5.106' | ForEach-Object { "$_=$((Resolve-Path "build-$_/$bin").Path)" }
           & "./$env:REPO/.github/tmp-i9/first.ps1" -RepoPath (Resolve-Path $env:REPO).Path `
-            -Builds $builds -OutDir "$PWD/results" -Set first
+            -Builds $builds -OutDir "$PWD/results" -Set named
       - name: Keep the figures
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

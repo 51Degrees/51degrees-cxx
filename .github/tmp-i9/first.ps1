@@ -47,6 +47,15 @@ $cases = switch ($Set) {
             }
         }
     ) }
+    'named' { @(
+        foreach ($preset in 'HighPerformance', 'Balanced') {
+            foreach ($threads in 1, 4) {
+                $t = $threads -eq 1 ? '1 thread' : "$threads threads"
+                New-Case "$preset, 20 typical properties, find only, $t" (Preset $preset $Typical none $threads)
+                New-Case "$preset, 20 typical properties as text, $t" (Preset $preset $Typical text $threads)
+            }
+        }
+    ) }
     default { throw "No set named '$Set'" }
 }
 
