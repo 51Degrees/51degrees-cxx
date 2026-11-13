@@ -1,0 +1,96 @@
+name: Temporary measurement of issue 9 at 4.5.106
+
+on:
+  push:
+    branches:
+      - tmp/i9-first
+
+permissions:
+  contents: read
+
+env:
+  REPO: 51degrees-cxx
+  # 4.5.100, the release before the work for issue 9, built beside this
+  # branch, which is 4.5.106 with only these temporary files added.
+  BASE_SHA: 4110d6813e167a803a06489318b33b83a230fa32
+  # The head of the pull request that added the options to the performance
+  # example, copied into the 4.5.100 build as in the earlier measurements.
+  # 4.5.106 builds its own example, which has the same options.
+  EXAMPLE_SHA: aa6f53bfd044fce7fdc7b07a78e149d2c8324734
+  EXAMPLE_FILES: examples/ipi/C/IpIntelligence/Performance.c examples/ipi/Base/ExampleBase.h
+
+jobs:
+  measure:
+    name: Builds taking turns, ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.REPO }}
+          submodules: true
+      - name: Name the pipeline's asset caches
+        id: cache-date
+        run: |
+          "today=$((Get-Date).ToUniversalTime().ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+          "yesterday=$((Get-Date).ToUniversalTime().AddDays(-1).ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+      - name: Restore the pipeline's asset cache
+        uses: actions/cache/restore@v4
+        with:
+          key: tmp-i9-first-no-such-key
+          restore-keys: |
+            ${{ steps.cache-date.outputs.today }}
+            ${{ steps.cache-date.outputs.yesterday }}
+          path: assets
+          enableCrossOsArchive: true
+      - name: Fetch the Enterprise data file as the pipeline does
+        env:
+          IPI_URL: ${{ secrets.IPI_DATA_FILE_URL }}
+        run: |
+          & "./$env:REPO/ci/fetch-assets.ps1" -IpIntelligenceUrl $env:IPI_URL -Products ipi
+          Get-FileHash -Algorithm MD5 assets/51Degrees-EnterpriseIpiV41.ipi, "$env:REPO/data/ip-intelligence/evidence.yml" | Format-List
+          "Size $((Get-Item assets/51Degrees-EnterpriseIpiV41.ipi).Length) bytes"
+      - name: Make the 4.5.100 tree, with the example that has the options
+        run: |
+          git -C $env:REPO fetch --no-tags --depth 1 origin $env:BASE_SHA $env:EXAMPLE_SHA
+          git -C $env:REPO worktree add --detach ../base-tree $env:BASE_SHA
+          git -C base-tree checkout $env:EXAMPLE_SHA -- ($env:EXAMPLE_FILES -split ' ')
+          foreach ($tree in $env:REPO, 'base-tree') {
+            "$tree is $(git -C $tree log --oneline -1 HEAD) with $(git -C $tree status --short --untracked-files=no)"
+          }
+          if ($IsLinux) { lscpu | Select-String 'Model name|^CPU\(s\)' } else { (Get-CimInstance Win32_Processor).Name }
+      - name: Build both as the pipeline does
+        run: |
+          foreach ($build in @{ name = '4.5.100'; tree = 'base-tree' }, @{ name = '4.5.106'; tree = $env:REPO }) {
+            cmake -S $build.tree -B "build-$($build.name)" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF `
+              -D32bit=OFF -DFIFTYONE_BUILD_DEVICE_DETECTION=OFF -DFIFTYONE_BUILD_IP_INTELLIGENCE=ON `
+              -DFIFTYONE_COMMON_CXX_BUILD_TESTING=OFF -DFIFTYONE_IPI_SYMBOLS=ON -DFIFTYONE_CXX_BOTH_PRODUCTS=OFF | Out-Null
+            cmake --build "build-$($build.name)" --config Release --parallel 4 --target PerformanceC | Select-Object -Last 2
+            if ($LASTEXITCODE -ne 0) { throw "The $($build.name) build failed" }
+          }
+      - name: Run the builds in turn
+        run: |
+          $bin = $IsWindows ? 'bin/Release/PerformanceC.exe' : 'bin/PerformanceC'
+          $builds = '4.5.100', '4.5.106' | ForEach-Object { "$_=$((Resolve-Path "build-$_/$bin").Path)" }
+          & "./$env:REPO/.github/tmp-i9/first.ps1" -RepoPath (Resolve-Path $env:REPO).Path `
+            -Builds $builds -OutDir "$PWD/results" -Set first
+      - name: Keep the figures
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: figures-${{ matrix.os }}
+          path: |
+            results/*.csv
+            results/*.md
