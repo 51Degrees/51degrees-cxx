@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include "ipi.h"
+#include "weightText.h"
 #include "fiftyone.h"
 #include "../common/config.h"
 #include "constantsIpi.h"
@@ -2805,24 +2806,22 @@ static bool setResultsFromEvidence(
 			pair->item.keyLength);
 		// Only the current header index should be considered
 		if (headerIndex >= 0 && headerIndex == (int)curHeaderIndex) {
-			// Get the parsed Value
 			const char *ipAddressString = (const char *)pair->parsedValue;
-			// Obtain the byte array first
 			IpAddress ipAddress;
-			const bool parsed =
-				fiftyoneDegreesIpAddressParse(ipAddressString, ipAddressString + strlen(ipAddressString), &ipAddress);
-			// Check if the IP address was successfully created
-			if (!parsed || (ipAddress.type == IP_TYPE_INVALID)) {
-				EXCEPTION_SET(INCORRECT_IP_ADDRESS_FORMAT);
-				return false;
+			// A value that is not read as one whole address is skipped, so
+			// the next key in the order of precedence is tried.
+			if (ipAddressString != NULL &&
+				fiftyoneDegreesIpAddressParse(
+					ipAddressString,
+					ipAddressString + strlen(ipAddressString),
+					&ipAddress)) {
+				// Configure the next result in the array of results.
+				addResultsFromIpAddressNoChecks(
+					results,
+					ipAddress.value,
+					ipAddress.type,
+					exception);
 			}
-
-			// Configure the next result in the array of results.
-			addResultsFromIpAddressNoChecks(
-				results,
-				ipAddress.value,
-				ipAddress.type,
-				exception);
 		}
 	}
 
@@ -3651,6 +3650,12 @@ const char* fiftyoneDegreesResultsIpiGetNoValueReasonMessage(
 			"the required property belongs to.";
 	case FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY:
 		return "The requested property does not exist, or is not a required property";
+	case FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY:
+		return "None of the results contain a value for the requested "
+			"property.";
+	case FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES:
+		return "The property has more than one value, so it cannot be "
+			"given as a single value of this type.";
 	case FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN:
 	default:
 		return "The reason for missing values is unknown.";
@@ -3826,6 +3831,264 @@ size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
 	return builder.added;
 }
 
+/**
+ * The significant figures of a weight in a value's text, which is what a C++
+ * stream gives a double by default.
+ */
+#define WEIGHT_FIGURES 6
+
+/**
+ * Ten to the power of one less than WEIGHT_FIGURES, the lowest whole number
+ * with that many figures.
+ */
+#define WEIGHT_FIGURES_LOWEST ((uint64_t)100000)
+
+/**
+ * The most places after the point the first figure of a weight can be and
+ * still be written without an exponent, as printf's %g decides.
+ */
+#define WEIGHT_MOST_LEADING_PLACES 4
+
+/**
+ * Bytes kept after the text of a value for a colon, its weight and the null
+ * that ends it.
+ */
+#define VALUE_TEXT_WEIGHT_BYTES (FIFTYONE_DEGREES_IPI_WEIGHT_TEXT_LENGTH + 2)
+
+/*
+ * The figures are worked out from the raw weighting and the maximum as whole
+ * numbers rather than from the double, which gives the same figures. The
+ * maximum is odd, so the exact weight is never half way between two numbers
+ * of six figures, and it is always further from half way than the double is
+ * from the exact weight. Working from whole numbers also leaves the locale
+ * out, as a C++ stream does.
+ */
+size_t fiftyoneDegreesIpiGetWeightText(
+	char * const text,
+	const uint32_t rawWeighting) {
+	const uint64_t max = FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT;
+	char figures[WEIGHT_FIGURES];
+	size_t written = 0;
+	if (rawWeighting == 0) {
+		text[written++] = '0';
+		return written;
+	}
+
+	// The first figure is this many places after the point, or is before the
+	// point when there are none.
+	int places = 0;
+	uint64_t scaled = rawWeighting;
+	while (scaled < max) {
+		scaled *= 10;
+		places++;
+	}
+
+	// Rounded half up, which is never needed as half way never occurs. A
+	// weight that rounds up to the next power of ten moves its first figure.
+	uint64_t rounded = (scaled * WEIGHT_FIGURES_LOWEST * 2 + max) / (max * 2);
+	if (rounded == WEIGHT_FIGURES_LOWEST * 10) {
+		rounded = WEIGHT_FIGURES_LOWEST;
+		places--;
+	}
+	for (int i = WEIGHT_FIGURES - 1; i >= 0; i--) {
+		figures[i] = (char)('0' + rounded % 10);
+		rounded /= 10;
+	}
+	int count = WEIGHT_FIGURES;
+	while (count > 1 && figures[count - 1] == '0') {
+		count--;
+	}
+
+	if (places > WEIGHT_MOST_LEADING_PLACES) {
+		text[written++] = figures[0];
+		if (count > 1) {
+			text[written++] = '.';
+			memcpy(text + written, figures + 1, (size_t)count - 1);
+			written += (size_t)count - 1;
+		}
+		text[written++] = 'e';
+		text[written++] = '-';
+		text[written++] = (char)('0' + places / 10);
+		text[written++] = (char)('0' + places % 10);
+	}
+	else if (places == 0) {
+		text[written++] = figures[0];
+		if (count > 1) {
+			text[written++] = '.';
+			memcpy(text + written, figures + 1, (size_t)count - 1);
+			written += (size_t)count - 1;
+		}
+	}
+	else {
+		text[written++] = '0';
+		text[written++] = '.';
+		for (int i = 1; i < places; i++) {
+			text[written++] = '0';
+		}
+		memcpy(text + written, figures, (size_t)count);
+		written += (size_t)count;
+	}
+	return written;
+}
+
+/**
+ * The text of the values fiftyoneDegreesResultsIpiGetValueTexts is writing.
+ */
+typedef struct value_texts_t {
+	char *buffer; /**< The caller's memory, which is never freed */
+	char *text; /**< The memory written into, being buffer or allocated */
+	size_t length; /**< The bytes text holds */
+	size_t used; /**< The bytes of text written so far */
+} ValueTexts;
+
+/**
+ * Makes room in the text for the bytes after what has been written, moving
+ * the text into memory at least twice the size when there is not enough.
+ */
+static bool valueTextsReserve(
+	ValueTexts * const texts,
+	const size_t bytes,
+	Exception * const exception) {
+	if (texts->length - texts->used >= bytes) {
+		return true;
+	}
+	size_t length = texts->length * 2;
+	if (length < texts->used + bytes) {
+		length = texts->used + bytes;
+	}
+	char * const text = (char*)Malloc(length);
+	if (text == NULL) {
+		EXCEPTION_SET(INSUFFICIENT_MEMORY);
+		return false;
+	}
+	if (texts->used > 0) {
+		memcpy(text, texts->text, texts->used);
+	}
+	if (texts->text != texts->buffer) {
+		Free(texts->text);
+	}
+	texts->text = text;
+	texts->length = length;
+	return true;
+}
+
+/**
+ * Adds the text of the value, followed by a colon and its weight when
+ * withWeight is set, and the null that ends it. A value is read as far as its
+ * first null, as a C++ stream reads it.
+ */
+static bool valueTextsAdd(
+	ValueTexts * const texts,
+	const WeightedItem * const item,
+	const PropertyValueType storedValueType,
+	const bool withWeight,
+	Exception * const exception) {
+	// The value is written straight after the text so far when it fits there
+	// with room for its weight, and otherwise into memory sized for it.
+	char * const place = texts->text + texts->used;
+	const size_t spare = texts->length - texts->used;
+	const size_t room = spare > VALUE_TEXT_WEIGHT_BYTES ?
+		spare - VALUE_TEXT_WEIGHT_BYTES : 0;
+	char * const valueText = StoredBinaryValueToText(
+		(const StoredBinaryValue*)item->item.data.ptr,
+		storedValueType,
+		DefaultWktDecimalPlaces,
+		room > 0 ? place : NULL,
+		room,
+		exception);
+	if (valueText == NULL) {
+		return false;
+	}
+	const size_t valueLength = strlen(valueText);
+	if (valueText != place) {
+		const bool reserved = valueTextsReserve(
+			texts,
+			valueLength + VALUE_TEXT_WEIGHT_BYTES,
+			exception);
+		if (reserved) {
+			memcpy(texts->text + texts->used, valueText, valueLength);
+		}
+		Free(valueText);
+		if (reserved == false) {
+			return false;
+		}
+	}
+	texts->used += valueLength;
+	if (withWeight) {
+		texts->text[texts->used++] = ':';
+		texts->used += fiftyoneDegreesIpiGetWeightText(
+			texts->text + texts->used,
+			item->rawWeighting);
+	}
+	texts->text[texts->used++] = '\0';
+	return true;
+}
+
+char* fiftyoneDegreesResultsIpiGetValueTexts(
+	fiftyoneDegreesResultsIpi* results,
+	int requiredPropertyIndex,
+	char* buffer,
+	size_t bufferLength,
+	uint32_t* count,
+	fiftyoneDegreesException* exception) {
+	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+	*count = 0;
+
+	const int propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+		dataSet->b.b.available,
+		requiredPropertyIndex);
+	if (propertyIndex < 0) {
+		return NULL;
+	}
+	const WeightedItem * const items = ResultsIpiGetValues(
+		results,
+		requiredPropertyIndex,
+		exception);
+	if (items == NULL || EXCEPTION_FAILED) {
+		return NULL;
+	}
+	const PropertyValueType storedValueType = PropertyGetStoredTypeByIndex(
+		dataSet->propertyTypes,
+		(uint32_t)propertyIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return NULL;
+	}
+
+	ValueTexts texts = { buffer, buffer, bufferLength, 0 };
+	if (buffer == NULL || bufferLength == 0) {
+		texts.buffer = NULL;
+		texts.text = NULL;
+		texts.length = 0;
+		if (valueTextsReserve(
+			&texts,
+			REASONABLE_WKT_STRING_LENGTH,
+			exception) == false) {
+			return NULL;
+		}
+	}
+
+	// A value has its weight unless it is the only one and is whole.
+	const uint32_t valuesCount = results->values.count;
+	for (uint32_t i = 0; i < valuesCount; i++) {
+		const bool withWeight = valuesCount > 1 ||
+			items[i].rawWeighting != FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT;
+		if (valueTextsAdd(
+			&texts,
+			&items[i],
+			storedValueType,
+			withWeight,
+			exception) == false) {
+			if (texts.text != buffer) {
+				Free(texts.text);
+			}
+			return NULL;
+		}
+	}
+	*count = valuesCount;
+	return texts.text;
+}
+
 /*
  * Supporting Macros to printout the NetworkId
  */
@@ -3991,8 +4254,9 @@ bool fiftyoneDegreesIpiGetProperty(
 		}
 		const char * const value = STRING(name);
 		if (isAvailable != NULL) {
+			// Available when it can be read, which needs a required index.
 			*isAvailable = value != NULL &&
-				PropertiesGetPropertyIndexFromName(
+				PropertiesGetRequiredPropertyIndexFromName(
 					dataSet->b.b.available,
 					value) >= 0;
 		}

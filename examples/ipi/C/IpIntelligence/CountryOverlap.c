@@ -2163,35 +2163,6 @@ static int countDistinctAbove(
 }
 
 /**
- * Returns false when the text is written as an IPv4 address but is not
- * four decimal octets of at most 255 each. Text containing a colon is
- * IPv6 and is left for the library parser to validate.
- */
-static bool isValidIpv4OrOther(const char* ip) {
-	if (strchr(ip, ':') != NULL) {
-		return true;
-	}
-	unsigned int octets[4];
-	char trailing;
-	if (sscanf(
-		ip,
-		"%u.%u.%u.%u%c",
-		&octets[0],
-		&octets[1],
-		&octets[2],
-		&octets[3],
-		&trailing) != 4) {
-		return false;
-	}
-	for (int i = 0; i < 4; i++) {
-		if (octets[i] > 255) {
-			return false;
-		}
-	}
-	return true;
-}
-
-/**
  * Prints the resolved values for a single IPv4 or IPv6 address so the
  * results can be compared against other 51Degrees APIs for verification.
  */
@@ -2199,14 +2170,10 @@ static void probeAddress(
 	SharedState* shared,
 	ResultsIpi* results,
 	const char* ip) {
-	// The library parser is used because it handles IPv6 as well as
-	// IPv4. It clamps an IPv4 octet above 255 to 255 rather than
-	// rejecting it, which would probe a different address from the one
-	// requested, so IPv4 octets are checked first.
+	// The library parser reads an IPv4 or IPv6 address, and nothing else.
 	fiftyoneDegreesIpAddress address;
 	memset(&address, 0, sizeof(address));
-	if (isValidIpv4OrOther(ip) == false ||
-		fiftyoneDegreesIpAddressParse(
+	if (fiftyoneDegreesIpAddressParse(
 			ip,
 			ip + strlen(ip),
 			&address) == false) {

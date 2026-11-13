@@ -36,7 +36,7 @@
  * ## Introduction
  *
  * IP v4 and v6 addresses can be parsed using the
- * #fiftyoneDegreesIpAddressParse and #fiftyoneDegreesIpAddressesParse methods.
+ * #fiftyoneDegreesIpAddressParse method.
  *
  * @{
  */
@@ -76,10 +76,26 @@ typedef struct fiftyone_degrees_ip_address_t {
 } fiftyoneDegreesIpAddress;
 
 /**
- * Parse a single IP address string.
+ * Parse a single IP address string. The string is read only when all of it is
+ * one of these forms:
+ * - an IPv4 address in dotted-decimal form, such as 203.0.113.1, with no
+ *   leading zeros
+ * - an IPv6 address in any text form of RFC 4291 section 2.2, such as
+ *   2001:db8::1 or ::ffff:203.0.113.1
+ * - an IPv4 address, a colon and a port, such as 203.0.113.1:8080
+ * - an IPv6 address in square brackets, with or without a colon and a port
+ *   after the closing bracket, such as [2001:db8::1]:8080
+ *
+ * The port is checked and then dropped. Anything else is not read, including a
+ * prefix length, text or a space before or after the address, a list of
+ * addresses and an IPv6 zone index. The address is not changed in that case.
+ * An IPv4-mapped IPv6 address stays an IPv6 address here.
+ * See
+ * https://github.com/51Degrees/specifications/blob/main/ip-intelligence-specification/pipeline-elements/ip-intelligence-on-premise.md#reading-the-client-ip-value
+ *
  * Does not modify the last 12 (out of 16) bytes when parsing IPv4.
  * @param start of the string containing the IP address to parse
- * @param end the last character of the string (with IP address) to be considered for parsing
+ * @param end the character after the last character of the string
  * @param address memory to write parsed IP address into.
  * @return <c>true</c> if address was parsed correctly, <c>false</c> otherwise
  */

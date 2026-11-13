@@ -9,9 +9,9 @@ $AllProducts = @('common', 'dd', 'ipi')
 # of both products, affects every product.
 $ProductPaths = @{
     dd = @('src/dd/', 'test/dd/', 'examples/dd/', 'docs/dd/', 'tools/dd/',
-        'VisualStudio/DeviceDetection/', 'device-detection-data')
+        'VisualStudio/DeviceDetection/')
     ipi = @('src/ipi/', 'test/ipi/', 'examples/ipi/', 'docs/ipi/',
-        'VisualStudio/IpIntelligence/', 'ip-intelligence-data')
+        'VisualStudio/IpIntelligence/')
 }
 
 # Visual Studio solutions built when an options entry uses msbuild.

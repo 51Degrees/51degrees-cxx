@@ -80,8 +80,10 @@ static int run(fiftyoneDegreesResourceManager *manager) {
 	int count = 0;
 	ResultsIpi *results = ResultsIpiCreate(manager);
 	while (fgets(ipAddress, sizeof(ipAddress), stdin) != 0) {
+		// The line ending is not part of the address.
+		ipAddress[strcspn(ipAddress, "\r\n")] = '\0';
 		if (!strlen(ipAddress)) {
-			break;
+			continue;
 		}
 		StringBuilder builder = { output, sizeof(output) };
 		StringBuilderInit(&builder);
@@ -165,9 +167,9 @@ int main(int argc, char* argv[]) {
 	char dataFilePath[FILE_MAX_PATH];
 	StatusCode status = SUCCESS;
 	ConfigIpi config = fiftyoneDegreesIpiInMemoryConfig;
-	// An explicit data file path can be supplied in the 51DEGREES_IPI_PATH
+	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("51DEGREES_IPI_PATH");
+	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}

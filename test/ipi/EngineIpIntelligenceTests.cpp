@@ -473,6 +473,7 @@ void EngineIpIntelligenceTests::verifyTargetIpAddress() {
 	verifyTargetIpAddressForString(upperBoundIpv6Address);
 	verifyNoTargetIpAddressForString(badIpv4Address);
 	verifyNoTargetIpAddressForString(badIpv6Address);
+	verifyNoTargetIpAddressForString(outOfRangeIpv4Address);
 	verifyNoTargetIpAddressForString("");
 	verifyNoTargetIpAddressForString(nullptr);
 	verifyTargetIpAddressFromEvidence();

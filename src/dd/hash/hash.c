@@ -5798,6 +5798,9 @@ const char* fiftyoneDegreesResultsHashGetNoValueReasonMessage(
 	    return "No matching profiles could be found for the supplied evidence. "
 	        "A 'best guess' can be returned by configuring more lenient "
 	        "matching rules. See https://51degrees.com/documentation/_device_detection__features__false_positive_control.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-cxx&utm_content=hash.c&utm_term=fiftyone_degrees_results_no_value_reason_null_profile";
+	case FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES:
+		return "The property has more than one value, so it cannot be "
+			"given as a single value of this type.";
 	case FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN:
 	default:
 		return "The reason for missing values is unknown.";
@@ -6116,8 +6119,9 @@ bool fiftyoneDegreesHashGetProperty(
 		}
 		const char * const value = STRING(name);
 		if (isAvailable != NULL) {
+			// Available when it can be read, which needs a required index.
 			*isAvailable = value != NULL &&
-				PropertiesGetPropertyIndexFromName(
+				PropertiesGetRequiredPropertyIndexFromName(
 					dataSet->b.b.available,
 					value) >= 0;
 		}

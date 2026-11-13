@@ -462,12 +462,28 @@ TEST_F(IpiFirstReadReloadTests, ReadAfterReload_WalksTheDataSetTheResultsHold) {
 	EXPECT_EQ(before, readAll(held, order));
 	EXPECT_FALSE(walks.empty()) << "The read after the reload walked nothing.";
 
+	// The reload keeps every index on its property, so the renamed property
+	// at index 0 reads nothing from the reloaded data set, where the held
+	// results read its value. The reloaded data set still walks a graph only
+	// at the first read.
+	std::vector<int> reloadedWalks;
 	fiftyoneDegreesResultsIpi* reloaded =
 		fiftyoneDegreesResultsIpiCreate(&manager);
+	countWalks(reloaded, reloadedWalks);
 	populate(reloaded, firstReadAddresses[1]);
-	EXPECT_EQ(nameOf(held, 1), nameOf(reloaded, 0)) <<
-		"The reload must move every property after the renamed one down by "
-		"one.";
+	EXPECT_TRUE(reloadedWalks.empty()) <<
+		"The reloaded data set walked before a read.";
+	EXPECT_EQ(nameOf(held, 0), nameOf(reloaded, 0));
+	EXPECT_EQ(nameOf(held, 1), nameOf(reloaded, 1));
+	const std::map<int, std::string> after = readAll(reloaded, { 0, 1 });
+	EXPECT_EQ(
+		"no value, reason " + std::to_string(
+			(int)FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY),
+		after.at(0)) <<
+		"The renamed property must read as invalid after the reload.";
+	EXPECT_EQ(before.at(1), after.at(1));
+	EXPECT_FALSE(reloadedWalks.empty()) <<
+		"The read after the reload walked nothing.";
 	fiftyoneDegreesResultsIpiFree(reloaded);
 	fiftyoneDegreesResultsIpiFree(held);
 	fiftyoneDegreesResourceManagerFree(&manager);

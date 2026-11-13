@@ -848,6 +848,10 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddress(
  * Process a single IP Address and populate the IP range offset in the results
  * structure.
  *
+ * The string must be all one address, as #fiftyoneDegreesIpAddressParse
+ * describes. Otherwise the exception is set to
+ * #FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT.
+ *
  * When the caller named the properties the data set was created with, the
  * graph of each component a named property belongs to is walked here, and a
  * walk that fails sets the exception. Otherwise populating the results walks
@@ -869,6 +873,13 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddressString(
 /**
  * Processes the evidence value pairs in the evidence collection and
  * populates the result in the results structure.
+ *
+ * The keys are tried in the order of precedence, the query prefix before the
+ * server prefix and the data file's order within a prefix, and the first value
+ * that is read as one whole address is used. A value that is not, such as
+ * "1.2.3.4/24", "1.2.3.4, 5.6.7.8" or "fe80::1%eth0", is skipped without
+ * setting the exception, and when no value is read the results hold no
+ * address. See #fiftyoneDegreesIpAddressParse for the forms that are read.
  *
  * When the caller named the properties the data set was created with, the
  * graph of each component a named property belongs to is walked here, and a
@@ -972,6 +983,10 @@ EXTERNAL const fiftyoneDegreesProfilePercentage* fiftyoneDegreesResultsIpiGetVal
 /**
  * Adds to builder the values associated in the results for the property name.
  *
+ * Each value is written in double quotes followed by a colon and its weight,
+ * to the decimal places of fiftyoneDegreesDefaultWktDecimalPlaces, as in
+ * `"GB":0.5`.
+ *
  * When no properties were named, the first read of a property of a component
  * walks the component's graph for the results. If the walk fails the exception
  * is set, and the component is not walked again until the results are next
@@ -993,6 +1008,9 @@ EXTERNAL void fiftyoneDegreesResultsIpiAddValuesString(
 
 /**
  * Sets the buffer the values associated in the results for the property name.
+ *
+ * The values are written as fiftyoneDegreesResultsIpiAddValuesString writes
+ * them.
  *
  * When no properties were named, the first read of a property of a component
  * walks the component's graph for the results. If the walk fails the exception
@@ -1020,6 +1038,9 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesString(
 /**
  * Sets the buffer the values associated in the results for the property name.
  *
+ * The values are written as fiftyoneDegreesResultsIpiAddValuesString writes
+ * them.
+ *
  * When no properties were named, the first read of a property of a component
  * walks the component's graph for the results. If the walk fails the exception
  * is set, and the component is not walked again until the results are next
@@ -1044,6 +1065,49 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
 	char* buffer,
 	size_t bufferLength,
 	const char* separator,
+	fiftyoneDegreesException* exception);
+
+/**
+ * Gets the text of each value the results hold for the property, in the form
+ * the C++ results give it to every language built on them. A value's text is
+ * followed by a colon and its weight when the property has more than one
+ * value or the weight is not whole, as in `GB:0.5`, and otherwise is
+ * the value alone. The weight is written to six significant figures, with no
+ * trailing zeros and with an exponent when it rounds to less than 0.0001, as
+ * a C++ stream writes a double. fiftyoneDegreesResultsIpiGetValuesString
+ * instead puts every value in quotes and always adds its weight.
+ *
+ * Each value's text ends with a null, so the text is `count` null terminated
+ * strings one after another. The text is written into `buffer` when it fits
+ * in `bufferLength` bytes, and otherwise into memory allocated with
+ * fiftyoneDegreesMalloc, which the caller frees with fiftyoneDegreesFree when
+ * the pointer returned is not `buffer`. Each value is written by
+ * fiftyoneDegreesStoredBinaryValueToText, which writes a string or an area
+ * that would not fit straight into memory sized for it, and says which
+ * values it writes twice. `buffer` can be NULL with `bufferLength` 0.
+ * @param results pointer to the results to read the values from
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
+ * @param buffer memory the text is written into when it fits
+ * @param bufferLength the bytes `buffer` holds
+ * @param count set to the number of values in the text
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the text, or NULL when the results hold no values for the property,
+ * and NULL with the exception set when a value cannot be written or memory
+ * cannot be allocated. The text can also be returned with `count` set to 0,
+ * when the results have the property's component but none of its values, so
+ * read `count` rather than only testing for NULL. Text with no values is
+ * freed in the same way when it is not `buffer`.
+ */
+EXTERNAL char* fiftyoneDegreesResultsIpiGetValueTexts(
+	fiftyoneDegreesResultsIpi* results,
+	int requiredPropertyIndex,
+	char* buffer,
+	size_t bufferLength,
+	uint32_t* count,
 	fiftyoneDegreesException* exception);
 
 /**

@@ -714,6 +714,8 @@ protected:
 					if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
 						failures++;
 					}
+					const fiftyoneDegreesPropertiesAvailable* available =
+						dataSetOf(results)->b.b.available;
 					for (int i = 0; i < positionCount(results); i++) {
 						FIFTYONE_DEGREES_EXCEPTION_CLEAR;
 						fiftyoneDegreesResultsHashGetHasValues(
@@ -723,12 +725,18 @@ protected:
 						if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
 							failures++;
 						}
-						fiftyoneDegreesResultsHashGetValues(
-							results,
-							i,
-							exception);
-						if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
-							failures++;
+						// A property the data set does not have keeps its
+						// position, and has no values to read.
+						if (fiftyoneDegreesPropertiesGetAvailableIndex(
+							available,
+							i) >= 0) {
+							fiftyoneDegreesResultsHashGetValues(
+								results,
+								i,
+								exception);
+							if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
+								failures++;
+							}
 						}
 					}
 					fiftyoneDegreesResultsHashFree(results);

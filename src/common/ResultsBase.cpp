@@ -87,7 +87,7 @@ string ResultsBase::getPropertyName(
 	string name;
 	const char *cName = STRING(PropertiesGetNameFromRequiredIndex( // name is string
 		available,
-		allowedRequiredPropertyIndex(requiredPropertyIndex)));
+		requiredPropertyIndex));
 	if (cName != nullptr) {
 		name.assign(cName);
 	}
@@ -96,7 +96,7 @@ string ResultsBase::getPropertyName(
 
 FiftyoneDegrees::Common::Value<string> ResultsBase::getValueAsString(
 	int requiredPropertyIndex) {
-	return valueAsStringAt(allowedRequiredPropertyIndex(requiredPropertyIndex));
+	return valueAsStringAt(requiredPropertyIndex);
 }
 
 FiftyoneDegrees::Common::Value<string> ResultsBase::valueAsStringAt(
@@ -127,6 +127,11 @@ FiftyoneDegrees::Common::Value<string> ResultsBase::valueAsStringAt(
 		else if (values.size() != 0) {
 			result.setValue(*values.begin());
 		}
+		else {
+			const fiftyoneDegreesResultsNoValueReason reason =
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+			result.setNoValueReason(reason, getNoValueMessageInternal(reason));
+		}
 	}
 	return result;
 }
@@ -145,7 +150,7 @@ FiftyoneDegrees::Common::Value<string> ResultsBase::getValueAsString(const strin
 
 FiftyoneDegrees::Common::Value<bool> ResultsBase::getValueAsBool(
 	int requiredPropertyIndex) {
-	return valueAsBoolAt(allowedRequiredPropertyIndex(requiredPropertyIndex));
+	return valueAsBoolAt(requiredPropertyIndex);
 }
 
 FiftyoneDegrees::Common::Value<bool> ResultsBase::valueAsBoolAt(
@@ -164,10 +169,16 @@ FiftyoneDegrees::Common::Value<bool> ResultsBase::valueAsBoolAt(
 		if (values.size() > 1) {
 			result.setNoValueReason(
 				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES,
-				nullptr);
+				getNoValueMessageInternal(
+					FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES));
 		}
 		else if (values.size() != 0) {
 			result.setValue((*values.begin()).compare("True") == 0);
+		}
+		else {
+			const fiftyoneDegreesResultsNoValueReason reason =
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+			result.setNoValueReason(reason, getNoValueMessageInternal(reason));
 		}
 	}
 	return result;
@@ -187,7 +198,7 @@ FiftyoneDegrees::Common::Value<bool> ResultsBase::getValueAsBool(const string *p
 
 FiftyoneDegrees::Common::Value<int> ResultsBase::getValueAsInteger(
 	int requiredPropertyIndex) {
-	return valueAsIntegerAt(allowedRequiredPropertyIndex(requiredPropertyIndex));
+	return valueAsIntegerAt(requiredPropertyIndex);
 }
 
 FiftyoneDegrees::Common::Value<int> ResultsBase::valueAsIntegerAt(
@@ -206,10 +217,16 @@ FiftyoneDegrees::Common::Value<int> ResultsBase::valueAsIntegerAt(
 		if (values.size() > 1) {
 			result.setNoValueReason(
 				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES,
-				nullptr);
+				getNoValueMessageInternal(
+					FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES));
 		}
 		else if (values.size() != 0) {
 			result.setValue(atoi(values.begin()->c_str()));
+		}
+		else {
+			const fiftyoneDegreesResultsNoValueReason reason =
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+			result.setNoValueReason(reason, getNoValueMessageInternal(reason));
 		}
 	}
 	return result;
@@ -229,7 +246,7 @@ FiftyoneDegrees::Common::Value<int> ResultsBase::getValueAsInteger(const string 
 
 FiftyoneDegrees::Common::Value<double> ResultsBase::getValueAsDouble(
 	int requiredPropertyIndex) {
-	return valueAsDoubleAt(allowedRequiredPropertyIndex(requiredPropertyIndex));
+	return valueAsDoubleAt(requiredPropertyIndex);
 }
 
 FiftyoneDegrees::Common::Value<double> ResultsBase::valueAsDoubleAt(
@@ -248,10 +265,16 @@ FiftyoneDegrees::Common::Value<double> ResultsBase::valueAsDoubleAt(
 		if (values.size() > 1) {
 			result.setNoValueReason(
 				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES,
-				nullptr);
+				getNoValueMessageInternal(
+					FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES));
 		}
 		else if (values.size() != 0) {
 			result.setValue(strtod(values.begin()->c_str(), nullptr));
+		}
+		else {
+			const fiftyoneDegreesResultsNoValueReason reason =
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+			result.setNoValueReason(reason, getNoValueMessageInternal(reason));
 		}
 	}
 	return result;
@@ -286,10 +309,14 @@ template <class T> bool ResultsBase::getOneValueText(
 	if (values.size() > 1) {
 		result.setNoValueReason(
 			FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES,
-			nullptr);
+			getNoValueMessageInternal(
+				FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES));
 		return false;
 	}
 	if (values.size() == 0) {
+		const fiftyoneDegreesResultsNoValueReason reason =
+			FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY;
+		result.setNoValueReason(reason, getNoValueMessageInternal(reason));
 		return false;
 	}
 	text = *values.begin();
@@ -299,7 +326,7 @@ template <class T> bool ResultsBase::getOneValueText(
 FiftyoneDegrees::Common::Value<bool> ResultsBase::getValueAsStrictBool(
 	int requiredPropertyIndex) {
 	return valueAsStrictBoolAt(
-		allowedRequiredPropertyIndex(requiredPropertyIndex));
+		requiredPropertyIndex);
 }
 
 FiftyoneDegrees::Common::Value<bool> ResultsBase::valueAsStrictBoolAt(
@@ -335,7 +362,7 @@ FiftyoneDegrees::Common::Value<bool> ResultsBase::getValueAsStrictBool(
 FiftyoneDegrees::Common::Value<int> ResultsBase::getValueAsStrictInteger(
 	int requiredPropertyIndex) {
 	return valueAsStrictIntegerAt(
-		allowedRequiredPropertyIndex(requiredPropertyIndex));
+		requiredPropertyIndex);
 }
 
 FiftyoneDegrees::Common::Value<int> ResultsBase::valueAsStrictIntegerAt(
@@ -374,7 +401,7 @@ FiftyoneDegrees::Common::Value<int> ResultsBase::getValueAsStrictInteger(
 FiftyoneDegrees::Common::Value<double> ResultsBase::getValueAsStrictDouble(
 	int requiredPropertyIndex) {
 	return valueAsStrictDoubleAt(
-		allowedRequiredPropertyIndex(requiredPropertyIndex));
+		requiredPropertyIndex);
 }
 
 FiftyoneDegrees::Common::Value<double> ResultsBase::valueAsStrictDoubleAt(
@@ -408,7 +435,7 @@ FiftyoneDegrees::Common::Value<double> ResultsBase::getValueAsStrictDouble(
 
 FiftyoneDegrees::Common::Value<vector<string>> ResultsBase::getValues(
 	int requiredPropertyIndex) {
-	return valuesAt(allowedRequiredPropertyIndex(requiredPropertyIndex));
+	return valuesAt(requiredPropertyIndex);
 }
 
 FiftyoneDegrees::Common::Value<vector<string>> ResultsBase::valuesAt(
@@ -449,9 +476,4 @@ int ResultsBase::getRequiredPropertyIndex(
 	return PropertiesGetRequiredPropertyIndexFromName(
 		available,
 		propertyName);
-}
-
-int ResultsBase::allowedRequiredPropertyIndex(
-	int requiredPropertyIndex) const {
-	return available->named != nullptr ? requiredPropertyIndex : -1;
 }

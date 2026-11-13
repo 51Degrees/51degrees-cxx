@@ -247,8 +247,8 @@ namespace FiftyoneDegrees {
 			 * passes for that property. When the engine named its properties
 			 * these are the names it was created with, in that order, and a
 			 * refresh does not change them. When it named none, they are the
-			 * names of every property the data file loaded has, sorted by
-			 * name.
+			 * names of every property the first data file it loaded has,
+			 * sorted by name, and a refresh does not change them either.
 			 * @return the required property names
 			 */
 			vector<string> getRequiredProperties() const;
