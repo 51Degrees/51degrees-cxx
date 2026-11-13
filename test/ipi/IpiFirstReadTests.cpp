@@ -587,6 +587,16 @@ bool isGeometry(const std::string& type) {
 		type == "weightedwkb" || type == "weightedwkbr";
 }
 
+/** True when the text starts as WKT does, with a geometry type in capitals,
+ * and gives its coordinates in brackets or is EMPTY, such as POLYGON EMPTY. */
+bool isWkt(const std::string& text) {
+	const std::string empty = "EMPTY";
+	return text.empty() == false && text[0] >= 'A' && text[0] <= 'Z' &&
+		(text.find('(') != std::string::npos ||
+		(text.size() > empty.size() && text.compare(
+			text.size() - empty.size(), empty.size(), empty) == 0));
+}
+
 /**
  * Reads a property through the getter of ResultsIpi that its type needs, as
  * the languages do to build JSON. Returns false if the getter threw, with
@@ -827,9 +837,8 @@ TEST_F(IpiFirstReadJsonTests, WktGetter_WritesEachValueFromItsStoredType) {
 					name << " value " << i;
 				if (isGeometry(type)) {
 					geometryValues++;
-					EXPECT_TRUE(text.find('(') != std::string::npos &&
-						text[0] >= 'A' && text[0] <= 'Z') << address << " " <<
-						name << " (" << type << ") is not WKT: " << text;
+					EXPECT_TRUE(isWkt(text)) << address << " " << name <<
+						" (" << type << ") is not WKT: " << text;
 				}
 			}
 		}
