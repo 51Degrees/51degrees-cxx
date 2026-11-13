@@ -92,6 +92,29 @@ TEST_F(MemoryLeak, MemoryLeakFreed) {
 }
 
 /**
+ * Test that the tracking free and aligned free give memory the tracker holds
+ * no record of to the standard free, uncounted. The size functions point the
+ * allocation functions at the tracker while they load a data set, so another
+ * thread can free memory it allocated before then through the tracking free.
+ */
+TEST_F(MemoryLeak, TrackingFree_UntrackedMemory) {
+	void *untracked = fiftyoneDegreesMemoryStandardMalloc(sizeof(int));
+	void *untrackedAligned = fiftyoneDegreesMemoryStandardMallocAligned(
+		16,
+		16);
+	ASSERT_NE(nullptr, untracked);
+	ASSERT_NE(nullptr, untrackedAligned);
+	fiftyoneDegreesSetUpMemoryTracking();
+	void *tracked = fiftyoneDegreesMalloc(sizeof(int));
+	fiftyoneDegreesFree(untracked);
+	fiftyoneDegreesFreeAligned(untrackedAligned);
+	EXPECT_EQ(sizeof(int), fiftyoneDegreesMemoryTrackingGetAllocated());
+	fiftyoneDegreesFree(tracked);
+	EXPECT_EQ((size_t)0, fiftyoneDegreesMemoryTrackingGetAllocated());
+	fiftyoneDegreesUnsetMemoryTracking();
+}
+
+/**
  * Test class whose set up method returns before taking the memory checkpoint,
  * as one that finds nothing to test with can.
  */
