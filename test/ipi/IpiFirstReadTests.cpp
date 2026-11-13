@@ -580,6 +580,13 @@ void writeJson(
 	json << "]";
 }
 
+/** True for a property whose metadata type is a full or reduced geometry,
+ * weighted or not. */
+bool isGeometry(const std::string& type) {
+	return type == "wkb" || type == "wkbr" ||
+		type == "weightedwkb" || type == "weightedwkbr";
+}
+
 /**
  * Reads a property through the getter of ResultsIpi that its type needs, as
  * the languages do to build JSON. Returns false if the getter threw, with
@@ -603,14 +610,12 @@ bool readAsJson(
 			type == "weighteddouble" || type == "weightedsingle") {
 			writeJson(json, results->getValuesAsWeightedDoubleList(name));
 		}
-		else if (type == "wkb") {
+		else if (isGeometry(type)) {
 			writeJson(json, results->getValuesAsWeightedWKTStringList(
 				name,
 				fiftyoneDegreesDefaultWktDecimalPlaces));
 		}
 		else {
-			// Strings and the reduced geometries, which the string list writes
-			// as text from the type they are stored as.
 			writeJson(json, results->getValuesAsWeightedStringList(name));
 		}
 	}
@@ -747,4 +752,91 @@ TEST_F(IpiFirstReadJsonTests, Json_MatchesWalkingEveryGraphFirst) {
 			(unsigned long long)fingerprint(expected));
 		std::fflush(stdout);
 	}
+}
+
+/**
+ * The WKT getter writes each value from the type it is stored as, so a
+ * geometry stored as full or reduced WKB gives its WKT, and every value gives
+ * the text and weight the string list gives at the default decimal places.
+ */
+TEST_F(IpiFirstReadJsonTests, WktGetter_WritesEachValueFromItsStoredType) {
+	std::string dataFilePath;
+	for (int i = 0;
+		i < _IpiFileNamesLength && dataFilePath.empty();
+		i++) {
+		dataFilePath = GetFilePath(_dataFolderName, _IpiFileNames[i]);
+	}
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "No IP Intelligence data file was found.";
+	}
+	FiftyoneDegrees::IpIntelligence::ConfigIpi config;
+	config.setBalanced();
+	FiftyoneDegrees::Common::RequiredPropertiesConfig required;
+	FiftyoneDegrees::IpIntelligence::EngineIpi engine(
+		dataFilePath,
+		&config,
+		&required);
+	{
+		std::unique_ptr<FiftyoneDegrees::IpIntelligence::ResultsIpi> first(
+			engine.process(firstReadAddresses[0]));
+		bool hasGeometry = false;
+		for (const auto& property : namesAndTypes(engine, first.get())) {
+			hasGeometry = hasGeometry || isGeometry(property.second);
+		}
+		if (hasGeometry == false) {
+			GTEST_SKIP() << "The data file holds no geometry property.";
+		}
+	}
+	int geometryValues = 0;
+	for (const char* address : firstReadAddresses) {
+		std::unique_ptr<FiftyoneDegrees::IpIntelligence::ResultsIpi> results(
+			engine.process(address));
+		for (const auto& property : namesAndTypes(engine, results.get())) {
+			const std::string& name = property.first;
+			const std::string& type = property.second;
+			const auto strings = results->getValuesAsWeightedStringList(name);
+			FiftyoneDegrees::Common::Value<std::vector<
+				FiftyoneDegrees::IpIntelligence::WeightedValue<std::string>>>
+				wkt;
+			try {
+				wkt = results->getValuesAsWeightedWKTStringList(
+					name,
+					fiftyoneDegreesDefaultWktDecimalPlaces);
+			}
+			catch (const std::exception& e) {
+				ADD_FAILURE() << address << " " << name << " (" << type <<
+					") threw " << e.what();
+				continue;
+			}
+			ASSERT_EQ(strings.hasValue(), wkt.hasValue()) << address << " " <<
+				name << " (" << type << ")";
+			if (strings.hasValue() == false) {
+				EXPECT_EQ(strings.getNoValueReason(), wkt.getNoValueReason()) <<
+					address << " " << name;
+				continue;
+			}
+			ASSERT_EQ(strings.getValue().size(), wkt.getValue().size()) <<
+				address << " " << name << " (" << type << ")";
+			for (size_t i = 0; i < wkt.getValue().size(); i++) {
+				const std::string& text = wkt.getValue()[i].getValue();
+				EXPECT_EQ(strings.getValue()[i].getValue(), text) << address <<
+					" " << name << " (" << type << ") value " << i;
+				EXPECT_EQ(
+					strings.getValue()[i].getRawWeight(),
+					wkt.getValue()[i].getRawWeight()) << address << " " <<
+					name << " value " << i;
+				if (isGeometry(type)) {
+					geometryValues++;
+					EXPECT_TRUE(text.find('(') != std::string::npos &&
+						text[0] >= 'A' && text[0] <= 'Z') << address << " " <<
+						name << " (" << type << ") is not WKT: " << text;
+				}
+			}
+		}
+	}
+	EXPECT_GT(geometryValues, 0) <<
+		"No address had a geometry value, so none was read as WKT";
+	std::printf("Geometry values read through the WKT getter: %d\n",
+		geometryValues);
+	std::fflush(stdout);
 }
