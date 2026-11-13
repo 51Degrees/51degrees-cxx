@@ -195,6 +195,33 @@ TEST_F(ExampleTestCountryOverlap, InMemory) {
 }
 
 /**
+ * A free data file has none of the properties the example needs, so it says
+ * which, links to ask for a copy of the Enterprise data file and stops. The
+ * free ASN data file stands in for the Lite one, which CI does not have.
+ */
+TEST_F(ExampleTestCountryOverlap, FreeDataFile) {
+    const string asnDataFilePath = getAsnDataFilePath();
+    if (asnDataFilePath.empty()) {
+        GTEST_SKIP() << "The free ASN data file is not present.";
+    }
+    fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiInMemoryConfig;
+    testing::internal::CaptureStdout();
+    const int result = fiftyoneDegreesIpiCountryOverlap(
+        asnDataFilePath.c_str(),
+        &config,
+        testOutputPath,
+        2,
+        testFirstChunk,
+        2,
+        DEFAULT_MIN_SECONDARY_PERCENT);
+    std::string output = testing::internal::GetCapturedStdout();
+    std::remove(testOutputPath);
+    EXPECT_EQ(COUNTRY_OVERLAP_PROPERTIES_MISSING, result) << output;
+    EXPECT_NE(output.find("https://51degrees.com/contact-us?"),
+        std::string::npos) << output;
+}
+
+/**
  * Every index valueIndex returns must name a printable value, because the
  * console summary and every CSV row print the name for the index they were
  * recorded against. The names used to be allocated per entry, so a failed

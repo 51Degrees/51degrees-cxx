@@ -52,6 +52,7 @@
 #endif
 
 #include "data.h"
+#include "bool.h"
 
 /**
  * Used to store the date when the dataset was produced and next date 51Degrees
@@ -65,6 +66,17 @@ typedef struct fiftyone_degrees_date_t {
 	byte day; /**< Day of the Month */
 } fiftyoneDegreesDate;
 #pragma pack(pop)
+
+/**
+ * Determines whether the date is a day of the Gregorian calendar, meaning a
+ * year above zero, a month from 1 to 12 and a day from 1 to the number of days
+ * in that month, with 29 in February of a leap year. A data file holds
+ * whatever bytes it was written with, so a date read from one is checked with
+ * this before it is used.
+ * @param date pointer to the date to check, or NULL
+ * @return true if the date is valid, otherwise false, including for NULL
+ */
+EXTERNAL bool fiftyoneDegreesDateIsValid(const fiftyoneDegreesDate *date);
 
 /**
  * @}

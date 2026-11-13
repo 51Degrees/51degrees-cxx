@@ -60,7 +60,9 @@ PropertyMetaData* PropertyMetaDataBuilderHash::build(
 	return new PropertyMetaData(
 		name,
 		getPropertyMap(dataSet, propertyIndex, mapCount),
-		getPropertyType(valueType, isList),
+		PropertyValueTypeGetName(
+			(PropertyValueType)valueType,
+			isList),
 		getText(
 			dataSet,
 			propertyIndex,
@@ -117,28 +119,6 @@ vector<uint32_t> PropertyMetaDataBuilderHash::getEvidenceProperties(
 		}
 	}
 	return indexes;
-}
-
-string PropertyMetaDataBuilderHash::getPropertyType(
-	uint8_t valueType,
-	bool isList) {
-	switch (valueType) {
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER:
-		return string("int");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN:
-		return string("bool");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE:
-		return string("double");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT:
-		return string("javascript");
-	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
-		if (isList) {
-			return string("string[]");
-		}
-		return string("string");
-	default:
-		return string("string");
-	}
 }
 
 vector<string> PropertyMetaDataBuilderHash::getPropertyMap(

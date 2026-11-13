@@ -217,6 +217,22 @@ typedef struct fiftyone_degrees_config_hash_t {
                      during processing. The trace can then be printed to debug
                      the matching after the fact. Note that this option is only
                      considered when compiled in debug mode. */
+	/**
+	 * When true, and the required properties are some but not all of the
+	 * properties in the data file, only the data they read is loaded into
+	 * memory. That is the values of the required properties and the strings
+	 * those values use, in whole records, with the rest of the values and
+	 * strings read from the file when needed with no cache. Other collections,
+	 * including the profiles and nodes every lookup walks, follow their own
+	 * settings. It has no effect when no property or every property is
+	 * required, or when allInMemory is true. True in the HighPerformance
+	 * configuration only.
+	 *
+	 * IP Intelligence also has defaultValuesInMemory. Device Detection does
+	 * not, because a Hash lookup uses no default value, and a property that a
+	 * profile has no value for returns no value.
+	 */
+	bool loadRequiredPropertiesOnly;
 } fiftyoneDegreesConfigHash;
 
 /**
@@ -399,6 +415,11 @@ EXTERNAL_VAR fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig;
  * with this configuration.
  * In this configuration, only the performance optimised graph is enabled for
  * processing to give the fastest operation.
+ *
+ * It sets loadRequiredPropertiesOnly, so when the required properties name
+ * some but not all of the properties in the data file, only the values they
+ * read and the strings those values use are kept in memory, and the rest of
+ * the values and strings read from the data file.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig;
 
@@ -858,6 +879,30 @@ EXTERNAL size_t fiftyoneDegreesResultsHashGetValuesString(
 	fiftyoneDegreesException *exception);
 
 /**
+ * Writes the script the client runs for a value of the
+ * JavascriptHardwareProfile property. The values the results give for that
+ * property are the bodies of the script. A body pushes the ids of the
+ * profiles it finds onto an array named profileIds, which it does not
+ * declare, and sends them nowhere. The script declares the array, then runs
+ * the body, then writes the ids, separated by '|', to the 51D_ProfileIds
+ * cookie, which the engine reads as evidence that sets the profiles. An empty
+ * or NULL body is written in the same way.
+ * Call with a NULL buffer to find the length needed, then with a buffer one
+ * longer than that.
+ * @param body the value of the property, or NULL for an empty one
+ * @param buffer to write the script to, or NULL to only find its length
+ * @param length of the buffer, including room for the null terminator
+ * @return the number of characters the script needs, not counting the null
+ * terminator. When the buffer is shorter than that plus one, it holds as
+ * many characters as fit followed by a null terminator, and a buffer of
+ * length 0 is left as it is.
+ */
+EXTERNAL size_t fiftyoneDegreesHashGetHardwareProfileScript(
+	const char *body,
+	char *buffer,
+	size_t length);
+
+/**
  * Sets the buffer to a JSON string that represents all the available
  * properties and values in the results. Each property is read as
  * #fiftyoneDegreesResultsHashGetValues reads it, so when no properties were
@@ -921,6 +966,87 @@ EXTERNAL size_t fiftyoneDegreesResultsHashGetValuesStringAllProperties(
 	size_t const length,
 	char* const separator,
 	fiftyoneDegreesException* exception);
+
+/**
+ * Gets the match metrics of the results, taken across every result. The
+ * results hold one result for each component that had evidence, and the walk
+ * of a component's graph sets the metrics of its result, so every graph not
+ * yet walked is walked first. The method is the highest any result used, and
+ * the difference, drift, iterations and matched nodes are each the sum of
+ * every result's. Each is zero, and the method none, when the results are
+ * NULL, hold no result or a walk fails.
+ * @param results pointer to the results to get the metrics of, or NULL
+ * @param method set to the highest method any result used, or NULL if not
+ * needed
+ * @param difference set to the total difference in hash code values between
+ * the matched substrings and those of the evidence, or NULL if not needed
+ * @param drift set to the sum, over the results, of the largest number of
+ * characters a matched substring was from where it was expected, or NULL if
+ * not needed
+ * @param iterations set to the total number of graph nodes visited, or NULL
+ * if not needed
+ * @param matchedNodes set to the total number of hash nodes matched in the
+ * evidence, or NULL if not needed
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ */
+EXTERNAL void fiftyoneDegreesResultsHashGetMatchMetrics(
+	fiftyoneDegreesResultsHash *results,
+	fiftyoneDegreesHashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the match metrics of one result, being those
+ * #fiftyoneDegreesResultsHashGetMatchMetrics takes across every result.
+ * Every graph not yet walked is walked first, so the answer does not depend
+ * on what was read before. Each is zero, and the method none, when the
+ * results are NULL, the index is not that of a result or a walk fails.
+ * @param results pointer to the results to get the metrics of, or NULL
+ * @param resultIndex index of the result, less than the number of results
+ * @param method set to the method the result used, or NULL if not needed
+ * @param difference set to the result's difference, or NULL if not needed
+ * @param drift set to the result's drift, or NULL if not needed
+ * @param iterations set to the result's iterations, or NULL if not needed
+ * @param matchedNodes set to the result's matched nodes, or NULL if not
+ * needed
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return true if the metrics set are the result's, or false if they are the
+ * zeros given when there is no such result or a walk fails
+ */
+EXTERNAL bool fiftyoneDegreesResultsHashGetMatchMetricsForResult(
+	fiftyoneDegreesResultsHash *results,
+	uint32_t resultIndex,
+	fiftyoneDegreesHashMatchMethod *method,
+	int32_t *difference,
+	int32_t *drift,
+	int32_t *iterations,
+	int32_t *matchedNodes,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the matched User-Agent of one result, being the evidence value its
+ * component was matched from, with each character the match did not use
+ * replaced by '_'. It is recorded only when the updateMatchedUserAgent option
+ * is set, and holds at most maxMatchedUserAgentLength characters. Every graph
+ * not yet walked is walked first, as the walk of a component's graph sets the
+ * matched User-Agent of its result.
+ * @param results pointer to the results to get the User-Agent from, or NULL
+ * @param resultIndex index of the result, less than the number of results
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the matched User-Agent, which stays valid until the results are
+ * populated again or freed, or NULL when the results are NULL, the index is
+ * not that of a result, a walk fails or none was recorded
+ */
+EXTERNAL const char* fiftyoneDegreesResultsHashGetMatchedUserAgent(
+	fiftyoneDegreesResultsHash *results,
+	uint32_t resultIndex,
+	fiftyoneDegreesException *exception);
 
 /**
  * Reload the data set being used by the resource manager using the data file
@@ -1017,6 +1143,71 @@ EXTERNAL fiftyoneDegreesDataSetHash* fiftyoneDegreesDataSetHashGet(
 EXTERNAL void fiftyoneDegreesDataSetHashRelease(
 	fiftyoneDegreesDataSetHash *dataSet);
 
+/**
+ * Writes the evidence keys the data set accepts, each with its prefix, with
+ * the separator between them. The keys are listed in this order.
+ *
+ * 1. For each unique header in the data set that is not a pseudo header, a
+ *    key under `header.` and then one under `query.`, with `HTTP_` before
+ *    the header name when the configuration's usesUpperPrefixedHeaders is
+ *    true. The header name is as the data set holds it.
+ * 2. For each property that can be overridden, a key under `cookie.` and
+ *    then one under `query.`, with `51D_` before the property name when the
+ *    overrides need that prefix.
+ * 3. `query.51D_deviceId`, `query.51D_gethighentropyvalues`,
+ *    `query.51D_structureduseragent`, `cookie.51D_gethighentropyvalues`,
+ *    `cookie.51D_structureduseragent`, `query.51D_ProfileIds` and
+ *    `cookie.51D_ProfileIds`.
+ *
+ * The keys in 2 and 3 are listed only when the configuration's
+ * processSpecialEvidence is true, as the data set reads none of them
+ * otherwise.
+ *
+ * A key that is listed more than once is written where it is first listed.
+ * Call with a NULL buffer to find the length needed, then with a buffer one
+ * longer than that.
+ * @param dataSet the data set to list the keys of
+ * @param buffer to write the keys to, or NULL to only find their length
+ * @param length of the buffer, including room for the null terminator
+ * @param separator written between keys. A comma suits, as no HTTP header
+ * name holds one and property names are given as a comma separated list.
+ * @return the number of characters the keys and separators need, not
+ * counting the null terminator. When the buffer is shorter than that plus
+ * one, it holds as many characters as fit followed by a null terminator.
+ */
+EXTERNAL size_t fiftyoneDegreesHashGetEvidenceKeys(
+	fiftyoneDegreesDataSetHash *dataSet,
+	char *buffer,
+	size_t length,
+	const char *separator);
+
+/**
+ * Gets the date the data file in use was published, from its header.
+ * @param manager the resource manager containing a hash data set initialised
+ * by one of the Hash data set init methods
+ * @param date pointer to the date to set, to the header's date when that is
+ * valid (see #fiftyoneDegreesDateIsValid), otherwise to a year, month and day
+ * of zero
+ * @return true if the header holds a valid date, otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesHashGetPublished(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date);
+
+/**
+ * Gets the date 51Degrees expect to publish the next data file, from the
+ * header of the data file in use.
+ * @param manager the resource manager containing a hash data set initialised
+ * by one of the Hash data set init methods
+ * @param date pointer to the date to set, to the header's date when that is
+ * valid (see #fiftyoneDegreesDateIsValid), otherwise to a year, month and day
+ * of zero
+ * @return true if the header holds a valid date, otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesHashGetNextUpdate(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date);
+
 
 /**
  * Iterates over the profiles in the data set calling the callback method for
@@ -1112,15 +1303,14 @@ EXTERNAL char* fiftyoneDegreesHashGetDeviceIdFromResults(
 /**
  * @name Metadata
  *
- * The properties of the data file, their values, its components and its
- * profiles, with the answers the C++ metadata classes give. Each function
- * takes a data set from #fiftyoneDegreesDataSetHashGet, which the caller
- * holds while it reads so that every answer comes from the same data file. A
- * property is found by its index in the data file, which counts every
- * property the file defines, including those the data set was not created
- * with. A function that gives text writes it into the buffer provided when it
- * fits, and otherwise into memory the caller frees with fiftyoneDegreesFree
- * when the pointer returned is not the buffer, as
+ * The properties of the data file, with the answers the C++ property metadata
+ * gives. Each function takes a data set from #fiftyoneDegreesDataSetHashGet,
+ * which the caller holds while it reads so that every answer comes from the
+ * same data file. A property is found by its index in the data file, which
+ * counts every property the file defines, including those the data set was
+ * not created with. A function that gives text writes it into the buffer
+ * provided when it fits, and otherwise into memory the caller frees with
+ * fiftyoneDegreesFree when the pointer returned is not the buffer, as
  * #fiftyoneDegreesStoredBinaryValueToText describes.
  * @{
  */
@@ -1141,7 +1331,9 @@ EXTERNAL uint32_t fiftyoneDegreesHashGetPropertyCount(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h
  * @return the index of the property, or -1 when the data file has no
- * property of that name or a property cannot be read
+ * property of that name or reading a property or a name sets the exception.
+ * A property whose name the strings collection gives nothing for is taken as
+ * the one named.
  */
 EXTERNAL int fiftyoneDegreesHashGetPropertyIndex(
 	fiftyoneDegreesDataSetHash *dataSet,

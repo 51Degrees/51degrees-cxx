@@ -38,6 +38,7 @@ EngineBase::EngineBase(
 	this->requiredProperties = requiredProperties;
 	this->config = config;
 	metaData = nullptr;
+	keyLists.emplace_back(new vector<string>());
 }
 
 EngineBase::~EngineBase() {
@@ -51,66 +52,25 @@ EngineBase::~EngineBase() {
 	}
 }
 
-void EngineBase::addKey(string key) {
-	if (find(keys.begin(), keys.end(), key) == keys.end()) {
-		keys.push_back(key);
-	}
-}
-
-void EngineBase::initOverrideKeys(
-	fiftyoneDegreesOverridePropertyArray *overrideProperties) {
-	uint32_t i;
-	const char *tempKey;
-	if (overrideProperties != nullptr) {
-		for (i = 0; i < overrideProperties->count; i++) {
-			string key = string("cookie.");
-			if (overrideProperties->prefix == true) {
-				key.append("51D_");
-			}
-			tempKey = STRING( // name is string
-				overrideProperties->items[i].available->name.data.ptr);
-			if (tempKey != nullptr) {
-				key.append(tempKey);
-				addKey(key);
-			}
-			else {
-				throw invalid_argument("Override evidence key was null.");
-			}
-			key = string("query.");
-			if (overrideProperties->prefix == true) {
-				key.append("51D_");
-			}
-			tempKey = STRING( // name is string
-				overrideProperties->items[i].available->name.data.ptr);
-			if (tempKey != nullptr) {
-				key.append(tempKey);
-				addKey(key);
-			}
-			else {
-				throw invalid_argument("Override evidence key was null.");
-			}
+vector<string> EngineBase::readKeys(
+	const std::function<size_t(char*, size_t, const char*)> &write) {
+	// No key holds a comma, as no HTTP header name holds one and property
+	// names are given as a comma separated list.
+	static const char separator[] = ",";
+	vector<char> buffer(write(nullptr, 0, separator) + 1);
+	write(buffer.data(), buffer.size(), separator);
+	const string text(buffer.data());
+	vector<string> keys;
+	size_t start = 0;
+	while (start < text.size()) {
+		size_t end = text.find(separator[0], start);
+		if (end == string::npos) {
+			end = text.size();
 		}
+		keys.push_back(text.substr(start, end - start));
+		start = end + 1;
 	}
-}
-
-void EngineBase::initHttpHeaderKeys(
-	fiftyoneDegreesHeaders *uniqueHeaders) {
-	uint32_t i, p;
-	const char *prefixes[] = { "header.", "query." };
-	for (i = 0; i < uniqueHeaders->count; i++) {
-		// If the header is a pseudo header, then don't expose to the
-		// caller as it's not important externally.
-		if (strstr(uniqueHeaders->items[i].name, "\x1F") == nullptr) {
-			for (p = 0; p < sizeof(prefixes) / sizeof(const char*); p++) {
-				string key = string(prefixes[p]);
-				if (config->getUseUpperPrefixHeaders()) {
-					key.append("HTTP_");
-				}
-				key.append(uniqueHeaders->items[i].name);
-				addKey(key);
-			}
-		}
-	}
+	return keys;
 }
 
 void EngineBase::setLicenseKey(const string &licenseKey) {
@@ -143,8 +103,17 @@ bool EngineBase::getAutomaticUpdatesEnabled() const {
 	return getDataUpdateUrl().empty() == false;
 }
 
+void EngineBase::setKeys(vector<string> &&newKeys) const {
+	std::lock_guard<std::mutex> lock(keysMutex);
+	if (*keyLists.back() == newKeys) {
+		return;
+	}
+	keyLists.emplace_back(new vector<string>(std::move(newKeys)));
+}
+
 const vector<string>* EngineBase::getKeys() const {
-	return &keys;
+	std::lock_guard<std::mutex> lock(keysMutex);
+	return keyLists.back().get();
 }
 
 vector<string> EngineBase::getRequiredProperties() const {

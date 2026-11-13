@@ -260,20 +260,19 @@ EXTERNAL const fiftyoneDegreesProperty* fiftyoneDegreesPropertyGetByName(
  * The text of a property that #fiftyoneDegreesPropertyGetText gives.
  */
 typedef enum e_fiftyone_degrees_property_text {
-	FIFTYONE_DEGREES_PROPERTY_TEXT_NAME = 0, /**< The property's name */
-	FIFTYONE_DEGREES_PROPERTY_TEXT_DESCRIPTION = 1, /**< The property's
-	                                                description, empty when
-	                                                it has none */
-	FIFTYONE_DEGREES_PROPERTY_TEXT_CATEGORY = 2, /**< The name of the
-	                                             category the property is in,
-	                                             empty when it is in none */
-	FIFTYONE_DEGREES_PROPERTY_TEXT_URL = 3, /**< The URL of more about the
-	                                        property, empty when it has
-	                                        none */
-	FIFTYONE_DEGREES_PROPERTY_TEXT_DEFAULT_VALUE = 4 /**< The property's
-	                                                 default value, as
-	                                                 #fiftyoneDegreesValueGetDefaultText
-	                                                 gives it */
+	/** The property's name */
+	FIFTYONE_DEGREES_PROPERTY_TEXT_NAME = 0,
+	/** The property's description, empty when it has none */
+	FIFTYONE_DEGREES_PROPERTY_TEXT_DESCRIPTION = 1,
+	/** The name of the category the property is in, empty when it is in none */
+	FIFTYONE_DEGREES_PROPERTY_TEXT_CATEGORY = 2,
+	/** The URL of more about the property, empty when it has none */
+	FIFTYONE_DEGREES_PROPERTY_TEXT_URL = 3,
+	/**
+	 * The property's default value, as #fiftyoneDegreesValueGetDefaultText
+	 * gives it
+	 */
+	FIFTYONE_DEGREES_PROPERTY_TEXT_DEFAULT_VALUE = 4
 } fiftyoneDegreesPropertyText;
 
 /**
@@ -286,7 +285,9 @@ typedef enum e_fiftyone_degrees_property_text {
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the 0 based index of the property, or -1 when no property has the
- * name or a property or a name cannot be read
+ * name or reading a property or a name sets the exception. A property whose
+ * name the strings collection gives nothing for is taken as the one named,
+ * so its index is returned.
  */
 EXTERNAL int fiftyoneDegreesPropertyGetIndexByName(
 	fiftyoneDegreesCollection *properties,

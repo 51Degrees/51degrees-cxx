@@ -21,10 +21,12 @@
  * ********************************************************************* */
 
 #include "../../common/pch.h"
+#include <memory>
 #include <string>
 #include <vector>
 #include "../Constants.hpp"
 #include "../../common/Base.hpp"
+#include "../../../src/dd/hash/PropertyMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/ValueMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/fiftyone.h"
 
@@ -39,6 +41,19 @@ const char* commonProperties =
 	"ScreenPixelsWidth,HardwareModel,IsMobile,BrowserName";
 
 using namespace std;
+
+/** Results that are freed on every way out of a test. */
+typedef std::unique_ptr<
+	ResultsHash,
+	decltype(&ResultsHashFree)> OwnedResults;
+
+/**
+ * Frees an initialised manager on every way out of a test. Declare it before
+ * any results made from the manager, so that the results are freed first.
+ */
+typedef std::unique_ptr<
+	ResourceManager,
+	decltype(&ResourceManagerFree)> ManagerGuard;
 
 class HashCTests : public Base {
 public:
@@ -305,19 +320,20 @@ TEST_F(HashCTests, ResultsShapeIndependentOfEvidenceCardinality) {
 TEST_F(HashCTests, NoValueReasonForNullProfileComponentIsNullProfile) {
 	EXCEPTION_CREATE;
 
-	EvidenceKeyValuePairArray* evidence = EvidenceCreate(1);
+	std::unique_ptr<EvidenceKeyValuePairArray, decltype(&EvidenceFree)>
+		evidence(EvidenceCreate(1), EvidenceFree);
 	EvidenceAddString(
-		evidence,
+		evidence.get(),
 		FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
 		"User-Agent",
 		mobileUserAgent);
 
-	ResultsHash* results = ResultsHashCreate(&manager, 0);
+	OwnedResults results(ResultsHashCreate(&manager, 0), ResultsHashFree);
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
 	ASSERT_FALSE(dataSet->config.b.allowUnmatched) <<
 		"This regression only applies when unmatched results are disabled.\n";
 
-	ResultsHashFromEvidence(results, evidence, exception);
+	ResultsHashFromEvidence(results.get(), evidence.get(), exception);
 	EXCEPTION_THROW;
 	ASSERT_GT(results->count, 0u) <<
 		"A User-Agent should produce at least one result.\n";
@@ -340,25 +356,22 @@ TEST_F(HashCTests, NoValueReasonForNullProfileComponentIsNullProfile) {
 	}
 
 	const int requiredPropertyIndex =
-		getRequiredPropertyIndex(results, "IsMobile");
+		getRequiredPropertyIndex(results.get(), "IsMobile");
 	ASSERT_GE(requiredPropertyIndex, 0) <<
 		"IsMobile must be an available property for this test.\n";
 
 	ASSERT_FALSE(ResultsHashGetHasValues(
-		results, requiredPropertyIndex, exception)) <<
+		results.get(), requiredPropertyIndex, exception)) <<
 		"A component with only null profiles must have no value.\n";
 	EXCEPTION_THROW;
 
-	fiftyoneDegreesResultsNoValueReason reason =
-		ResultsHashGetNoValueReason(results, requiredPropertyIndex, exception);
+	fiftyoneDegreesResultsNoValueReason reason = ResultsHashGetNoValueReason(
+		results.get(), requiredPropertyIndex, exception);
 	EXCEPTION_THROW;
 	EXPECT_EQ(FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NULL_PROFILE, reason) <<
 		"A component with only null profiles should report a null profile, "
 		"pointing the caller at lenient matching, not a generic "
 		"no-result-for-property reason.\n";
-
-	ResultsHashFree(results);
-	EvidenceFree(evidence);
 }
 
 /*
@@ -426,13 +439,15 @@ TEST_F(HashCTests, ResultsHashGetValuesStringTest) {
  * does not have enough space.
  */
 TEST_F(HashCTests, GraphTraceGetTests) {
-	ResultsHash* resultsUserAgents = ResultsHashCreate(&manager, 0);
+	OwnedResults resultsUserAgents(
+		ResultsHashCreate(&manager, 0),
+		ResultsHashFree);
 
 	EXCEPTION_CREATE;
 	// Obtain results from user agent, walking every graph so that the traces
 	// are written.
 	ResultsHashFromUserAgent(
-		resultsUserAgents,
+		resultsUserAgents.get(),
 		mobileUserAgent,
 		strlen(mobileUserAgent),
 		exception);
@@ -480,7 +495,6 @@ TEST_F(HashCTests, GraphTraceGetTests) {
 
 	// Free resource
 	Free(fullBuffer);
-	ResultsHashFree(resultsUserAgents);
 }
 
 // TODO - Remove after refactor.
@@ -859,6 +873,84 @@ TEST_F(HashCTests, ValueDescriptions) {
 }
 #endif
 
+/**
+ * The type name the property meta data gives for each value type a Hash data
+ * file holds, or nullptr for a type no Hash data file holds.
+ */
+static const char* hashTypeName(const Property *property) {
+	switch (property->valueType) {
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
+		return property->isList != 0 ? "string[]" : "string";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER:
+		return "int";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE:
+		return "double";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN:
+		return "bool";
+	case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT:
+		return "javascript";
+	default:
+		return nullptr;
+	}
+}
+
+class HashPropertyTypeTests : public Base {};
+
+/**
+ * The type name of every property of each Hash data file found, through the
+ * meta data the language wrappers read. A property of a type hashTypeName
+ * does not name fails, because each language maps these names to types of its
+ * own, and a type new to Hash data files needs a mapping there first.
+ */
+TEST_F(HashPropertyTypeTests, EveryDataFile) {
+	using FiftyoneDegrees::DeviceDetection::Hash::PropertyMetaDataBuilderHash;
+	int files = 0;
+	for (int f = 0; f < _HashFileNamesLength; f++) {
+		const string path = GetFilePath(_dataFolderName, _HashFileNames[f]);
+		if (path.empty()) {
+			continue;
+		}
+		files++;
+		EXCEPTION_CREATE;
+		ResourceManager manager;
+		PropertiesRequired properties = PropertiesDefault;
+		ConfigHash config = HashDefaultConfig;
+		ASSERT_EQ(SUCCESS, HashInitManagerFromFile(
+			&manager,
+			&config,
+			&properties,
+			path.c_str(),
+			exception)) << path;
+		DataSetHash *dataSet = DataSetHashGet(&manager);
+		for (uint32_t i = 0; i < dataSet->header.properties.count; i++) {
+			Item item;
+			DataReset(&item.data);
+			const Property *property = PropertyGet(
+				dataSet->properties, i, &item, exception);
+			ASSERT_NE(nullptr, property) << path << " property " << i;
+			std::unique_ptr<FiftyoneDegrees::Common::PropertyMetaData> metaData(
+				PropertyMetaDataBuilderHash::build(dataSet, i));
+			const char *expected = hashTypeName(property);
+			if (expected == nullptr) {
+				ADD_FAILURE() << _HashFileNames[f] << " " <<
+					metaData->getName() << " has value type " <<
+					(int)property->valueType << ", which is named " <<
+					metaData->getType();
+			}
+			else {
+				EXPECT_EQ(expected, metaData->getType()) <<
+					_HashFileNames[f] << " " << metaData->getName();
+			}
+			COLLECTION_RELEASE(dataSet->properties, &item);
+		}
+		DataSetHashRelease(dataSet);
+		ResourceManagerFree(&manager);
+	}
+	if (files == 0) {
+		GTEST_SKIP() << "No Hash data file was found.";
+	}
+}
+
 class HashCOverridesTests : public Base {
 public:
 	HashCOverridesTests() {
@@ -1204,19 +1296,20 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdWithStoredProperty) {
 	PropertiesRequired required = PropertiesDefault;
 	required.string = "DeviceId,IsMobile";
 	ASSERT_EQ(SUCCESS, initManager(&deviceIdManager, &required));
+	ManagerGuard managerGuard(&deviceIdManager, ResourceManagerFree);
 	EXPECT_EQ(unrestrictedDeviceId(),
 		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent));
 
-	ResultsHash *results = ResultsHashCreate(&deviceIdManager, 0);
+	OwnedResults results(
+		ResultsHashCreate(&deviceIdManager, 0),
+		ResultsHashFree);
 	ResultsHashFromUserAgent(
-		results, mobileUserAgent, strlen(mobileUserAgent), exception);
+		results.get(), mobileUserAgent, strlen(mobileUserAgent), exception);
 	EXCEPTION_THROW;
-	const int index = getRequiredPropertyIndex(results, "IsMobile");
+	const int index = getRequiredPropertyIndex(results.get(), "IsMobile");
 	ASSERT_GE(index, 0) << "IsMobile should still be available.\n";
-	EXPECT_TRUE(ResultsHashGetHasValues(results, index, exception));
+	EXPECT_TRUE(ResultsHashGetHasValues(results.get(), index, exception));
 	EXCEPTION_THROW;
-	ResultsHashFree(results);
-	ResourceManagerFree(&deviceIdManager);
 }
 
 /*
@@ -1411,4 +1504,201 @@ TEST_F(HashDeviceIdPropertyTests, DeviceIdWithPropertyValueIndex) {
 	EXPECT_EQ(unrestrictedDeviceId(),
 		getDeviceIdForUserAgent(&deviceIdManager, mobileUserAgent));
 	ResourceManagerFree(&deviceIdManager);
+}
+
+/*
+ * The query value of 51D_GetHighEntropyValues and 51D_StructuredUserAgent
+ * takes precedence over the cookie value, whatever order the evidence is
+ * given in. The evidence is built through the C API so that the order is the
+ * one the caller chose, which a map keyed by name cannot express.
+ */
+class HashSpecialEvidencePrecedenceTests : public HashCTests {
+public:
+	void SetUp() {
+		Base::SetUp();
+		properties.string = "PlatformName,PlatformVersion";
+		EXCEPTION_CREATE;
+		HashInitManagerFromFile(
+			&manager,
+			&configHash,
+			&properties,
+			dataFilePath.c_str(),
+			exception);
+		EXCEPTION_THROW;
+	}
+	void TearDown() {
+		ResourceManagerFree(&manager);
+		Base::TearDown();
+	}
+protected:
+	struct Item {
+		EvidencePrefix prefix;
+		const char *key;
+		const char *value;
+	};
+
+	// The platform version from the evidence, with the User-Agent as a header
+	// and then the items in the order given.
+	string platformVersion(const vector<Item> &items) {
+		EXCEPTION_CREATE;
+		EvidenceKeyValuePairArray *evidence = EvidenceCreate(
+			(uint32_t)items.size() + 1);
+		EvidenceAddString(
+			evidence,
+			FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+			"User-Agent",
+			windowsUserAgent);
+		for (const Item &item : items) {
+			EvidenceAddString(evidence, item.prefix, item.key, item.value);
+		}
+		ResultsHash *results = ResultsHashCreate(&manager, 0);
+		ResultsHashFromEvidence(results, evidence, exception);
+		EXCEPTION_THROW;
+		char buffer[256];
+		string version = getPropertyValueAsString(
+			results, "PlatformVersion", buffer, sizeof(buffer));
+		ResultsHashFree(results);
+		EvidenceFree(evidence);
+		return version;
+	}
+
+	// Checks the query value gives the Windows 11 platform version when the
+	// cookie value, which gives another, is added before and after it.
+	void expectQueryWins(
+		const char *queryKey,
+		const char *queryValue,
+		const char *cookieKey,
+		const char *cookieValue) {
+		const Item query = {
+			FIFTYONE_DEGREES_EVIDENCE_QUERY, queryKey, queryValue };
+		const Item cookie = {
+			FIFTYONE_DEGREES_EVIDENCE_COOKIE, cookieKey, cookieValue };
+
+		ASSERT_EQ(windows11Version, platformVersion({ query })) <<
+			"The query value alone must give the Windows 11 version.\n";
+		ASSERT_NE(windows11Version, platformVersion({ cookie })) <<
+			"The cookie value alone must give another version for this "
+			"test to show anything.\n";
+
+		EXPECT_EQ(windows11Version, platformVersion({ query, cookie })) <<
+			"Query added before the cookie, the query should win.\n";
+		EXPECT_EQ(windows11Version, platformVersion({ cookie, query })) <<
+			"Cookie added before the query, the query should win.\n";
+	}
+
+	const char *windowsUserAgent =
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+		"(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+	const string windows11Version = "11.0";
+
+	// Platform version 15.0.0, which the data file maps to Windows 11.
+	const char *windows11Ghev =
+		"eyJicmFuZHMiOlt7ImJyYW5kIjoiQ2hyb21pdW0iLCJ2ZXJzaW9uIjoiMTUyIn0seyJicmFu"
+		"ZCI6Ikdvb2dsZSBDaHJvbWUiLCJ2ZXJzaW9uIjoiMTUyIn0seyJicmFuZCI6Ik5vdD9BX0Jy"
+		"YW5kIiwidmVyc2lvbiI6IjI0In1dLCJmdWxsVmVyc2lvbkxpc3QiOlt7ImJyYW5kIjoiQ2hy"
+		"b21pdW0iLCJ2ZXJzaW9uIjoiMTUyLjAuNzI1OC42NiJ9LHsiYnJhbmQiOiJHb29nbGUgQ2hy"
+		"b21lIiwidmVyc2lvbiI6IjE1Mi4wLjcyNTguNjYifSx7ImJyYW5kIjoiTm90P0FfQnJhbmQi"
+		"LCJ2ZXJzaW9uIjoiMjQuMC4wLjAifV0sIm1vYmlsZSI6ZmFsc2UsIm1vZGVsIjoiIiwicGxh"
+		"dGZvcm0iOiJXaW5kb3dzIiwicGxhdGZvcm1WZXJzaW9uIjoiMTUuMC4wIn0=";
+
+	// The same values with platform version 10.0.0.
+	const char *windows10Ghev =
+		"eyJicmFuZHMiOlt7ImJyYW5kIjoiQ2hyb21pdW0iLCJ2ZXJzaW9uIjoiMTUyIn0seyJicmFu"
+		"ZCI6Ikdvb2dsZSBDaHJvbWUiLCJ2ZXJzaW9uIjoiMTUyIn0seyJicmFuZCI6Ik5vdD9BX0Jy"
+		"YW5kIiwidmVyc2lvbiI6IjI0In1dLCJmdWxsVmVyc2lvbkxpc3QiOlt7ImJyYW5kIjoiQ2hy"
+		"b21pdW0iLCJ2ZXJzaW9uIjoiMTUyLjAuNzI1OC42NiJ9LHsiYnJhbmQiOiJHb29nbGUgQ2hy"
+		"b21lIiwidmVyc2lvbiI6IjE1Mi4wLjcyNTguNjYifSx7ImJyYW5kIjoiTm90P0FfQnJhbmQi"
+		"LCJ2ZXJzaW9uIjoiMjQuMC4wLjAifV0sIm1vYmlsZSI6ZmFsc2UsIm1vZGVsIjoiIiwicGxh"
+		"dGZvcm0iOiJXaW5kb3dzIiwicGxhdGZvcm1WZXJzaW9uIjoiMTAuMC4wIn0=";
+
+	// Structured User-Agent values, which are JSON and not encoded. Platform
+	// version 14.0.0 is Windows 11 and 10.0.0 is Windows 10.
+	const char *windows11Sua =
+		"{\"browsers\":[{\"brand\":\"Chromium\",\"version\":[\"140\",\"0\","
+		"\"0\",\"0\"]},{\"brand\":\"Google Chrome\",\"version\":[\"140\","
+		"\"0\",\"0\",\"0\"]}],\"platform\":{\"brand\":\"Windows\","
+		"\"version\":[\"14\",\"0\",\"0\"]},\"mobile\":0,"
+		"\"architecture\":\"x86\",\"source\":2}";
+	const char *windows10Sua =
+		"{\"browsers\":[{\"brand\":\"Chromium\",\"version\":[\"140\",\"0\","
+		"\"0\",\"0\"]},{\"brand\":\"Google Chrome\",\"version\":[\"140\","
+		"\"0\",\"0\",\"0\"]}],\"platform\":{\"brand\":\"Windows\","
+		"\"version\":[\"10\",\"0\",\"0\"]},\"mobile\":0,"
+		"\"architecture\":\"x86\",\"source\":2}";
+};
+
+TEST_F(HashSpecialEvidencePrecedenceTests, GhevQueryBeatsCookie) {
+	expectQueryWins(
+		"51D_GetHighEntropyValues", windows11Ghev,
+		"51D_GetHighEntropyValues", windows10Ghev);
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, SuaQueryBeatsCookie) {
+	expectQueryWins(
+		"51D_StructuredUserAgent", windows11Sua,
+		"51D_StructuredUserAgent", windows10Sua);
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, QuerySuaBeatsCookieGhev) {
+	expectQueryWins(
+		"51D_StructuredUserAgent", windows11Sua,
+		"51D_GetHighEntropyValues", windows10Ghev);
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, QueryGhevBeatsCookieSua) {
+	expectQueryWins(
+		"51D_GetHighEntropyValues", windows11Ghev,
+		"51D_StructuredUserAgent", windows10Sua);
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, CookieGhevUsedAlone) {
+	EXPECT_EQ(windows11Version, platformVersion({ {
+		FIFTYONE_DEGREES_EVIDENCE_COOKIE,
+		"51D_GetHighEntropyValues",
+		windows11Ghev } }));
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, CookieSuaUsedAlone) {
+	EXPECT_EQ(windows11Version, platformVersion({ {
+		FIFTYONE_DEGREES_EVIDENCE_COOKIE,
+		"51D_StructuredUserAgent",
+		windows11Sua } }));
+}
+
+// A query value that cannot be decoded gives no header, so the cookie value
+// is still used, whichever order the two were added in.
+TEST_F(HashSpecialEvidencePrecedenceTests, InvalidQueryGhevLeavesTheCookie) {
+	const Item query = {
+		FIFTYONE_DEGREES_EVIDENCE_QUERY,
+		"51D_GetHighEntropyValues",
+		"!!not a base64 value!!" };
+	const Item cookie = {
+		FIFTYONE_DEGREES_EVIDENCE_COOKIE,
+		"51D_GetHighEntropyValues",
+		windows11Ghev };
+	ASSERT_NE(windows11Version, platformVersion({ query })) <<
+		"The invalid query value alone must not give the Windows 11 "
+		"version.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ query, cookie })) <<
+		"Invalid query added before the cookie, the cookie should be used.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ cookie, query })) <<
+		"Cookie added before the invalid query, the cookie should be used.\n";
+}
+
+TEST_F(HashSpecialEvidencePrecedenceTests, InvalidQuerySuaLeavesTheCookie) {
+	const Item query = {
+		FIFTYONE_DEGREES_EVIDENCE_QUERY,
+		"51D_StructuredUserAgent",
+		"{not valid json" };
+	const Item cookie = {
+		FIFTYONE_DEGREES_EVIDENCE_COOKIE,
+		"51D_StructuredUserAgent",
+		windows11Sua };
+	ASSERT_NE(windows11Version, platformVersion({ query })) <<
+		"The invalid query value alone must not give the Windows 11 "
+		"version.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ query, cookie })) <<
+		"Invalid query added before the cookie, the cookie should be used.\n";
+	EXPECT_EQ(windows11Version, platformVersion({ cookie, query })) <<
+		"Cookie added before the invalid query, the cookie should be used.\n";
 }
