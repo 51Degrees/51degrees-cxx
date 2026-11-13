@@ -292,6 +292,13 @@ An entry with `InstallCheck` also runs `ci/check-install.ps1` after its build.
 It builds an archive of the commit with the tests and examples off, offline on
 Linux, installs it, and builds and runs `test/install` against the install.
 
+`.github/workflows/examples.yml` builds the examples from a fresh clone and
+runs each one from the root with no settings, on Ubuntu and Windows, so each
+finds or downloads the free data file it needs. It is the only check of what a
+fresh clone does, as the other builds give the tests the Enterprise files. It
+runs on a pull request that changes the examples, the sources, the CMake files
+or the data pin.
+
 Pull requests target `rc`, not `main`, because every language takes
 each commit on `main` at its next nightly. The README's "Making changes" says
 how a change reaches `main`.

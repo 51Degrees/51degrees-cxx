@@ -1,0 +1,91 @@
+name: Examples on the free data files
+
+# Builds the examples from a fresh clone as the README says, and runs each one
+# from the root of the clone with no settings, as someone trying them would.
+# Each example finds the free data file it needs or downloads it, so this is
+# the check that a fresh clone works. The other builds give the tests the
+# Enterprise data files through secrets, so they cannot show it.
+on:
+  pull_request:
+    branches: [rc, main]
+    paths:
+      - 'examples/**'
+      - 'src/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'data'
+      - '.gitmodules'
+      - '.github/workflows/examples.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  examples:
+    name: Examples, ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Clone with the submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build as the README says, without the tests
+        run: |
+          New-Item -ItemType Directory build | Out-Null
+          Push-Location build
+          $platform = $IsWindows ? @('-A', 'x64') : @()
+          $configure = cmake .. @platform -DBUILD_TESTING=OFF 2>&1
+          if ($LASTEXITCODE -ne 0) { $configure | Out-Host; throw "Configure failed" }
+          $names = @($configure | ForEach-Object {
+            if ("$_" -match "Found C(\+\+)? example '([A-Za-z0-9]+)'") { $Matches[2] } })
+          "Examples: $($names -join ', ')"
+          if ($names.Count -eq 0) { throw "Configure found no examples" }
+          $build = cmake --build . --config Release --parallel 4 2>&1
+          if ($LASTEXITCODE -ne 0) { $build | Select-Object -Last 80 | Out-Host; throw "The build failed" }
+          Pop-Location
+          $names -join ' ' | Set-Content examples.txt
+
+      - name: Run each example from the root of the clone
+        run: |
+          $names = (Get-Content examples.txt -Raw).Trim() -split ' '
+          New-Item -ItemType File empty.txt | Out-Null
+          $failed = @()
+          foreach ($name in $names) {
+            $exe = $IsWindows ? "build/bin/Release/$name.exe" : "build/bin/$name"
+            Write-Output "::group::$name"
+            if (-not (Test-Path $exe)) {
+              Write-Output "$exe was not built"
+              $failed += "$name (not built)"
+              Write-Output "::endgroup::"
+              continue
+            }
+            # Standard input is an empty file, so an example that waits for
+            # a key reads the end of the file and carries on.
+            $start = Get-Date
+            $process = Start-Process -FilePath (Resolve-Path $exe).Path `
+              -WorkingDirectory $PWD -NoNewWindow -Wait -PassThru `
+              -RedirectStandardInput empty.txt `
+              -RedirectStandardOutput output.txt -RedirectStandardError errors.txt
+            $code = $process.ExitCode
+            $output = @(Get-Content output.txt) + @(Get-Content errors.txt)
+            $output | Select-Object -First 60 | Out-Host
+            if ($output.Count -gt 60) {
+              "... $($output.Count) lines" | Out-Host
+              $output | Select-Object -Last 15 | Out-Host
+            }
+            "Exit $code after $([int]((Get-Date) - $start).TotalSeconds) s" | Out-Host
+            Write-Output "::endgroup::"
+            if ($code -ne 0) { $failed += "$name (exit $code)" }
+          }
+          if ($failed) { throw "Examples that failed: $($failed -join ', ')" }
+          "All $($names.Count) examples exited with 0"
