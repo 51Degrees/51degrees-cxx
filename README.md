@@ -242,7 +242,9 @@ languages update once for all of them.
   stays a draft until it has been reviewed. A change to documentation alone
   builds nothing. To build a draft, use common-ci's
   [`nightly-pull-request.yml`](https://github.com/51Degrees/common-ci/blob/main/.github/workflows/nightly-pull-request.yml)
-  started with `dryrun: 'true'` and `branch: rc`.
+  started with `dryrun: 'true'` and `branch: rc`. It builds the entries
+  `ci/select-options.ps1` chooses unless `full-matrix` is `true`, which
+  builds every entry, macOS included.
 - The release pull request from `rc` into `main` is built on every
   configuration by
   [`release-pull-request.yml`](.github/workflows/release-pull-request.yml).
