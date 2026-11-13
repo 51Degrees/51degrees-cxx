@@ -170,6 +170,11 @@ namespace FiftyoneDegrees {
 					// Report the number of reloads.
 					printf("Reloaded '%i' times.\r\n", numberOfReloads);
 					printf("Failed to reload '%i' times.\r\n", numberOfReloadFails);
+
+					// On a free data file, say what the Enterprise data file
+					// adds and where to ask for a copy.
+					offerEnterprise(
+						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-ipintelligence-reloadfrommemory.cpp&utm_term=free-data-file");
 					printf("Program execution complete. Press Return to exit.");
 				}
 
@@ -189,9 +194,9 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesStatusCode status = FIFTYONE_DEGREES_STATUS_SUCCESS;
 	char dataFilePath[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	char ipAddressFilePath[FIFTYONE_DEGREES_FILE_MAX_PATH];
-	// An explicit data file path can be supplied in the 51DEGREES_IPI_PATH
+	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("51DEGREES_IPI_PATH");
+	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}
@@ -206,12 +211,12 @@ int main(int argc, char* argv[]) {
 	else {
 		status = ExampleBase::getFilePath(
 			dataDir,
-			dataFileName,
+			asnDataFileName,
 			dataFilePath,
 			sizeof(dataFilePath));
 	}
 	if (status != FIFTYONE_DEGREES_STATUS_SUCCESS) {
-		ExampleBase::reportStatus(status, dataFileName);
+		ExampleBase::reportStatus(status, asnDataFileName);
 #ifndef TEST
 		fgetc(stdin);
 #endif

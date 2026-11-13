@@ -114,24 +114,20 @@ public:
 	}
 
 	void checkEvidenceProperty(EngineHash *localEngine, string propertyName, string evidencePropertyName) {
-		PropertyMetaData* property, * evidenceProperty;
-		Collection<string, PropertyMetaData>* properties, * evidenceProperties;
 		MetaData* metaData = localEngine->getMetaData();
-		properties = metaData->getProperties();
-		property = properties->getByKey(propertyName);
+		std::unique_ptr<Collection<string, PropertyMetaData>> properties(
+			metaData->getProperties());
+		std::unique_ptr<PropertyMetaData> property(
+			properties->getByKey(propertyName));
 		if (property->getAvailable() == true) {
-			evidenceProperties = metaData->getEvidencePropertiesForProperty(property);
+			std::unique_ptr<Collection<string, PropertyMetaData>>
+				evidenceProperties(metaData->getEvidencePropertiesForProperty(
+					property.get()));
 			ASSERT_GT(evidenceProperties->getSize(), (uint32_t)0);
-			evidenceProperty = evidenceProperties->getByKey(evidencePropertyName);
-			ASSERT_NE(nullptr, evidenceProperty);
-			if (evidenceProperty != nullptr) {
-				delete evidenceProperty;
-			}
-			delete evidenceProperties;
+			std::unique_ptr<PropertyMetaData> evidenceProperty(
+				evidenceProperties->getByKey(evidencePropertyName));
+			ASSERT_NE(nullptr, evidenceProperty.get());
 		}
-		delete property;
-		delete properties;
-
 	}
 
 	void availableProperties() {
@@ -304,9 +300,9 @@ public:
 		// graph is used.
 		EvidenceDeviceDetection evidence;
 		evidence["header.user-agent"] = mobileUserAgent;
-		ResultsHash* goodResults;
+		std::unique_ptr<ResultsHash> goodResults;
 		try {
-			goodResults = ((EngineHash*)getEngine())->process(&evidence);
+			goodResults.reset(((EngineHash*)getEngine())->process(&evidence));
 		}
 		catch (exception &e){
 			FAIL() << L"Processing should not throw an exception if it is "
@@ -314,9 +310,9 @@ public:
 				<< e.what();
 		}
 		evidence["header.user-agent"] = badUserAgent;
-		ResultsHash* badResults;
+		std::unique_ptr<ResultsHash> badResults;
 		try {
-			badResults = ((EngineHash*)getEngine())->process(&evidence);
+			badResults.reset(((EngineHash*)getEngine())->process(&evidence));
 		}
 		catch (exception &e) {
 			FAIL() << L"Processing should not throw an exception if it is "
@@ -336,8 +332,6 @@ public:
 			<< L"No graph should have been used.";
 
 		// Clean up
-		delete goodResults;
-		delete badResults;
 		editableConfig->usePerformanceGraph = originalPerf;
 		editableConfig->usePredictiveGraph = originalPred;
 	}
@@ -359,9 +353,9 @@ public:
 		// graph is used.
 		EvidenceDeviceDetection evidence;
 		evidence["header.user-agent"] = mobileUserAgent;
-		ResultsHash* goodResults;
+		std::unique_ptr<ResultsHash> goodResults;
 		try {
-			goodResults = ((EngineHash*)getEngine())->process(&evidence);
+			goodResults.reset(((EngineHash*)getEngine())->process(&evidence));
 		}
 		catch (exception &e) {
 			FAIL() << L"Processing should not throw an exception if it is "
@@ -369,9 +363,9 @@ public:
 				<< e.what();
 		}
 		evidence["header.user-agent"] = badUserAgent;
-		ResultsHash* badResults;
+		std::unique_ptr<ResultsHash> badResults;
 		try {
-			badResults = ((EngineHash*)getEngine())->process(&evidence);
+			badResults.reset(((EngineHash*)getEngine())->process(&evidence));
 		}
 		catch (exception &e) {
 			FAIL() << L"Processing should not throw an exception if it is "
@@ -391,8 +385,6 @@ public:
 			<< L"No graph should have been used.";
 
 		// Clean up
-		delete goodResults;
-		delete badResults;
 		editableConfig->usePerformanceGraph = originalPerf;
 		editableConfig->usePredictiveGraph = originalPred;
 	}

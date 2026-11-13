@@ -31,11 +31,15 @@ const char *ExampleBase::ipv4Address = "116.154.188.222";
 
 const char *ExampleBase::ipv6Address = "2001:db8::";
 
+const char *ExampleBase::needsEnterprise =
+	FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE;
+
 ExampleBase::ExampleBase(::byte *data, FileOffset length, const std::shared_ptr<FiftyoneDegrees::IpIntelligence::ConfigIpi> &config) {
 	this->config = config;
 	
-	// Set the properties to be returned for each Ip Address.
-	string propertiesString = "IpRangeStart,IpRangeEnd,RegisteredCountry,AccuracyRadiusMin,Longitude,Latitude";
+	// Set the properties to be returned for each Ip Address. AsnName is for
+	// the free ASN data file, which has none of the others.
+	string propertiesString = "IpRangeStart,IpRangeEnd,RegisteredCountry,AccuracyRadiusMin,Longitude,Latitude,AsnName";
 	properties = std::make_unique<RequiredPropertiesConfig>(propertiesString);
 	
 	// Initialise the engine for IP intelligence.
@@ -45,8 +49,9 @@ ExampleBase::ExampleBase(::byte *data, FileOffset length, const std::shared_ptr<
 ExampleBase::ExampleBase(const string& dataFilePath, const std::shared_ptr<FiftyoneDegrees::IpIntelligence::ConfigIpi> &config) {
 	this->config = config;
 	
-	// Set the properties to be returned for each Ip Address.
-	string propertiesString = "IpRangeStart,IpRangeEnd,AccuracyRadiusMin,RegisteredCountry,RegisteredName,Longitude,Latitude,Areas";
+	// Set the properties to be returned for each Ip Address. AsnName is for
+	// the free ASN data file, which has none of the others.
+	string propertiesString = "IpRangeStart,IpRangeEnd,AccuracyRadiusMin,RegisteredCountry,RegisteredName,Longitude,Latitude,Areas,AsnName";
 	properties = std::make_unique<RequiredPropertiesConfig>(propertiesString);
 
 	// Initialise the engine for ip intelligence.
@@ -75,6 +80,25 @@ fiftyoneDegreesStatusCode ExampleBase::getFilePath(
 		fileName,
 		destination,
 		size);
+}
+
+bool ExampleBase::hasProperty(const char *name) const {
+	auto const fileProperties =
+		std::unique_ptr<Collection<string, PropertyMetaData>>(
+			engine->getMetaData()->getProperties());
+	auto const property = std::unique_ptr<PropertyMetaData>(
+		fileProperties->getByKey(name));
+	return property != nullptr;
+}
+
+void ExampleBase::offerEnterprise(const char *contactUs) const {
+	// Only the Enterprise data file has the range properties, so a check for
+	// IpRangeStart tells the free data files, Lite and ASN, apart from it.
+	if (!hasProperty("IpRangeStart")) {
+		cout << "\nThis example is using a free data file. The Enterprise "
+			"data file adds the location, range and connection properties. "
+			"Contact us for a copy at " << contactUs << "\n";
+	}
 }
 
 unsigned long ExampleBase::generateHash(unsigned char *value) {

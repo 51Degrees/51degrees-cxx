@@ -156,6 +156,11 @@ public:
 	Tracking& operator=(const Tracking&) = delete;
 };
 
+/** Results that are freed on every way out of a test. */
+typedef std::unique_ptr<
+	fiftyoneDegreesResultsHash,
+	decltype(&fiftyoneDegreesResultsHashFree)> OwnedResults;
+
 fiftyoneDegreesDataSetHash* dataSetOf(fiftyoneDegreesResultsHash* results) {
 	return (fiftyoneDegreesDataSetHash*)results->b.b.dataSet;
 }
@@ -709,6 +714,8 @@ protected:
 					if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
 						failures++;
 					}
+					const fiftyoneDegreesPropertiesAvailable* available =
+						dataSetOf(results)->b.b.available;
 					for (int i = 0; i < positionCount(results); i++) {
 						FIFTYONE_DEGREES_EXCEPTION_CLEAR;
 						fiftyoneDegreesResultsHashGetHasValues(
@@ -718,12 +725,18 @@ protected:
 						if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
 							failures++;
 						}
-						fiftyoneDegreesResultsHashGetValues(
-							results,
-							i,
-							exception);
-						if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
-							failures++;
+						// A property the data set does not have keeps its
+						// position, and has no values to read.
+						if (fiftyoneDegreesPropertiesGetAvailableIndex(
+							available,
+							i) >= 0) {
+							fiftyoneDegreesResultsHashGetValues(
+								results,
+								i,
+								exception);
+							if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
+								failures++;
+							}
 						}
 					}
 					fiftyoneDegreesResultsHashFree(results);
@@ -948,29 +961,29 @@ TEST_F(HashFirstReadRuleTests, NoneNamed_ReadWalksOnlyItsComponent) {
 	}
 	Manager m;
 	ASSERT_NO_FATAL_FAILURE(init(m, fiftyoneDegreesPropertiesDefault));
-	fiftyoneDegreesResultsHash* results =
-		fiftyoneDegreesResultsHashCreate(&m.manager, 0, 1);
-	const int hardware = componentOfName(results, hardwareProperty);
-	const int browser = componentOfName(results, browserProperty);
+	OwnedResults results(
+		fiftyoneDegreesResultsHashCreate(&m.manager, 0, 1),
+		fiftyoneDegreesResultsHashFree);
+	const int hardware = componentOfName(results.get(), hardwareProperty);
+	const int browser = componentOfName(results.get(), browserProperty);
 	ASSERT_GE(hardware, 0);
 	ASSERT_GE(browser, 0);
-	const std::vector<int> components = availableComponents(results);
+	const std::vector<int> components = availableComponents(results.get());
 	std::vector<int> walks;
-	countWalks(results, walks);
-	populate(results, userAgent(iPhoneUserAgent));
+	countWalks(results.get(), walks);
+	populate(results.get(), userAgent(iPhoneUserAgent));
 	ASSERT_EQ(components.size(), (size_t)results->count);
-	valueOf(results, hardwareProperty);
-	valueOf(results, hardwareProperty);
+	valueOf(results.get(), hardwareProperty);
+	valueOf(results.get(), hardwareProperty);
 	EXPECT_EQ(std::vector<int>({ hardware }), walks);
 	std::vector<bool> expected(components.size(), false);
 	for (size_t i = 0; i < components.size(); i++) {
 		expected[i] = components[i] == hardware;
 	}
-	EXPECT_EQ(expected, walkedResults(results)) <<
+	EXPECT_EQ(expected, walkedResults(results.get())) <<
 		"Reading a hardware property walked another component's graph.";
-	valueOf(results, browserProperty);
+	valueOf(results.get(), browserProperty);
 	EXPECT_EQ(std::vector<int>({ hardware, browser }), walks);
-	fiftyoneDegreesResultsHashFree(results);
 }
 
 /**
@@ -1254,27 +1267,28 @@ TEST_F(HashFirstReadRuleTests, Reload_ReadAfterReload_AnswersFromTheHeldDataSet)
 			good,
 			withNames ?
 				named(names.c_str()) : fiftyoneDegreesPropertiesDefault));
-		fiftyoneDegreesResultsHash* expected =
-			fiftyoneDegreesResultsHashCreate(&m.manager, 0, 0);
-		fiftyoneDegreesResultsHash* held =
-			fiftyoneDegreesResultsHashCreate(&m.manager, 0, 0);
-		populate(expected, userAgent(iPhoneUserAgent));
-		populate(held, userAgent(iPhoneUserAgent));
-		const std::vector<std::string> before = describeAll(expected);
-		fiftyoneDegreesResultsHashFree(expected);
+		OwnedResults expected(
+			fiftyoneDegreesResultsHashCreate(&m.manager, 0, 0),
+			fiftyoneDegreesResultsHashFree);
+		OwnedResults held(
+			fiftyoneDegreesResultsHashCreate(&m.manager, 0, 0),
+			fiftyoneDegreesResultsHashFree);
+		populate(expected.get(), userAgent(iPhoneUserAgent));
+		populate(held.get(), userAgent(iPhoneUserAgent));
+		const std::vector<std::string> before = describeAll(expected.get());
+		expected.reset();
 
 		ASSERT_NO_FATAL_FAILURE(reload(m, renamed));
-		EXPECT_EQ(before, describeAll(held)) <<
+		EXPECT_EQ(before, describeAll(held.get())) <<
 			(withNames ? "named" : "none named");
 
-		fiftyoneDegreesResultsHash* reloaded =
-			fiftyoneDegreesResultsHashCreate(&m.manager, 0, 0);
-		populate(reloaded, userAgent(iPhoneUserAgent));
-		EXPECT_NE(before, describeAll(reloaded)) <<
+		OwnedResults reloaded(
+			fiftyoneDegreesResultsHashCreate(&m.manager, 0, 0),
+			fiftyoneDegreesResultsHashFree);
+		populate(reloaded.get(), userAgent(iPhoneUserAgent));
+		EXPECT_NE(before, describeAll(reloaded.get())) <<
 			"The reload did not change what the positions read, " <<
 			(withNames ? "named" : "none named");
-		fiftyoneDegreesResultsHashFree(reloaded);
-		fiftyoneDegreesResultsHashFree(held);
 	}
 }
 
@@ -1297,26 +1311,26 @@ TEST_F(HashFirstReadRuleTests, Reload_ReusedResults_KeepTheirDataSet) {
 			good,
 			withNames ?
 				named(names.c_str()) : fiftyoneDegreesPropertiesDefault));
-		fiftyoneDegreesResultsHash* reused =
-			fiftyoneDegreesResultsHashCreate(&m.manager, 0, 0);
-		populate(reused, userAgent(iPhoneUserAgent));
-		const std::vector<std::string> before = describeAll(reused);
+		OwnedResults reused(
+			fiftyoneDegreesResultsHashCreate(&m.manager, 0, 0),
+			fiftyoneDegreesResultsHashFree);
+		populate(reused.get(), userAgent(iPhoneUserAgent));
+		const std::vector<std::string> before = describeAll(reused.get());
 		const void* held = reused->b.b.dataSet;
 
 		ASSERT_NO_FATAL_FAILURE(reload(m, renamed));
-		populate(reused, userAgent(iPhoneUserAgent));
+		populate(reused.get(), userAgent(iPhoneUserAgent));
 		EXPECT_EQ(held, reused->b.b.dataSet);
-		EXPECT_EQ(before, describeAll(reused)) <<
+		EXPECT_EQ(before, describeAll(reused.get())) <<
 			(withNames ? "named" : "none named");
 
-		fiftyoneDegreesResultsHash* fresh =
-			fiftyoneDegreesResultsHashCreate(&m.manager, 0, 0);
+		OwnedResults fresh(
+			fiftyoneDegreesResultsHashCreate(&m.manager, 0, 0),
+			fiftyoneDegreesResultsHashFree);
 		EXPECT_NE(held, fresh->b.b.dataSet);
-		populate(fresh, userAgent(iPhoneUserAgent));
-		EXPECT_NE(before, describeAll(fresh)) <<
+		populate(fresh.get(), userAgent(iPhoneUserAgent));
+		EXPECT_NE(before, describeAll(fresh.get())) <<
 			(withNames ? "named" : "none named");
-		fiftyoneDegreesResultsHashFree(fresh);
-		fiftyoneDegreesResultsHashFree(reused);
 	}
 }
 

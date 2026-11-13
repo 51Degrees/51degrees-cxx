@@ -93,6 +93,31 @@ TEST_F(IpiConcurrencyTests, DefaultConfig_IsTheProcessorCount) {
 		config.getConcurrency());
 }
 
+/**
+ * Checks that a configuration holds the collections as the Balanced profile
+ * does, which is the default the specification and the C library give.
+ */
+static void expectBalanced(ConfigIpi &config) {
+	const fiftyoneDegreesConfigIpi &balanced =
+		fiftyoneDegreesIpiBalancedConfig;
+	EXPECT_EQ(balanced.b.allInMemory, config.getConfig().b.allInMemory);
+	EXPECT_EQ(balanced.strings.loaded, config.getStrings().getLoaded());
+	EXPECT_EQ(balanced.strings.capacity, config.getStrings().getCapacity());
+	EXPECT_EQ(balanced.profiles.loaded, config.getProfiles().getLoaded());
+	EXPECT_EQ(balanced.profiles.capacity, config.getProfiles().getCapacity());
+	EXPECT_EQ(balanced.graphs.loaded, config.getGraphs().getLoaded());
+	EXPECT_EQ(balanced.graphs.capacity, config.getGraphs().getCapacity());
+	EXPECT_EQ(balanced.graph.loaded, config.getGraph().getLoaded());
+	EXPECT_EQ(balanced.graph.capacity, config.getGraph().getCapacity());
+}
+
+TEST_F(IpiConcurrencyTests, DefaultConfig_IsBalanced) {
+	ConfigIpi config;
+	expectBalanced(config);
+	ConfigIpi fromNull(nullptr);
+	expectBalanced(fromNull);
+}
+
 TEST_F(IpiConcurrencyTests, PerformanceProfile_KeepsTheConcurrency) {
 	ConfigIpi config;
 	config.setConcurrency(setConcurrencyBeforeProfile);

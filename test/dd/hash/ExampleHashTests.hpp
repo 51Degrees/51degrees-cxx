@@ -29,6 +29,15 @@ public:
         _HashFileNamesLength,
 		_userAgentsFileName,
 		_evidenceFileName) {}
+
+protected:
+	/**
+	 * Path to the free Lite data file, which a fresh clone uses, or empty
+	 * when it is not present.
+	 */
+	string getLiteDataFilePath() {
+		return GetFilePath(_dataFolderName, "51Degrees-LiteV4.1.hash");
+	}
 };
 
 #define EXAMPLE_HASH_TESTS(c) EXAMPLE_TESTS(c, Hash)

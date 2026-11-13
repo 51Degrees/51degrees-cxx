@@ -27,6 +27,17 @@ using namespace FiftyoneDegrees;
 
 #define RESULT(r,i) ((ResultHash*)r->b.b.items + i)
 
+/**
+ * The script the client runs for a value of JavascriptHardwareProfile.
+ */
+static string getHardwareProfileScript(const char *body) {
+	const size_t length = HashGetHardwareProfileScript(body, nullptr, 0);
+	string script(length + 1, '\0');
+	HashGetHardwareProfileScript(body, &script[0], script.size());
+	script.resize(length);
+	return script;
+}
+
 DeviceDetection::Hash::ResultsHash::ResultsHash(
 	fiftyoneDegreesResultsHash *results,
 	shared_ptr<fiftyoneDegreesResourceManager> manager)
@@ -70,17 +81,12 @@ void DeviceDetection::Hash::ResultsHash::getValuesInternal(
 	if (_jsHardwareProfileRequiredIndex >= 0 &&
 		(int)requiredPropertyIndex == _jsHardwareProfileRequiredIndex) {
 
-		// Add the values as JavaScript snippets to the result.
+		// Add each value as the script the client runs.
 		for (i = 0; i < results->values.count; i++) {
 			valueName = (String*)valuesItems[i].data.ptr;
 			if (valueName != nullptr) {
-				stringstream stream;
-				stream <<
-					"var profileIds = []\n" <<
-					STRING(valueName) <<
-					"\ndocument.cookie = \"51D_ProfileIds=\" + " <<
-					"profileIds.join(\"|\")";
-				values.push_back(stream.str());
+				values.push_back(
+					getHardwareProfileScript(STRING(valueName)));
 			}
 		}
 	}
@@ -162,80 +168,126 @@ string DeviceDetection::Hash::ResultsHash::getDeviceId() const {
 }
 
 int DeviceDetection::Hash::ResultsHash::getIterations() const {
-	uint32_t i;
-	int iterations = 0;
-	if (results != NULL) {
-		evaluateAll();
-		for (i = 0; i < results->count; i++) {
-			iterations += results->items[i].iterations;
-		}
-	}
+	EXCEPTION_CREATE;
+	int32_t iterations;
+	ResultsHashGetMatchMetrics(
+		results,
+		nullptr,
+		nullptr,
+		nullptr,
+		&iterations,
+		nullptr,
+		exception);
+	EXCEPTION_THROW;
 	return iterations;
 }
 
 int DeviceDetection::Hash::ResultsHash::getMatchedNodes() const {
-	uint32_t i;
-	int matchedNodes = 0;
-	if (results != NULL) {
-		evaluateAll();
-		for (i = 0; i < results->count; i++) {
-			matchedNodes += results->items[i].matchedNodes;
-		}
-	}
+	EXCEPTION_CREATE;
+	int32_t matchedNodes;
+	ResultsHashGetMatchMetrics(
+		results,
+		nullptr,
+		nullptr,
+		nullptr,
+		nullptr,
+		&matchedNodes,
+		exception);
+	EXCEPTION_THROW;
 	return matchedNodes;
 }
 
 int DeviceDetection::Hash::ResultsHash::getDrift(uint32_t resultIndex) const {
-	evaluateAll();
-	return results->items[resultIndex].drift;
+	EXCEPTION_CREATE;
+	int32_t drift;
+	ResultsHashGetMatchMetricsForResult(
+		results,
+		resultIndex,
+		nullptr,
+		nullptr,
+		&drift,
+		nullptr,
+		nullptr,
+		exception);
+	EXCEPTION_THROW;
+	return drift;
 }
 
 int DeviceDetection::Hash::ResultsHash::getDrift() const {
-	uint32_t i;
-	int drift = 0;
-	if (results != NULL) {
-		evaluateAll();
-		for (i = 0; i < results->count; i++) {
-			drift += results->items[i].drift;
-		}
-	}
+	EXCEPTION_CREATE;
+	int32_t drift;
+	ResultsHashGetMatchMetrics(
+		results,
+		nullptr,
+		nullptr,
+		&drift,
+		nullptr,
+		nullptr,
+		exception);
+	EXCEPTION_THROW;
 	return drift;
 }
 
 int DeviceDetection::Hash::ResultsHash::getDifference(
 	uint32_t resultIndex) const {
-	evaluateAll();
-	return results->items[resultIndex].difference;
+	EXCEPTION_CREATE;
+	int32_t difference;
+	ResultsHashGetMatchMetricsForResult(
+		results,
+		resultIndex,
+		nullptr,
+		&difference,
+		nullptr,
+		nullptr,
+		nullptr,
+		exception);
+	EXCEPTION_THROW;
+	return difference;
 }
 
 int DeviceDetection::Hash::ResultsHash::getDifference() const {
-	uint32_t i;
-	int difference = 0;
-	for (i = 0; i < results->count; i++) {
-		difference += getDifference(i);
-	}
+	EXCEPTION_CREATE;
+	int32_t difference;
+	ResultsHashGetMatchMetrics(
+		results,
+		nullptr,
+		&difference,
+		nullptr,
+		nullptr,
+		nullptr,
+		exception);
+	EXCEPTION_THROW;
 	return difference;
 }
 
 int DeviceDetection::Hash::ResultsHash::getMethod(uint32_t resultIndex) const {
-	evaluateAll();
-	if (resultIndex < results->count) {
-		return results->items[resultIndex].method;
-	}
-	return 0;
+	EXCEPTION_CREATE;
+	HashMatchMethod method;
+	ResultsHashGetMatchMetricsForResult(
+		results,
+		resultIndex,
+		&method,
+		nullptr,
+		nullptr,
+		nullptr,
+		nullptr,
+		exception);
+	EXCEPTION_THROW;
+	return method;
 }
 
 int DeviceDetection::Hash::ResultsHash::getMethod() const {
-	uint32_t i;
-	int method = getMethod(0),
-		nextMethod;
-
-	for (i = 1; i < results->count; i++) {
-		nextMethod = getMethod(i);
-		if (nextMethod > method) {
-			method = nextMethod;
-		}
-	}
+	EXCEPTION_CREATE;
+	HashMatchMethod method;
+	ResultsHashGetMatchMetrics(
+		results,
+		&method,
+		nullptr,
+		nullptr,
+		nullptr,
+		nullptr,
+		exception);
+	EXCEPTION_THROW;
 	return method;
 }
 
@@ -280,12 +332,14 @@ int DeviceDetection::Hash::ResultsHash::getUserAgents() const {
 
 string DeviceDetection::Hash::ResultsHash::getUserAgent(
 	int resultIndex) const {
-	string userAgent;
-	evaluateAll();
-	if (resultIndex >= 0 && (uint32_t)resultIndex < results->count) {
-		if (results->items[resultIndex].b.matchedUserAgent != NULL) {
-			userAgent.assign(results->items[resultIndex].b.matchedUserAgent);
-		}
-	}
-	return userAgent;
+	EXCEPTION_CREATE;
+
+	// A negative index is not that of a result, so it is passed as an index
+	// past every result, which still walks the graphs not yet walked.
+	const char *userAgent = ResultsHashGetMatchedUserAgent(
+		results,
+		resultIndex < 0 ? UINT32_MAX : (uint32_t)resultIndex,
+		exception);
+	EXCEPTION_THROW;
+	return userAgent == nullptr ? string() : string(userAgent);
 }

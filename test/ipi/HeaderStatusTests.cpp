@@ -221,3 +221,22 @@ TEST_F(HeaderStatusTests, ShiftedProfilesBeyondFile) {
 		"complete and uncompressed",
 		"configuration");
 }
+
+/**
+ * Check that the reasons the typed readers give without a value each have
+ * their own message, and not the one for an unknown reason.
+ */
+TEST(IpiNoValueMessages, EachReasonHasItsOwnMessage) {
+	const char *unknown = fiftyoneDegreesResultsIpiGetNoValueReasonMessage(
+		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_UNKNOWN);
+	const fiftyoneDegreesResultsNoValueReason reasons[] = {
+		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULT_FOR_PROPERTY,
+		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_TOO_MANY_VALUES };
+	for (fiftyoneDegreesResultsNoValueReason reason : reasons) {
+		const char *message =
+			fiftyoneDegreesResultsIpiGetNoValueReasonMessage(reason);
+		ASSERT_NE(nullptr, message) << (int)reason;
+		EXPECT_STRNE("", message) << (int)reason;
+		EXPECT_STRNE(unknown, message) << (int)reason;
+	}
+}

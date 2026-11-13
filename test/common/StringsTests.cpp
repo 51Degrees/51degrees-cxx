@@ -656,6 +656,18 @@ TEST_F(Strings, SubString) {
         EXPECT_EQ(nullptr, fiftyoneDegreesStringSubString(haystack, "ChatGPT"));
     }
 
+    // Bytes from 0x80 up in the haystack before the match
+    {
+        const char *haystack = "caf\xC3\xA9 HELLO";
+        EXPECT_EQ(haystack + 6, fiftyoneDegreesStringSubString(haystack, "hello"));
+    }
+
+    // The same bytes from 0x80 up in the needle and the haystack
+    {
+        const char *haystack = "caf\xC3\xA9 HELLO";
+        EXPECT_EQ(haystack + 0, fiftyoneDegreesStringSubString(haystack, "CAF\xC3\xA9"));
+    }
+
 }
 
 TEST_F(Strings, String_Compare) {

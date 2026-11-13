@@ -89,7 +89,10 @@ Average matching per second: ***
 
 static const char* dataDir = "data/ip-intelligence";
 
-static const char* dataFileName = "51Degrees-LiteV41.ipi";
+// The free ASN data file is used by default, as any data file will do for
+// this example and it is far smaller than the Lite file. It is downloaded
+// when it is missing, or another file may be given on the command line.
+static const char* dataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 static const char* ipAddressFileName = "evidence.yml";
 
@@ -188,12 +191,16 @@ static void reportProgress(performanceThreadState* state) {
 	printLoadBar(state);
 
 	// If in real lookup mode then print the name of the network profile found
-	// to prove it's actually doing something!
+	// to prove it's actually doing something! The free ASN data file has
+	// AsnName in place of RegisteredName.
 	if (state->results != NULL) {
 		printf(" ");
+		DataSetIpi* dataSet = (DataSetIpi*)state->results->b.dataSet;
 		ResultsIpiGetValuesString(
 			state->results,
-			"RegisteredName",
+			PropertiesGetRequiredPropertyIndexFromName(
+				dataSet->b.b.available, "RegisteredName") >= 0 ?
+				"RegisteredName" : "AsnName",
 			networkName,
 			sizeof(networkName),
 			", ",
@@ -489,9 +496,10 @@ void fiftyoneDegreesPerfIpiRun(
 		config.strings.concurrency = THREAD_COUNT;
 	config.strings.capacity = 100;
 
-	// Configure to return the Country property.
+	// Configure to return the network name, which the free ASN data file has
+	// as AsnName, and the areas.
 	PropertiesRequired properties = PropertiesDefault;
-	properties.string = "RegisteredName,areas";
+	properties.string = "RegisteredName,AsnName,areas";
 
 	ResourceManager manager;
 	EXCEPTION_CREATE;
@@ -511,6 +519,9 @@ void fiftyoneDegreesPerfIpiRun(
 
 		// Run the performance tests.
 		run(&manager, ipAddressFilePath);
+
+		// Say what the Enterprise data file adds, on a free data file.
+		fiftyoneDegreesExampleOfferEnterprise(&manager);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);
@@ -555,9 +566,9 @@ int main(int argc, char* argv[]) {
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
 	char ipAddressFilePath[FILE_MAX_PATH];
-	// An explicit data file path can be supplied in the 51DEGREES_IPI_PATH
+	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("51DEGREES_IPI_PATH");
+	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}

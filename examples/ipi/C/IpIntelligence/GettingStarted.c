@@ -184,16 +184,32 @@ static void reportStatus(StatusCode status,
 	Free((void*)message);
 }
 
+/**
+ * Prints a property, or that it needs the Enterprise data file when the
+ * data file in use does not have it. The free data files have only some of
+ * the properties.
+ */
+static void printPropertyValue(ResultsIpi *results, const char *name) {
+	if (fiftyoneDegreesExampleHasProperty(
+		(DataSetIpi*)results->b.dataSet,
+		name)) {
+		printf("- %s: %s\n", name, getPropertyValueAsString(results, name));
+	}
+	else {
+		printf("- %s: %s\n", name, FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE);
+	}
+}
+
 static void printPropertyValueFromResults(ResultsIpi *results) {
 	if (results != NULL && results->count > 0) {
-		printf("- IpRangeStart: %s\n", getPropertyValueAsString(results, "IpRangeStart"));
-		printf("- IpRangeEnd: %s\n", getPropertyValueAsString(results, "IpRangeEnd"));
-		printf("- AccuracyRadiusMin: %s\n", getPropertyValueAsString(results, "AccuracyRadiusMin"));
-		printf("- RegisteredCountry: %s\n", getPropertyValueAsString(results, "RegisteredCountry"));
-		printf("- RegisteredName: %s\n", getPropertyValueAsString(results, "RegisteredName"));
-		printf("- Longitude: %s\n", getPropertyValueAsString(results, "Longitude"));
-		printf("- Latitude: %s\n", getPropertyValueAsString(results, "Latitude"));
-		printf("- Areas: %s\n", getPropertyValueAsString(results, "Areas"));
+		printPropertyValue(results, "IpRangeStart");
+		printPropertyValue(results, "IpRangeEnd");
+		printPropertyValue(results, "AccuracyRadiusMin");
+		printPropertyValue(results, "RegisteredCountry");
+		printPropertyValue(results, "RegisteredName");
+		printPropertyValue(results, "Longitude");
+		printPropertyValue(results, "Latitude");
+		printPropertyValue(results, "Areas");
 		// printf("- Mcc: %s\n", getPropertyValueAsString(results, "Mcc"));
 	}
 	else {
@@ -341,6 +357,11 @@ void fiftyoneDegreesIpiGettingStarted(
 	printPropertyValueFromResults(results);
 	printPropertyValueFromResults2(results);
 
+	// Report the data file, and on a free one what the Enterprise data file
+	// adds and where to ask for a copy.
+	printf("\n");
+	fiftyoneDegreesExampleCheckDataFile((DataSetIpi*)results->b.dataSet);
+
 	// Ensure the results are freed to avoid memory leaks.
 	ResultsIpiFree(results);
 
@@ -358,9 +379,9 @@ int main(int argc, char* argv[]) {
 	// ConfigIpi config = IpiLowMemoryConfig;
 	// ConfigIpi config = IpiBalancedConfig;
 	char dataFilePath[FILE_MAX_PATH];
-	// An explicit data file path can be supplied in the 51DEGREES_IPI_PATH
+	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("51DEGREES_IPI_PATH");
+	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}

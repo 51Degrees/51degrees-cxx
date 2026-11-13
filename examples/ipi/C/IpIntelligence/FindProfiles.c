@@ -141,22 +141,22 @@ void run(ResourceManager* manager) {
 	IpiIterateProfilesForPropertyAndValue(
 		manager,
 		"RegisteredCountry",
-		"it",
+		"IT",
 		&isItaly,
 		count,
 		exception);
 	EXCEPTION_THROW;
-	printf("There are '%d' entries in the data set with code 'it'.\n", isItaly);
+	printf("There are '%d' entries in the data set with code 'IT'.\n", isItaly);
 
 	IpiIterateProfilesForPropertyAndValue(
 		manager,
 		"RegisteredCountry",
-		"gb",
+		"GB",
 		&isGreatBritian,
 		count,
 		exception);
 	EXCEPTION_THROW;
-	printf("There are '%d' entries in the data set with code 'gb'.\n",
+	printf("There are '%d' entries in the data set with code 'GB'.\n",
 		isGreatBritian);
 }
 
@@ -179,7 +179,7 @@ void fiftyoneDegreesIpiFindProfiles(
 
 	// Set the properties to be returned for each IP Address.
 	PropertiesRequired properties = PropertiesDefault;
-	properties.string = "RegisteredCountry";
+	properties.string = "RegisteredCountry,IpRangeStart";
 
 	// Initialise the manager for IP intelligence.
 	StatusCode status = IpiInitManagerFromFile(
@@ -199,6 +199,9 @@ void fiftyoneDegreesIpiFindProfiles(
 
 	run(&manager);
 
+	// Say what the Enterprise data file adds, on a free data file.
+	fiftyoneDegreesExampleOfferEnterprise(&manager);
+
 	// Free the manager and related data structures.
 	ResourceManagerFree(&manager);
 
@@ -216,9 +219,9 @@ int main(int argc, char* argv[]) {
 
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
-	// An explicit data file path can be supplied in the 51DEGREES_IPI_PATH
+	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("51DEGREES_IPI_PATH");
+	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}

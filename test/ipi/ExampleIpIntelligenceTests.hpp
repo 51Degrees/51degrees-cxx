@@ -51,6 +51,14 @@ protected:
     string ipAddressFilePath;
     string evidenceFilePath;
     const char *requiredProperties;
+
+    /**
+     * Path to the free ASN data file, which the performance and reload
+     * examples use by default, or empty when it is not present.
+     */
+    string getAsnDataFilePath() {
+        return GetFilePath(_dataFolderName, "51Degrees-IPIV4AsnIpiV41.ipi");
+    }
 };
 
 

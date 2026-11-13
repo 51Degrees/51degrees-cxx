@@ -138,6 +138,16 @@ static const char* ipAddressFileName = "evidence.yml";
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
 
+// Where to ask for a copy of the Enterprise data file, tagged with this
+// example.
+#define CONTACT_US "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-offlineprocessing.c&utm_term=enterprise-data-file"
+
+// The properties written for each IP address. On a free data file the ones
+// only the Enterprise data file has are left out of the output, and the
+// example says which.
+#define OFFLINE_PROPERTIES "RegisteredName,RegisteredCountry," \
+	"IpRangeStart,IpRangeEnd,Country,AccuracyRadiusMin"
+
 static char valueBuffer[1024] = "";
 
 static char* getPropertyValueAsString(
@@ -211,8 +221,8 @@ static void process(const char* ipAddress, void* state) {
 			fprintf(offline->output, ",\"\"");
 		}
 		else {
-			// Write value(s) with pipeline separator.
-			fprintf(offline->output, "|");
+			// Write the value(s) after a comma, as the headers are.
+			fprintf(offline->output, ",");
 			// Write weighted value with comma separator
 			// between value and its weight.
 			fprintf(offline->output, "%s", getPropertyValueAsString(
@@ -251,7 +261,7 @@ void run(
 	for (i = 0;
 		i < PropertiesGetRequiredPropertyCount(dataSet->b.b.available);
 		i++) {
-		fprintf(state.output, "|\"%s\"",
+		fprintf(state.output, ",\"%s\"",
 			&PropertiesGetNameFromRequiredIndex(
 				dataSet->b.b.available,
 				(int)i)->value);
@@ -271,6 +281,41 @@ void run(
 
 	// Free the memory used by the results instance.
 	ResultsIpiFree(state.results);
+}
+
+/**
+ * Writes which of the required properties the data file does not have, as
+ * needing the Enterprise data file, and where to ask for a copy. Writes
+ * nothing when the data file has them all.
+ * @param dataSet the data set in use
+ * @param requiredProperties the property names, separated by commas
+ */
+static void reportEnterpriseProperties(
+	DataSetIpi* dataSet,
+	const char* requiredProperties) {
+	char names[1024];
+	char missing[1024] = "";
+	char *name, *next;
+	snprintf(names, sizeof(names), "%s", requiredProperties);
+	for (name = names; name != NULL && *name != '\0'; name = next) {
+		next = strchr(name, ',');
+		if (next != NULL) {
+			*next++ = '\0';
+		}
+		if (!fiftyoneDegreesExampleHasProperty(dataSet, name)) {
+			size_t used = strlen(missing);
+			int written = snprintf(missing + used, sizeof(missing) - used,
+				"%s%s", used > 0 ? ", " : "", name);
+			// Stop when the list is full.
+			if (written < 0 || (size_t)written >= sizeof(missing) - used) {
+				break;
+			}
+		}
+	}
+	if (missing[0] != '\0') {
+		printf("The output leaves out %s, which need the Enterprise data "
+			"file. Contact us for a copy at %s\n", missing, CONTACT_US);
+	}
 }
 
 /**
@@ -329,6 +374,11 @@ void fiftyoneDegreesOfflineProcessingRun(
 		// Process the IP Addresses writing the results to the output path.
 		run(&manager, ipAddressFilePath, outputFilePath);
 
+		// Say which properties need the Enterprise data file.
+		DataSetIpi* dataSet = DataSetIpiGet(&manager);
+		reportEnterpriseProperties(dataSet, requiredProperties);
+		DataSetIpiRelease(dataSet);
+
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);
 	}
@@ -348,9 +398,9 @@ int main(int argc, char* argv[]) {
 	char dataFilePath[FILE_MAX_PATH];
 	char ipAddressFilePath[FILE_MAX_PATH];
 	char outputFilePath[FILE_MAX_PATH];
-	// An explicit data file path can be supplied in the 51DEGREES_IPI_PATH
+	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("51DEGREES_IPI_PATH");
+	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}
@@ -409,12 +459,11 @@ int main(int argc, char* argv[]) {
 #endif
 
 	// Start the offline processing.
-	// TODO: Revert to "IpRangeStart,IpRangeEnd,RegisteredCountry,AccuracyRadiusMin"
 	fiftyoneDegreesOfflineProcessingRun(
 		dataFilePath,
 		ipAddressFilePath,
 		outputFilePath,
-		argc > 4 ? argv[4] : "name,areas",
+		argc > 4 ? argv[4] : OFFLINE_PROPERTIES,
 		CONFIG);
 
 #ifdef _DEBUG

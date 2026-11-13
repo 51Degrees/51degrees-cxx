@@ -151,3 +151,113 @@ TEST_F(PropertyTests, RetrievePropertyFromCollection) {
         }
     }
 }
+
+/**
+ * The name of each value type, as a single value and as a list. Only a string
+ * list has a name of its own. The types without a name, and numbers that are
+ * not property value types, are named as a string.
+ */
+TEST(PropertyValueTypeTests, Names) {
+    const struct {
+        int type;
+        const char *name;
+        const char *listName;
+    } cases[] = {
+        { FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, "string", "string[]" },
+        { FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER, "int", "int" },
+        { FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE, "double", "double" },
+        { FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN, "bool", "bool" },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_JAVASCRIPT,
+            "javascript",
+            "javascript"
+        },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT,
+            "single",
+            "single"
+        },
+        { FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE, "string", "string" },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_COORDINATE,
+            "coordinate",
+            "coordinate"
+        },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+            "ipaddress",
+            "ipaddress"
+        },
+        { FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB, "wkb", "wkb" },
+        { FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_OBJECT, "string", "string" },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
+            "string",
+            "string"
+        },
+        { FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH, "string", "string" },
+        { FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB_R, "wkbr", "wkbr" },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_STRING,
+            "weightedstring",
+            "weightedstring"
+        },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_INT,
+            "weightedint",
+            "weightedint"
+        },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_DOUBLE,
+            "weighteddouble",
+            "weighteddouble"
+        },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_BOOL,
+            "weightedbool",
+            "weightedbool"
+        },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_SINGLE,
+            "weightedsingle",
+            "weightedsingle"
+        },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_BYTE,
+            "weightedbyte",
+            "weightedbyte"
+        },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_IP_ADDRESS,
+            "weightedipaddress",
+            "weightedipaddress"
+        },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_WKB_R,
+            "weightedwkbr",
+            "weightedwkbr"
+        },
+        {
+            FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WEIGHTED_WKB_R + 1,
+            "string",
+            "string"
+        },
+        // The largest value type a property record can hold.
+        { UINT8_MAX, "string", "string" },
+        {
+            FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_PROPERTY,
+            "string",
+            "string"
+        },
+    };
+    for (const auto &c : cases) {
+        const fiftyoneDegreesPropertyValueType type =
+            (fiftyoneDegreesPropertyValueType)c.type;
+        EXPECT_STREQ(
+            c.name,
+            fiftyoneDegreesPropertyValueTypeGetName(type, false)) << c.type;
+        EXPECT_STREQ(
+            c.listName,
+            fiftyoneDegreesPropertyValueTypeGetName(type, true)) << c.type;
+    }
+}

@@ -24,8 +24,11 @@
 
 using namespace FiftyoneDegrees::Examples::Hash;
 
-const char *RequiredProperties = 
-	"ScreenPixelsWidth,IsMobile,BrowserName,PlatformName,PlatformVersion";
+// HardwareVendor, HardwareName and DeviceType are only in the Enterprise data
+// file. The examples ask for them to show what it adds.
+const char *RequiredProperties =
+	"ScreenPixelsWidth,IsMobile,BrowserName,PlatformName,PlatformVersion,"
+	"HardwareVendor,HardwareName,DeviceType";
 
 const char *ExampleBase::mobileUserAgent = (
 	"Mozilla/5.0 (iPhone; CPU iPhone OS 7_1 like Mac OS X) "
@@ -45,46 +48,42 @@ const char* ExampleBase::uachPlatform = ("\"Windows\"");
 
 const char* ExampleBase::uachPlatformVersion = ("\"14.0.0\"");
 
+// The members own what they point to, so if the engine cannot be created the
+// configuration and properties are still freed.
 ExampleBase::ExampleBase(
-	byte *data, 
-	long length, 
-	DeviceDetection::Hash::ConfigHash *config) {
-	this->config = config;
+	byte *data,
+	long length,
+	DeviceDetection::Hash::ConfigHash *config) : config(config) {
 
 	// Set the properties to be returned for each User-Agent.
-	properties = new RequiredPropertiesConfig(RequiredProperties);
+	properties.reset(new RequiredPropertiesConfig(RequiredProperties));
 
 	// Initialise the engine for device detection.
-	engine = new EngineHash(
+	engine.reset(new EngineHash(
 		data,
 		length,
 		config,
-		properties);
+		properties.get()));
 }
 
 ExampleBase::ExampleBase(
-	string dataFilePath, 
-	DeviceDetection::Hash::ConfigHash *config) {
-	this->config = config;
+	string dataFilePath,
+	DeviceDetection::Hash::ConfigHash *config) : config(config) {
 
 	// Set the properties to be returned for each User-Agent.
-	properties = new RequiredPropertiesConfig(RequiredProperties);
+	properties.reset(new RequiredPropertiesConfig(RequiredProperties));
 
 	// Initialise the engine for device detection.
-	engine = new EngineHash(
+	engine.reset(new EngineHash(
 		dataFilePath,
 		config,
-		properties);
+		properties.get()));
 }
 
 ExampleBase::ExampleBase(string dataFilePath)
 	: ExampleBase(dataFilePath, new DeviceDetection::Hash::ConfigHash()) { }
 
-ExampleBase::~ExampleBase() {
-	delete engine;
-	delete config;
-	delete properties;
-}
+ExampleBase::~ExampleBase() = default;
 
 void ExampleBase::reportStatus(
 	fiftyoneDegreesStatusCode status,
@@ -106,6 +105,25 @@ fiftyoneDegreesStatusCode ExampleBase::getFilePath(
 		size);
 }
 
+bool ExampleBase::hasProperty(const char *name) const {
+	Collection<string, PropertyMetaData> *fileProperties =
+		engine->getMetaData()->getProperties();
+	PropertyMetaData *property = fileProperties->getByKey(name);
+	bool found = property != nullptr;
+	delete property;
+	delete fileProperties;
+	return found;
+}
+
+void ExampleBase::offerEnterprise(const char *contactUs) const {
+	if (engine->getProduct().rfind("Lite", 0) == 0) {
+		cout << "\nThis example is using the free Lite data file. The "
+			"Enterprise data file adds many more properties, such as "
+			"HardwareVendor, HardwareName and DeviceType. Contact us for a "
+			"copy at " << contactUs << "\n";
+	}
+}
+
 unsigned long ExampleBase::generateHash(unsigned char *value) {
 	unsigned long hashCode = 5381;
 	int i = *value++;
@@ -121,12 +139,10 @@ void ExampleBase::processUserAgent(
 	void *state) {
 	ThreadState *thread = (ThreadState*)state;
 
-	DeviceDetection::Hash::ResultsHash *results = 
-		thread->engine->process(userAgent);
+	std::unique_ptr<DeviceDetection::Hash::ResultsHash> results(
+		thread->engine->process(userAgent));
 
-	thread->hashCode ^= getHashCode(results);
-
-	delete results;
+	thread->hashCode ^= getHashCode(results.get());
 }
 
 void ExampleBase::SharedState::processUserAgentsSingle() {

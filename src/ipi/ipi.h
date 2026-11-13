@@ -269,6 +269,31 @@ typedef struct fiftyone_degrees_config_ipi_t {
 	fiftyoneDegreesCollectionConfig propertyTypes; /**< Property types collection
 												   config */
 	fiftyoneDegreesCollectionConfig graph; /**< Config for each graph */
+	/**
+	 * When true, and the required properties are some but not all of the
+	 * properties in the data file, only the data they read is loaded into
+	 * memory. That is the parts of the strings, values, profiles, profile
+	 * groups and profile offsets they reach, in whole records, with the rest
+	 * read from the file when needed with no cache, and the graphs of their
+	 * components, each following the graph setting, with the graphs of other
+	 * components read from the file. Other collections follow their own
+	 * settings. It has no effect when no property or every property is
+	 * required, or when allInMemory is true. True in the HighPerformance
+	 * configuration only.
+	 */
+	bool loadRequiredPropertiesOnly;
+	/**
+	 * When true, the default value of each required property is held in
+	 * memory when the data set is created, with what reading it takes from the
+	 * strings and the property types, so reading a default value reads
+	 * nothing from the file and takes no lock. Nothing is copied from a
+	 * collection already loaded into memory, so it has no effect where the
+	 * values, strings and property types are all loaded, as in HighPerformance
+	 * when no properties are named. It has no effect when allInMemory is true
+	 * or when loadRequiredPropertiesOnly applies, as both already hold the
+	 * default values. True in every configuration.
+	 */
+	bool defaultValuesInMemory;
 } fiftyoneDegreesConfigIpi;
 
 /**
@@ -437,13 +462,13 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiInMemoryConfig;
 
 /**
  * Highest performance configuration that reads the data file. Loads all the
- * data into memory, unless the required properties name some but not all of
- * the properties in the data file. Then only what they read is loaded, being
- * the graphs, profile offsets, profile groups and profiles of their
- * components, their values and the strings of those values, and anything else
- * reads from the file. A lookup that reads the named properties reads nothing
- * from the file. A connection to the data file is kept, with as many readers
- * as the highest concurrency setting.
+ * data into memory, and sets loadRequiredPropertiesOnly, so when the required
+ * properties name some but not all of the properties in the data file only
+ * what they read is loaded, being the graphs, profile offsets, profile groups
+ * and profiles of their components, their values and the strings of those
+ * values, and anything else reads from the file. A lookup that reads the
+ * named properties reads nothing from the file. A connection to the data file
+ * is kept, with as many readers as the highest concurrency setting.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiHighPerformanceConfig;
 
@@ -451,8 +476,10 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiHighPerformanceConfig;
  * Low memory configuration. A connection is maintained to the source data file
  * used to build the data set and used to load data into memory when required.
  * No caching is used resulting in the lowest memory footprint at the expense
- * of performance. The concurrency of each collection must be set to the
- * maximum number of concurrent operations to optimize file reads.
+ * of performance. Only the default value of each required property is held in
+ * memory, as defaultValuesInMemory is set. The concurrency of each collection
+ * must be set to the maximum number of concurrent operations to optimize file
+ * reads.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig;
 
@@ -464,12 +491,12 @@ EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiLowMemoryConfig;
  * number of concurrent operations to optimize file reads. This is the default
  * configuration.
  *
- * The strings, the graphs, the profile offsets, the property types and the
- * default value of each required property are held in memory. The values,
- * profiles and profile groups are read through caches, and the profile of each
- * result is copied the first time a lookup reads it, so that each property
- * does not read the cache again. Naming the required properties does not
- * change what is held.
+ * The strings, the graphs, the profile offsets, the property types and, as
+ * defaultValuesInMemory is set, the default value of each required property
+ * are held in memory. The values, profiles and profile groups are read through
+ * caches, and the profile of each result is copied the first time a lookup
+ * reads it, so that each property does not read the cache again. Naming the
+ * required properties does not change what is held.
  */
 EXTERNAL_VAR fiftyoneDegreesConfigIpi fiftyoneDegreesIpiBalancedConfig;
 
@@ -510,6 +537,59 @@ EXTERNAL fiftyoneDegreesDataSetIpi* fiftyoneDegreesDataSetIpiGet(
  * @param dataSet pointer to the data set to release
  */
 EXTERNAL void fiftyoneDegreesDataSetIpiRelease(fiftyoneDegreesDataSetIpi* dataset);
+
+/**
+ * Writes the evidence keys the data set accepts, each with its prefix, with
+ * the separator between them. For each header the data set reads the client
+ * IP address from, in the data set's order, there is a key under `query.`
+ * and then one under `server.`, for example `query.client-ip-51d` and
+ * `server.client-ip-51d`. A header named more than once gives its keys once.
+ * The order is the order of the headers. A lookup from evidence tries every
+ * `query.` key before any `server.` key, whatever the order here.
+ *
+ * Call with a NULL buffer to find the length needed, then with a buffer one
+ * longer than that.
+ * @param dataSet the data set to list the keys of
+ * @param buffer to write the keys to, or NULL to only find their length
+ * @param length of the buffer, including room for the null terminator
+ * @param separator written between keys. A comma suits, as no HTTP header
+ * name holds one.
+ * @return the number of characters the keys and separators need, not
+ * counting the null terminator. When the buffer is shorter than that plus
+ * one, it holds as many characters as fit followed by a null terminator.
+ */
+EXTERNAL size_t fiftyoneDegreesIpiGetEvidenceKeys(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	char *buffer,
+	size_t length,
+	const char *separator);
+
+/**
+ * Gets the date the data file in use was published, from its header.
+ * @param manager the resource manager containing an IP Intelligence data set
+ * initialised by one of the IP Intelligence data set init methods
+ * @param date pointer to the date to set, to the header's date when that is
+ * valid (see #fiftyoneDegreesDateIsValid), otherwise to a year, month and day
+ * of zero
+ * @return true if the header holds a valid date, otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesIpiGetPublished(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date);
+
+/**
+ * Gets the date 51Degrees expect to publish the next data file, from the
+ * header of the data file in use.
+ * @param manager the resource manager containing an IP Intelligence data set
+ * initialised by one of the IP Intelligence data set init methods
+ * @param date pointer to the date to set, to the header's date when that is
+ * valid (see #fiftyoneDegreesDateIsValid), otherwise to a year, month and day
+ * of zero
+ * @return true if the header holds a valid date, otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesIpiGetNextUpdate(
+	fiftyoneDegreesResourceManager *manager,
+	fiftyoneDegreesDate *date);
 
 /**
  * Gets the total size in bytes which will be allocated when intialising a
@@ -768,6 +848,10 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddress(
  * Process a single IP Address and populate the IP range offset in the results
  * structure.
  *
+ * The string must be all one address, as #fiftyoneDegreesIpAddressParse
+ * describes. Otherwise the exception is set to
+ * #FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT.
+ *
  * When the caller named the properties the data set was created with, the
  * graph of each component a named property belongs to is walked here, and a
  * walk that fails sets the exception. Otherwise populating the results walks
@@ -789,6 +873,13 @@ EXTERNAL void fiftyoneDegreesResultsIpiFromIpAddressString(
 /**
  * Processes the evidence value pairs in the evidence collection and
  * populates the result in the results structure.
+ *
+ * The keys are tried in the order of precedence, the query prefix before the
+ * server prefix and the data file's order within a prefix, and the first value
+ * that is read as one whole address is used. A value that is not, such as
+ * "1.2.3.4/24", "1.2.3.4, 5.6.7.8" or "fe80::1%eth0", is skipped without
+ * setting the exception, and when no value is read the results hold no
+ * address. See #fiftyoneDegreesIpAddressParse for the forms that are read.
  *
  * When the caller named the properties the data set was created with, the
  * graph of each component a named property belongs to is walked here, and a
@@ -892,6 +983,10 @@ EXTERNAL const fiftyoneDegreesProfilePercentage* fiftyoneDegreesResultsIpiGetVal
 /**
  * Adds to builder the values associated in the results for the property name.
  *
+ * Each value is written in double quotes followed by a colon and its weight,
+ * to the decimal places of fiftyoneDegreesDefaultWktDecimalPlaces, as in
+ * `"GB":0.5`.
+ *
  * When no properties were named, the first read of a property of a component
  * walks the component's graph for the results. If the walk fails the exception
  * is set, and the component is not walked again until the results are next
@@ -913,6 +1008,9 @@ EXTERNAL void fiftyoneDegreesResultsIpiAddValuesString(
 
 /**
  * Sets the buffer the values associated in the results for the property name.
+ *
+ * The values are written as fiftyoneDegreesResultsIpiAddValuesString writes
+ * them.
  *
  * When no properties were named, the first read of a property of a component
  * walks the component's graph for the results. If the walk fails the exception
@@ -940,6 +1038,9 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesString(
 /**
  * Sets the buffer the values associated in the results for the property name.
  *
+ * The values are written as fiftyoneDegreesResultsIpiAddValuesString writes
+ * them.
+ *
  * When no properties were named, the first read of a property of a component
  * walks the component's graph for the results. If the walk fails the exception
  * is set, and the component is not walked again until the results are next
@@ -964,6 +1065,49 @@ EXTERNAL size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
 	char* buffer,
 	size_t bufferLength,
 	const char* separator,
+	fiftyoneDegreesException* exception);
+
+/**
+ * Gets the text of each value the results hold for the property, in the form
+ * the C++ results give it to every language built on them. A value's text is
+ * followed by a colon and its weight when the property has more than one
+ * value or the weight is not whole, as in `GB:0.5`, and otherwise is
+ * the value alone. The weight is written to six significant figures, with no
+ * trailing zeros and with an exponent when it rounds to less than 0.0001, as
+ * a C++ stream writes a double. fiftyoneDegreesResultsIpiGetValuesString
+ * instead puts every value in quotes and always adds its weight.
+ *
+ * Each value's text ends with a null, so the text is `count` null terminated
+ * strings one after another. The text is written into `buffer` when it fits
+ * in `bufferLength` bytes, and otherwise into memory allocated with
+ * fiftyoneDegreesMalloc, which the caller frees with fiftyoneDegreesFree when
+ * the pointer returned is not `buffer`. Each value is written by
+ * fiftyoneDegreesStoredBinaryValueToText, which writes a string or an area
+ * that would not fit straight into memory sized for it, and says which
+ * values it writes twice. `buffer` can be NULL with `bufferLength` 0.
+ * @param results pointer to the results to read the values from
+ * @param requiredPropertyIndex index of the property in the names given
+ * when the data set was created, which a reload does not change. With no
+ * names given it is the index in the available properties, which a reload
+ * can change, so look it up from the name for each data set
+ * @param buffer memory the text is written into when it fits
+ * @param bufferLength the bytes `buffer` holds
+ * @param count set to the number of values in the text
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the text, or NULL when the results hold no values for the property,
+ * and NULL with the exception set when a value cannot be written or memory
+ * cannot be allocated. The text can also be returned with `count` set to 0,
+ * when the results have the property's component but none of its values, so
+ * read `count` rather than only testing for NULL. Text with no values is
+ * freed in the same way when it is not `buffer`.
+ */
+EXTERNAL char* fiftyoneDegreesResultsIpiGetValueTexts(
+	fiftyoneDegreesResultsIpi* results,
+	int requiredPropertyIndex,
+	char* buffer,
+	size_t bufferLength,
+	uint32_t* count,
 	fiftyoneDegreesException* exception);
 
 /**
@@ -1068,15 +1212,14 @@ EXTERNAL size_t fiftyoneDegreesIpiGetIpAddressAsString(
 /**
  * @name Metadata
  *
- * The properties of the data file, their values, its components and its
- * profiles, with the answers the C++ metadata classes give. Each function
- * takes a data set from #fiftyoneDegreesDataSetIpiGet, which the caller
- * holds while it reads so that every answer comes from the same data file. A
- * property is found by its index in the data file, which counts every
- * property the file defines, including those the data set was not created
- * with. A function that gives text writes it into the buffer provided when it
- * fits, and otherwise into memory the caller frees with fiftyoneDegreesFree
- * when the pointer returned is not the buffer, as
+ * The properties of the data file, with the answers the C++ property metadata
+ * gives. Each function takes a data set from #fiftyoneDegreesDataSetIpiGet,
+ * which the caller holds while it reads so that every answer comes from the
+ * same data file. A property is found by its index in the data file, which
+ * counts every property the file defines, including those the data set was
+ * not created with. A function that gives text writes it into the buffer
+ * provided when it fits, and otherwise into memory the caller frees with
+ * fiftyoneDegreesFree when the pointer returned is not the buffer, as
  * #fiftyoneDegreesStoredBinaryValueToText describes.
  * @{
  */
@@ -1097,7 +1240,9 @@ EXTERNAL uint32_t fiftyoneDegreesIpiGetPropertyCount(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h
  * @return the index of the property, or -1 when the data file has no
- * property of that name or a property cannot be read
+ * property of that name or reading a property or a name sets the exception.
+ * A property whose name the strings collection gives nothing for is taken as
+ * the one named.
  */
 EXTERNAL int fiftyoneDegreesIpiGetPropertyIndex(
 	fiftyoneDegreesDataSetIpi *dataSet,
