@@ -1,0 +1,73 @@
+name: Temporary red and green runs of the WKT getter test without the fix
+
+on:
+  push:
+    branches:
+      - tmp/red-112b
+
+permissions:
+  contents: read
+
+env:
+  REPO: 51degrees-cxx
+  # The commit to test, the CMake target to build, the product label and the
+  # ctest pattern.
+  SHA: c3549baf34558ed9ae471844a3ca05d4578dfdbc
+  TARGET: IpiTests
+  PRODUCT: ipi
+  TESTS: 'IpiFirstReadJsonTests'
+
+jobs:
+  test:
+    name: Build and test one commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+      - name: Checkout the commit
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.REPO }}
+          ref: ${{ env.SHA }}
+          submodules: true
+      - name: Name the pipeline's asset caches
+        id: cache-date
+        run: |
+          "today=$((Get-Date).ToUniversalTime().ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+          "yesterday=$((Get-Date).ToUniversalTime().AddDays(-1).ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+      - name: Restore the pipeline's asset cache
+        uses: actions/cache/restore@v4
+        with:
+          key: tmp-red-green-no-such-key
+          restore-keys: |
+            ${{ steps.cache-date.outputs.today }}
+            ${{ steps.cache-date.outputs.yesterday }}
+          path: assets
+          enableCrossOsArchive: true
+      - name: Fetch the data files as the pipeline does
+        env:
+          DD_KEY: ${{ secrets.DEVICE_DETECTION_KEY }}
+          DD_URL: ${{ secrets.DEVICE_DETECTION_URL }}
+          IPI_URL: ${{ secrets.IPI_DATA_FILE_URL }}
+        run: |
+          git -C $env:REPO log --oneline -1
+          & "./$env:REPO/ci/fetch-assets.ps1" -Products $env:PRODUCT -DeviceDetection $env:DD_KEY -DeviceDetectionUrl $env:DD_URL -IpIntelligenceUrl $env:IPI_URL
+      - name: Build
+        run: |
+          cmake -S $env:REPO -B "$env:REPO/build" -DCMAKE_BUILD_TYPE=Release | Out-Null
+          $log = cmake --build "$env:REPO/build" --config Release --parallel 4 --target @($env:TARGET -split " ") 2>&1
+          if ($LASTEXITCODE -ne 0) { $log | Select-Object -Last 80; throw "The build failed" }
+          "Built $env:TARGET"
+      - name: Test
+        run: |
+          Push-Location "$env:REPO/build"
+          ctest -C Release --output-on-failure --label-regex "^$env:PRODUCT`$" --tests-regex $env:TESTS
+          $code = $LASTEXITCODE
+          Pop-Location
+          exit $code
