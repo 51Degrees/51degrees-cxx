@@ -1,0 +1,90 @@
+name: Temporary timing of main against the release head
+
+on:
+  push:
+    branches:
+      - tmp/timing-cxx
+
+permissions:
+  contents: read
+
+env:
+  REPO: 51degrees-cxx
+  # main, the last release, and the release head, built in the same job.
+  BASE_SHA: 7992af7010b7654c115510938a2f7626204bf936
+  HEAD_SHA: 9113664ae25cb0cafd186b3a3433d022f64e7e1e
+
+jobs:
+  timing:
+    name: main against the head, ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+      - name: Checkout this branch for the timing script
+        uses: actions/checkout@v4
+        with:
+          path: timing-tools
+      - name: Checkout the head
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.REPO }}
+          ref: ${{ env.HEAD_SHA }}
+          submodules: true
+      - name: Name the pipeline's asset caches
+        id: cache-date
+        run: |
+          "today=$((Get-Date).ToUniversalTime().ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+          "yesterday=$((Get-Date).ToUniversalTime().AddDays(-1).ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+      - name: Restore the pipeline's asset cache
+        uses: actions/cache/restore@v4
+        with:
+          key: tmp-timing-no-such-key
+          restore-keys: |
+            ${{ steps.cache-date.outputs.today }}
+            ${{ steps.cache-date.outputs.yesterday }}
+          path: assets
+          enableCrossOsArchive: true
+      - name: Fetch the data files as the pipeline does
+        env:
+          DD_KEY: ${{ secrets.DEVICE_DETECTION_KEY }}
+          DD_URL: ${{ secrets.DEVICE_DETECTION_URL }}
+          IPI_URL: ${{ secrets.IPI_DATA_FILE_URL }}
+        run: |
+          & "./$env:REPO/ci/fetch-assets.ps1" -Products dd,ipi -DeviceDetection $env:DD_KEY -DeviceDetectionUrl $env:DD_URL -IpIntelligenceUrl $env:IPI_URL
+      - name: Make the main tree
+        run: |
+          git -C $env:REPO fetch --no-tags --depth 1 origin $env:BASE_SHA
+          git -C $env:REPO worktree add --detach ../base-tree $env:BASE_SHA
+          foreach ($tree in 'base-tree', $env:REPO) { "$tree is $(git -C $tree log --oneline -1 HEAD)" }
+          if ($IsLinux) { lscpu | Select-String 'Model name|^CPU\(s\)' }
+      - name: Build both as the pipeline does
+        run: |
+          foreach ($build in @{ name = 'main'; tree = 'base-tree' }, @{ name = 'head'; tree = $env:REPO }) {
+            cmake -S $build.tree -B "build-$($build.name)" -DCMAKE_BUILD_TYPE=Release | Out-Null
+            $log = cmake --build "build-$($build.name)" --config Release --parallel 4 --target PerformanceHashC PerformanceC CachePerf 2>&1
+            if ($LASTEXITCODE -ne 0) { $log | Select-Object -Last 60; throw "The $($build.name) build failed" }
+            "$($build.name) built"
+          }
+      - name: Time the builds in turn
+        run: |
+          $bin = $IsWindows ? 'bin/Release' : 'bin'
+          $builds = 'main', 'head' | ForEach-Object { "$_=$((Resolve-Path "build-$_/$bin").Path)" }
+          & "./timing-tools/.github/tmp-timing/timing.ps1" -RepoPath (Resolve-Path $env:REPO).Path `
+            -Builds $builds -OutDir "$PWD/results"
+      - name: Keep the figures
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: timing-${{ matrix.os }}
+          path: results/*
