@@ -8,6 +8,8 @@ name: Examples on the free data files
 on:
   pull_request:
     branches: [rc, main]
+  push:
+    branches: [tmp/red-examples]
     paths:
       - 'examples/**'
       - 'src/**'

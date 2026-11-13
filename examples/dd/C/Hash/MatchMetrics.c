@@ -349,7 +349,7 @@ int main(int argc, char* argv[]) {
 	// Wait for a character to be pressed.
 	fgetc(stdin);
 
-	return exitCode;
+	return 1;
 }
 
 #endif
