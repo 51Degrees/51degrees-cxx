@@ -22,16 +22,8 @@ if ($BuildOnly) {
 $Products = $Products ? $Products : $AllProducts
 $data = "$PSScriptRoot/../data"
 
-# Downloads every file the data repository links to in one of its folders.
-# A file that is already there is kept, so this runs after the assets are
-# copied in and only fetches what they do not cover.
-function Get-DataFiles([string]$Folder) {
-    $global:LASTEXITCODE = 0
-    & "$data/get-data-files.ps1" $Folder
-    if ($LASTEXITCODE -ne 0) {
-        throw "Not every data file in $Folder was downloaded"
-    }
-}
+# Every data file the tests read is an asset, kept in ./assets, which the run
+# caches once, so a test job restores the files rather than downloading them.
 
 if ($Products -contains 'dd') {
     $deviceDetectionData = "$data/device-detection"
@@ -43,18 +35,16 @@ if ($Products -contains 'dd') {
     Copy-Item "assets/51Degrees-LiteV4.1.hash" $deviceDetectionData
     Copy-Item "assets/20000 Evidence Records.yml" $deviceDetectionData
     Copy-Item "assets/20000 User Agents.csv" $deviceDetectionData
-    Get-DataFiles device-detection
 }
 
 if ($Products -contains 'ipi' -and $Depth -ne 'standard') {
     $ipIntelligenceData = "$data/ip-intelligence"
 
-    ./steps/fetch-assets.ps1 -IpIntelligenceUrl:$IpIntelligenceUrl -Assets '51Degrees-EnterpriseIpiV41.ipi'
+    ./steps/fetch-assets.ps1 -IpIntelligenceUrl:$IpIntelligenceUrl -Assets '51Degrees-EnterpriseIpiV41.ipi', '51Degrees-IPIV4AsnIpiV41.ipi'
     # The enterprise file stands in for the lite one too.
     New-Item -ItemType SymbolicLink -Force -Target "$PWD/assets/51Degrees-EnterpriseIpiV41.ipi" -Path "$ipIntelligenceData/51Degrees-LiteV41.ipi"
     New-Item -ItemType SymbolicLink -Force -Target "$PWD/assets/51Degrees-EnterpriseIpiV41.ipi" -Path "$ipIntelligenceData/51Degrees-EnterpriseIpiV41.ipi"
-    # Downloads the ASN file, which no asset covers.
-    Get-DataFiles ip-intelligence
+    Copy-Item "assets/51Degrees-IPIV4AsnIpiV41.ipi" $ipIntelligenceData
 
     Write-Host "Assets hashes:"
     Get-FileHash -Algorithm MD5 -Path assets/*

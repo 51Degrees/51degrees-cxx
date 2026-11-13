@@ -223,13 +223,16 @@ FIFTYONE_DEGREES_RESULTS_INLINE void fiftyoneDegreesResultsPendingSet(
  * they answer for, rather than leaving each walk to the first read of one of
  * the component's properties. That is when the caller named the properties
  * the data set was created with, as every graph the results need is then
- * known before anything is read.
+ * known before anything is read. Names kept from the first data set of a
+ * caller that named none do not walk here.
  * @param dataSet pointer to the data set the results are populated from
  * @return true if populating the results walks the graphs
  */
 FIFTYONE_DEGREES_RESULTS_INLINE bool fiftyoneDegreesResultsWalkWhenPopulated(
 	const fiftyoneDegreesDataSetBase *dataSet) {
-	return dataSet->available != NULL && dataSet->available->named != NULL;
+	return dataSet->available != NULL &&
+		dataSet->available->named != NULL &&
+		dataSet->available->namesFromDataSet == false;
 }
 
 /**

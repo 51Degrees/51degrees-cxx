@@ -385,6 +385,9 @@ void fiftyoneDegreesHashReloadFromMemoryRun(
 		// Run the reload tests.
 		run(&manager, userAgentFilePath, &reader);
 
+		// Say what the Enterprise data file adds, on a free data file.
+		fiftyoneDegreesExampleOfferEnterprise(&manager);
+
 		// Free the memory used by the manager.
 		ResourceManagerFree(&manager);
 	}

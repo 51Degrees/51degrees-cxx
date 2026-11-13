@@ -85,6 +85,22 @@ static void reportStatus(
 	Free((void*)message);
 }
 
+/**
+ * On a free data file, says on standard error what the Enterprise data file
+ * adds and where to ask for a copy.
+ */
+static void offerEnterprise(fiftyoneDegreesResourceManager *manager) {
+	DataSetHash *dataset = DataSetHashGet(manager);
+	if (fiftyoneDegreesExampleHasProperty(dataset, "HardwareVendor") ==
+		false) {
+		fprintf(stderr, "This example is using a free data file. The "
+			"Enterprise data file adds many more properties, such as "
+			"HardwareVendor, HardwareName and DeviceType. Contact us for "
+			"a copy at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-prochash.c&utm_term=free-data-file\n");
+	}
+	DataSetHashRelease(dataset);
+}
+
 static int run(fiftyoneDegreesResourceManager *manager) {
 	EXCEPTION_CREATE;
 	char userAgent[500], output[50000];
@@ -137,6 +153,11 @@ int fiftyoneDegreesProcHashRun(
 	else {
 		EXCEPTION_THROW;
 		count = run(&manager);
+
+		// Standard output holds the processed User-Agents, so the note goes
+		// to standard error.
+		offerEnterprise(&manager);
+
 		ResourceManagerFree(&manager);
 	}
 	return count;

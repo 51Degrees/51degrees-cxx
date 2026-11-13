@@ -71,6 +71,19 @@ typedef std::map<std::string, std::string> Values;
 /** The values for each address, keyed by address. */
 typedef std::map<std::string, Values> Lookups;
 
+/** Results that are freed on every way out of a test. */
+typedef std::unique_ptr<
+	fiftyoneDegreesResultsIpi,
+	decltype(&fiftyoneDegreesResultsIpiFree)> OwnedResults;
+
+/**
+ * Frees an initialised manager on every way out of a test. Declare it before
+ * any results made from the manager, so that the results are freed first.
+ */
+typedef std::unique_ptr<
+	fiftyoneDegreesResourceManager,
+	decltype(&fiftyoneDegreesResourceManagerFree)> ManagerGuard;
+
 const std::string invalidProperty = "no value, reason " +
 	std::to_string(
 		(int)FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY);
@@ -241,11 +254,13 @@ TEST_F(IpiPositionsTests, C_IndexesFollowTheNamesGiven) {
 	}
 	fiftyoneDegreesResourceManager manager;
 	ASSERT_NO_FATAL_FAILURE(initSmall(&manager, joined.c_str()));
-	fiftyoneDegreesResultsIpi *results =
-		fiftyoneDegreesResultsIpiCreate(&manager);
+	ManagerGuard managerGuard(&manager, fiftyoneDegreesResourceManagerFree);
+	OwnedResults results(
+		fiftyoneDegreesResultsIpiCreate(&manager),
+		fiftyoneDegreesResultsIpiFree);
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	fiftyoneDegreesResultsIpiFromIpAddressString(
-		results,
+		results.get(),
 		positionAddresses[1],
 		strlen(positionAddresses[1]),
 		exception);
@@ -269,8 +284,8 @@ TEST_F(IpiPositionsTests, C_IndexesFollowTheNamesGiven) {
 		ASSERT_NE(nullptr, name) << i;
 		EXPECT_EQ(names[i], std::string(&name->value)) << i;
 		EXPECT_EQ(
-			valuesByName(results, names[i].c_str()),
-			valuesAt(results, (int)i)) << names[i];
+			valuesByName(results.get(), names[i].c_str()),
+			valuesAt(results.get(), (int)i)) << names[i];
 	}
 
 	// The name the data does not have reads as a property the data set does
@@ -282,17 +297,15 @@ TEST_F(IpiPositionsTests, C_IndexesFollowTheNamesGiven) {
 	EXPECT_EQ(-1, fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
 		available,
 		0));
-	EXPECT_FALSE(fiftyoneDegreesResultsIpiGetHasValues(results, 0, exception));
+	EXPECT_FALSE(
+		fiftyoneDegreesResultsIpiGetHasValues(results.get(), 0, exception));
 	EXPECT_EQ(
 		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY,
-		fiftyoneDegreesResultsIpiGetNoValueReason(results, 0, exception));
-	EXPECT_EQ(std::string(), valuesAt(results, 0));
+		fiftyoneDegreesResultsIpiGetNoValueReason(results.get(), 0, exception));
+	EXPECT_EQ(std::string(), valuesAt(results.get(), 0));
 	EXPECT_EQ(nullptr, fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
 		available,
 		(int)names.size()));
-
-	fiftyoneDegreesResultsIpiFree(results);
-	fiftyoneDegreesResourceManagerFree(&manager);
 }
 
 /**
@@ -309,11 +322,13 @@ TEST_F(IpiPositionsTests, C_CollectionTakesTheIndexesOfTheNamesGiven) {
 	}
 	fiftyoneDegreesResourceManager manager;
 	ASSERT_NO_FATAL_FAILURE(initSmall(&manager, joined.c_str()));
-	fiftyoneDegreesResultsIpi *results =
-		fiftyoneDegreesResultsIpiCreate(&manager);
+	ManagerGuard managerGuard(&manager, fiftyoneDegreesResourceManagerFree);
+	OwnedResults results(
+		fiftyoneDegreesResultsIpiCreate(&manager),
+		fiftyoneDegreesResultsIpiFree);
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	fiftyoneDegreesResultsIpiFromIpAddressString(
-		results,
+		results.get(),
 		positionAddresses[1],
 		strlen(positionAddresses[1]),
 		exception);
@@ -323,7 +338,8 @@ TEST_F(IpiPositionsTests, C_CollectionTakesTheIndexesOfTheNamesGiven) {
 	std::map<int, int> expected;
 	for (size_t i = 1; i < names.size(); i++) {
 		const fiftyoneDegreesWeightedItem *items =
-			fiftyoneDegreesResultsIpiGetValues(results, (int)i, exception);
+			fiftyoneDegreesResultsIpiGetValues(
+				results.get(), (int)i, exception);
 		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY) << names[i];
 		expected[(int)i] = items == nullptr ? 0 : (int)results->values.count;
 	}
@@ -334,7 +350,7 @@ TEST_F(IpiPositionsTests, C_CollectionTakesTheIndexesOfTheNamesGiven) {
 	}
 	fiftyoneDegreesWeightedValuesCollection collection =
 		fiftyoneDegreesResultsIpiGetValuesCollection(
-			results,
+			results.get(),
 			indexes.data(),
 			(uint32_t)indexes.size(),
 			nullptr,
@@ -355,7 +371,7 @@ TEST_F(IpiPositionsTests, C_CollectionTakesTheIndexesOfTheNamesGiven) {
 	// With no indexes the collection reads every index of the names given.
 	fiftyoneDegreesWeightedValuesCollection all =
 		fiftyoneDegreesResultsIpiGetValuesCollection(
-			results,
+			results.get(),
 			nullptr,
 			0,
 			nullptr,
@@ -369,9 +385,6 @@ TEST_F(IpiPositionsTests, C_CollectionTakesTheIndexesOfTheNamesGiven) {
 		EXPECT_EQ(count.second, allCounts[count.first]) << names[count.first];
 	}
 	fiftyoneDegreesWeightedValuesCollectionRelease(&all);
-
-	fiftyoneDegreesResultsIpiFree(results);
-	fiftyoneDegreesResourceManagerFree(&manager);
 }
 
 /**
@@ -381,11 +394,13 @@ TEST_F(IpiPositionsTests, C_CollectionTakesTheIndexesOfTheNamesGiven) {
 TEST_F(IpiPositionsTests, C_NothingNamedIndexesAreTheSortedPlaces) {
 	fiftyoneDegreesResourceManager manager;
 	ASSERT_NO_FATAL_FAILURE(initSmall(&manager, nullptr));
-	fiftyoneDegreesResultsIpi *results =
-		fiftyoneDegreesResultsIpiCreate(&manager);
+	ManagerGuard managerGuard(&manager, fiftyoneDegreesResourceManagerFree);
+	OwnedResults results(
+		fiftyoneDegreesResultsIpiCreate(&manager),
+		fiftyoneDegreesResultsIpiFree);
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	fiftyoneDegreesResultsIpiFromIpAddressString(
-		results,
+		results.get(),
 		positionAddresses[1],
 		strlen(positionAddresses[1]),
 		exception);
@@ -400,18 +415,17 @@ TEST_F(IpiPositionsTests, C_NothingNamedIndexesAreTheSortedPlaces) {
 				available,
 				smallNames[i].c_str())) << smallNames[i];
 		EXPECT_EQ(
-			valuesByName(results, smallNames[i].c_str()),
-			valuesAt(results, (int)i)) << smallNames[i];
+			valuesByName(results.get(), smallNames[i].c_str()),
+			valuesAt(results.get(), (int)i)) << smallNames[i];
 	}
-	fiftyoneDegreesResultsIpiFree(results);
-	fiftyoneDegreesResourceManagerFree(&manager);
 }
 
 /**
- * An engine that named no properties has no required property indexes, so
- * an index reads nothing, while a name reads its values.
+ * An engine that named no properties has an index for each property of the
+ * data file, in the data set's order, so an index reads the property its
+ * name reads.
  */
-TEST_F(IpiPositionsTests, Cxx_NothingNamedRefusesIndexes) {
+TEST_F(IpiPositionsTests, Cxx_NothingNamedReadsByIndex) {
 	ConfigIpi config;
 	RequiredPropertiesConfig properties;
 	EngineIpi engine(smallPath.c_str(), &config, &properties);
@@ -420,16 +434,22 @@ TEST_F(IpiPositionsTests, Cxx_NothingNamedRefusesIndexes) {
 	EXPECT_EQ((int)smallNames.size(), results->getAvailableProperties());
 	int found = 0;
 	for (size_t i = 0; i < smallNames.size(); i++) {
-		const auto byName =
-			results->getValuesAsWeightedStringList(smallNames[i]);
+		const std::string &name = smallNames[i];
+		const auto byName = results->getValuesAsWeightedStringList(name);
 		found += byName.hasValue() ? 1 : 0;
 		EXPECT_EQ(
-			invalidProperty,
+			describe(byName),
 			describe(results->getValuesAsWeightedStringList((int)i))) << i;
-		EXPECT_FALSE(results->getValueAsString((int)i).hasValue()) << i;
-		EXPECT_FALSE(results->getValues((int)i).hasValue()) << i;
-		EXPECT_FALSE(results->getValueAsUTF8String((int)i).hasValue()) << i;
-		EXPECT_EQ(std::string(), results->getPropertyName((int)i)) << i;
+		EXPECT_EQ(
+			results->getValueAsString(name).hasValue(),
+			results->getValueAsString((int)i).hasValue()) << i;
+		EXPECT_EQ(
+			results->getValues(name).hasValue(),
+			results->getValues((int)i).hasValue()) << i;
+		EXPECT_EQ(
+			results->getValueAsUTF8String(name).hasValue(),
+			results->getValueAsUTF8String((int)i).hasValue()) << i;
+		EXPECT_EQ(name, results->getPropertyName((int)i)) << i;
 	}
 	EXPECT_GT(found, 0) << "No property had a value by name.";
 }
@@ -532,9 +552,10 @@ TEST_F(IpiPositionsReloadTests, Named_LargeThenSmallThenLarge) {
 
 /**
  * The case with nothing named. An engine on the small file reloaded with the
- * Enterprise file reads every property by name as a fresh engine on the
- * Enterprise file does, has every property of that file, and reads nothing
- * by index before or after.
+ * Enterprise file keeps the small file's properties as its names, in the
+ * same order, so each index reads what a fresh engine on the Enterprise file
+ * reads by that name. A property that only the Enterprise file holds gets no
+ * index, so it reads as invalid.
  */
 TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	// A skip in SetUp does not stop the test with the Visual Studio
@@ -542,7 +563,6 @@ TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	if (names.empty()) {
 		GTEST_SKIP() << "The set up did not finish.";
 	}
-	const std::vector<std::string> largeNames = fileNames(largePath);
 	Lookups expected;
 	{
 		ConfigIpi config;
@@ -551,7 +571,7 @@ TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 		EngineIpi fresh(largePath.c_str(), &config, &properties);
 		for (const char *address : positionAddresses) {
 			std::unique_ptr<ResultsIpi> results(fresh.process(address));
-			expected[address] = readByName(results.get(), largeNames);
+			expected[address] = readByName(results.get(), smallNames);
 		}
 	}
 
@@ -559,23 +579,25 @@ TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	config.setLowMemory();
 	RequiredPropertiesConfig properties;
 	EngineIpi engine(smallPath.c_str(), &config, &properties);
-	{
-		std::unique_ptr<ResultsIpi> results(
-			engine.process(positionAddresses[1]));
-		EXPECT_EQ(
-			invalidProperty,
-			describe(results->getValuesAsWeightedStringList(0)));
-	}
+	EXPECT_EQ(smallNames, engine.getRequiredProperties());
 
 	engine.refreshData(largePath.c_str());
-	EXPECT_EQ(largeNames, engine.getRequiredProperties()) <<
-		"The reload must make every property of the new file available.";
+	EXPECT_EQ(smallNames, engine.getRequiredProperties()) <<
+		"The reload must keep the first file's names, in their order.";
+	EXPECT_EQ(expected, atPositions(engine, smallNames));
 	for (const char *address : positionAddresses) {
 		std::unique_ptr<ResultsIpi> results(engine.process(address));
-		EXPECT_EQ(expected[address], readByName(results.get(), largeNames)) <<
+		EXPECT_EQ(expected[address], readByName(results.get(), smallNames)) <<
 			address;
 		EXPECT_EQ(
 			invalidProperty,
-			describe(results->getValuesAsWeightedStringList(0))) << address;
+			describe(results->getValuesAsWeightedStringList(largeOnly))) <<
+			address;
 	}
+	std::unique_ptr<Collection<std::string, PropertyMetaData>> metaData(
+		engine.getMetaData()->getProperties());
+	std::unique_ptr<PropertyMetaData> property(metaData->getByKey(largeOnly));
+	ASSERT_NE(nullptr, property.get());
+	EXPECT_FALSE(property->getAvailable()) <<
+		"The metadata must not offer a property that has no index.";
 }

@@ -31,6 +31,7 @@
 class EngineHashTests;
 class HashFirstReadRuleTests;
 class HashFirstReadTests;
+class HashMatchMetricsTests;
 
 namespace FiftyoneDegrees {
 	namespace DeviceDetection {
@@ -70,7 +71,7 @@ namespace FiftyoneDegrees {
 			 * using namespace FiftyoneDegrees::DeviceDetection::Hash;
 			 * ResultsHash *results;
 			 *
-			 * // Get the maximum drift used to arrive at the result
+			 * // Get the total drift used to arrive at the result
 			 * int drift = results->getDrift();
 			 *
 			 * // Delete the results
@@ -81,6 +82,7 @@ namespace FiftyoneDegrees {
 				friend class ::EngineHashTests;
 				friend class ::HashFirstReadRuleTests;
 				friend class ::HashFirstReadTests;
+				friend class ::HashMatchMetricsTests;
                 friend class ResultsHashSerializer;
 			public:
 				/**
@@ -126,28 +128,30 @@ namespace FiftyoneDegrees {
 				int getIterations() const;
 
 				/**
-				 * Returns the maximum drift for a matched substring from the
-				 * character position where it was expected to be found. The
-				 * higher this value, the less accurate the results should be
-				 * considered.
-				 * @return int maximum drift
+				 * Returns the total drift of the results. Each result's drift
+				 * is the largest number of characters a matched substring was
+				 * from where it was expected to be found, and this is the sum
+				 * of them. The higher this value, the less accurate the
+				 * results should be considered.
+				 * @return total drift
 				 */
 				int getDrift() const;
 
 				/**
 				 * Returns the drift for a matched substring from the character
 				 * position where it was expected to be found. The higher this
-				 * value, the lass accurate the results should be considered.
+				 * value, the less accurate the results should be considered.
 				 * @param resultIndex index of the individual User-Agent in the
 				 * results
-				 * @return individual drift
+				 * @return individual drift, or 0 when there is no result at
+				 * the index
 				 */
 				int getDrift(uint32_t resultIndex) const;
 
 				/**
 				 * Returns the number of hash nodes matched within the
 				 * evidence.
-				 * @return
+				 * @return total number of matched nodes
 				 */
 				int getMatchedNodes() const;
 
@@ -165,7 +169,8 @@ namespace FiftyoneDegrees {
 				 * target User-Agent.
 				 * @param resultIndex index of the individual User-Agent in the
 				 * results
-				 * @return individual difference
+				 * @return individual difference, or 0 when there is no result
+				 * at the index
 				 */
 				int getDifference(uint32_t resultIndex) const;
 

@@ -73,6 +73,19 @@ namespace {
 typedef std::map<std::string, std::string> Values;
 typedef std::map<std::string, Values> Lookups;
 
+/** Results that are freed on every way out of a test. */
+typedef std::unique_ptr<
+	fiftyoneDegreesResultsHash,
+	decltype(&fiftyoneDegreesResultsHashFree)> OwnedResults;
+
+/**
+ * Frees an initialised manager on every way out of a test. Declare it before
+ * any results made from the manager, so that the results are freed first.
+ */
+typedef std::unique_ptr<
+	fiftyoneDegreesResourceManager,
+	decltype(&fiftyoneDegreesResourceManagerFree)> ManagerGuard;
+
 const std::string invalidProperty = "no value, reason " +
 	std::to_string(
 		(int)FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY);
@@ -168,6 +181,14 @@ protected:
 	void initSmall(
 		fiftyoneDegreesResourceManager *manager,
 		const char *names) {
+		initFile(manager, smallPath, names);
+	}
+
+	/** Creates a manager from the file with the names given. */
+	static void initFile(
+		fiftyoneDegreesResourceManager *manager,
+		const std::string &path,
+		const char *names) {
 		fiftyoneDegreesConfigHash config = fiftyoneDegreesHashInMemoryConfig;
 		fiftyoneDegreesPropertiesRequired properties =
 			fiftyoneDegreesPropertiesDefault;
@@ -179,7 +200,7 @@ protected:
 				manager,
 				&config,
 				&properties,
-				smallPath.c_str(),
+				path.c_str(),
 				exception));
 	}
 
@@ -241,11 +262,13 @@ TEST_F(HashPositionsTests, C_IndexesFollowTheNamesGiven) {
 	const std::string joined = join(names);
 	fiftyoneDegreesResourceManager manager;
 	ASSERT_NO_FATAL_FAILURE(initSmall(&manager, joined.c_str()));
-	fiftyoneDegreesResultsHash *results =
-		fiftyoneDegreesResultsHashCreate(&manager, 0, 0);
+	ManagerGuard managerGuard(&manager, fiftyoneDegreesResourceManagerFree);
+	OwnedResults results(
+		fiftyoneDegreesResultsHashCreate(&manager, 0, 0),
+		fiftyoneDegreesResultsHashFree);
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	fiftyoneDegreesResultsHashFromUserAgent(
-		results,
+		results.get(),
 		positionUserAgents[0],
 		strlen(positionUserAgents[0]),
 		exception);
@@ -269,8 +292,8 @@ TEST_F(HashPositionsTests, C_IndexesFollowTheNamesGiven) {
 		ASSERT_NE(nullptr, name) << i;
 		EXPECT_EQ(names[i], std::string(&name->value)) << i;
 		EXPECT_EQ(
-			valuesByName(results, names[i].c_str()),
-			valuesAt(results, (int)i)) << names[i];
+			valuesByName(results.get(), names[i].c_str()),
+			valuesAt(results.get(), (int)i)) << names[i];
 	}
 
 	const fiftyoneDegreesString *missing =
@@ -278,15 +301,15 @@ TEST_F(HashPositionsTests, C_IndexesFollowTheNamesGiven) {
 	ASSERT_NE(nullptr, missing);
 	EXPECT_STREQ(missingName, &missing->value);
 	EXPECT_FALSE(fiftyoneDegreesResultsHashGetHasValues(
-		results,
+		results.get(),
 		0,
 		exception));
 	EXPECT_EQ(
 		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_INVALID_PROPERTY,
-		fiftyoneDegreesResultsHashGetNoValueReason(results, 0, exception));
-
-	fiftyoneDegreesResultsHashFree(results);
-	fiftyoneDegreesResourceManagerFree(&manager);
+		fiftyoneDegreesResultsHashGetNoValueReason(
+			results.get(),
+			0,
+			exception));
 }
 
 /**
@@ -341,10 +364,11 @@ TEST_F(HashPositionsTests, C_AllPropertiesFollowTheNamesGiven) {
 }
 
 /**
- * An engine that named no properties has no required property indexes, so
- * an index reads nothing, while a name reads its values.
+ * An engine that named no properties has an index for each property of the
+ * data file, in the data set's order, so an index reads the property its
+ * name reads.
  */
-TEST_F(HashPositionsTests, Cxx_NothingNamedRefusesIndexes) {
+TEST_F(HashPositionsTests, Cxx_NothingNamedReadsByIndex) {
 	ConfigHash config;
 	RequiredPropertiesConfig properties;
 	EngineHash engine(smallPath.c_str(), &config, &properties);
@@ -352,10 +376,14 @@ TEST_F(HashPositionsTests, Cxx_NothingNamedRefusesIndexes) {
 	EXPECT_EQ(smallNames, results->getProperties());
 	int found = 0;
 	for (size_t i = 0; i < smallNames.size(); i++) {
-		found += results->getValues(smallNames[i]).hasValue() ? 1 : 0;
-		EXPECT_EQ(invalidProperty, describe(results->getValues((int)i))) << i;
-		EXPECT_FALSE(results->getValueAsString((int)i).hasValue()) << i;
-		EXPECT_EQ(std::string(), results->getPropertyName((int)i)) << i;
+		const Value<std::vector<std::string>> byName =
+			results->getValues(smallNames[i]);
+		found += byName.hasValue() ? 1 : 0;
+		EXPECT_EQ(describe(byName), describe(results->getValues((int)i))) << i;
+		EXPECT_EQ(
+			results->getValueAsString(smallNames[i]).hasValue(),
+			results->getValueAsString((int)i).hasValue()) << i;
+		EXPECT_EQ(smallNames[i], results->getPropertyName((int)i)) << i;
 	}
 	EXPECT_GT(found, 0) << "No property had a value by name.";
 }
@@ -494,8 +522,10 @@ TEST_F(HashPositionsReloadTests, Named_LargeThenSmallThenLarge) {
 
 /**
  * An engine that named nothing, reloaded from the Lite file to the TAC file,
- * has every property of the TAC file and reads each by name as a fresh engine
- * does, while an index reads nothing.
+ * keeps the Lite file's properties as its names, in the same order, so each
+ * index reads what a fresh engine on the TAC file reads by that name. A
+ * property that only the TAC file holds gets no index, so it reads as
+ * invalid.
  */
 TEST_F(HashPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	// A skip in SetUp does not stop the test with the Visual Studio
@@ -503,7 +533,6 @@ TEST_F(HashPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	if (names.empty()) {
 		GTEST_SKIP() << "The set up did not finish.";
 	}
-	const std::vector<std::string> largeNames = fileNames(largePath);
 	Lookups expected;
 	{
 		ConfigHash config;
@@ -512,7 +541,7 @@ TEST_F(HashPositionsReloadTests, NothingNamed_SmallThenLarge) {
 		EngineHash fresh(largePath.c_str(), &config, &properties);
 		for (const char *userAgent : positionUserAgents) {
 			std::unique_ptr<ResultsHash> results(fresh.process(userAgent));
-			expected[userAgent] = readByName(results.get(), largeNames);
+			expected[userAgent] = readByName(results.get(), smallNames);
 		}
 	}
 
@@ -520,12 +549,83 @@ TEST_F(HashPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	config.setLowMemory();
 	RequiredPropertiesConfig properties;
 	EngineHash engine(smallPath.c_str(), &config, &properties);
+	EXPECT_EQ(smallNames, engine.getRequiredProperties());
 	engine.refreshData(largePath.c_str());
-	EXPECT_EQ(largeNames, engine.getRequiredProperties()) <<
-		"The reload must make every property of the new file available.";
+	EXPECT_EQ(smallNames, engine.getRequiredProperties()) <<
+		"The reload must keep the first file's names, in their order.";
+	EXPECT_EQ(expected, atPositions(engine, smallNames));
 	for (const char *userAgent : positionUserAgents) {
 		std::unique_ptr<ResultsHash> results(engine.process(userAgent));
-		EXPECT_EQ(expected[userAgent], readByName(results.get(), largeNames));
-		EXPECT_EQ(invalidProperty, describe(results->getValues(0)));
+		EXPECT_EQ(expected[userAgent], readByName(results.get(), smallNames));
+		EXPECT_EQ(invalidProperty, describe(results->getValues(largeOnly)));
+	}
+	std::unique_ptr<Collection<std::string, PropertyMetaData>> metaData(
+		engine.getMetaData()->getProperties());
+	std::unique_ptr<PropertyMetaData> property(metaData->getByKey(largeOnly));
+	ASSERT_NE(nullptr, property.get());
+	EXPECT_FALSE(property->getAvailable()) <<
+		"The metadata must not offer a property that has no index.";
+}
+
+/**
+ * Through the C reads, each index of an engine that named nothing names the
+ * same property after a reload from the Lite file to the TAC file, whose
+ * properties sort into other places, and reads what a fresh engine on the
+ * TAC file reads by that name.
+ */
+TEST_F(HashPositionsReloadTests, C_NothingNamed_SmallThenLarge) {
+	// A skip in SetUp does not stop the test with the Visual Studio
+	// googletest, and the names are only set once SetUp has finished.
+	if (names.empty()) {
+		GTEST_SKIP() << "The set up did not finish.";
+	}
+	fiftyoneDegreesResourceManager fresh;
+	ASSERT_NO_FATAL_FAILURE(initFile(&fresh, largePath, nullptr));
+	ManagerGuard freshGuard(&fresh, fiftyoneDegreesResourceManagerFree);
+	fiftyoneDegreesResourceManager manager;
+	ASSERT_NO_FATAL_FAILURE(initSmall(&manager, nullptr));
+	ManagerGuard managerGuard(&manager, fiftyoneDegreesResourceManagerFree);
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	ASSERT_EQ(
+		FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesHashReloadManagerFromFile(
+			&manager,
+			largePath.c_str(),
+			exception));
+
+	for (const char *userAgent : positionUserAgents) {
+		OwnedResults expected(
+			fiftyoneDegreesResultsHashCreate(&fresh, 0, 0),
+			fiftyoneDegreesResultsHashFree);
+		OwnedResults results(
+			fiftyoneDegreesResultsHashCreate(&manager, 0, 0),
+			fiftyoneDegreesResultsHashFree);
+		fiftyoneDegreesResultsHashFromUserAgent(
+			expected.get(),
+			userAgent,
+			strlen(userAgent),
+			exception);
+		fiftyoneDegreesResultsHashFromUserAgent(
+			results.get(),
+			userAgent,
+			strlen(userAgent),
+			exception);
+		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+		fiftyoneDegreesPropertiesAvailable *available =
+			((fiftyoneDegreesDataSetHash*)results->b.b.dataSet)->b.b.available;
+		ASSERT_EQ(
+			(uint32_t)smallNames.size(),
+			fiftyoneDegreesPropertiesGetRequiredPropertyCount(available));
+		for (size_t i = 0; i < smallNames.size(); i++) {
+			const fiftyoneDegreesString *name =
+				fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
+					available,
+					(int)i);
+			ASSERT_NE(nullptr, name) << i;
+			EXPECT_EQ(smallNames[i], std::string(&name->value)) << i;
+			EXPECT_EQ(
+				valuesByName(expected.get(), smallNames[i].c_str()),
+				valuesAt(results.get(), (int)i)) << smallNames[i];
+		}
 	}
 }

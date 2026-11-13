@@ -37,13 +37,12 @@
  *
  * The #fiftyoneDegreesFilePoolInit method is used to initialise a pointer to
  * a #fiftyoneDegreesFilePool. A concurrency value is provided to indicate the
- * maximum number of threads that will be in operation. If this value is lower
- * than the actual number of threads the stack can be exhausted and a null
- * pointer is returned instead of a valid file handle. The concurrency value
- * must always be the same or greater than the number of threads. When compiled
- * in single threaded operation a pool is not strictly required and the
- * implementation maintains a simple stack for consistency of interface and to
- * minimise divergent code.
+ * number of file handles to open, up to
+ * #FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES, which is the number of threads
+ * that can read the file at the same time. Further threads wait until a
+ * handle is released. When compiled in single threaded operation a pool is
+ * not strictly required and the implementation maintains a simple stack for
+ * consistency of interface and to minimise divergent code.
  *
  * ## Get & Release
  *
@@ -51,9 +50,9 @@
  * method. The handle **MUST** be returned with the 
  * #fiftyoneDegreesFileHandleRelease method when it is finished with. The
  * handle will always be open and ready for read only operation. The position
- * of the handle within the source file cannot be assumed. If too many threads
- * are accessing the pool simultaneously, meaning a handle cannot be secured,
- * then a NULL pointer is returned.
+ * of the handle within the source file cannot be assumed. If every handle is
+ * in use, the thread waits until another thread releases one. A single
+ * threaded build cannot wait, so a NULL pointer is returned instead.
  *
  * ## Free
  *
@@ -217,6 +216,13 @@
 #else
 #define FIFTYONE_DEGREES_FILE_MAX_PATH 4096
 #endif
+
+/**
+ * The most file handles a file pool opens, whatever the concurrency. Further
+ * operations wait for a handle, which keeps a process within the limit its
+ * system puts on open files.
+ */
+#define FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES 64
 
 
 /**
@@ -439,11 +445,12 @@ EXTERNAL DEPRECATED fiftyoneDegreesStatusCode fiftyoneDegreesFileCreateTempFile(
 
 /**
  * Initialises the pool with a stack of open read only file handles all 
- * associated with the file name. The concurrency parameter determines the 
- * number of items in the stack.
+ * associated with the file name. The concurrency parameter determines the
+ * number of items in the stack, up to #FIFTYONE_DEGREES_FILE_POOL_MAX_HANDLES.
  * @param filePool to be initialised
  * @param fileName full path to the file to open
- * @param concurrency number of items in the stack
+ * @param concurrency number of operations expected to read the file at the
+ * same time
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return the result of the open operation
@@ -455,14 +462,15 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesFilePoolInit(
 	fiftyoneDegreesException *exception);
 
 /**
- * Retrieves a read only open file handle from the pool. The handle retrieve
- * must be returned to the pool using #fiftyoneDegreesFileHandleGet and must
- * not be freed or closed directly.
+ * Retrieves a read only open file handle from the pool, waiting for one to be
+ * released if every handle is in use. The handle retrieved must be returned
+ * to the pool using #fiftyoneDegreesFileHandleRelease and must not be freed
+ * or closed directly.
  * @param filePool to retrieve the file handle from
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
- * @return a read only open file handle or NULL if no available handles remain
- * in the pool
+ * @return a read only open file handle, or NULL in a single threaded build if
+ * every handle is in use
  */
 EXTERNAL fiftyoneDegreesFileHandle* fiftyoneDegreesFileHandleGet(
 	fiftyoneDegreesFilePool *filePool,

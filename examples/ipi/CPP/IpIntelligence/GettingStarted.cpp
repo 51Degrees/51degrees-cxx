@@ -141,20 +141,27 @@ namespace FiftyoneDegrees {
 				};
 
 				/**
-				 * Check that the value is populated before using the result.
+				 * Prints each property, or that it needs the Enterprise data
+				 * file when the data file in use does not have it. Checks that
+				 * the value is populated before using the result.
 				 */
-				static void printResults(const std::unique_ptr<ResultsIpi> &results) {
+				void printResults(const std::unique_ptr<ResultsIpi> &results) const {
 					const std::vector props {
-						// "RegisteredName",
-						// "RegisteredCountry",
-						// "IpRangeStart",
-						// "IpRangeEnd",
-						// "Latitude",
-						// "Longitude",
-						// "Areas",
+						"RegisteredName",
+						"RegisteredCountry",
+						"IpRangeStart",
+						"IpRangeEnd",
+						"Latitude",
+						"Longitude",
+						"Areas",
 						"AccuracyRadiusMin",
 					};
 					for (auto const &nextProp : props) {
+						if (!hasProperty(nextProp)) {
+							cout << "   " << nextProp << ": " <<
+								needsEnterprise << "\n";
+							continue;
+						}
 						Value<vector<WeightedValue<string>>> value
 							= results->getValuesAsWeightedStringList(nextProp);
 						if (value.hasValue()) {
@@ -194,6 +201,11 @@ namespace FiftyoneDegrees {
 					(*evidence)["query.client-ip"] = ipv6Address;
 					results = std::unique_ptr<ResultsIpi>(engine->process(evidence.get()));
 					printResults(results);
+
+					// On a free data file, say what the Enterprise data file
+					// adds and where to ask for a copy.
+					offerEnterprise(
+						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-ipintelligence-gettingstarted.cpp&utm_term=free-data-file");
 				}
 			};
 		}
@@ -203,9 +215,9 @@ namespace FiftyoneDegrees {
 int main(int argc, char *argv[]) {
 	fiftyoneDegreesStatusCode status = FIFTYONE_DEGREES_STATUS_SUCCESS;
 	char dataFilePath[FIFTYONE_DEGREES_FILE_MAX_PATH];
-	// An explicit data file path can be supplied in the 51DEGREES_IPI_PATH
+	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char *envDataFilePath = getenv("51DEGREES_IPI_PATH");
+	const char *envDataFilePath = getenv("_51DEGREES_IPI_PATH");
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}

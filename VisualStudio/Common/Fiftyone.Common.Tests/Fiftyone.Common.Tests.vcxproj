@@ -25,6 +25,7 @@
     <ClCompile Include="..\..\..\test\common\CollectionOffsetShiftTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionTests.cpp" />
     <ClCompile Include="..\..\..\test\common\ComponentTests.cpp" />
+    <ClCompile Include="..\..\..\test\common\DateTests.cpp" />
     <ClCompile Include="..\..\..\test\common\EngineTests.cpp" />
     <ClCompile Include="..\..\..\test\common\EvidenceTests.cpp" />
     <ClCompile Include="..\..\..\test\common\EvidenceWithHeadersTests_MultipleHeaders.cpp" />
@@ -44,6 +45,7 @@
     <ClCompile Include="..\..\..\test\common\MemoryLeakTests.cpp" />
     <ClCompile Include="..\..\..\test\common\OverridesTests.cpp" />
     <ClCompile Include="..\..\..\test\common\pch.cpp" />
+    <ClCompile Include="..\..\..\test\common\MetaDataTextTests.cpp" />
     <ClCompile Include="..\..\..\test\common\PoolTests.cpp" />
     <ClCompile Include="..\..\..\test\common\ProfileTests.cpp" />
     <ClCompile Include="..\..\..\test\common\PropertiesTests.cpp" />

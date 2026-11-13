@@ -689,11 +689,20 @@ TEST_F(Properties, Positions_NoNamesGivenAreTheSortedPlaces) {
 }
 
 /**
- * A list created from an existing list that names nothing has every
- * property of the new data, not only those the old data had.
+ * A list created from an existing list that names nothing keeps the first
+ * list's positions, which are its sorted places, whatever the new data holds.
+ * A property only the new data has is available with no position, and a
+ * property the new data lacks keeps its position and name with no property.
  */
-TEST_F(Properties, Positions_ExistingWithNoNamesHasEveryProperty) {
+TEST_F(Properties, Positions_ExistingWithNoNamesKeepsTheFirstPositions) {
 	CreateProperties(NULL);
+	std::vector<std::string> first;
+	for (uint32_t i = 0; i < properties->count; i++) {
+		first.push_back(FIFTYONE_DEGREES_STRING(
+			properties->items[i].name.data.ptr));
+	}
+
+	// New data with one more property, which sorts among the others.
 	StringCollection more(moreValues, count + 1);
 	fiftyoneDegreesPropertiesRequired reload =
 		fiftyoneDegreesPropertiesDefault;
@@ -706,7 +715,41 @@ TEST_F(Properties, Positions_ExistingWithNoNamesHasEveryProperty) {
 			getEvidenceProperties);
 	ASSERT_NE(nullptr, reloaded);
 	EXPECT_EQ((uint32_t)count + 1, reloaded->count);
-	EXPECT_GE(positionOf(reloaded, "Cyan"), 0);
+	EXPECT_EQ(
+		(uint32_t)count,
+		fiftyoneDegreesPropertiesGetRequiredPropertyCount(reloaded));
+	EXPECT_EQ(-1, positionOf(reloaded, "Cyan"));
+	for (size_t i = 0; i < first.size(); i++) {
+		EXPECT_EQ((int)i, positionOf(reloaded, first[i].c_str())) << first[i];
+		EXPECT_STREQ(first[i].c_str(), nameAt(reloaded, (int)i)) << i;
+	}
+
+	// Then data without the first of the test values.
+	StringCollection fewer(testValues + 1, count - 1);
+	reload.existing = reloaded;
+	fiftyoneDegreesPropertiesAvailable *again =
+		fiftyoneDegreesPropertiesCreate(
+			&reload,
+			fewer.getState(),
+			getStringValue,
+			getEvidenceProperties);
+	ASSERT_NE(nullptr, again);
+	EXPECT_EQ((uint32_t)count - 1, again->count);
+	EXPECT_EQ(
+		(uint32_t)count,
+		fiftyoneDegreesPropertiesGetRequiredPropertyCount(again));
+	for (size_t i = 0; i < first.size(); i++) {
+		const bool dropped = first[i] == testValues[0];
+		EXPECT_STREQ(first[i].c_str(), nameAt(again, (int)i)) << i;
+		EXPECT_EQ(
+			dropped ? -1 : (int)i,
+			positionOf(again, first[i].c_str())) << first[i];
+		EXPECT_EQ(
+			dropped,
+			fiftyoneDegreesPropertiesGetAvailableIndex(again, (int)i) < 0) <<
+			first[i];
+	}
+	fiftyoneDegreesPropertiesFree(again);
 	fiftyoneDegreesPropertiesFree(reloaded);
 }
 

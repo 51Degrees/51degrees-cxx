@@ -128,7 +128,8 @@
  * **capacity** : 0 if a cache should not be used, otherwise the capacity of
  * cache.
 
- * **concurrency** : the expected number of concurrent operations, 1 or greater.
+ * **concurrency** : the expected number of operations at the same time. A
+ * data set takes 0 as one for each processor.
  * 
  * The file create method will work out the different types of Collection(s)
  * needed and how to chain them based on the configuration provided.
@@ -296,8 +297,9 @@ typedef struct fiftyone_degrees_collection_config_t {
 	bool loaded; /**< Collection is loaded entirely into memory */
 	uint32_t capacity; /**< Number of items the cache should store, 0 for no
 	                       cache */
-	uint16_t concurrency; /**< Expected number of concurrent requests, 1 or
-						      greater */
+	uint16_t concurrency; /**< Expected number of operations at the same
+						      time, which a data set takes as one for each
+						      processor when 0 */
 } fiftyoneDegreesCollectionConfig;
 
 /** @cond FORWARD_DECLARATIONS */
@@ -714,6 +716,256 @@ EXTERNAL long fiftyoneDegreesCollectionBinarySearch(
 	void *state,
 	fiftyoneDegreesCollectionItemComparer comparer,
 	fiftyoneDegreesException *exception);
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+
+/**
+ * HOLDING PART OF A COLLECTION IN MEMORY
+ *
+ * A held collection keeps stretches of another collection in memory and
+ * passes every other read to that collection, so a caller that knows which
+ * records it will read holds only those. Each stretch is made of whole
+ * records, in the units of the collection's keys, so an item that starts in a
+ * stretch ends in it.
+ */
+
+/**
+ * The fewest bytes between two held strings worth leaving on file, as more
+ * stretches cost time on every string read.
+ */
+#define FIFTYONE_DEGREES_COLLECTION_HELD_STRINGS_GAP_BYTES ((uint32_t)65536)
+
+/** Bytes read from the file at a time when scanning records. */
+#define FIFTYONE_DEGREES_COLLECTION_HELD_SCAN_BUFFER_BYTES ((uint32_t)65536)
+
+/**
+ * A stretch of a collection to hold in memory, in the units of the
+ * collection's keys.
+ */
+typedef struct fiftyone_degrees_collection_held_range_t {
+	uint32_t first; /**< Key of the first unit of the range */
+	uint32_t end; /**< Key after the last unit of the range */
+	byte *memory; /**< The bytes of the range once held */
+} fiftyoneDegreesCollectionHeldRange;
+
+/**
+ * Creates the collection that replaces the one provided when everything in it
+ * is to be held. The method sets the collection, which is NULL when it could
+ * not be created, and returns the status of creating it.
+ * @param state provided to the apply method
+ * @param config to create the collection with
+ * @param header of the collection
+ * @param collection to set to the collection created
+ * @return the status of creating the collection
+ */
+typedef fiftyoneDegreesStatusCode
+(*fiftyoneDegreesCollectionHeldCreateMethod)(
+	void *state,
+	const fiftyoneDegreesCollectionConfig *config,
+	fiftyoneDegreesCollectionHeader header,
+	fiftyoneDegreesCollection **collection);
+
+/**
+ * The lowest and highest string offsets recorded in part of the strings, and
+ * a tag for the highest that tells the end method how it is stored.
+ */
+typedef struct fiftyone_degrees_collection_held_bucket_t {
+	uint32_t first; /**< Lowest offset recorded, or UINT32_MAX for none */
+	uint32_t last; /**< Highest offset recorded */
+	uint32_t lastTag; /**< Tag given with the highest offset */
+} fiftyoneDegreesCollectionHeldBucket;
+
+/**
+ * The strings to hold, worked out from the offsets of the strings needed.
+ */
+typedef struct fiftyone_degrees_collection_held_strings_t {
+	fiftyoneDegreesCollectionHeldBucket *buckets; /**< Offsets recorded */
+	uint32_t bucketCount; /**< Number of buckets */
+	uint32_t bytes; /**< Bytes in the strings collection */
+	fiftyoneDegreesCollectionHeldRange *ranges; /**< The stretches to hold */
+	uint32_t count; /**< Number of stretches */
+} fiftyoneDegreesCollectionHeldStrings;
+
+/**
+ * Gets the offset after the string at the offset provided.
+ * @param state provided to the plan method
+ * @param offset of the string
+ * @param tag given with the offset when it was recorded
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the offset after the string, or the offset provided if it could not
+ * be read
+ */
+typedef uint32_t (*fiftyoneDegreesCollectionHeldStringEnd)(
+	void *state,
+	uint32_t offset,
+	uint32_t tag,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Called for each fixed size record of a stretch of the data file.
+ * @param state provided to the scan method
+ * @param record the bytes of the record
+ */
+typedef void (*fiftyoneDegreesCollectionHeldScanMethod)(
+	void *state,
+	const byte *record);
+
+/**
+ * Adds a stretch to a list with room for it. Nothing is added when the end is
+ * not after the first.
+ * @param ranges the list
+ * @param count number of stretches in the list, which is increased
+ * @param first key of the first unit
+ * @param end key after the last unit
+ */
+EXTERNAL void fiftyoneDegreesCollectionHeldRangeAdd(
+	fiftyoneDegreesCollectionHeldRange *ranges,
+	uint32_t *count,
+	uint32_t first,
+	uint32_t end);
+
+/**
+ * Adds a stretch cut to end at the limit of its collection.
+ * @param ranges the list
+ * @param count number of stretches in the list, which is increased
+ * @param first key of the first unit
+ * @param length number of units
+ * @param limit key after the last unit of the collection
+ */
+EXTERNAL void fiftyoneDegreesCollectionHeldRangeAddWithin(
+	fiftyoneDegreesCollectionHeldRange *ranges,
+	uint32_t *count,
+	uint32_t first,
+	uint32_t length,
+	uint32_t limit);
+
+/**
+ * Replaces the collection with one holding the stretches in memory, which
+ * reads everything else from the collection replaced. Anything allocated is
+ * freed with the collection if this fails. The stretches are put in order and
+ * joined where they meet.
+ * @param collection the collection to replace, which becomes the source of
+ * what is not held
+ * @param file open on the data file
+ * @param startPosition of the collection in the data file
+ * @param unitBytes bytes in each unit of a key
+ * @param ranges the stretches to hold
+ * @param rangeCount number of stretches
+ * @return the status of holding the stretches
+ */
+EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesCollectionHeldCreate(
+	fiftyoneDegreesCollection **collection,
+	FILE *file,
+	uint64_t startPosition,
+	uint32_t unitBytes,
+	fiftyoneDegreesCollectionHeldRange *ranges,
+	uint32_t rangeCount);
+
+/**
+ * Holds the stretches of a collection that reads from the file. A collection
+ * that is needed in full is replaced by one loaded into memory like any other
+ * if it can be replaced, and one with nothing needed stays on file. A
+ * collection cannot be replaced while items read from it are still to be
+ * released through it.
+ * @param collection the collection to hold stretches of
+ * @param file open on the data file
+ * @param header of the collection
+ * @param shift number of bits a stored offset is shifted to give bytes, or
+ * zero
+ * @param replaceable true if the collection can be replaced by one loaded into
+ * memory
+ * @param ranges the stretches to hold
+ * @param rangeCount number of stretches
+ * @param create creates the collection loaded into memory, which is not used
+ * unless replaceable
+ * @param createState provided to the create method
+ * @return the status of holding the stretches
+ */
+EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesCollectionHeldApply(
+	fiftyoneDegreesCollection **collection,
+	FILE *file,
+	fiftyoneDegreesCollectionHeader header,
+	byte shift,
+	bool replaceable,
+	fiftyoneDegreesCollectionHeldRange *ranges,
+	uint32_t rangeCount,
+	fiftyoneDegreesCollectionHeldCreateMethod create,
+	void *createState);
+
+/**
+ * Calls the method for each fixed size record in a stretch of the data file.
+ * @param file open on the data file
+ * @param buffer of at least the scan buffer size
+ * @param position in the data file of the first record
+ * @param count number of records
+ * @param recordBytes size of each record
+ * @param method called for each record
+ * @param state provided to the method
+ * @return the status of reading the records
+ */
+EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesCollectionHeldScan(
+	FILE *file,
+	byte *buffer,
+	uint64_t position,
+	uint32_t count,
+	uint32_t recordBytes,
+	fiftyoneDegreesCollectionHeldScanMethod method,
+	void *state);
+
+/**
+ * Prepares to record the offsets of the strings needed.
+ * @param strings to prepare, which is set to hold nothing if this fails
+ * @param bytes in the strings collection
+ * @return the status of allocating what is needed
+ */
+EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesCollectionHeldStringsInit(
+	fiftyoneDegreesCollectionHeldStrings *strings,
+	uint32_t bytes);
+
+/**
+ * Records the offset of a string that is needed.
+ * @param strings to record in
+ * @param offset of the string
+ * @param tag that the end method is given with the highest offset in a part
+ */
+EXTERNAL void fiftyoneDegreesCollectionHeldStringsAdd(
+	fiftyoneDegreesCollectionHeldStrings *strings,
+	uint32_t offset,
+	uint32_t tag);
+
+/**
+ * Works out the stretches of the strings to hold from the offsets recorded,
+ * which leaves on file any stretch long enough that holds no string needed.
+ * @param strings the offsets recorded, which are set to the stretches to hold
+ * @param end gets the offset after a string
+ * @param state provided to the end method
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
+ * @return the status of working out the stretches
+ */
+EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesCollectionHeldStringsPlan(
+	fiftyoneDegreesCollectionHeldStrings *strings,
+	fiftyoneDegreesCollectionHeldStringEnd end,
+	void *state,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Frees the offsets recorded, which are not needed once the stretches are
+ * worked out.
+ * @param strings to free the offsets of
+ */
+EXTERNAL void fiftyoneDegreesCollectionHeldStringsFreeOffsets(
+	fiftyoneDegreesCollectionHeldStrings *strings);
+
+/**
+ * Frees everything held by the strings plan.
+ * @param strings to free
+ */
+EXTERNAL void fiftyoneDegreesCollectionHeldStringsFree(
+	fiftyoneDegreesCollectionHeldStrings *strings);
+
+#endif
 
 /**
  * Gets the actual number of items in the collection by iterating through to

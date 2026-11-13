@@ -30,31 +30,30 @@ PropertyMetaDataCollectionForComponentIpi::PropertyMetaDataCollectionForComponen
 	fiftyoneDegreesResourceManager *manager,
 	ComponentMetaData *component) : Collection<string, PropertyMetaData>() {
 	EXCEPTION_CREATE;
-	Item item;
-	Property *property;
-	Component *propertyComponent;
 	DataSetIpi *dataSet = DataSetIpiGet(manager);
 	if (dataSet != nullptr) {
-		DataReset(&item.data);
-		uint32_t propertiesCount = CollectionGetCount(dataSet->properties);
+		const uint32_t propertiesCount = IpiGetPropertyCount(dataSet);
 		for (uint32_t i = 0; i < propertiesCount; i++) {
-			property = (Property*)PropertyGet(
-				dataSet->properties,
+			uint8_t componentId = 0;
+			const bool read = IpiGetProperty(
+				dataSet,
 				i,
-				&item,
+				nullptr,
+				&componentId,
+				nullptr,
+				nullptr,
+				nullptr,
+				nullptr,
+				nullptr,
+				nullptr,
+				nullptr,
+				nullptr,
+				nullptr,
 				exception);
 			EXCEPTION_THROW;
-			if (property != nullptr) {
-				propertyComponent = (Component*)dataSet->componentsList.items[
-					property->componentIndex].data.ptr;
-				if (propertyComponent->componentId ==
-					component->getComponentId()) {
-					properties.push_back(shared_ptr<PropertyMetaData>(
-						PropertyMetaDataBuilderIpi::build(
-							dataSet,
-							property)));
-				}
-				COLLECTION_RELEASE(dataSet->properties, &item);
+			if (read && componentId == component->getComponentId()) {
+				properties.push_back(shared_ptr<PropertyMetaData>(
+					PropertyMetaDataBuilderIpi::build(dataSet, i)));
 			}
 		}
 		DataSetIpiRelease(dataSet);

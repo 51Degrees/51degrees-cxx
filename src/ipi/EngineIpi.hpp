@@ -240,26 +240,17 @@ namespace FiftyoneDegrees {
 			/**
 			 * @}
 			 */
-		protected:
-			/**
-			 * Initialise the header keys which are used by this engine.
-			 * These are the pieces of evidence which should be passed in if
-			 * available.
-			 * @param uniqueHeaders to get the keys from
-			 */
-			void initHttpHeaderKeys(fiftyoneDegreesHeaders *uniqueHeaders) override;
-
-			/**
-			 * Derive the evidence keys for a set of unique headers without
-			 * touching the engine's own key list, so that a refresh can
-			 * compare the result against the keys already in use.
-			 * @param uniqueHeaders to get the keys from
-			 * @return the evidence keys for the headers, in header order
-			 */
-			vector<string> buildHttpHeaderKeys(
-				fiftyoneDegreesHeaders *uniqueHeaders) const;
-
 		private:
+			/**
+			 * Get the evidence keys of a data set without touching the
+			 * engine's own key list, so that a refresh can compare the result
+			 * against the keys already in use.
+			 * @param dataSet to get the keys of
+			 * @return the evidence keys, in the data set's header order
+			 */
+			static vector<string> buildKeys(
+				fiftyoneDegreesDataSetIpi *dataSet);
+
 			void initMetaData();
 
 			/**
@@ -268,13 +259,9 @@ namespace FiftyoneDegrees {
 			 * successful refresh, so that getKeys() describes the data set in
 			 * use rather than the one the engine was built from.
 			 *
-			 * The new list is built before anything is modified and installed
-			 * with a single swap, and the keys are left untouched when the
-			 * reloaded data set declares the same headers. A refresh which
-			 * does change the headers still mutates the list returned by
-			 * getKeys(), which is not synchronised against concurrent
-			 * readers, so a caller must not hold that pointer across a
-			 * refresh.
+			 * The new list is built before anything is changed, and a new list
+			 * is made only when the reloaded data set declares different
+			 * headers. The list a caller holds from getKeys() is not changed.
 			 */
 			void reloadKeys() const;
 

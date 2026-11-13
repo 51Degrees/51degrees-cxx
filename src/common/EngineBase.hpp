@@ -27,7 +27,9 @@
 #include <vector>
 #include <sstream>
 #include <memory>
+#include <mutex>
 #include <algorithm>
+#include <functional>
 #include "Exceptions.hpp"
 #include "RequiredPropertiesConfig.hpp"
 #include "Date.hpp"
@@ -203,14 +205,16 @@ namespace FiftyoneDegrees {
 
 			/**
 			 * Get the date at which the current data set was published.
-			 * @return data set published date
+			 * @return data set published date, or a year, month and day of
+			 * zero when the data file holds no valid date
 			 */
 			virtual Date getPublishedTime() const = 0;
 
 			/**
 			 * Get the date at which a new data file will be available to
 			 * download from the URL returned by #getDataUpdateUrl().
-			 * @return new data set available date
+			 * @return new data set available date, or a year, month and day
+			 * of zero when the data file holds no valid date
 			 */
 			virtual Date getUpdateAvailableTime() const = 0;
 
@@ -230,7 +234,9 @@ namespace FiftyoneDegrees {
 			/**
 			 * Get the list of keys which the engine accepts as evidence. This
 			 * is a pointer to an internal vector should not (and cannot) be
-			 * freed.
+			 * freed. The list is never changed once returned, and a refresh
+			 * that changes the keys gives later calls another list, so the
+			 * pointer stays valid until the engine is destroyed.
 			 * @return pointer to the list of evidence keys
 			 */
 			const vector<string>* getKeys() const;
@@ -241,8 +247,8 @@ namespace FiftyoneDegrees {
 			 * passes for that property. When the engine named its properties
 			 * these are the names it was created with, in that order, and a
 			 * refresh does not change them. When it named none, they are the
-			 * names of every property the data file loaded has, sorted by
-			 * name.
+			 * names of every property the first data file it loaded has,
+			 * sorted by name, and a refresh does not change them either.
 			 * @return the required property names
 			 */
 			vector<string> getRequiredProperties() const;
@@ -285,8 +291,23 @@ namespace FiftyoneDegrees {
 			/** The default key to use when adding the results to a dictionary. */
 			string defaultDataKey;
 
-			/** Keys which should be added to evidence. */
-			vector<string> keys;
+			/**
+			 * Every list of evidence keys the engine has had, the last being
+			 * current. A replaced list is kept until the engine is destroyed,
+			 * so the pointer getKeys() returned for it stays valid.
+			 */
+			mutable vector<std::unique_ptr<const vector<string>>> keyLists;
+
+			/** Guards keyLists. */
+			mutable std::mutex keysMutex;
+
+			/**
+			 * Makes a list the engine's evidence keys unless it is the same
+			 * as the current list. The list getKeys() returned before is not
+			 * changed.
+			 * @param newKeys the evidence keys
+			 */
+			void setKeys(vector<string> &&newKeys) const;
 
 			/**
 			 * Gets a string from a strings collection, and appends to a stream.
@@ -313,28 +334,15 @@ namespace FiftyoneDegrees {
 				uint32_t offset) const;
 
 			/**
-			 * Initialise the HTTP header keys which are used by this engine.
-			 * These are the pieces of evidence which should be passed in if
-			 * available.
-			 * @param uniqueHeaders to get the keys from
+			 * Gets the evidence keys that a C function writes as one string
+			 * with a separator between them. The function is called once to
+			 * find the length needed and once to fill a buffer of that length.
+			 * @param write calls the C function with the buffer, its length
+			 * and the separator, and returns the length the keys need
+			 * @return the keys in the order they were written
 			 */
-			virtual void initHttpHeaderKeys(fiftyoneDegreesHeaders *uniqueHeaders);
-
-			/**
-			 * Initialise the override keys which are used by this engine.
-			 * These are additional pieces of evidence which should be passed
-			 * in if available.
-			 * @param overrideProperties to get the keys from
-			 */
-			void initOverrideKeys(
-				fiftyoneDegreesOverridePropertyArray *overrideProperties);
-
-			/**
-			 * Adds a key to the list of keys which should be added as evidence.
-			 * This is called by the key init methods.
-			 * @param key to add
-			 */
-			void addKey(string key);
+			static vector<string> readKeys(
+				const std::function<size_t(char*, size_t, const char*)> &write);
 		};
 	FIFTYONE_DEGREES_COMMON_CXX_END
 	}

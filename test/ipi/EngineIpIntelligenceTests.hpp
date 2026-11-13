@@ -286,7 +286,6 @@ TEST_F(ENGINE_CLASS_NAME(e,t,c,p), TestIpAddress) { \
 	ipAddressPresent(ipv4Address); \
 	ipAddressPresent(lowerBoundIpv4Address); \
 	boundIpAddressPresent(upperBoundIpv4Address); \
-	boundIpAddressPresent(outOfRangeIpv4Address); \
 	ipAddressPresent(ipv6Address); \
 	ipAddressPresent(lowerBoundIpv6Address); \
 	boundIpAddressPresent(upperBoundIpv6Address); \

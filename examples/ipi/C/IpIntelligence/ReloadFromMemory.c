@@ -128,7 +128,10 @@ Failed to reload '0' times.
 
 static const char *dataDir = "data/ip-intelligence";
 
-static const char *dataFileName = "51Degrees-LiteV41.ipi";
+// The free ASN data file is used by default, as any data file will do for
+// this example and it is far smaller than the Lite file. It is downloaded
+// when it is missing, or another file may be given on the command line.
+static const char *dataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 static const char *ipAddressFileName = "evidence.yml";
 
@@ -402,6 +405,9 @@ void fiftyoneDegreesIpiReloadFromMemoryRun(
 		// Run the reload tests.
 		run(&manager, ipAddressFilePath, &reader);
 
+		// Say what the Enterprise data file adds, on a free data file.
+		fiftyoneDegreesExampleOfferEnterprise(&manager);
+
 		// Free the memory used by the manager.
 		ResourceManagerFree(&manager);
 	}
@@ -425,9 +431,9 @@ int main(int argc, char* argv[]) {
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
 	char ipAddressFilePath[FILE_MAX_PATH];
-	// An explicit data file path can be supplied in the 51DEGREES_IPI_PATH
+	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char *envDataFilePath = getenv("51DEGREES_IPI_PATH");
+	const char *envDataFilePath = getenv("_51DEGREES_IPI_PATH");
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}
@@ -471,7 +477,7 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesIpiReloadFromMemoryRun(
 		dataFilePath,
 		ipAddressFilePath,
-		argc > 3 ? argv[3] : "RegisteredName",
+		argc > 3 ? argv[3] : "RegisteredName,AsnName,IpRangeStart",
 		CONFIG);
 
 #ifdef _DEBUG

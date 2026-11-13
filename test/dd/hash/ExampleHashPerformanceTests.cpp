@@ -25,6 +25,8 @@
 
 class ExampleHashTestPerformance : public ExampleHashTest {
 public:
+	std::string output;
+
 	void run() {
 		// Capture stdout for the test.
 		testing::internal::CaptureStdout();
@@ -38,7 +40,7 @@ public:
 			NULL);
 
 		// Don't print the stdout
-		std::string output = testing::internal::GetCapturedStdout();
+		output = testing::internal::GetCapturedStdout();
 	}
 };
 
@@ -46,4 +48,23 @@ TEST_F(ExampleHashTestPerformance, All) {
     if (fiftyoneDegreesCollectionGetIsMemoryOnly() == false) {
         run();
     }
+}
+
+// The example asks for HardwareVendor, which the free Lite data file does not
+// have. The benchmark must still finish, and say where to ask for the
+// Enterprise data file.
+TEST_F(ExampleHashTestPerformance, LiteDataFile) {
+	dataFilePath = getLiteDataFilePath();
+	if (dataFilePath.empty()) {
+		GTEST_SKIP() << "The Lite data file is not present.";
+	}
+	if (fiftyoneDegreesCollectionGetIsMemoryOnly()) {
+		GTEST_SKIP() << "The example does not run in the memory only build.";
+	}
+	run();
+	EXPECT_NE(output.find("Properties retrieved 1\n"),
+		std::string::npos)
+		<< output;
+	EXPECT_NE(output.find("utm_term=lite-data-file"), std::string::npos)
+		<< output;
 }

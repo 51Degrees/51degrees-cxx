@@ -50,13 +50,3 @@ set_target_properties(fiftyone-ip-intelligence-c fiftyone-ip-intelligence-cxx
 file(WRITE ${CMAKE_BINARY_DIR}/null.cpp "")
 add_library(fiftyone-ip-intelligence-complete SHARED ${CMAKE_BINARY_DIR}/null.cpp)
 target_link_libraries(fiftyone-ip-intelligence-complete fiftyone-ip-intelligence-cxx)
-
-set_target_properties(fiftyone-ip-intelligence-complete PROPERTIES PUBLIC_HEADER "${IPI}/ipi.h")
-
-install(TARGETS fiftyone-ip-intelligence-complete DESTINATION fiftyone-ip-intelligence-complete
-	RUNTIME DESTINATION lib
-	ARCHIVE DESTINATION lib/static
-	PUBLIC_HEADER DESTINATION include
-	# Set this to optional, otherwise it will interfere with builds which
-	# include this CMake file.
-	OPTIONAL)

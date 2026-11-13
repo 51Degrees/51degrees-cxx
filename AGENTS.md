@@ -122,10 +122,11 @@ In PowerShell, pipe in an empty line instead, for example
 `'' | .\build\bin\Release\GettingStartedHashC.exe`.
 
 To use another data file, give its path as the first argument. The IP
-Intelligence examples also read a path from the `51DEGREES_IPI_PATH`
-environment variable. The name starts with a digit, so in a Linux shell set it
-with `env`, for example
-`env 51DEGREES_IPI_PATH=/path/to/file.ipi ./build/bin/GettingStartedC < /dev/null`.
+Intelligence examples also read a path from the `_51DEGREES_IPI_PATH`
+environment variable, for example
+`_51DEGREES_IPI_PATH=/path/to/file.ipi ./build/bin/GettingStartedC < /dev/null`.
+The name starts with an underscore because a POSIX shell cannot set a name
+that starts with a digit.
 
 ### Correct output
 
@@ -187,6 +188,16 @@ describes.
   file under the Lite file's name (`ci/fetch-assets.ps1`), so the Lite IP
   Intelligence file itself is never used in CI.
 
+## Environment variable names
+
+[common-ci's list of environment variable names](https://github.com/51Degrees/common-ci/blob/18f9a570ed862a0b7e1ecb1c55a8319f35f02491/environment-variables.md)
+holds every environment variable name that the packages, tests, examples and
+CI scripts of every language read, with what each name holds and the
+deprecated names each replaced. The list decides. Use the names it gives, and
+when a change needs a new name, or reads an old name again, change
+[`environment-variables.json`](https://github.com/51Degrees/common-ci/blob/18f9a570ed862a0b7e1ecb1c55a8319f35f02491/environment-variables.json)
+in common-ci in the same piece of work.
+
 ## The two copies of common
 
 Device Detection and IP Intelligence need the common library built
@@ -237,6 +248,16 @@ includes `../../common/common.h`. The APIs for other languages compile these
 sources with their own build systems, so keep includes relative to the file
 rather than relying on include directories.
 
+## Installing
+
+`cmake/install.cmake` installs the libraries, a CMake package with the
+`51Degrees::` targets, and the headers under `include/51degrees` in the layout
+of `src`, which the relative includes need. A new library that an installed
+library links has to be added to its list, or the install fails to export the
+targets. Package managers build from a source archive, which has neither the
+submodules nor the Git history, so a build with `BUILD_TESTING` and
+`FIFTYONE_BUILD_EXAMPLES` off must not read `data` or download anything.
+
 ## HighPerformance and required properties
 
 Naming fewer properties than the data file has changes what the HighPerformance
@@ -252,11 +273,11 @@ directory for the folder `data/device-detection` or `data/ip-intelligence`.
 Those names are fixed. `data` is the data repository, a submodule at the root,
 which holds a `<file>.link` for each free data file rather than the file.
 `data/get-data-files.ps1` and `data/get-data-files.sh` download them, and an
-example whose file is missing runs the script for it. The
-`device-detection-data` and `ip-intelligence-data` submodules are kept only
-until the other language APIs read `data`, so nothing here uses them. The
-enterprise files used in CI are fetched by `ci/fetch-assets.ps1` and are never
-committed.
+example whose file is missing runs the script for it. The enterprise files used
+in CI are fetched by `ci/fetch-assets.ps1` and are never committed. CI takes
+every data file from common-ci's assets, which each run caches once, so no test
+job downloads one. A file added to the data repository needs an entry in
+common-ci's `steps/fetch-assets.ps1` before CI can use it.
 
 ## CI
 
@@ -274,6 +295,10 @@ comments. A change to a product's source adds that product's other entries.
 The repeated Debug builds and macOS run only when `rc` itself or the release
 pull request is built, which `.github/workflows/release-pull-request.yml`
 does on every entry.
+
+An entry with `InstallCheck` also runs `ci/check-install.ps1` after its build.
+It builds an archive of the commit with the tests and examples off, offline on
+Linux, installs it, and builds and runs `test/install` against the install.
 
 Pull requests target `rc`, not `main`, because every language takes
 each commit on `main` at its next nightly. The README's "Making changes" says
@@ -314,3 +339,11 @@ The history of `common-cxx`, `device-detection-cxx`, `ip-intelligence-cxx`
 and `ip-graph-cxx` was brought in with `git subtree add`, so commit SHAs match
 the original repositories. Use `git log --follow` to trace a file back through
 its move into this layout.
+
+## Tests that fail on timing
+
+A test that fails on a time limit, a performance threshold or a timeout is
+fixed, not run again until it passes. Either the limit is set to fit the
+slowest runner the test runs on, with each runner's measurement behind it, or
+the reason it takes too long is found and fixed. A failure that comes and goes
+costs everyone who meets it the time to look into it.

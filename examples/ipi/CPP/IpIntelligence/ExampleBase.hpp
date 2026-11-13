@@ -33,6 +33,10 @@ static const char *dataDir = "data/ip-intelligence";
 
 static const char *dataFileName = "51Degrees-LiteV41.ipi";
 
+// The free ASN data file, far smaller than the Lite file, for the examples
+// that any data file will do for.
+static const char *asnDataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
+
 static const char *ipAddressFileName = "evidence.yml";
 
 using std::thread;
@@ -94,6 +98,13 @@ namespace FiftyoneDegrees {
 				
 				/** Example desktop Ipv6 Address string */
 				static const char *ipv6Address;
+
+				/**
+				 * Shown in place of a value for a property that the data file
+				 * in use does not have. Every property the examples ask for is
+				 * in the Enterprise data file.
+				 */
+				static const char *needsEnterprise;
 				
 				/**
 				 * Reports the status of the data file initialization.
@@ -119,6 +130,24 @@ namespace FiftyoneDegrees {
 					size_t size);
 			
 			protected:
+				/**
+				 * True when the data file has the property. The free data
+				 * files leave out the properties only the Enterprise data file
+				 * has. The data file's own list is read, so the answer does not
+				 * depend on the required properties.
+				 * @param name of the property as the data file writes it
+				 * @return true when the data file has the property
+				 */
+				bool hasProperty(const char *name) const;
+
+				/**
+				 * On a free data file, says what the Enterprise data file adds
+				 * and where to ask for a copy.
+				 * @param contactUs link to the contact page, tagged with the
+				 * example
+				 */
+				void offerEnterprise(const char *contactUs) const;
+
 				/**
 				 * State containing the states for all threads running in a
 				 * multi-threaded example .
