@@ -784,6 +784,9 @@ TEST_F(HashCTests, HashResultsGetValuesNoProfileValues) {
  * JavaScript properties which measure them, are all available.
  */
 #ifndef FIFTYONE_DEGREES_REDUCED_FILE
+/** Values whose metadata the deprecated builder taking a value builds. */
+static const uint32_t deprecatedBuilderValues = 1000;
+
 /*
  * Reads the description and URL of every value in the data file, through the
  * C functions and through the meta data the language wrappers use, and the URL
@@ -833,6 +836,19 @@ static void checkValueDescriptions(const char *fileName, ConfigHash config) {
 		ASSERT_TRUE(EXCEPTION_OKAY);
 		ASSERT_NE(nullptr, url);
 		EXPECT_STREQ(&url->value, metaData->getUrl().c_str());
+		// The deprecated builder taking the value gives the same, checked on
+		// the first values only, as every value is read twice otherwise.
+		if (i < deprecatedBuilderValues) {
+			auto fromValue = ValueMetaDataBuilderHash::build(dataSet, value);
+			ASSERT_NE(nullptr, fromValue);
+			EXPECT_EQ(metaData->getKey().getPropertyName(),
+				fromValue->getKey().getPropertyName());
+			EXPECT_EQ(metaData->getName(), fromValue->getName());
+			EXPECT_EQ(metaData->getDescription(),
+				fromValue->getDescription());
+			EXPECT_EQ(metaData->getUrl(), fromValue->getUrl());
+			delete fromValue;
+		}
 		if (value->urlOffsetOrWeight == 0) {
 			ASSERT_STREQ("", &url->value) <<
 				"The value at index " << i << " has no URL.";

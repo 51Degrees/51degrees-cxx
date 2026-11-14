@@ -1476,15 +1476,17 @@ EXTERNAL bool fiftyoneDegreesHashGetValue(
 
 /**
  * Gets the index of the property's value with the name provided, which must
- * match exactly. A property's values are in order of their names, so a
- * binary search finds the value without reading the others.
+ * match exactly. The search is a binary search, which reads few of the
+ * property's values and relies on the data file holding them in the byte
+ * order of their names. Where a data file does not keep that order, the
+ * search can miss a value.
  * @param dataSet the data set to read
  * @param propertyIndex index of the property
  * @param valueName name of the value to find
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h
  * @return the index of the value in the values collection, or -1 when the
- * property has no value of that name or a value cannot be read
+ * search finds no value of that name or a value cannot be read
  */
 EXTERNAL long fiftyoneDegreesHashGetValueIndex(
 	fiftyoneDegreesDataSetHash *dataSet,

@@ -87,6 +87,20 @@ namespace FiftyoneDegrees {
 				fiftyoneDegreesDataSetIpi *dataSet,
 				uint32_t valueIndex,
 				const std::vector<std::string> &propertyNames);
+			/**
+			 * Build a new instance of ValueMetaData from the underlying value
+			 * provided.
+			 * @deprecated Use build(dataSet, valueIndex), which reads the value
+			 * once in C. Kept for one release, as a public name.
+			 * @param dataSet pointer to the data set containing the value
+			 * @param value pointer to the underlying value to create the meta
+			 * data from
+			 * @return the new instance, or nullptr when the data set gives no
+			 * property for the value
+			 */
+			static ValueMetaData* build(
+				fiftyoneDegreesDataSetIpi *dataSet,
+				const fiftyoneDegreesValue *value);
 		private:
 			/**
 			 * Build a new instance of ValueMetaData from the value at the

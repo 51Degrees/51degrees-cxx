@@ -1388,15 +1388,18 @@ EXTERNAL bool fiftyoneDegreesIpiGetValue(
  * Gets the index of the property's value with the name provided. Each value
  * is compared with the name as the type the property is stored as, so a
  * number is found when the name has fewer decimal places than the value
- * stored. A property's values are in order, so a binary search finds the
- * value without reading the others.
+ * stored. The search is a binary search, which reads few of the property's
+ * values and relies on the data file holding them in the order of their
+ * names. Where a data file does not keep that order, or a property holds
+ * several values with the same name, as a weighted property can, the search
+ * can miss a value or give another value with the same name.
  * @param dataSet the data set to read
  * @param propertyIndex index of the property
  * @param valueName name of the value to find
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h
  * @return the index of the value in the values collection, or -1 when the
- * property has no value of that name or a value cannot be read
+ * search finds no value of that name or a value cannot be read
  */
 EXTERNAL long fiftyoneDegreesIpiGetValueIndex(
 	fiftyoneDegreesDataSetIpi *dataSet,

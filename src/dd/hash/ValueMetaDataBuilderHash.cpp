@@ -97,3 +97,45 @@ ValueMetaData* ValueMetaDataBuilderHash::buildValue(
 		std::move(texts.description),
 		std::move(texts.url));
 }
+
+ValueMetaData* ValueMetaDataBuilderHash::build(
+	fiftyoneDegreesDataSetHash *dataSet,
+	const fiftyoneDegreesValue *value) {
+	EXCEPTION_CREATE;
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char *text = HashGetPropertyText(
+		dataSet,
+		value->propertyIndex,
+		FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+		buffer,
+		sizeof(buffer),
+		exception);
+	if (text == nullptr) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
+	string propertyName = takeText(text, buffer, exception);
+	string texts[3];
+	const fiftyoneDegreesValueText which[3] = {
+		FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+		FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION,
+		FIFTYONE_DEGREES_VALUE_TEXT_URL };
+	for (int i = 0; i < 3; i++) {
+		texts[i] = takeText(
+			ValueGetMetaDataText(
+				dataSet->strings,
+				nullptr,
+				value,
+				which[i],
+				0,
+				buffer,
+				sizeof(buffer),
+				exception),
+			buffer,
+			exception);
+	}
+	return new ValueMetaData(
+		ValueMetaDataKey(std::move(propertyName), std::move(texts[0])),
+		std::move(texts[1]),
+		std::move(texts[2]));
+}
