@@ -247,9 +247,7 @@ static void InitDouble(
 /**
  * @brief Saves a double value from a stored binary value.
  * 
- * Converts the stored binary value to a double and saves it in the weighted
- * value. A value stored as an azimuth or a declination is rounded to
- * #fiftyoneDegreesDefaultWktDecimalPlaces places, as its text is.
+ * Converts the stored binary value to a double and saves it in the weighted value.
  * 
  * @param header Pointer to the weighted value header
  * @param storedBinaryValue Pointer to the stored binary value
@@ -267,12 +265,8 @@ static void SaveDouble(
     UNREFERENCED_PARAMETER(exception);
 #	endif
 
-    ((WeightedDouble*)header)->value =
-        StoredBinaryValueToRoundedDoubleOrDefault(
-            storedBinaryValue,
-            propertyValueType,
-            DefaultWktDecimalPlaces,
-            *(double*)converterState);
+    ((WeightedDouble*)header)->value = StoredBinaryValueToDoubleOrDefault(
+        storedBinaryValue, propertyValueType, *(double*)converterState);
 }
 
 /**

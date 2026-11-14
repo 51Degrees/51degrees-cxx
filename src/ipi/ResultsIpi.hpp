@@ -384,8 +384,6 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all weighted double representations of the 
 			 * values associated with the required property name. If the name
 			 * is not valid an empty vector is returned.
-			 * A value stored as an azimuth or a declination is rounded
-			 * to the decimal places of its text, which is 3 by default.
 			 * @param propertyName pointer to a string containing the property
 			 * name
 			 * @return a vector of weighted double values for the property
@@ -397,8 +395,6 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all weighted double representations of the 
 			 * values associated with the required property name. If the name
 			 * is not valid an empty vector is returned.
-			 * A value stored as an azimuth or a declination is rounded
-			 * to the decimal places of its text, which is 3 by default.
 			 * @param propertyName pointer to a string containing the property
 			 * name
 			 * @return a vector of weighted double values for the property
@@ -410,8 +406,6 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all weighted double representations of the 
 			 * values associated with the required property name. If the name
 			 * is not valid an empty vector is returned.
-			 * A value stored as an azimuth or a declination is rounded
-			 * to the decimal places of its text, which is 3 by default.
 			 * @param propertyName pointer to a string containing the property
 			 * name
 			 * @return a vector of weighted double values for the property
@@ -423,8 +417,6 @@ namespace FiftyoneDegrees {
 			 * Get a vector with all weighted double representations of the 
 			 * values associated with the required property index. If the index
 			 * is not valid an empty vector is returned.
-			 * A value stored as an azimuth or a declination is rounded
-			 * to the decimal places of its text, which is 3 by default.
 			 * @param requiredPropertyIndex index of the property in the names the
 			 * engine was created with, or when it named none, in the
 			 * properties of the first data file it loaded

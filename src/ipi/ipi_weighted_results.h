@@ -64,8 +64,6 @@ typedef struct fiftyone_degrees_weighted_int_t {
  * @brief Structure for weighted double values.
  * 
  * Contains a weighted value header and a double value.
- * A value stored as an azimuth or a declination is rounded to
- * #fiftyoneDegreesDefaultWktDecimalPlaces places, as its text is.
  */
 typedef struct fiftyone_degrees_weighted_double_t {
  fiftyoneDegreesWeightedValueHeader header; /**< Common header for all weighted values */
