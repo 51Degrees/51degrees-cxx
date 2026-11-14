@@ -389,7 +389,9 @@ void fiftyoneDegreesIpiReloadFromFileRun(
 		run(&manager, ipAddressFilePath);
 
 		// Say what the Enterprise data file adds, on a free data file.
-		fiftyoneDegreesExampleOfferEnterprise(&manager);
+		fiftyoneDegreesExampleOfferEnterpriseProperties(
+			&manager,
+			requiredProperties);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);

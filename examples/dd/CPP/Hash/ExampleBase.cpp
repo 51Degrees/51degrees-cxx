@@ -115,6 +115,28 @@ bool ExampleBase::hasProperty(const char *name) const {
 	return found;
 }
 
+void ExampleBase::reportEnterpriseProperties() const {
+	const std::string names = RequiredProperties;
+	size_t start = 0;
+	while (start <= names.size()) {
+		size_t end = names.find(',', start);
+		if (end == std::string::npos) {
+			end = names.size();
+		}
+		size_t first = names.find_first_not_of(' ', start);
+		size_t last = names.find_last_not_of(' ', end - 1);
+		if (first != std::string::npos && first < end &&
+			last != std::string::npos && last >= first) {
+			const std::string name = names.substr(first, last - first + 1);
+			if (!hasProperty(name.c_str())) {
+				cout << name << " " <<
+					FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE << ".\n";
+			}
+		}
+		start = end + 1;
+	}
+}
+
 void ExampleBase::offerEnterprise(const char *contactUs) const {
 	if (engine->getProduct().rfind("Lite", 0) == 0) {
 		cout << "\nThis example is using the free Lite data file. The "

@@ -41,6 +41,7 @@ ExampleBase::ExampleBase(::byte *data, FileOffset length, const std::shared_ptr<
 	// the free ASN data file, which has none of the others.
 	string propertiesString = "IpRangeStart,IpRangeEnd,RegisteredCountry,AccuracyRadiusMin,Longitude,Latitude,AsnName";
 	properties = std::make_unique<RequiredPropertiesConfig>(propertiesString);
+	propertyNames = propertiesString;
 	
 	// Initialise the engine for IP intelligence.
 	engine = std::make_unique<EngineIpi>(data, length, config.get(), properties.get());
@@ -53,6 +54,7 @@ ExampleBase::ExampleBase(const string& dataFilePath, const std::shared_ptr<Fifty
 	// the free ASN data file, which has none of the others.
 	string propertiesString = "IpRangeStart,IpRangeEnd,AccuracyRadiusMin,RegisteredCountry,RegisteredName,Longitude,Latitude,Areas,AsnName";
 	properties = std::make_unique<RequiredPropertiesConfig>(propertiesString);
+	propertyNames = propertiesString;
 
 	// Initialise the engine for ip intelligence.
 	engine = std::make_unique<EngineIpi>(dataFilePath, config.get(), properties.get());
@@ -97,6 +99,28 @@ bool ExampleBase::hasProperty(const char *name) const {
 	auto const property = std::unique_ptr<PropertyMetaData>(
 		fileProperties->getByKey(name));
 	return property != nullptr;
+}
+
+void ExampleBase::reportEnterpriseProperties() const {
+	const std::string names = propertyNames;
+	size_t start = 0;
+	while (start <= names.size()) {
+		size_t end = names.find(',', start);
+		if (end == std::string::npos) {
+			end = names.size();
+		}
+		size_t first = names.find_first_not_of(' ', start);
+		size_t last = names.find_last_not_of(' ', end - 1);
+		if (first != std::string::npos && first < end &&
+			last != std::string::npos && last >= first) {
+			const std::string name = names.substr(first, last - first + 1);
+			if (!hasProperty(name.c_str())) {
+				cout << name << " " <<
+					FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE << ".\n";
+			}
+		}
+		start = end + 1;
+	}
 }
 
 void ExampleBase::offerEnterprise(const char *contactUs) const {

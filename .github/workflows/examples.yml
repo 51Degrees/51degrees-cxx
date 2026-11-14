@@ -116,7 +116,7 @@ jobs:
             # and gives the tagged contact link to ask for a copy, all before
             # Find out more.
             $body = $at -ge 0 ? @($lines | Select-Object -First $at) : $lines
-            if (-not ($body -match 'needs the Enterprise data file')) {
+            if (-not ($body -match 'needs? the Enterprise data file')) {
               $failed += "$name (no property said to need the Enterprise data file)"
             }
             if (-not ($body -match $contactLink)) {
