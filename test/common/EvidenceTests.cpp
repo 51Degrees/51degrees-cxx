@@ -226,8 +226,40 @@ TEST_F(Evidence, MapPrefix) {
     EXPECT_EQ(map, nullptr);
     map = fiftyoneDegreesEvidenceMapPrefix("nonsense");
     EXPECT_EQ(map, nullptr);
-    map = fiftyoneDegreesEvidenceMapPrefix("HEADER.something"); // case-sensitivity of the prefixes
+    map = fiftyoneDegreesEvidenceMapPrefix("HEADER."); // nor in another case
     EXPECT_EQ(map, nullptr);
+}
+
+// Evidence keys are case-insensitive, so a prefix is found whatever its case.
+TEST_F(Evidence, MapPrefix_IgnoresCase) {
+    const struct {
+        const char *key;
+        fiftyoneDegreesEvidencePrefix prefix;
+    } keys[] = {
+        { "HEADER.User-Agent", FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING },
+        { "Header.user-agent", FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING },
+        { "SERVER.client-ip", FIFTYONE_DEGREES_EVIDENCE_SERVER },
+        { "Query.param", FIFTYONE_DEGREES_EVIDENCE_QUERY },
+        { "COOKIE.name", FIFTYONE_DEGREES_EVIDENCE_COOKIE },
+    };
+    for (const auto &key : keys) {
+        auto map = fiftyoneDegreesEvidenceMapPrefix(key.key);
+        ASSERT_NE(nullptr, map) << key.key << " has no prefix";
+        EXPECT_EQ(key.prefix, map->prefixEnum) << key.key;
+    }
+}
+
+// Evidence given under a key whose prefix is not in lower case reaches the
+// evidence the engines read, with the field as it was given.
+TEST_F(Evidence, EvidenceBase_PrefixIgnoresCase) {
+    EvidenceBase given;
+    given["Header.User-Agent"] = "Mozilla/5.0";
+    fiftyoneDegreesEvidenceKeyValuePairArray *pairs = given.get();
+    ASSERT_NE(nullptr, pairs);
+    ASSERT_EQ(1u, pairs->count) << "Header.User-Agent was dropped";
+    EXPECT_EQ(FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        pairs->items[0].prefix);
+    EXPECT_STREQ("User-Agent", pairs->items[0].item.key);
 }
                                                           
 TEST_F(Evidence, IterateForHeaders_Order) {
