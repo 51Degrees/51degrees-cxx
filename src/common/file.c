@@ -675,7 +675,7 @@ static fiftyoneDegreesStatusCode getBasenameWithoutExtension(
 	size_t length) {
 	StatusCode status = NOT_SET;
 	const char* pos = getNameFromPath(path);
-	char* dot = strrchr(path, '.');
+	const char* dot = strrchr(path, '.');
 	size_t end = strlen(pos);
 	if (dot != NULL) {
 		end = dot - pos;
