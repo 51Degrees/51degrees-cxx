@@ -24,7 +24,10 @@
 
 #include "string.h"
 #include "fiftyone.h"
+#include <float.h>
 #include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "collectionKeyTypes.h"
 
@@ -301,20 +304,43 @@ static const double roundingScales[] = {
 #define ROUNDING_LIMIT 9e15
 
 /**
- * Rounds the value to the decimal places, a half going away from zero. The
- * scaled value is a whole number that a double holds exactly, so dividing it
- * by the scale gives the double nearest to the rounded decimal.
+ * Defined where the compiler works out a double in a wider type, as GCC does
+ * for 32 bit x86 with the x87 instructions. A quotient is then rounded twice,
+ * to the wider type and then to a double, and can be one unit in the last
+ * place from the double nearest to it.
+ */
+#if defined(FLT_EVAL_METHOD) && (FLT_EVAL_METHOD < 0 || FLT_EVAL_METHOD > 1)
+#define ROUND_TO_PLACES_THROUGH_TEXT
+#endif
+
+/**
+ * Rounds the value to the decimal places, a half going away from zero, and
+ * gives the double nearest to the rounded decimal. The scaled value is a
+ * whole number that a double holds exactly, so dividing it by the scale is
+ * rounded once. Where a division is rounded twice, strtod reads the decimal
+ * instead, written with an exponent so there is no decimal point for the
+ * locale to change.
  */
 static double roundToPlaces(const double value, const uint8_t decimalPlaces) {
-    const double scale = roundingScales[
-        decimalPlaces < MAX_DOUBLE_DECIMAL_PLACES ?
-        decimalPlaces : MAX_DOUBLE_DECIMAL_PLACES];
+    const uint8_t places = decimalPlaces < MAX_DOUBLE_DECIMAL_PLACES ?
+        decimalPlaces : MAX_DOUBLE_DECIMAL_PLACES;
+    const double scale = roundingScales[places];
     const double scaled = value * scale;
+    int64_t whole;
+#ifdef ROUND_TO_PLACES_THROUGH_TEXT
+    char text[32];
+#endif
     if (scaled >= ROUNDING_LIMIT || scaled <= -ROUNDING_LIMIT) {
         // A double this large has no fraction left to round.
         return value;
     }
-    return (double)(int64_t)(scaled + (scaled < 0 ? -0.5 : 0.5)) / scale;
+    whole = (int64_t)(scaled + (scaled < 0 ? -0.5 : 0.5));
+#ifdef ROUND_TO_PLACES_THROUGH_TEXT
+    snprintf(text, sizeof(text), "%" PRId64 "e-%d", whole, (int)places);
+    return strtod(text, NULL);
+#else
+    return (double)whole / scale;
+#endif
 }
 
 double fiftyoneDegreesStoredBinaryValueToRoundedDoubleOrDefault(
