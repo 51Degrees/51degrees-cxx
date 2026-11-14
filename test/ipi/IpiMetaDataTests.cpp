@@ -1020,8 +1020,9 @@ static void ipiMetaDataResultsProfiles(
 /**
  * The values the C++ metadata gives for a profile are the values the
  * results give for the same profile, for the profiles of each component
- * that the addresses find. A property the profile has no value for is given
- * its default value by the results when it is mandatory.
+ * that the addresses find, and each is found again by its key. A property
+ * the profile has no value for is given its default value by the results
+ * when it is mandatory.
  */
 TEST_F(IpiMetaDataTests, ValuesForProfileMatchResults) {
 	eachDataFile([](const string &path) {
@@ -1042,6 +1043,9 @@ TEST_F(IpiMetaDataTests, ValuesForProfileMatchResults) {
 				defaults);
 		}
 		ASSERT_GT(fromResults.size(), 1u) << "Too few profiles were found.";
+		uint32_t checkedByKey = 0;
+		uint32_t notFoundByKey = 0;
+		string firstNotFound;
 		unique_ptr<Profiles> profiles(metaData.getProfiles());
 		for (auto &profileNames : fromResults) {
 			const uint32_t offset = profileNames.first;
@@ -1058,6 +1062,20 @@ TEST_F(IpiMetaDataTests, ValuesForProfileMatchResults) {
 					ASSERT_TRUE(value != nullptr) << offset;
 					fromMetaData[value->getKey().getPropertyName()]
 						.push_back(value->getName());
+					// The profile's value is found again by its key.
+					unique_ptr<Common::ValueMetaData> byKey(
+						values->getByKey(value->getKey()));
+					if (byKey == nullptr ||
+						byKey->getName() != value->getName()) {
+						if (notFoundByKey == 0) {
+							firstNotFound = "the profile at offset " +
+								std::to_string(offset) + ", " +
+								value->getKey().getPropertyName() + " " +
+								value->getName();
+						}
+						notFoundByKey++;
+					}
+					checkedByKey++;
 				}
 			}
 			catch (std::exception &e) {
@@ -1090,6 +1108,11 @@ TEST_F(IpiMetaDataTests, ValuesForProfileMatchResults) {
 					property.first << ", which the results do not give.";
 			}
 		}
-		printf("Checked %d profiles.\n", (int)fromResults.size());
+		EXPECT_EQ(0u, notFoundByKey) << notFoundByKey << " of " <<
+			checkedByKey << " values of the profiles were not found by " <<
+			"their key, the first being " << firstNotFound;
+		printf("Checked %d profiles, and %u values by key.\n",
+			(int)fromResults.size(),
+			checkedByKey);
 	});
 }
