@@ -41,6 +41,7 @@
  * @{
  */
 
+#include <stddef.h>
 #include <stdint.h>
 #include "../common/config.h"
 

@@ -54,6 +54,12 @@ jobs:
     name: Nightly Examples
     uses: ./.github/workflows/examples.yml
 
+  # Compiles the sources with the runner's compiler and its default language
+  # standard, which changes without any change here.
+  DefaultStandard:
+    name: Nightly Default Standard
+    uses: ./.github/workflows/default-standard.yml
+
   PullRequests:
     if: ${{ !cancelled() }}
     needs: [SubmoduleUpdate, Publish]
