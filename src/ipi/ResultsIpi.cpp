@@ -661,6 +661,18 @@ IpIntelligence::ResultsIpi::valuesAsWeightedWKTStringListAt(
                 throw NoValuesAvailableException();
             }
 
+            // Each value is written from the type it is stored as, so full
+            // and reduced WKB both give WKT, as every other getter here does.
+            const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+            const int propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+                dataSet->b.b.available,
+                requiredPropertyIndex);
+            const PropertyValueType storedValueType = PropertyGetStoredTypeByIndex(
+                dataSet->propertyTypes,
+                propertyIndex,
+                exception);
+            EXCEPTION_THROW;
+
             // Set enough space in the vector for all the strings that will be
             // inserted.
             values.reserve(results->values.count);
@@ -674,7 +686,7 @@ IpIntelligence::ResultsIpi::valuesAsWeightedWKTStringListAt(
                 const StoredBinaryValue * const binaryValue = (StoredBinaryValue *)valuesItems[i].item.data.ptr;
                 writeStoredBinaryValueToStringStream(
                     binaryValue,
-                    FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+                    storedValueType,
                     stream,
                     decimalPlaces,
                     exception);

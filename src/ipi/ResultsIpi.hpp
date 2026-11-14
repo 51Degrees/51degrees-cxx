@@ -281,7 +281,9 @@ namespace FiftyoneDegrees {
 			 * @param propertyName pointer to a string containing the property
 			 * name
 			 * @param decimalPlaces precision (places after decimal dot)
-			 * @return a vector of weighted string values for the property
+			 * @return a vector of weighted string values for the property,
+			 * each written from the type it is stored as, so that a geometry
+			 * gives its WKT
 			 */
 			Common::Value<vector<WeightedValue<string>>>
 				getValuesAsWeightedWKTStringList(
@@ -294,7 +296,9 @@ namespace FiftyoneDegrees {
 			 * @param propertyName pointer to a string containing the property
 			 * name
 			 * @param decimalPlaces precision (places after decimal dot)
-			 * @return a vector of weighted string values for the property
+			 * @return a vector of weighted string values for the property,
+			 * each written from the type it is stored as, so that a geometry
+			 * gives its WKT
 			 */
 			Common::Value<vector<WeightedValue<string>>>
 				getValuesAsWeightedWKTStringList(
@@ -307,7 +311,9 @@ namespace FiftyoneDegrees {
 			 * @param propertyName pointer to a string containing the property
 			 * name
 			 * @param decimalPlaces precision (places after decimal dot)
-			 * @return a vector of weighted string values for the property
+			 * @return a vector of weighted string values for the property,
+			 * each written from the type it is stored as, so that a geometry
+			 * gives its WKT
 			 */
 			Common::Value<vector<WeightedValue<string>>>
 				getValuesAsWeightedWKTStringList(
@@ -321,7 +327,9 @@ namespace FiftyoneDegrees {
 			 * engine was created with, or when it named none, in the
 			 * properties of the first data file it loaded
 			 * @param decimalPlaces precision (places after decimal dot)
-			 * @return a vector of weighted string values for the property
+			 * @return a vector of weighted string values for the property,
+			 * each written from the type it is stored as, so that a geometry
+			 * gives its WKT
 			 */
 			Common::Value<vector<WeightedValue<string>>>
 				getValuesAsWeightedWKTStringList(
