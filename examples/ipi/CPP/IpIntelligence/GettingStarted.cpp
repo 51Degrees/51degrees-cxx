@@ -212,6 +212,8 @@ namespace FiftyoneDegrees {
 	}
 }
 
+#ifndef TEST
+
 int main(int argc, char *argv[]) {
 	fiftyoneDegreesStatusCode status = FIFTYONE_DEGREES_STATUS_SUCCESS;
 	char dataFilePath[FIFTYONE_DEGREES_FILE_MAX_PATH];
@@ -273,3 +275,5 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
+
+#endif
