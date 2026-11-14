@@ -1,0 +1,8 @@
+name: Temporary trial of the nightly's examples job
+on:
+  push:
+    branches: ['tmp/examples-nightly-call']
+jobs:
+  Examples:
+    name: Nightly Examples
+    uses: ./.github/workflows/examples.yml
