@@ -60,3 +60,13 @@ ProfileMetaData* ProfileMetaDataBuilderHash::buildById(
 	}
 	return new ProfileMetaData(profileId, componentId);
 }
+
+ProfileMetaData* ProfileMetaDataBuilderHash::build(
+	fiftyoneDegreesDataSetHash *dataSet,
+	fiftyoneDegreesProfile *profile) {
+	byte componentId = ((Component*)dataSet->componentsList
+		.items[profile->componentIndex].data.ptr)->componentId;
+	return new ProfileMetaData(
+		profile->profileId,
+		componentId);
+}

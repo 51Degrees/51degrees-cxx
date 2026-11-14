@@ -65,6 +65,20 @@ namespace FiftyoneDegrees {
 				static ProfileMetaData* buildById(
 					fiftyoneDegreesDataSetHash *dataSet,
 					uint32_t profileId);
+
+				/**
+				 * Build a new instance of ProfileMetaData from the underlying
+				 * profile provided.
+				 * @deprecated Use buildByIndex or buildById, which read the
+				 * profile in C. Kept for one release, as a public name.
+				 * @param dataSet pointer to the data set containing the profile
+				 * @param profile pointer to the underlying profile to create
+				 * the meta data from
+				 * @return the new instance
+				 */
+				static ProfileMetaData* build(
+					fiftyoneDegreesDataSetHash *dataSet,
+					fiftyoneDegreesProfile *profile);
 			};
 		}
 	}

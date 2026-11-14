@@ -54,3 +54,13 @@ ComponentMetaData* ComponentMetaDataBuilderIpi::build(
 		takeText(name, buffer, exception),
 		defaultProfileOffset);
 }
+
+ComponentMetaData* ComponentMetaDataBuilderIpi::build(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	fiftyoneDegreesComponent *component) {
+	return new ComponentMetaData(
+		component->componentId,
+		getString(dataSet->strings, component->nameOffset),
+		// The key used for profiles is the offset, as there is no profile id.
+		component->defaultProfileOffset);
+}

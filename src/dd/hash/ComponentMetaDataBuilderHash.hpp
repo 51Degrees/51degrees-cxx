@@ -55,6 +55,22 @@ namespace FiftyoneDegrees {
 				static ComponentMetaData* build(
 					fiftyoneDegreesDataSetHash *dataSet,
 					uint32_t componentIndex);
+
+				/**
+				 * Build a new instance of ComponentMetaData from the underlying
+				 * component provided.
+				 * @deprecated Use build(dataSet, componentIndex), which reads
+				 * the component in C. Kept for one release, as a public name.
+				 * @param dataSet pointer to the data set containing the
+				 * component
+				 * @param component pointer to the underlying component to
+				 * create the meta data from
+				 * @return the new instance, or nullptr when the data set gives
+				 * no default profile for the component
+				 */
+				static ComponentMetaData* build(
+					fiftyoneDegreesDataSetHash *dataSet,
+					fiftyoneDegreesComponent *component);
 			};
 		}
 	}

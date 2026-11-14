@@ -55,6 +55,20 @@ namespace FiftyoneDegrees {
 			static ComponentMetaData* build(
 				fiftyoneDegreesDataSetIpi *dataSet,
 				uint32_t componentIndex);
+
+			/**
+			 * Build a new instance of ComponentMetaData from the underlying
+			 * component provided.
+			 * @deprecated Use build(dataSet, componentIndex), which reads the
+			 * component in C. Kept for one release, as a public name.
+			 * @param dataSet pointer to the data set containing the component
+			 * @param component pointer to the underlying component to create
+			 * the meta data from
+			 * @return the new instance
+			 */
+			static ComponentMetaData* build(
+				fiftyoneDegreesDataSetIpi *dataSet,
+				fiftyoneDegreesComponent *component);
 		};
 	}
 }

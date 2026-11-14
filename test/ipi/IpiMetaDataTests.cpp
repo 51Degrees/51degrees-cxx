@@ -41,7 +41,10 @@
 #include "../common/Base.hpp"
 #include "../../src/ipi/EngineIpi.hpp"
 #include "../../src/ipi/ValueMetaDataBuilderIpi.hpp"
+#include "../../src/ipi/ComponentMetaDataBuilderIpi.hpp"
+#include "../../src/ipi/ProfileMetaDataBuilderIpi.hpp"
 #include "../../src/ipi/fiftyone.h"
+#include "../../src/common/collectionKeyTypes.h"
 
 using std::string;
 using std::unique_ptr;
@@ -757,6 +760,15 @@ protected:
 			EXPECT_EQ(componentId, component->getComponentId()) << name;
 			EXPECT_EQ(name, component->getName());
 			EXPECT_EQ(defaultProfileOffset, component->getDefaultProfileId());
+			// The deprecated builder taking the component gives the same.
+			unique_ptr<Common::ComponentMetaData> fromStored(
+				Ipi::ComponentMetaDataBuilderIpi::build(
+					dataSet,
+					(fiftyoneDegreesComponent*)stored));
+			ASSERT_TRUE(fromStored != nullptr) << name;
+			EXPECT_EQ(componentId, fromStored->getComponentId()) << name;
+			EXPECT_EQ(name, fromStored->getName());
+			EXPECT_EQ(defaultProfileOffset, fromStored->getDefaultProfileId());
 			unique_ptr<Common::ComponentMetaData> byKey(
 				components->getByKey(componentId));
 			ASSERT_TRUE(byKey != nullptr) << name;
@@ -805,6 +817,28 @@ protected:
 			EXPECT_EQ(componentId, byOffsetComponentId);
 			EXPECT_EQ(profileOffset, profile->getProfileId());
 			EXPECT_EQ(componentId, profile->getComponentId());
+			// The deprecated builder taking the profile gives the same.
+			fiftyoneDegreesCollectionItem item;
+			fiftyoneDegreesDataReset(&item.data);
+			const fiftyoneDegreesCollectionKey profileKey = {
+				{ profileOffset },
+				CollectionKeyType_Profile,
+			};
+			const fiftyoneDegreesProfile *stored =
+				(const fiftyoneDegreesProfile*)dataSet->profiles->get(
+					dataSet->profiles,
+					&profileKey,
+					&item,
+					exception);
+			ASSERT_TRUE(stored != nullptr && EXCEPTION_OKAY);
+			unique_ptr<Common::ProfileMetaData> fromStored(
+				Ipi::ProfileMetaDataBuilderIpi::build(
+					dataSet,
+					stored,
+					profileOffset));
+			FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->profiles, &item);
+			EXPECT_EQ(profileOffset, fromStored->getProfileId());
+			EXPECT_EQ(componentId, fromStored->getComponentId());
 			unique_ptr<Common::ProfileMetaData> byKey(
 				profiles->getByKey(profileOffset));
 			ASSERT_TRUE(byKey != nullptr);

@@ -36,6 +36,8 @@
 #include "../Constants.hpp"
 #include "../../common/Base.hpp"
 #include "../../../src/dd/hash/EngineHash.hpp"
+#include "../../../src/dd/hash/ComponentMetaDataBuilderHash.hpp"
+#include "../../../src/dd/hash/ProfileMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/fiftyone.h"
 
 using std::string;
@@ -662,6 +664,13 @@ protected:
 			EXPECT_EQ(componentId, component->getComponentId()) << name;
 			EXPECT_EQ(name, component->getName());
 			EXPECT_EQ(defaultProfileId, component->getDefaultProfileId());
+			// The deprecated builder taking the component gives the same.
+			unique_ptr<Common::ComponentMetaData> fromStored(
+				Hash::ComponentMetaDataBuilderHash::build(dataSet, stored));
+			ASSERT_TRUE(fromStored != nullptr) << name;
+			EXPECT_EQ(componentId, fromStored->getComponentId()) << name;
+			EXPECT_EQ(name, fromStored->getName());
+			EXPECT_EQ(defaultProfileId, fromStored->getDefaultProfileId());
 			unique_ptr<Common::ComponentMetaData> byKey(
 				components->getByKey(componentId));
 			ASSERT_TRUE(byKey != nullptr) << name;
@@ -693,6 +702,13 @@ protected:
 			const uint8_t storedComponentId =
 				((fiftyoneDegreesComponent*)dataSet->componentsList.items[
 					stored->componentIndex].data.ptr)->componentId;
+			// The deprecated builder taking the profile gives the same.
+			unique_ptr<Common::ProfileMetaData> fromStored(
+				Hash::ProfileMetaDataBuilderHash::build(
+					dataSet,
+					(fiftyoneDegreesProfile*)stored));
+			EXPECT_EQ(storedId, fromStored->getProfileId());
+			EXPECT_EQ(storedComponentId, fromStored->getComponentId());
 			FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->profiles, &item);
 			uint32_t profileId = 0;
 			uint8_t componentId = 0;
