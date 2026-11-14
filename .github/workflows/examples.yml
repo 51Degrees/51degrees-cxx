@@ -6,6 +6,8 @@ name: Examples on the free data files
 # the check that a fresh clone works. The other builds give the tests the
 # Enterprise data files through secrets, so they cannot show it.
 on:
+  push:
+    branches: [tmp/examples-enterprise-c]
   pull_request:
     branches: [rc, main]
     paths:
