@@ -1,0 +1,95 @@
+name: Temporary red and green runs of the rounded angle numbers on 32 bit x86
+
+on:
+  push:
+    branches:
+      - tmp/red-green-round-x86
+
+permissions:
+  contents: read
+
+env:
+  REPO: 51degrees-cxx
+
+jobs:
+  trial:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'Red x86 Release, the head before the fix', config: Release, bits: 'ON', ipi: false, ref: '3361f55077afaf16cdd603cdc627a114fbe7f4ef' }
+          - { name: Green x86 Release, config: Release, bits: 'ON', ipi: false, ref: '' }
+          - { name: Green x86 Debug, config: Debug, bits: 'ON', ipi: false, ref: '' }
+          - { name: Green x64 Release, config: Release, bits: 'OFF', ipi: true, ref: '' }
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.REPO }}
+          submodules: true
+          ref: ${{ matrix.ref }}
+      - name: Install the 32 bit libraries
+        if: matrix.bits == 'ON'
+        run: ./environments/setup-multilib.ps1
+      - name: Show the image, the compiler and how it works out a double
+        run: |
+          Get-Content /etc/os-release | Select-String '^VERSION='
+          gcc --version | Select-Object -First 1
+          $m = '${{ matrix.bits }}' -eq 'ON' ? @('-m32') : @()
+          "FLT_EVAL_METHOD for C: " + ("FLT_EVAL_METHOD" | gcc @m -E -P -include float.h -x c - | Select-Object -Last 1)
+          "FLT_EVAL_METHOD for C++: " + ("FLT_EVAL_METHOD" | g++ @m -E -P -include cfloat -x c++ - | Select-Object -Last 1)
+          git -C $env:REPO log --oneline -1
+      - name: Name the pipeline's asset caches
+        if: matrix.ipi
+        id: cache-date
+        run: |
+          "today=$((Get-Date).ToUniversalTime().ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+          "yesterday=$((Get-Date).ToUniversalTime().AddDays(-1).ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+      - name: Restore the pipeline's asset cache
+        if: matrix.ipi
+        uses: actions/cache/restore@v4
+        with:
+          key: tmp-trial-no-such-key
+          restore-keys: |
+            ${{ steps.cache-date.outputs.today }}
+            ${{ steps.cache-date.outputs.yesterday }}
+          path: assets
+          enableCrossOsArchive: true
+      - name: Fetch the data files as the pipeline does
+        if: matrix.ipi
+        env:
+          DD_KEY: ${{ secrets.DEVICE_DETECTION_KEY }}
+          DD_URL: ${{ secrets.DEVICE_DETECTION_URL }}
+          IPI_URL: ${{ secrets.IPI_DATA_FILE_URL }}
+        run: |
+          & "./$env:REPO/ci/fetch-assets.ps1" -DeviceDetection $env:DD_KEY -DeviceDetectionUrl $env:DD_URL -IpIntelligenceUrl $env:IPI_URL
+      - name: Build the tests
+        run: |
+          $ipi = '${{ matrix.ipi }}' -eq 'true' ? 'ON' : 'OFF'
+          $targets = '${{ matrix.ipi }}' -eq 'true' ? @('CommonTests', 'IpiTests') : @('CommonTests')
+          cmake -S $env:REPO -B "$env:REPO/build" -DCMAKE_BUILD_TYPE=${{ matrix.config }} -D32bit=${{ matrix.bits }} -DFIFTYONE_COMMON_CXX_BUILD_TESTING=ON -DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=$ipi | Select-Object -Last 3
+          $log = cmake --build "$env:REPO/build" --config ${{ matrix.config }} --parallel 4 --target @targets 2>&1
+          $code = $LASTEXITCODE
+          "Build exit $code"
+          if ($code -ne 0) {
+            $log | ForEach-Object { "$_" } | Where-Object { $_ -match 'error|multiple definition' } | Select-Object -First 60 | ForEach-Object { Write-Host $_ }
+            throw "The build failed"
+          }
+      - name: Run the rounding tests
+        run: |
+          Push-Location "$env:REPO/build"
+          $out = ctest -C ${{ matrix.config }} --tests-regex 'AnAngleNumberIsRoundedAsItsText|StoredBinaryValueRounded' --output-on-failure --timeout 3000 2>&1
+          $code = $LASTEXITCODE
+          $out | ForEach-Object { "$_" } | Where-Object { $_ -match 'Test +#|tests passed|Total Test time|Failed|Expected|Which is|error|Compared|places is the number|185.28.167.77|type 1[12], places' } | ForEach-Object { Write-Host $_ }
+          Pop-Location
+          exit $code
