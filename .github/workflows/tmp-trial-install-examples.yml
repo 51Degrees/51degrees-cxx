@@ -1,0 +1,77 @@
+name: Temporary trial of the examples against the install
+
+on:
+  push:
+    branches:
+      - tmp/trial-install-examples
+
+permissions:
+  contents: read
+
+env:
+  REPO: 51degrees-cxx
+
+jobs:
+  trial:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows_x64_Release, os: windows-latest, config: Release, products: 'dd,ipi', both: 'OFF' }
+          - { name: Ubuntu_x64_Release_CxxBothProducts, os: ubuntu-latest, config: Release, products: 'dd,ipi', both: 'ON' }
+          - { name: Mac_arm64_Debug, os: macos-latest, config: Debug, products: 'common,dd', both: 'OFF' }
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.REPO }}
+          submodules: true
+          fetch-depth: 0
+      - name: Name the pipeline's asset caches
+        id: cache-date
+        run: |
+          "today=$((Get-Date).ToUniversalTime().ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+          "yesterday=$((Get-Date).ToUniversalTime().AddDays(-1).ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+      - name: Restore the pipeline's asset cache
+        uses: actions/cache/restore@v4
+        with:
+          key: tmp-trial-install-examples-no-such-key
+          restore-keys: |
+            ${{ steps.cache-date.outputs.today }}
+            ${{ steps.cache-date.outputs.yesterday }}
+          path: assets
+          enableCrossOsArchive: true
+      - name: Fetch the data files as the pipeline does
+        env:
+          DD_KEY: ${{ secrets.DEVICE_DETECTION_KEY }}
+          DD_URL: ${{ secrets.DEVICE_DETECTION_URL }}
+          IPI_URL: ${{ secrets.IPI_DATA_FILE_URL }}
+        run: |
+          $products = '${{ matrix.products }}' -split ','
+          & "./$env:REPO/ci/fetch-assets.ps1" -DeviceDetection $env:DD_KEY -DeviceDetectionUrl $env:DD_URL -IpIntelligenceUrl $env:IPI_URL -Products $products
+      - name: Run the install check as the build does
+        run: |
+          $products = '${{ matrix.products }}' -split ','
+          $on = { param($value) $value ? 'ON' : 'OFF' }
+          $options = @(
+            '-D32bit=OFF'
+            "-DFIFTYONE_BUILD_DEVICE_DETECTION=$(& $on ($products -contains 'dd'))"
+            "-DFIFTYONE_BUILD_IP_INTELLIGENCE=$(& $on ($products -contains 'ipi'))"
+            "-DFIFTYONE_COMMON_CXX_BUILD_TESTING=$(& $on ($products -contains 'common'))"
+            '-DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=ON'
+            '-DFIFTYONE_IPI_SYMBOLS=ON'
+            '-DFIFTYONE_CXX_BOTH_PRODUCTS=${{ matrix.both }}'
+            '-DWITH_ASAN=OFF'
+          )
+          $arch = $IsMacOS ? 'arm64' : 'x64'
+          & "./$env:REPO/ci/check-install.ps1" -RepoName $env:REPO -Arch $arch -Configuration ${{ matrix.config }} -Products $products -Options $options
