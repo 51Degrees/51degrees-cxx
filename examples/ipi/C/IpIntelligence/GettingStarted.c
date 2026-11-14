@@ -244,7 +244,7 @@ static void printPropertyValueFromResults2(ResultsIpi *results) {
 					(float)(nextHeader->rawWeighting) / (float)(UINT16_MAX);
 				switch (nextHeader->valueType) {
 					case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER: {
-						printf("- [%s] (int) <x%g> %d\n",
+						if (0) printf("- [%s] (int) <x%g> %d\n",
 							propName,
 							weight,
 							((const fiftyoneDegreesWeightedInt*)nextHeader)
@@ -252,7 +252,7 @@ static void printPropertyValueFromResults2(ResultsIpi *results) {
 						break;
 					}
 					case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE: {
-						printf("- [%s] (double) <x%g> %g\n",
+						if (0) printf("- [%s] (double) <x%g> %g\n",
 							propName,
 							weight,
 							((const fiftyoneDegreesWeightedDouble*)nextHeader)
@@ -260,7 +260,7 @@ static void printPropertyValueFromResults2(ResultsIpi *results) {
 						break;
 					}
 					case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_BOOLEAN: {
-						printf("- [%s] (bool) <x%g> %d\n",
+						if (0) printf("- [%s] (bool) <x%g> %d\n",
 							propName,
 							weight,
 							((const fiftyoneDegreesWeightedBool*)nextHeader)
@@ -268,7 +268,7 @@ static void printPropertyValueFromResults2(ResultsIpi *results) {
 						break;
 					}
 					case FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE: {
-						printf("- [%s] (byte) <x%g> %d\n",
+						if (0) printf("- [%s] (byte) <x%g> %d\n",
 							propName,
 							weight,
 							((const fiftyoneDegreesWeightedByte*)nextHeader)
@@ -277,7 +277,7 @@ static void printPropertyValueFromResults2(ResultsIpi *results) {
 					}
 					case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:
 					default: {
-						printf("- [%s] (string) <x%g> %s\n",
+						if (0) printf("- [%s] (string) <x%g> %s\n",
 							propName,
 							weight,
 							((const fiftyoneDegreesWeightedString*)nextHeader)
