@@ -176,6 +176,8 @@ MAP_TYPE(PropertyAvailable)
 MAP_TYPE(PropertyNamed)
 MAP_TYPE(PropertyValueType)
 MAP_TYPE(PropertyText)
+MAP_TYPE(ValueText)
+MAP_TYPE(ValueTextMethod)
 MAP_TYPE(PropertiesAvailable)
 MAP_TYPE(EvidencePropertyIndex)
 MAP_TYPE(EvidenceProperties)
@@ -394,6 +396,7 @@ MAP_TYPE(WeightedItemList)
 #define ValueGetText fiftyoneDegreesValueGetText /**< Synonym for #fiftyoneDegreesValueGetText function. */
 #define ValueGetDefaultText fiftyoneDegreesValueGetDefaultText /**< Synonym for #fiftyoneDegreesValueGetDefaultText function. */
 #define ValueGetDefaultIndex fiftyoneDegreesValueGetDefaultIndex /**< Synonym for #fiftyoneDegreesValueGetDefaultIndex function. */
+#define ValueGetMetaDataText fiftyoneDegreesValueGetMetaDataText /**< Synonym for #fiftyoneDegreesValueGetMetaDataText function. */
 #define CollectionBinarySearch fiftyoneDegreesCollectionBinarySearch /**< Synonym for #fiftyoneDegreesCollectionBinarySearch function. */
 #define PropertyGetName fiftyoneDegreesPropertyGetName /**< Synonym for #fiftyoneDegreesPropertyGetName function. */
 #define PropertyGetStoredType fiftyoneDegreesPropertyGetStoredType /**< Synonym for #fiftyoneDegreesPropertyGetStoredType function. */

@@ -179,6 +179,8 @@ definitions their copy of common is compiled with. A program that uses both
 products in C++ needs libraries built with `-DFIFTYONE_CXX_BOTH_PRODUCTS=ON`.
 [`test/install`](test/install) is a small project that builds against an
 install, and `ci/check-install.ps1` runs it in CI.
+[`test/install/examples`](test/install/examples) builds the examples against
+an install in the same way.
 
 ## Building with Visual Studio
 

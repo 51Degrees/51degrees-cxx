@@ -24,6 +24,7 @@
 #define FIFTYONE_DEGREES_ENTITY_META_DATA_HPP
 
 #include <string>
+#include <utility>
 #include <vector>
 #include "data.h"
 
@@ -55,7 +56,7 @@ namespace FiftyoneDegrees {
 			 * Construct a new instance with the key provided.
 			 * @param key of type K
 			 */
-			EntityMetaData(K key) { this->key = key; }
+			EntityMetaData(K key) { this->key = std::move(key); }
 
 			/**
 			 * @}

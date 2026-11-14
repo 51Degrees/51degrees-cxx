@@ -4366,3 +4366,337 @@ char* fiftyoneDegreesIpiGetPropertyMapText(
 	COLLECTION_RELEASE(dataSet->properties, &item);
 	return result;
 }
+
+/**
+ * Gets the value at `valueIndex` into `item` and returns it, or returns NULL,
+ * releasing a value read with an exception set.
+ */
+static const Value* ipiMetaDataValue(
+	DataSetIpi * const dataSet,
+	const uint32_t valueIndex,
+	Item * const item,
+	Exception * const exception) {
+	DataReset(&item->data);
+	const Value * const value = ValueGet(
+		dataSet->values,
+		valueIndex,
+		item,
+		exception);
+	if (value != NULL && EXCEPTION_FAILED) {
+		COLLECTION_RELEASE(dataSet->values, item);
+		return NULL;
+	}
+	return value;
+}
+
+/**
+ * An empty string, which is the text the metadata gives as the description
+ * of every IP Intelligence value. The size of a string counts its
+ * terminating null.
+ */
+static const StoredBinaryValue ipiNoText = { { 1, '\0' } };
+
+/**
+ * Writes the empty text, in `buffer` when it has room and otherwise in
+ * memory the caller frees.
+ */
+static char* ipiEmptyText(
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	return StoredBinaryValueToText(
+		&ipiNoText,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		0,
+		buffer,
+		bufferLength,
+		exception);
+}
+
+bool fiftyoneDegreesIpiGetValue(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	uint32_t *propertyIndex,
+	void *state,
+	fiftyoneDegreesValueTextMethod method,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = ipiMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return false;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	if (propertyIndex != NULL) {
+		*propertyIndex = (uint32_t)value.propertyIndex;
+	}
+	if (method == NULL) {
+		return true;
+	}
+	for (int text = FIFTYONE_DEGREES_VALUE_TEXT_NAME;
+		text <= FIFTYONE_DEGREES_VALUE_TEXT_URL;
+		text++) {
+		// The metadata gives no description for an IP Intelligence value.
+		if (text == FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION) {
+			method(state, (ValueText)text, "");
+			continue;
+		}
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		char * const written = ValueGetMetaDataText(
+			dataSet->strings,
+			dataSet->propertyTypes,
+			&value,
+			(ValueText)text,
+			DefaultWktDecimalPlaces,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (written == NULL) {
+			return false;
+		}
+		method(state, (ValueText)text, written);
+		if (written != buffer) {
+			Free(written);
+		}
+	}
+	return true;
+}
+
+long fiftyoneDegreesIpiGetValueIndex(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t propertyIndex,
+	const char *valueName,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Property * const held = ipiMetaDataProperty(
+		dataSet,
+		propertyIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return -1;
+	}
+	// A copy, so only one item is held at a time during the search.
+	const Property property = *held;
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	const PropertyValueType storedValueType = PropertyGetStoredType(
+		dataSet->propertyTypes,
+		&property,
+		exception);
+	if (EXCEPTION_FAILED || (int32_t)property.firstValueIndex == -1) {
+		return -1;
+	}
+	const long index = ValueGetIndexByNameAndType(
+		dataSet->values,
+		dataSet->strings,
+		&property,
+		storedValueType,
+		valueName,
+		exception);
+	if (index < 0 || EXCEPTION_FAILED) {
+		return -1;
+	}
+	// The search answers as found when it reads nothing for a value, so the
+	// value is only found when it can be read.
+	const Value * const value = ipiMetaDataValue(
+		dataSet,
+		(uint32_t)index,
+		&item,
+		exception);
+	if (value == NULL) {
+		return -1;
+	}
+	COLLECTION_RELEASE(dataSet->values, &item);
+	return index;
+}
+
+char* fiftyoneDegreesIpiGetValueText(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	fiftyoneDegreesValueText text,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = ipiMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return NULL;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	// The metadata gives no description for an IP Intelligence value, and
+	// writes a number in a value's name to DefaultWktDecimalPlaces places.
+	if (text == FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION) {
+		return ipiEmptyText(buffer, bufferLength, exception);
+	}
+	return ValueGetMetaDataText(
+		dataSet->strings,
+		dataSet->propertyTypes,
+		&value,
+		text,
+		DefaultWktDecimalPlaces,
+		buffer,
+		bufferLength,
+		exception);
+}
+
+/**
+ * Gets the component at `componentIndex` in the data set's list of
+ * components, or NULL when the index is not less than the count.
+ */
+static const Component* ipiMetaDataComponent(
+	DataSetIpi * const dataSet,
+	const uint32_t componentIndex) {
+	return componentIndex < dataSet->componentsList.count
+		? (const Component*)dataSet->componentsList.items[
+			componentIndex].data.ptr
+		: NULL;
+}
+
+uint32_t fiftyoneDegreesIpiGetComponentCount(
+	fiftyoneDegreesDataSetIpi *dataSet) {
+	return dataSet->componentsList.count;
+}
+
+bool fiftyoneDegreesIpiGetComponent(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t componentIndex,
+	uint8_t *componentId,
+	uint32_t *defaultProfileOffset) {
+	const Component * const component = ipiMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		return false;
+	}
+	if (componentId != NULL) {
+		*componentId = component->componentId;
+	}
+	if (defaultProfileOffset != NULL) {
+		*defaultProfileOffset = (uint32_t)component->defaultProfileOffset;
+	}
+	return true;
+}
+
+char* fiftyoneDegreesIpiGetComponentName(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t componentIndex,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	const Component * const component = ipiMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+		return NULL;
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const name = StoredBinaryValueGet(
+		dataSet->strings,
+		(uint32_t)component->nameOffset,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		&item,
+		exception);
+	if (name == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: ipiEmptyText(buffer, bufferLength, exception);
+	}
+	char *text = NULL;
+	if (EXCEPTION_OKAY) {
+		// A string has no decimal places.
+		text = StoredBinaryValueToText(
+			name,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			0,
+			buffer,
+			bufferLength,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->strings, &item);
+	return text;
+}
+
+uint32_t fiftyoneDegreesIpiGetProfileCount(
+	fiftyoneDegreesDataSetIpi *dataSet) {
+	return CollectionGetCount(dataSet->profileOffsets);
+}
+
+bool fiftyoneDegreesIpiGetProfile(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t profileIndex,
+	uint32_t *profileOffset,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	// Each profile offset is the offset of the profile, as an IP Intelligence
+	// data file holds no profile ids.
+	const uint32_t offset = (uint32_t)CollectionGetInteger32(
+		dataSet->profileOffsets,
+		profileIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return false;
+	}
+	if (profileOffset != NULL) {
+		*profileOffset = offset;
+	}
+	return fiftyoneDegreesIpiGetProfileByOffset(
+		dataSet,
+		offset,
+		componentId,
+		exception);
+}
+
+bool fiftyoneDegreesIpiGetProfileByOffset(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t profileOffset,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	// A component with no default profile gives this offset for it.
+	if (profileOffset == UINT32_MAX) {
+		return false;
+	}
+	Item item;
+	DataReset(&item.data);
+	const CollectionKey profileKey = {
+		{profileOffset},
+		CollectionKeyType_Profile,
+	};
+	const Profile * const profile = (const Profile*)dataSet->profiles->get(
+		dataSet->profiles,
+		&profileKey,
+		&item,
+		exception);
+	if (profile == NULL) {
+		return false;
+	}
+	bool read = EXCEPTION_OKAY;
+	if (read && componentId != NULL) {
+		const Component * const component = ipiMetaDataComponent(
+			dataSet,
+			profile->componentIndex);
+		if (component == NULL) {
+			EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+			read = false;
+		}
+		else {
+			*componentId = component->componentId;
+		}
+	}
+	COLLECTION_RELEASE(dataSet->profiles, &item);
+	return read;
+}

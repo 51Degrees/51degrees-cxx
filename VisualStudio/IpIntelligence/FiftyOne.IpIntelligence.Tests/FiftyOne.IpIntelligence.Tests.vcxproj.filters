@@ -45,6 +45,21 @@
     <ClCompile Include="..\..\..\test\ipi\EngineIpiProcessTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPGettingStartedTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPMetaDataTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPReloadFromFileTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPReloadFromMemoryTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPStronglyTypedTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\ExampleCountryOverlapTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

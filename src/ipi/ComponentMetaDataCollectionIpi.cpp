@@ -33,7 +33,6 @@ ComponentMetaDataCollectionIpi::ComponentMetaDataCollectionIpi(
 	if (dataSet == nullptr) {
 		throw runtime_error("Data set pointer can not be null");
 	}
-	components = &dataSet->componentsList;
 }
 
 ComponentMetaDataCollectionIpi::~ComponentMetaDataCollectionIpi() {
@@ -42,29 +41,25 @@ ComponentMetaDataCollectionIpi::~ComponentMetaDataCollectionIpi() {
 
 ComponentMetaData* ComponentMetaDataCollectionIpi::getByIndex(
 	uint32_t index) const {
-	ComponentMetaData *component = nullptr;
-	if (index < components->count) {
-		component = ComponentMetaDataBuilderIpi::build(
-			dataSet, 
-			(Component*)components->items[index].data.ptr);
-	}
-	return component;
+	return ComponentMetaDataBuilderIpi::build(dataSet, index);
 }
 
 ComponentMetaData* ComponentMetaDataCollectionIpi::getByKey(
 	::byte componentId) const {
 	ComponentMetaData *result = nullptr;
-	Component *component;
-	uint32_t i;
-	for (i = 0; i < dataSet->componentsList.count; i++) {
-		component = (Component*)dataSet->componentsList.items[i].data.ptr;
-		if (component->componentId == componentId) {
-			result = ComponentMetaDataBuilderIpi::build(dataSet, component);
+	const uint32_t count = IpiGetComponentCount(dataSet);
+	for (uint32_t i = 0; i < count; i++) {
+		uint8_t id = 0;
+		IpiGetComponent(dataSet, i, &id, nullptr);
+		// The last component with the id is the one given.
+		if (id == componentId) {
+			delete result;
+			result = ComponentMetaDataBuilderIpi::build(dataSet, i);
 		}
 	}
 	return result;
 }
 
 uint32_t ComponentMetaDataCollectionIpi::getSize() const {
-	return components->count;
+	return IpiGetComponentCount(dataSet);
 }
