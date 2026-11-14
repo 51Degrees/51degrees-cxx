@@ -299,6 +299,8 @@ does on every entry.
 An entry with `InstallCheck` also runs `ci/check-install.ps1` after its build.
 It builds an archive of the commit with the tests and examples off, offline on
 Linux, installs it, and builds and runs `test/install` against the install.
+It then builds every example against the install with `test/install/examples`,
+and runs the getting started examples.
 
 `.github/workflows/examples.yml` builds the examples from a fresh clone and
 runs each one from the root with no settings, on Ubuntu and Windows, so each
