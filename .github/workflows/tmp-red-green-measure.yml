@@ -1,0 +1,85 @@
+name: Temporary red and green runs of measuring one thread
+
+on:
+  push:
+    branches:
+      - tmp/red-green-measure
+
+permissions:
+  contents: read
+
+env:
+  REPO: 51degrees-cxx
+
+jobs:
+  trial:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'Red Ubuntu Release, the tests without the fix', os: ubuntu-latest, config: Release, asan: 'OFF', ref: 'e111589f502144a7d7c25b161f6e07197fbb6058' }
+          - { name: 'Red Ubuntu Debug, the tests without the fix', os: ubuntu-latest, config: Debug, asan: 'OFF', ref: 'e111589f502144a7d7c25b161f6e07197fbb6058' }
+          - { name: Green Ubuntu Release, os: ubuntu-latest, config: Release, asan: 'OFF', ref: '' }
+          - { name: Green Ubuntu Debug Asan, os: ubuntu-latest, config: Debug, asan: 'ON', ref: '' }
+          - { name: Green Windows Release, os: windows-latest, config: Release, asan: 'OFF', ref: '' }
+          - { name: Green Windows Debug, os: windows-latest, config: Debug, asan: 'OFF', ref: '' }
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.REPO }}
+          submodules: true
+          ref: ${{ matrix.ref }}
+      - name: Name the pipeline's asset caches
+        id: cache-date
+        run: |
+          "today=$((Get-Date).ToUniversalTime().ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+          "yesterday=$((Get-Date).ToUniversalTime().AddDays(-1).ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+      - name: Restore the pipeline's asset cache
+        uses: actions/cache/restore@v4
+        with:
+          key: tmp-red-green-measure-no-such-key
+          restore-keys: |
+            ${{ steps.cache-date.outputs.today }}
+            ${{ steps.cache-date.outputs.yesterday }}
+          path: assets
+          enableCrossOsArchive: true
+      - name: Fetch the data files as the pipeline does
+        env:
+          DD_KEY: ${{ secrets.DEVICE_DETECTION_KEY }}
+          DD_URL: ${{ secrets.DEVICE_DETECTION_URL }}
+          IPI_URL: ${{ secrets.IPI_DATA_FILE_URL }}
+        run: |
+          & "./$env:REPO/ci/fetch-assets.ps1" -DeviceDetection $env:DD_KEY -DeviceDetectionUrl $env:DD_URL -IpIntelligenceUrl $env:IPI_URL
+          Get-ChildItem "$env:REPO/data/ip-intelligence", "$env:REPO/data/device-detection" | Format-Table Name, Length | Out-String -Width 200
+      - name: Build the tests
+        run: |
+          git -C $env:REPO log -1 --format='Building %H %s'
+          $platform = $IsWindows ? @('-A', 'x64') : @("-DCMAKE_BUILD_TYPE=${{ matrix.config }}")
+          cmake -S $env:REPO -B "$env:REPO/build" @platform -DWITH_ASAN=${{ matrix.asan }} -DFIFTYONE_COMMON_CXX_BUILD_TESTING=ON -DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=ON | Select-Object -Last 3
+          $start = Get-Date
+          $log = cmake --build "$env:REPO/build" --config ${{ matrix.config }} --parallel 4 --target HashTests IpiTests CommonTests CommonTestsIpi 2>&1
+          $code = $LASTEXITCODE
+          "Build took $([int]((Get-Date) - $start).TotalSeconds) s, exit $code"
+          if ($code -ne 0) {
+            $log | ForEach-Object { "$_" } | Where-Object { $_ -match 'error|multiple definition|warning C' } | Select-Object -First 60 | ForEach-Object { Write-Host $_ }
+            throw "The build failed"
+          }
+      - name: Run the size and memory tracking tests
+        run: |
+          Push-Location "$env:REPO/build"
+          $out = ctest -C ${{ matrix.config }} --tests-regex 'OtherThread|Measuring_CountsOnlyTheMeasuringThread|TrackingFree_UntrackedMemory|SizeManagerFromFileNullConfig|NullConfig_SameAsBalanced' --output-on-failure --timeout 1800 2>&1
+          $code = $LASTEXITCODE
+          $out | ForEach-Object { "$_" } | Where-Object { $_ -match 'Test +#|tests passed|Total Test time|Failed|Expected|Which is|error|Assertion|Subprocess|size counted|did not allocate|kept a record|Value of|Actual' } | ForEach-Object { Write-Host $_ }
+          Pop-Location
+          exit $code
