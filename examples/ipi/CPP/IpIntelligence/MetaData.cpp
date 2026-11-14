@@ -142,9 +142,9 @@ namespace FiftyoneDegrees {
 				 */
 				void run() {
 					cout << "Starting MetaData Example.\n";
-					auto const properties = std::unique_ptr<Collection<string, PropertyMetaData>>(engine->getMetaData()->getProperties());
-					for (uint32_t i = 0; i < properties->getSize(); i++){
-						auto const property = std::unique_ptr<PropertyMetaData>(properties->getByIndex(i));
+					auto const fileProperties = std::unique_ptr<Collection<string, PropertyMetaData>>(engine->getMetaData()->getProperties());
+					for (uint32_t i = 0; i < fileProperties->getSize(); i++){
+						auto const property = std::unique_ptr<PropertyMetaData>(fileProperties->getByIndex(i));
 						if (!property) {
 							continue;
 						}
