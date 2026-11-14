@@ -29,75 +29,64 @@ using namespace FiftyoneDegrees::IpIntelligence;
 
 ValueMetaDataCollectionForPropertyIpi::ValueMetaDataCollectionForPropertyIpi(
 	fiftyoneDegreesResourceManager *manager,
-	PropertyMetaData *property) : ValueMetaDataCollectionBaseIpi(manager) {
+	PropertyMetaData *property)
+	: ValueMetaDataCollectionBaseIpi(manager),
+	propertyName(property->getName()),
+	propertyIndex(-1),
+	firstValueIndex(0),
+	valueCount(0) {
 	EXCEPTION_CREATE;
-	DataReset(&propertyItem.data);
-	PropertyGetByName(
-		dataSet->properties,
-		dataSet->strings,
-		property->getName().c_str(),
-		&propertyItem,
+	propertyIndex = IpiGetPropertyIndex(
+		dataSet,
+		propertyName.c_str(),
 		exception);
 	EXCEPTION_THROW;
+	if (propertyIndex >= 0) {
+		IpiGetPropertyValueIndexes(
+			dataSet,
+			(uint32_t)propertyIndex,
+			&firstValueIndex,
+			&valueCount,
+			nullptr,
+			exception);
+		EXCEPTION_THROW;
+	}
 }
 
 ValueMetaDataCollectionForPropertyIpi::~ValueMetaDataCollectionForPropertyIpi() {
-	COLLECTION_RELEASE(dataSet->properties, &propertyItem);
 }
 
 ValueMetaData* ValueMetaDataCollectionForPropertyIpi::getByIndex(
 	uint32_t index) const {
-	EXCEPTION_CREATE;
-	Item item;
-	const Value *value;
-	ValueMetaData *result = nullptr;
-	DataReset(&item.data);
-	value = ValueGet(
-		dataSet->values, 
-		getProperty()->firstValueIndex + index, 
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	if (value != nullptr) {
-		result = ValueMetaDataBuilderIpi::build(dataSet, value);
-		COLLECTION_RELEASE(dataSet->values, &item);
-	}
-	return result;
+	return propertyIndex < 0
+		? nullptr
+		: ValueMetaDataBuilderIpi::build(
+			dataSet,
+			firstValueIndex + index,
+			propertyName);
 }
 
 ValueMetaData* ValueMetaDataCollectionForPropertyIpi::getByKey(
 	ValueMetaDataKey key) const {
+	// Only a value of this collection's property is in it.
+	if (propertyIndex < 0 || key.getPropertyName() != propertyName) {
+		return nullptr;
+	}
 	EXCEPTION_CREATE;
-	Item item;
-	ValueMetaData *result = nullptr;
-	DataReset(&item.data);
-	const String * const name = PropertyGetName(
-		dataSet->strings, 
-		getProperty(), 
-		&item, 
+	const long valueIndex = IpiGetValueIndex(
+		dataSet,
+		(uint32_t)propertyIndex,
+		key.getValueName().c_str(),
 		exception);
 	EXCEPTION_THROW;
-	if (name != nullptr) {
-		result = ValueMetaDataCollectionBaseIpi::getByKey(key);
-		if (result != nullptr &&
-			strcmp(result->getKey().getPropertyName().c_str(), 
-				&name->value) != 0) {
-			delete result;
-			result = nullptr;
-		}
-		dataSet->strings->release(&item);
-	}
-	return result;
+	return valueIndex < 0
+		? nullptr
+		: ValueMetaDataBuilderIpi::build(
+			dataSet,
+			(uint32_t)valueIndex,
+			propertyName);
 }
 
 uint32_t ValueMetaDataCollectionForPropertyIpi::getSize() const {
-	const Property* const property = getProperty();
-	return (int)property->firstValueIndex == -1 ?
-		0 :
-		property->lastValueIndex - property->firstValueIndex + 1;
-}
-
-fiftyoneDegreesProperty* ValueMetaDataCollectionForPropertyIpi::getProperty()
-const {
-	return (Property*)propertyItem.data.ptr;
+	return valueCount;
 }

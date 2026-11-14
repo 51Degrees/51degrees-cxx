@@ -93,6 +93,15 @@ MAP_TYPE(HashValueProfiles)
 #define HashGetPropertyValueIndexes fiftyoneDegreesHashGetPropertyValueIndexes /**< Synonym for #fiftyoneDegreesHashGetPropertyValueIndexes function. */
 #define HashGetPropertyText fiftyoneDegreesHashGetPropertyText /**< Synonym for #fiftyoneDegreesHashGetPropertyText function. */
 #define HashGetPropertyMapText fiftyoneDegreesHashGetPropertyMapText /**< Synonym for #fiftyoneDegreesHashGetPropertyMapText function. */
+#define HashGetValue fiftyoneDegreesHashGetValue /**< Synonym for #fiftyoneDegreesHashGetValue function. */
+#define HashGetValueIndex fiftyoneDegreesHashGetValueIndex /**< Synonym for #fiftyoneDegreesHashGetValueIndex function. */
+#define HashGetValueText fiftyoneDegreesHashGetValueText /**< Synonym for #fiftyoneDegreesHashGetValueText function. */
+#define HashGetComponentCount fiftyoneDegreesHashGetComponentCount /**< Synonym for #fiftyoneDegreesHashGetComponentCount function. */
+#define HashGetComponent fiftyoneDegreesHashGetComponent /**< Synonym for #fiftyoneDegreesHashGetComponent function. */
+#define HashGetComponentName fiftyoneDegreesHashGetComponentName /**< Synonym for #fiftyoneDegreesHashGetComponentName function. */
+#define HashGetProfileCount fiftyoneDegreesHashGetProfileCount /**< Synonym for #fiftyoneDegreesHashGetProfileCount function. */
+#define HashGetProfile fiftyoneDegreesHashGetProfile /**< Synonym for #fiftyoneDegreesHashGetProfile function. */
+#define HashGetProfileById fiftyoneDegreesHashGetProfileById /**< Synonym for #fiftyoneDegreesHashGetProfileById function. */
 #define ResultsHashGetValuesJson fiftyoneDegreesResultsHashGetValuesJson /**< Synonym for #fiftyoneDegreesResultsHashGetValuesJson function. */
 #define HashGetHardwareProfileScript fiftyoneDegreesHashGetHardwareProfileScript /**< Synonym for #fiftyoneDegreesHashGetHardwareProfileScript function. */
 

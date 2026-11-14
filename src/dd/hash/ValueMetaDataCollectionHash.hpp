@@ -23,6 +23,9 @@
 #ifndef FIFTYONE_DEGREES_VALUE_META_DATA_COLLECTION_HASH_HPP
 #define FIFTYONE_DEGREES_VALUE_META_DATA_COLLECTION_HASH_HPP
 
+#include <mutex>
+#include <string>
+#include <vector>
 #include "ValueMetaDataCollectionBaseHash.hpp"
 #include "ValueMetaDataBuilderHash.hpp"
 #include "hash.h"
@@ -70,6 +73,23 @@ namespace FiftyoneDegrees {
 				/**
 				 * @}
 				 */
+			private:
+				/**
+				 * Reads the name of every property into propertyNames.
+				 */
+				void readPropertyNames() const;
+
+				/**
+				 * The name of each property by its index, read the first time
+				 * a value is read by its index, so that a walk of every value
+				 * reads each property's name once rather than for each value.
+				 */
+				mutable std::vector<std::string> propertyNames;
+
+				/**
+				 * Reads the names once, whichever thread reads a value first.
+				 */
+				mutable std::once_flag propertyNamesRead;
 			};
 		}
 	}

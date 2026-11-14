@@ -6234,6 +6234,357 @@ char* fiftyoneDegreesHashGetPropertyMapText(
 	return result;
 }
 
+/**
+ * Gets the value at `valueIndex` into `item` and returns it, or returns NULL,
+ * releasing a value read with an exception set.
+ */
+static const Value* hashMetaDataValue(
+	DataSetHash * const dataSet,
+	const uint32_t valueIndex,
+	Item * const item,
+	Exception * const exception) {
+	DataReset(&item->data);
+	const Value * const value = ValueGet(
+		dataSet->values,
+		valueIndex,
+		item,
+		exception);
+	if (value != NULL && EXCEPTION_FAILED) {
+		COLLECTION_RELEASE(dataSet->values, item);
+		return NULL;
+	}
+	return value;
+}
+
+bool fiftyoneDegreesHashGetValue(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	uint32_t *propertyIndex,
+	void *state,
+	fiftyoneDegreesValueTextMethod method,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = hashMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return false;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	if (propertyIndex != NULL) {
+		*propertyIndex = (uint32_t)value.propertyIndex;
+	}
+	if (method == NULL) {
+		return true;
+	}
+	for (int text = FIFTYONE_DEGREES_VALUE_TEXT_NAME;
+		text <= FIFTYONE_DEGREES_VALUE_TEXT_URL;
+		text++) {
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		// Every Hash value is stored as a string, so there are no property
+		// types and no decimal places.
+		char * const written = ValueGetMetaDataText(
+			dataSet->strings,
+			NULL,
+			&value,
+			(ValueText)text,
+			0,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (written == NULL) {
+			return false;
+		}
+		method(state, (ValueText)text, written);
+		if (written != buffer) {
+			Free(written);
+		}
+	}
+	return true;
+}
+
+long fiftyoneDegreesHashGetValueIndex(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t propertyIndex,
+	const char *valueName,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Property * const held = hashMetaDataProperty(
+		dataSet,
+		propertyIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return -1;
+	}
+	// A copy, so only one item is held at a time during the search.
+	const Property property = *held;
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	if ((int32_t)property.firstValueIndex == -1) {
+		return -1;
+	}
+	// Every Hash value is stored as a string.
+	const long index = ValueGetIndexByNameAndType(
+		dataSet->values,
+		dataSet->strings,
+		&property,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		valueName,
+		exception);
+	if (index < 0 || EXCEPTION_FAILED) {
+		return -1;
+	}
+	// The search answers as found when it reads nothing for a value, so the
+	// value is only found when it can be read.
+	const Value * const value = hashMetaDataValue(
+		dataSet,
+		(uint32_t)index,
+		&item,
+		exception);
+	if (value == NULL) {
+		return -1;
+	}
+	COLLECTION_RELEASE(dataSet->values, &item);
+	return index;
+}
+
+char* fiftyoneDegreesHashGetValueText(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	fiftyoneDegreesValueText text,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = hashMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return NULL;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	// Every Hash value is stored as a string, so there are no property types
+	// and no decimal places.
+	return ValueGetMetaDataText(
+		dataSet->strings,
+		NULL,
+		&value,
+		text,
+		0,
+		buffer,
+		bufferLength,
+		exception);
+}
+
+/**
+ * An empty string, which is the name of a component the strings collection
+ * gives nothing for. The size of a string counts its terminating null.
+ */
+static const StoredBinaryValue hashNoText = { { 1, '\0' } };
+
+/**
+ * Gets the component at `componentIndex` in the data set's list of
+ * components, or NULL when the index is not less than the count.
+ */
+static const Component* hashMetaDataComponent(
+	DataSetHash * const dataSet,
+	const uint32_t componentIndex) {
+	return componentIndex < dataSet->componentsList.count
+		? (const Component*)dataSet->componentsList.items[
+			componentIndex].data.ptr
+		: NULL;
+}
+
+uint32_t fiftyoneDegreesHashGetComponentCount(
+	fiftyoneDegreesDataSetHash *dataSet) {
+	return dataSet->componentsList.count;
+}
+
+bool fiftyoneDegreesHashGetComponent(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t componentIndex,
+	uint8_t *componentId,
+	uint32_t *defaultProfileId,
+	fiftyoneDegreesException *exception) {
+	const Component * const component = hashMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		return false;
+	}
+	if (defaultProfileId != NULL) {
+		Item item;
+		DataReset(&item.data);
+		const CollectionKey profileKey = {
+			{(uint32_t)component->defaultProfileOffset},
+			CollectionKeyType_Profile,
+		};
+		const Profile * const profile = (const Profile*)dataSet->profiles->get(
+			dataSet->profiles,
+			&profileKey,
+			&item,
+			exception);
+		if (profile == NULL) {
+			return false;
+		}
+		const bool read = EXCEPTION_OKAY;
+		if (read) {
+			*defaultProfileId = profile->profileId;
+		}
+		COLLECTION_RELEASE(dataSet->profiles, &item);
+		if (read == false) {
+			return false;
+		}
+	}
+	if (componentId != NULL) {
+		*componentId = component->componentId;
+	}
+	return true;
+}
+
+char* fiftyoneDegreesHashGetComponentName(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t componentIndex,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	const Component * const component = hashMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+		return NULL;
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const name = StoredBinaryValueGet(
+		dataSet->strings,
+		(uint32_t)component->nameOffset,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		&item,
+		exception);
+	if (name == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: StoredBinaryValueToText(
+				&hashNoText,
+				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+				0,
+				buffer,
+				bufferLength,
+				exception);
+	}
+	char *text = NULL;
+	if (EXCEPTION_OKAY) {
+		// A string has no decimal places.
+		text = StoredBinaryValueToText(
+			name,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			0,
+			buffer,
+			bufferLength,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->strings, &item);
+	return text;
+}
+
+/**
+ * Sets `componentId` to the id of the component the profile belongs to and
+ * returns true, or sets the exception and returns false when the profile's
+ * component index is not less than the number of components.
+ */
+static bool hashMetaDataProfileComponentId(
+	DataSetHash * const dataSet,
+	const Profile * const profile,
+	uint8_t * const componentId,
+	Exception * const exception) {
+	const Component * const component = hashMetaDataComponent(
+		dataSet,
+		profile->componentIndex);
+	if (component == NULL) {
+		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+		return false;
+	}
+	*componentId = component->componentId;
+	return true;
+}
+
+uint32_t fiftyoneDegreesHashGetProfileCount(
+	fiftyoneDegreesDataSetHash *dataSet) {
+	return CollectionGetCount(dataSet->profileOffsets);
+}
+
+bool fiftyoneDegreesHashGetProfile(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t profileIndex,
+	uint32_t *profileId,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	DataReset(&item.data);
+	const Profile * const profile = ProfileGetByIndex(
+		dataSet->profileOffsets,
+		dataSet->profiles,
+		profileIndex,
+		&item,
+		exception);
+	if (profile == NULL) {
+		return false;
+	}
+	bool read = EXCEPTION_OKAY;
+	if (read && profileId != NULL) {
+		*profileId = profile->profileId;
+	}
+	if (read && componentId != NULL) {
+		read = hashMetaDataProfileComponentId(
+			dataSet,
+			profile,
+			componentId,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->profiles, &item);
+	return read;
+}
+
+bool fiftyoneDegreesHashGetProfileById(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t profileId,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	DataReset(&item.data);
+	const Profile * const profile = ProfileGetByProfileId(
+		dataSet->profileOffsets,
+		dataSet->profiles,
+		profileId,
+		&item,
+		exception);
+	if (profile == NULL) {
+		return false;
+	}
+	bool read = EXCEPTION_OKAY;
+	if (read && componentId != NULL) {
+		read = hashMetaDataProfileComponentId(
+			dataSet,
+			profile,
+			componentId,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->profiles, &item);
+	return read;
+}
+
 char* fiftyoneDegreesHashGetDeviceIdFromResult(
 	fiftyoneDegreesDataSetHash *dataSet,
 	fiftyoneDegreesResultHash *result, 
