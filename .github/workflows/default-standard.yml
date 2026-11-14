@@ -5,6 +5,8 @@ name: Default language standard
 # build this library from its sources may. The CMake builds set C11 and
 # C++17, so they cannot show a warning that only a newer default gives.
 on:
+  push:
+    branches: ['tmp/red-default-standard-b']
   pull_request:
     branches: [rc, main]
     paths:
