@@ -202,7 +202,7 @@ static void executeTest(const char *userAgent, void *state) {
 	EXCEPTION_CREATE;
 	ResultsHashFromEvidence(results, evidence, exception);
 	EXCEPTION_THROW;
-	thread->hashCode ^= getHashCode(results);
+	thread->hashCode ^= getHashCode(results); thread->hashCode += (unsigned long)(uintptr_t)thread;
 	EvidenceFree(evidence);
 	ResultsHashFree(results);
 }
