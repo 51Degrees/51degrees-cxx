@@ -241,7 +241,8 @@ static void printPropertyValueFromResults2(ResultsIpi *results) {
 						requiredPropertyIndex);
 				const char * const propName = &propNameRaw->value;
 				const double weight =
-					(float)(nextHeader->rawWeighting) / (float)(UINT16_MAX);
+					(double)nextHeader->rawWeighting /
+					(double)FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT;
 				switch (nextHeader->valueType) {
 					case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER: {
 						printf("- [%s] (int) <x%g> %d\n",
