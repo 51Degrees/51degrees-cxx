@@ -2357,7 +2357,9 @@ int main(int argc, char* argv[]) {
 				"CountryOverlap <data file> --probe <ip> [ip...]\n");
 			return COUNTRY_OVERLAP_FAILED;
 		}
-		return runProbe(dataFilePath, argc, argv);
+		const int probed = runProbe(dataFilePath, argc, argv);
+		fiftyoneDegreesExampleFindOutMore(stdout);
+		return probed;
 	}
 
 	const char* outputPath = argc > 2 ? argv[2] :
@@ -2375,6 +2377,9 @@ int main(int argc, char* argv[]) {
 		0,
 		totalChunks,
 		minSecondaryPercent);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout);
 
 	// A data file without the properties is explained, not a failure.
 	return result == COUNTRY_OVERLAP_PROPERTIES_MISSING ?

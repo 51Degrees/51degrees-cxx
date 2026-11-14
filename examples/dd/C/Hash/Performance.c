@@ -975,6 +975,7 @@ int main(int argc, char* argv[]) {
 			strcmp(argv[i], HELP_OPTION_SHORT) == 0) {
 			// Print the help options
 			printHelp();
+			fiftyoneDegreesExampleFindOutMore(stdout);
 			return 0;
 		}
 		else if (argv[i][0] == '-') {
@@ -1043,6 +1044,9 @@ int main(int argc, char* argv[]) {
 	if (outFile != NULL) {
 		fclose(params.resultsOutput);
 	}
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout);
 
 	return exitCode;
 }

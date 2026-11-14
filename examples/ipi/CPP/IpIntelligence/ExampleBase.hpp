@@ -136,6 +136,12 @@ namespace FiftyoneDegrees {
 				 * @return the path, or NULL when neither name is set
 				 */
 				static const char *getDataFilePathFromEnvironment();
+
+				/**
+				 * Prints the "Find out more" section that every example
+				 * ends with.
+				 */
+				static void findOutMore();
 			
 			protected:
 				/**

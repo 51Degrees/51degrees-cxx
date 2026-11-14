@@ -628,6 +628,9 @@ int main(int argc, char* argv[]) {
 #endif
 #endif
 
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout);
+
 	// Wait for a character to be pressed.
 	fgetc(stdin);
 

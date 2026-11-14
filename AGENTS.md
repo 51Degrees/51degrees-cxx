@@ -154,6 +154,11 @@ file has RegisteredCountry, RegisteredName and RegisteredOwner, so the lines
 for the properties it does not have, such as `Longitude`, are empty. The exit
 code is 0.
 
+Every example ends with a `Find out more` section, which links to the
+product's pages on 51degrees.com and to this repository. `ProcHash.c` and
+`ProcIpi.c` write their results to standard output, so they print the section
+to standard error.
+
 The C++ examples print the same kind of values in a different layout. The paid
 data files have many more properties, as the
 [pricing page](https://51degrees.com/pricing?utm_source=github&utm_medium=docs&utm_campaign=51degrees-cxx&utm_content=agents.md&utm_term=correct-output)
@@ -302,7 +307,9 @@ Linux, installs it, and builds and runs `test/install` against the install.
 
 `.github/workflows/examples.yml` builds the examples from a fresh clone and
 runs each one from the root with no settings, on Ubuntu and Windows, so each
-finds or downloads the free data file it needs. It is the only check of what a
+finds or downloads the free data file it needs. It fails an example that exits
+with an error or whose output does not end with the `Find out more` section.
+It is the only check of what a
 fresh clone does, as the other builds give the tests the Enterprise files. It
 runs on a pull request that changes the examples, the sources, the CMake files
 or the data pin.
