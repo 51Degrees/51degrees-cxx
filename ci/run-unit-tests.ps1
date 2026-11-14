@@ -6,7 +6,15 @@ param(
     [string]$BuildMethod = "cmake",
     [string[]]$Products,
     [bool]$SkipLiteTests,
-    [bool]$BuildOnly
+    [bool]$BuildOnly,
+    # The branch a pull request merges into, which its changes are measured
+    # against.
+    [string]$Branch = 'main',
+    # How deeply a pull request is tested, as select-options.ps1 chose.
+    # standard leaves out the IP Intelligence tests, which read the Enterprise
+    # data file, and deep leaves out those that only vary the required
+    # properties. Empty, for the branch itself or a release, runs them all.
+    [string]$Depth
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
@@ -16,7 +24,7 @@ if ($BuildOnly) {
     exit 0
 }
 
-$Products = Get-Products -Products $Products -RepoPath $RepoName
+$Products = Get-Products -Products $Products -RepoPath $RepoName -Branch $Branch
 $RepoPath = (Resolve-Path $RepoName).Path
 $EnterpriseHash = "$RepoPath/data/device-detection/TAC-HashV41.hash"
 $failed = 0
@@ -99,24 +107,28 @@ if ($Products -contains 'dd') {
     Invoke-WithLiteOnly { Test-Product dd '-Lite' '.*Example.*' }
 }
 
-if ($Products -contains 'ipi') {
+if ($Products -contains 'ipi' -and $Depth -eq 'standard') {
+    Write-Output "The standard set leaves out the IP Intelligence tests"
+} elseif ($Products -contains 'ipi') {
     $exclude = @('.*Example.*')
+    # Every ctest entry is a separate process that reads the 2.3GB data file
+    # before the test body runs, and that read, not the test bodies, is what
+    # makes these jobs slow: an EngineIpiTestsMemory test costs ~16s whether
+    # it asserts one property or all of them.
+    if ($IsWindows -or $Depth -eq 'deep') {
+        # Memory suites that only vary the required-properties filter. The
+        # two Null ones are kept and exercise the same init-from-memory path.
+        # A pull request's deep set leaves them out on Linux too, and the
+        # Ubuntu builds of the branch itself and of a release run them.
+        $exclude += 'EngineIpiTestsMemory(InMemory|Null)(One|Two|Duplicate|Mixed|AllEdge)Property'
+    }
     if ($IsWindows) {
-        # Every ctest entry is a separate process that reads the 2.3GB data
-        # file before the test body runs, and Windows pays roughly twice what
-        # Linux does for it. That read, not the test bodies, is what makes
-        # this job slow: an EngineIpiTestsMemory test costs ~16s whether it
-        # asserts one property or all of them. The Ubuntu jobs still run
-        # everything below.
-        #
-        # EngineIpiTestsMemory*.Reload is the exception: it is skipped on
-        # Linux (see EngineIpiTestsMemory.cpp), so Windows is its only
-        # coverage. Keep it for the NullNull suite.
+        # Windows pays roughly twice what Linux does for the read, so it also
+        # leaves out the reload, metadata reload and size tests, which every
+        # Ubuntu job runs. EngineIpiTestsMemory*.Reload is the exception: it
+        # is skipped on Linux (see EngineIpiTestsMemory.cpp), so Windows is
+        # its only coverage. Keep it for the NullNull suite.
         $exclude += @(
-            # Memory suites that only vary the required-properties filter.
-            # The two Null ones are kept and exercise the same
-            # init-from-memory path.
-            'EngineIpiTestsMemory(InMemory|Null)(One|Two|Duplicate|Mixed|AllEdge)Property'
             'EngineIpiTestsMemoryInMemoryNull\.Reload'
             'EngineIpiTestsMemory.*\.(MetaDataReload|Size)'
             'EngineIpiTestsFile.*\.(Reload|MetaDataReload|Size)'

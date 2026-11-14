@@ -12,12 +12,15 @@ param(
     [bool]$ExceptionsDisabled,
     # Builds the libraries, examples and tools without the tests.
     [bool]$BuildOnly,
-    [bool]$Asan
+    [bool]$Asan,
+    # The branch a pull request merges into, which its changes are measured
+    # against.
+    [string]$Branch = 'main'
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
 
-$Products = Get-Products -Products $Products -RepoPath $RepoName
+$Products = Get-Products -Products $Products -RepoPath $RepoName -Branch $Branch
 if (!$Products) {
     Write-Output "Nothing in '$Name' is affected by this change"
     exit 0

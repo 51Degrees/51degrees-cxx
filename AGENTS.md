@@ -288,6 +288,14 @@ tests. On a pull request, `ci/products.ps1` skips a product the change does
 not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
 docs and tools counts as touching every product.
 
+`ci/select-options.ps1` chooses the entries a pull request runs. The standard
+set builds the products a change touches with GCC and MSVC, without the IP
+Intelligence tests unless an IP Intelligence file changed in more than its
+comments. A change to a product's source adds that product's other entries.
+The repeated Debug builds and macOS run only when `rc` itself or the release
+pull request is built, which `.github/workflows/release-pull-request.yml`
+does on every entry.
+
 An entry with `InstallCheck` also runs `ci/check-install.ps1` after its build.
 It builds an archive of the commit with the tests and examples off, offline on
 Linux, installs it, and builds and runs `test/install` against the install.
