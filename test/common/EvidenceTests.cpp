@@ -252,9 +252,9 @@ TEST_F(Evidence, MapPrefix_IgnoresCase) {
 // Evidence given under a key whose prefix is not in lower case reaches the
 // evidence the engines read, with the field as it was given.
 TEST_F(Evidence, EvidenceBase_PrefixIgnoresCase) {
-    EvidenceBase evidence;
-    evidence["Header.User-Agent"] = "Mozilla/5.0";
-    fiftyoneDegreesEvidenceKeyValuePairArray *pairs = evidence.get();
+    EvidenceBase given;
+    given["Header.User-Agent"] = "Mozilla/5.0";
+    fiftyoneDegreesEvidenceKeyValuePairArray *pairs = given.get();
     ASSERT_NE(nullptr, pairs);
     ASSERT_EQ(1u, pairs->count) << "Header.User-Agent was dropped";
     EXPECT_EQ(FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
