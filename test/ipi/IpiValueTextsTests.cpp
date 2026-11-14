@@ -668,6 +668,5 @@ TEST_F(IpiValueTextsTests, AnAngleNumberIsRoundedAsItsText) {
 		EXPECT_GT(cNumbers, 0u) << "The C should give some angle numbers.";
 	}
 	std::cout << "Compared " << cppNumbers << " numbers from the C++ and " <<
-		cNumbers << " from the C.
-";
+		cNumbers << " from the C.\n";
 }
