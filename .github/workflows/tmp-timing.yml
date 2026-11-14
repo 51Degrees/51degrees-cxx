@@ -12,7 +12,7 @@ env:
   REPO: 51degrees-cxx
   # main, the last release, and the release head, built in the same job.
   BASE_SHA: 7992af7010b7654c115510938a2f7626204bf936
-  HEAD_SHA: 9113664ae25cb0cafd186b3a3433d022f64e7e1e
+  HEAD_SHA: da99f75395f0703b31914b12b0bd44eb5b84f5c0
 
 jobs:
   timing:
