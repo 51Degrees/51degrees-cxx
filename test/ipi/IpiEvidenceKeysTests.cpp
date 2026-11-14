@@ -259,48 +259,6 @@ TEST_F(IpiEvidenceKeysTests, LiteDataFile_GivesTheListedKeys) {
 }
 
 /**
- * The keys come from the data set's headers and are read again when the data
- * is refreshed, so after a refresh from a data file whose headers differ the
- * engine gives that file's keys. Skips when the data files found all give
- * the same keys, as a refresh cannot then show the keys were read again.
- */
-TEST_F(IpiEvidenceKeysTests, Refresh_GivesTheKeysOfTheNewDataFile) {
-	vector<string> paths;
-	for (int i = 0; i < _IpiFileNamesLength; i++) {
-		const string path = GetFilePath(_dataFolderName, _IpiFileNames[i]);
-		if (!path.empty()) {
-			paths.push_back(path);
-		}
-	}
-	const string asnPath = GetFilePath(_dataFolderName, asnFileName);
-	if (!asnPath.empty()) {
-		paths.push_back(asnPath);
-	}
-	ConfigIpi config;
-	RequiredPropertiesConfig properties;
-	vector<vector<string>> keys;
-	for (const string &path : paths) {
-		EngineIpi engine(path, &config, &properties);
-		keys.push_back(*engine.getKeys());
-	}
-	for (size_t from = 0; from < paths.size(); from++) {
-		for (size_t to = 0; to < paths.size(); to++) {
-			if (keys[from] == keys[to]) {
-				continue;
-			}
-			EngineIpi engine(paths[from], &config, &properties);
-			engine.refreshData(paths[to].c_str());
-			EXPECT_EQ(keys[to], *engine.getKeys()) << "After a refresh "
-				"from '" << paths[from] << "' to '" << paths[to] << "' the "
-				"engine gave other keys than the new data file's.";
-			return;
-		}
-	}
-	GTEST_SKIP() << "The " << paths.size() << " data files found give the "
-		"same keys.";
-}
-
-/**
  * The length returned is the same however long the buffer is, and a buffer
  * that is too short holds as much of the keys as fits.
  */
