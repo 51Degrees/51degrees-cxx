@@ -73,6 +73,7 @@
     <ClInclude Include="..\..\..\test\common\ExampleTests.hpp" />
     <ClInclude Include="..\..\..\test\common\FileHandle.hpp" />
     <ClInclude Include="..\..\..\test\common\pch.h" />
+    <ClInclude Include="..\..\..\test\common\SizeOtherThread.hpp" />
     <ClInclude Include="..\..\..\test\common\StringCollection.hpp" />
     <ClInclude Include="..\..\..\test\common\TestStrings.hpp" />
     <ClInclude Include="..\..\..\test\common\FixedSizeCollection.hpp" />
