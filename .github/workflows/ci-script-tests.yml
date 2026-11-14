@@ -2,6 +2,8 @@ name: CI script tests
 
 # Runs the tests of the scripts in ci/ when a pull request changes them.
 on:
+  push:
+    branches: ['tmp/red-package-paths']
   pull_request:
     branches: [rc, main]
     paths:
