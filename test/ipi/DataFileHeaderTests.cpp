@@ -24,7 +24,8 @@
  * @file DataFileHeaderTests.cpp
  * @brief Tests that the engine reads a data file with a non zero profile
  * offset shift, refuses a copy whose header it does not support, and that the
- * size method reports the status of a file it cannot use.
+ * size methods report the status of a file they cannot use and count only the
+ * memory of the thread that measures.
  *
  * The tests use the ASN data file because CI downloads it and never stands
  * another file in for it, as it does for the other data files the tests use.
@@ -34,6 +35,7 @@
  */
 
 #include "../common/Base.hpp"
+#include "../common/SizeOtherThread.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -576,4 +578,44 @@ TEST_F(DataFileHeaderTests, SizeManagerFromMemory_NullConfig_SameAsBalanced) {
 	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, exception->status);
 	EXPECT_GT(size, (size_t)0);
 	EXPECT_EQ(balanced, size);
+}
+
+/**
+ * Test that the size from a file counts only the memory of the thread that
+ * measures it, and keeps no record of memory another thread allocates.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromFile_OtherThreadNotCounted) {
+	ASSERT_NO_FATAL_FAILURE(writeTempFile());
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	expectSizeIgnoresOtherThread([&]() {
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		const size_t size = fiftyoneDegreesIpiSizeManagerFromFile(
+			&fiftyoneDegreesIpiInMemoryConfig,
+			&properties,
+			tempFilePath.c_str(),
+			exception);
+		EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, exception->status);
+		return size;
+	});
+}
+
+/**
+ * Test that the size from memory counts only the memory of the thread that
+ * measures it, and keeps no record of memory another thread allocates.
+ */
+TEST_F(DataFileHeaderTests, SizeManagerFromMemory_OtherThreadNotCounted) {
+	fiftyoneDegreesPropertiesRequired properties =
+		fiftyoneDegreesPropertiesDefault;
+	expectSizeIgnoresOtherThread([&]() {
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		const size_t size = fiftyoneDegreesIpiSizeManagerFromMemory(
+			&fiftyoneDegreesIpiInMemoryConfig,
+			&properties,
+			data.data(),
+			(fiftyoneDegreesFileOffset)data.size(),
+			exception);
+		EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, exception->status);
+		return size;
+	});
 }
