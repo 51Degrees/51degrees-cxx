@@ -143,7 +143,7 @@ namespace FiftyoneDegrees {
 								engine->refreshData(data, length);
 								numberOfReloads++;
 							}
-							catch (const StatusCodeException &) {
+							catch (StatusCodeException e) {
 								numberOfReloadFails++;
 							}
 #ifdef _MSC_VER
@@ -161,7 +161,7 @@ namespace FiftyoneDegrees {
 							engine->refreshData(data, length);
 							numberOfReloads++;
 						}
-						catch (const StatusCodeException &) {
+						catch (StatusCodeException e) {
 							numberOfReloadFails++;
 						}
 						state.processIpAddressesSingle();
@@ -186,8 +186,6 @@ namespace FiftyoneDegrees {
 		}
 	}
 }
-
-#ifndef TEST
 
 /**
  * Main entry point.
@@ -290,5 +288,3 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
-
-#endif
