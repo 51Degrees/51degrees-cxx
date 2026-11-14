@@ -4,8 +4,9 @@ name: Examples on the free data files
 # from the root of the clone with no settings, as someone trying them would.
 # Each example finds the free data file it needs or downloads it, so this is
 # the check that a fresh clone works. The Ubuntu job downloads the free files
-# and the other jobs restore them from a cache. The other builds give the
-# tests the Enterprise data files through secrets, so they cannot show it.
+# and the other jobs restore them from a cache when it has them. The other
+# builds give the tests the Enterprise data files through secrets, so they
+# cannot show it.
 on:
   pull_request:
     branches: [rc, main]
@@ -46,10 +47,12 @@ jobs:
         with:
           submodules: recursive
 
-      # The free data files are downloaded once. The Ubuntu job downloads
-      # them as a fresh clone does, which tests the download, and saves them.
-      # The other jobs restore them, and download them only when the data
-      # links have changed since they were saved.
+      # The Ubuntu job downloads the free data files as a fresh clone does,
+      # which tests the download, and saves them to a cache. The other jobs
+      # restore them when the cache has an entry they can read. A pull
+      # request reads only its own runs' entries and those of the default
+      # branch, and an entry unused for seven days is removed, so the other
+      # jobs still download until such an entry exists.
       - name: Restore the free data files
         if: runner.os != 'Linux'
         uses: actions/cache/restore@v4
