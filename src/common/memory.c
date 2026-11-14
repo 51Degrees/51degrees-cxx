@@ -172,7 +172,15 @@ static void untrackAllocation(void *pointer) {
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
-	assert(record != NULL);
+	// Memory the tracker did not allocate has no record, as when another
+	// thread frees memory it allocated before the size functions pointed the
+	// allocation functions here. It is freed without being counted.
+	if (record == NULL) {
+#ifndef FIFTYONE_DEGREES_NO_THREADING
+		FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.locks[shard]);
+#endif
+		return;
+	}
 	size = record->size;
 	fiftyoneDegreesTreeDelete(&record->tree);
 #ifndef FIFTYONE_DEGREES_NO_THREADING
