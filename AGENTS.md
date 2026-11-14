@@ -314,7 +314,9 @@ and runs the getting started examples.
 
 `.github/workflows/examples.yml` builds the examples from a fresh clone and
 runs each one from the root with no settings, on Ubuntu and Windows, so each
-finds or downloads the free data file it needs. It fails an example that exits
+finds or downloads the free data file it needs. Only the Ubuntu job downloads
+them, which tests the download, and saves them to a cache keyed on the data
+links, which the other jobs restore. It fails an example that exits
 with an error or whose output does not end with the `Find out more` section.
 It is the only check of what a
 fresh clone does, as the other builds give the tests the Enterprise files. It

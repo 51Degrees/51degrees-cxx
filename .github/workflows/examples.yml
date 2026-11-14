@@ -3,8 +3,9 @@ name: Examples on the free data files
 # Builds the examples from a fresh clone as the README says, and runs each one
 # from the root of the clone with no settings, as someone trying them would.
 # Each example finds the free data file it needs or downloads it, so this is
-# the check that a fresh clone works. The other builds give the tests the
-# Enterprise data files through secrets, so they cannot show it.
+# the check that a fresh clone works. The Ubuntu job downloads the free files
+# and the other jobs restore them from a cache. The other builds give the
+# tests the Enterprise data files through secrets, so they cannot show it.
 on:
   pull_request:
     branches: [rc, main]
@@ -44,6 +45,23 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      # The free data files are downloaded once. The Ubuntu job downloads
+      # them as a fresh clone does, which tests the download, and saves them.
+      # The other jobs restore them, and download them only when the data
+      # links have changed since they were saved.
+      - name: Restore the free data files
+        if: runner.os != 'Linux'
+        uses: actions/cache/restore@v4
+        with:
+          key: examples-free-data-${{ hashFiles('data/device-detection/*.link', 'data/ip-intelligence/*.link') }}
+          path: |
+            data/device-detection/51Degrees-LiteV4.1.hash
+            data/device-detection/20000 Evidence Records.yml
+            data/device-detection/20000 User Agents.csv
+            data/ip-intelligence/51Degrees-LiteV41.ipi
+            data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
+          enableCrossOsArchive: true
 
       - name: Build as the README says, without the tests
         run: |
@@ -134,3 +152,16 @@ jobs:
           }
           if ($failed) { throw "Examples that failed: $($failed -join ', ')" }
           "All $($names.Count) examples exited with 0, said what needs the Enterprise data file with the contact link, and ended with Find out more"
+
+      - name: Save the free data files
+        if: runner.os == 'Linux' && success()
+        uses: actions/cache/save@v4
+        with:
+          key: examples-free-data-${{ hashFiles('data/device-detection/*.link', 'data/ip-intelligence/*.link') }}
+          path: |
+            data/device-detection/51Degrees-LiteV4.1.hash
+            data/device-detection/20000 Evidence Records.yml
+            data/device-detection/20000 User Agents.csv
+            data/ip-intelligence/51Degrees-LiteV41.ipi
+            data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
+          enableCrossOsArchive: true
