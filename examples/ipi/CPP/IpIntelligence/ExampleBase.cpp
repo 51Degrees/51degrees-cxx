@@ -82,6 +82,10 @@ fiftyoneDegreesStatusCode ExampleBase::getFilePath(
 		size);
 }
 
+const char *ExampleBase::getDataFilePathFromEnvironment() {
+	return fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
+}
+
 bool ExampleBase::hasProperty(const char *name) const {
 	auto const fileProperties =
 		std::unique_ptr<Collection<string, PropertyMetaData>>(

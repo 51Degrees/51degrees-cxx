@@ -1059,7 +1059,8 @@ int main(int argc, char* argv[]) {
 	uint16_t numberOfThreads = DEFAULT_NUMBER_OF_THREADS;
 	int iterations = DEFAULT_ITERATIONS;
 	char *outFile = NULL;
-	const char *envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char *envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	dataFilePath[0] = '\0';
 	evidenceFilePath[0] = '\0';
 
@@ -1156,8 +1157,8 @@ int main(int argc, char* argv[]) {
 	if (strlen(dataFilePath) == 0 &&
 		envDataFilePath != NULL && envDataFilePath[0] != '\0') {
 		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			printf("The data file path in the _51DEGREES_IPI_PATH "
-				"environment variable is too long.\n");
+			printf("The data file path set in the environment is too "
+				"long.\n");
 #ifndef TEST
 			fgetc(stdin);
 #endif

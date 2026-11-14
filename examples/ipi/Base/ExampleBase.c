@@ -177,6 +177,37 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 	return status;
 }
 
+// The name the data file path is read from. The same name without the
+// leading underscore is deprecated, because a POSIX shell cannot set a name
+// that starts with a digit, and is read only when this one is unset or
+// empty.
+#define EXAMPLE_IPI_PATH "_51DEGREES_IPI_PATH"
+#define EXAMPLE_IPI_PATH_DEPRECATED "51DEGREES_IPI_PATH"
+
+// True once the deprecated name has been reported, so that it is reported
+// once.
+static bool deprecatedPathReported = false;
+
+const char* fiftyoneDegreesExampleGetDataFilePathFromEnvironment(void) {
+	const char *path = getenv(EXAMPLE_IPI_PATH);
+	if (path != NULL && path[0] != '\0') {
+		return path;
+	}
+	path = getenv(EXAMPLE_IPI_PATH_DEPRECATED);
+	if (path != NULL && path[0] != '\0') {
+		if (deprecatedPathReported == false) {
+			deprecatedPathReported = true;
+			fprintf(stderr,
+				"The data file path was read from %s, which is deprecated. "
+				"%s replaces it, so set that to the same value.\n",
+				EXAMPLE_IPI_PATH_DEPRECATED,
+				EXAMPLE_IPI_PATH);
+		}
+		return path;
+	}
+	return NULL;
+}
+
 bool fiftyoneDegreesExampleHasProperty(
 	fiftyoneDegreesDataSetIpi *dataset,
 	const char *propertyName) {
