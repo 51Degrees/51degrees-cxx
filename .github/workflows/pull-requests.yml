@@ -29,6 +29,9 @@ jobs:
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
       skip-lite-tests: ${{ inputs.skip-lite-tests || false }}
       cache-assets: true
+      # The sanitizer build takes up to 118 minutes, so each build and test
+      # job gets 150 rather than common-ci's 120.
+      build-test-timeout-minutes: 150
       # Each pull request is built on the configurations its changes need,
       # as ci/select-options.ps1 chooses, and one that fails does not cancel
       # the others. With nothing eligible, the nightly builds rc instead.
