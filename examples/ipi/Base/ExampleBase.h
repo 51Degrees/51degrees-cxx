@@ -121,6 +121,14 @@ EXTERNAL void fiftyoneDegreesExampleOfferEnterprise(
     fiftyoneDegreesResourceManager *manager);
 
 /**
+ * Prints the "Find out more" section that every example ends with, which
+ * links to the IP Intelligence pages and to this repository.
+ * @param output stream to print to, which is standard error for an example
+ * whose results go to standard output
+ */
+EXTERNAL void fiftyoneDegreesExampleFindOutMore(FILE *output);
+
+/**
  * Shown in place of a value for a property that the data file in use does
  * not have. Every property the examples ask for is in the Enterprise data
  * file.

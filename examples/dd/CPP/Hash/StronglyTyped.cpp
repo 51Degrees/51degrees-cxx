@@ -249,6 +249,9 @@ int main(int argc, char* argv[]) {
 		&params,
 		fiftyoneDegreesExampleCPPStronglyTypedRun);
 
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout);
+
 	// Wait for a character to be pressed.
 	fgetc(stdin);
 

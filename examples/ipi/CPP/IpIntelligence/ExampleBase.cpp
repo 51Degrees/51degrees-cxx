@@ -86,6 +86,10 @@ const char *ExampleBase::getDataFilePathFromEnvironment() {
 	return fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 }
 
+void ExampleBase::findOutMore() {
+	fiftyoneDegreesExampleFindOutMore(stdout);
+}
+
 bool ExampleBase::hasProperty(const char *name) const {
 	auto const fileProperties =
 		std::unique_ptr<Collection<string, PropertyMetaData>>(

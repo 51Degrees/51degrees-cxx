@@ -201,6 +201,10 @@ int main(int argc, char* argv[]) {
 		argc > 2 ? argv[2] : "IsMobile,DeviceType,PriceBand",
 		&config);
 	
+	// Standard output holds the results, so where to find out more goes
+	// to standard error.
+	fiftyoneDegreesExampleFindOutMore(stderr);
+
 	return exitCode;
 }
 
