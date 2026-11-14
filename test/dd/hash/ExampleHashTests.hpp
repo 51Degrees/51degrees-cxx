@@ -20,6 +20,8 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+#include <regex>
+#include <set>
 #include "../ExampleDeviceDetectionTests.hpp"
 
 class ExampleHashTest : public ExampleDeviceDetectionTest {
@@ -37,6 +39,31 @@ protected:
 	 */
 	string getLiteDataFilePath() {
 		return GetFilePath(_dataFolderName, "51Degrees-LiteV4.1.hash");
+	}
+
+	/**
+	 * Expects every "Finished with hash code" line a reload example printed
+	 * to give the same code. Each processing run reads the same User-Agents,
+	 * and the data set is reloaded from the same file while they run, so
+	 * processing during a reload must give the results it gives without one.
+	 * @param output what the example printed
+	 */
+	void expectSameResultsWhileReloading(const string &output) {
+		const std::regex finished("Finished with hash code '(-?[0-9]+)'");
+		std::set<string> codes;
+		int runs = 0;
+		for (std::sregex_iterator match(
+				output.begin(), output.end(), finished), end;
+			match != end;
+			++match) {
+			codes.insert((*match)[1].str());
+			runs++;
+		}
+		EXPECT_GT(runs, 0) << "No processing run finished.
+" << output;
+		EXPECT_EQ((size_t)1, codes.size()) << "Processing while the data set "
+			"was reloaded gave different results.
+" << output;
 	}
 };
 

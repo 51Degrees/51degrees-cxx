@@ -41,6 +41,7 @@ public:
 			"The data set should never fail to reload";
 		EXPECT_EQ(output.find("Reloaded '0' times"), std::string::npos) <<
 			"The data set should reload at least once";
+		expectSameResultsWhileReloading(output);
 	}
 };
 
