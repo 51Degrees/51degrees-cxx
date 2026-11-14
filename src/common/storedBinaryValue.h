@@ -211,6 +211,24 @@ EXTERNAL double fiftyoneDegreesStoredBinaryValueToDoubleOrDefault(
  double defaultValue);
 
 /**
+ * Converts the binary value to the double a caller is given. A value stored
+ * as an azimuth or a declination is rounded to the decimal places, so that
+ * the number is the one its text reads as. Any other value is the one
+ * #fiftyoneDegreesStoredBinaryValueToDoubleOrDefault gives.
+ * @param value the current binary value item
+ * @param storedValueType format of byte array representation
+ * @param decimalPlaces to round an azimuth or a declination to
+ * @param defaultValue fallback result.
+ * @return converted value (when possible)
+ * or default one (when type is not convertible).
+ */
+EXTERNAL double fiftyoneDegreesStoredBinaryValueToRoundedDoubleOrDefault(
+ const fiftyoneDegreesStoredBinaryValue *value,
+ fiftyoneDegreesPropertyValueType storedValueType,
+ uint8_t decimalPlaces,
+ double defaultValue);
+
+/**
  * Function to convert the binary value to bool when possible.
  * @param value the current binary value item
  * @param storedValueType format of byte array representation
