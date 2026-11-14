@@ -305,3 +305,14 @@ void fiftyoneDegreesExampleCheckDataFile(
 		COLLECTION_RELEASE(dataset->strings, &item);
 	}
 }
+
+void fiftyoneDegreesExampleFindOutMore(FILE *output) {
+	fprintf(output,
+		"\n"
+		"Find out more\n"
+		"-------------\n"
+		"Device Detection: https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=find-out-more\n"
+		"Documentation: https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=find-out-more\n"
+		"Contact us: https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=find-out-more\n"
+		"Source code: https://github.com/51Degrees/51degrees-cxx\n");
+}

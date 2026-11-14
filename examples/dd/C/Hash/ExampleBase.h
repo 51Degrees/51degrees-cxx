@@ -147,6 +147,14 @@ EXTERNAL void fiftyoneDegreesExampleOfferEnterprise(
     fiftyoneDegreesResourceManager *manager);
 
 /**
+ * Prints the "Find out more" section that every example ends with, which
+ * links to the Device Detection pages and to this repository.
+ * @param output stream to print to, which is standard error for an example
+ * whose results go to standard output
+ */
+EXTERNAL void fiftyoneDegreesExampleFindOutMore(FILE *output);
+
+/**
  * Finds a file in the data folder as fiftyoneDegreesFileGetPath does. When
  * the file is missing and the data repository has a link to it, runs the
  * data repository's download script for that file, and looks again if the

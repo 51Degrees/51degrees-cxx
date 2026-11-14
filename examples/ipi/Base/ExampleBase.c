@@ -320,6 +320,17 @@ void fiftyoneDegreesExampleCheckDataFile(
 	}
 }
 
+void fiftyoneDegreesExampleFindOutMore(FILE *output) {
+	fprintf(output,
+		"\n"
+		"Find out more\n"
+		"-------------\n"
+		"IP Intelligence: https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more\n"
+		"Documentation: https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more\n"
+		"Contact us: https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more\n"
+		"Source code: https://github.com/51Degrees/51degrees-cxx\n");
+}
+
 uint32_t fiftyoneDegreesIterateFakeIPv4s(
 	uint32_t const rangeStart,
 	uint32_t const rangeEnd,

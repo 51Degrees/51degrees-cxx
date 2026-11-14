@@ -68,6 +68,10 @@ jobs:
         run: |
           $names = (Get-Content examples.txt -Raw).Trim() -split ' '
           New-Item -ItemType File empty.txt | Out-Null
+          $taggedLink = ': https://51degrees\.com/\S+\?utm_source=code' +
+            '&utm_medium=example&utm_campaign=51degrees-cxx' +
+            '&utm_content=[a-z0-9.-]+&utm_term=[a-z0-9-]+$'
+          $repositoryLink = 'Source code: https://github.com/51Degrees/51degrees-cxx'
           $failed = @()
           foreach ($name in $names) {
             $exe = $IsWindows ? "build/bin/Release/$name.exe" : "build/bin/$name"
@@ -95,6 +99,24 @@ jobs:
             "Exit $code after $([int]((Get-Date) - $start).TotalSeconds) s" | Out-Host
             Write-Output "::endgroup::"
             if ($code -ne 0) { $failed += "$name (exit $code)" }
+            # Every example ends with a "Find out more" section, which links
+            # to 51degrees.com with the tags of an example and names this
+            # repository. Nothing but its links may follow the heading.
+            $lines = [string[]]@($output | Where-Object { "$_".Trim() -ne '' })
+            $at = [Array]::LastIndexOf($lines, 'Find out more')
+            if ($at -lt 0) {
+              $failed += "$name (no Find out more section)"
+            }
+            else {
+              $links = @($lines | Select-Object -Skip ($at + 1) |
+                Where-Object { $_ -notmatch '^-+$' })
+              $notLinks = @($links | Where-Object { $_ -notmatch ': https://\S+$' })
+              $tagged = @($links | Where-Object { $_ -match $taggedLink })
+              if ($notLinks -or $tagged.Count -eq 0 -or
+                  $links -notcontains $repositoryLink) {
+                $failed += "$name (Find out more does not end the output)"
+              }
+            }
           }
           if ($failed) { throw "Examples that failed: $($failed -join ', ')" }
-          "All $($names.Count) examples exited with 0"
+          "All $($names.Count) examples exited with 0 and ended with Find out more"

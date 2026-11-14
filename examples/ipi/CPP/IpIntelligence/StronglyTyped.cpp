@@ -272,6 +272,9 @@ int main(int argc, char* argv[]) {
 #endif
 #endif
 
+	// End with where to find out more.
+	ExampleBase::findOutMore();
+
 	// Wait for a character to be pressed.
 #ifndef TEST
 	fgetc(stdin);

@@ -205,6 +205,10 @@ int main(int argc, char* argv[]) {
 			"RegisteredCountry,AccuracyRadiusMin",
 		& config);
 
+	// Standard output holds the results, so where to find out more goes
+	// to standard error.
+	fiftyoneDegreesExampleFindOutMore(stderr);
+
 		return exitCode;
 }
 
