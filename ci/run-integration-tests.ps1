@@ -35,9 +35,8 @@ $failed = 0
 # Each product excludes its own long running tests.
 $Excludes = @{
     common = @()
-    dd = @('.*OfflineProcessing.*')
+    dd = @()
     ipi = @(
-        '.*OfflineProcessing.*'
         # The performance suites run again in run-performance-tests.ps1,
         # which is where their results are collected from. Match them by
         # suite name rather than ".*Performance.*", which would also catch

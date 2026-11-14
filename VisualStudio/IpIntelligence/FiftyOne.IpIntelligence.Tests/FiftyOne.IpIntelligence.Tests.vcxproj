@@ -26,6 +26,11 @@
     <ClCompile Include="..\..\..\test\ipi\EngineIpiProcessTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsFile.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsMemory.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPGettingStartedTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPMetaDataTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPReloadFromFileTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPReloadFromMemoryTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPStronglyTypedTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleCountryOverlapTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleEnvironmentVariableTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleFindProfilesTests.cpp" />
@@ -78,6 +83,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Examples\Base\ExampleBase\ExampleBase.vcxproj">
       <Project>{24a02087-1038-47c2-953e-de2ff5a520fb}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Examples\CPP\ExampleBase\ExampleBase.vcxproj">
+      <Project>{f56d1795-93b0-4480-aebd-ff2f1a70e4d3}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Examples\CPP\Meta Data\Meta Data.vcxproj">
       <Project>{fb4580bd-7ace-48c7-ba82-31e218758f58}</Project>
