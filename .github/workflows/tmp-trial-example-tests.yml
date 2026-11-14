@@ -1,0 +1,81 @@
+name: Temporary trial of the example tests
+
+on:
+  push:
+    branches:
+      - tmp/trial-example-tests-c
+
+permissions:
+  contents: read
+
+env:
+  REPO: 51degrees-cxx
+
+jobs:
+  trial:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Ubuntu Release, os: ubuntu-latest, config: Release, asan: 'OFF', ref: '' }
+          - { name: Windows Release, os: windows-latest, config: Release, asan: 'OFF', ref: '' }
+          - { name: Windows Debug, os: windows-latest, config: Debug, asan: 'OFF', ref: '' }
+    timeout-minutes: 170
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.REPO }}
+          submodules: true
+          ref: ${{ matrix.ref }}
+      - name: Name the pipeline's asset caches
+        id: cache-date
+        run: |
+          "today=$((Get-Date).ToUniversalTime().ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+          "yesterday=$((Get-Date).ToUniversalTime().AddDays(-1).ToString('yyyyMMdd'))-" >> $env:GITHUB_OUTPUT
+      - name: Restore the pipeline's asset cache
+        uses: actions/cache/restore@v4
+        with:
+          key: tmp-trial-example-tests-no-such-key
+          restore-keys: |
+            ${{ steps.cache-date.outputs.today }}
+            ${{ steps.cache-date.outputs.yesterday }}
+          path: assets
+          enableCrossOsArchive: true
+      - name: Fetch the data files as the pipeline does
+        env:
+          DD_KEY: ${{ secrets.DEVICE_DETECTION_KEY }}
+          DD_URL: ${{ secrets.DEVICE_DETECTION_URL }}
+          IPI_URL: ${{ secrets.IPI_DATA_FILE_URL }}
+        run: |
+          & "./$env:REPO/ci/fetch-assets.ps1" -DeviceDetection $env:DD_KEY -DeviceDetectionUrl $env:DD_URL -IpIntelligenceUrl $env:IPI_URL
+          Get-ChildItem "$env:REPO/data/ip-intelligence", "$env:REPO/data/device-detection" | Format-Table Name, Length | Out-String -Width 200
+      - name: Build the tests
+        run: |
+          $platform = $IsWindows ? @('-A', 'x64') : @("-DCMAKE_BUILD_TYPE=${{ matrix.config }}")
+          cmake -S $env:REPO -B "$env:REPO/build" @platform -DWITH_ASAN=${{ matrix.asan }} -DFIFTYONE_COMMON_CXX_BUILD_TESTING=OFF | Select-Object -Last 3
+          $start = Get-Date
+          $log = cmake --build "$env:REPO/build" --config ${{ matrix.config }} --parallel 4 --target IpiTests HashTests 2>&1
+          $code = $LASTEXITCODE
+          "Build took $([int]((Get-Date) - $start).TotalSeconds) s, exit $code"
+          if ($code -ne 0) {
+            $log | ForEach-Object { "$_" } | Where-Object { $_ -match 'error|multiple definition|warning C' } | Select-Object -First 60 | ForEach-Object { Write-Host $_ }
+            throw "The build failed"
+          }
+      - name: Run the example tests and time them
+        run: |
+          Push-Location "$env:REPO/build"
+          $out = ctest -C ${{ matrix.config }} --tests-regex 'ExampleCPPTest|OfflineProcessing' --output-on-failure --timeout 6000 2>&1
+          $code = $LASTEXITCODE
+          $out | ForEach-Object { "$_" } | Where-Object { $_ -match 'Test +#|tests passed|Total Test time|Failed|Expected|Which is|error' } | ForEach-Object { Write-Host $_ }
+          Pop-Location
+          exit $code
