@@ -21,8 +21,10 @@
  * ********************************************************************* */
  
 #include "pch.h"
+#include <thread>
 #include "Base.hpp"
 #include "../../src/common/memory.h"
+#include "../../src/common/threading.h"
 
 /**
  * Memory Leak test class used to verify that the Base.cpp memory leak check
@@ -112,6 +114,51 @@ TEST_F(MemoryLeak, TrackingFree_UntrackedMemory) {
 	fiftyoneDegreesFree(tracked);
 	EXPECT_EQ((size_t)0, fiftyoneDegreesMemoryTrackingGetAllocated());
 	fiftyoneDegreesUnsetMemoryTracking();
+}
+
+/**
+ * Test that while one thread measures, memory another thread allocates is
+ * neither counted nor recorded, memory another thread frees is not taken from
+ * the count, and every thread is tracked again once the measurement stops.
+ */
+TEST_F(MemoryLeak, Measuring_CountsOnlyTheMeasuringThread) {
+	if (fiftyoneDegreesThreadingGetIsThreadSafe() == false) {
+		return;
+	}
+
+	// A block another thread allocates while every thread is tracked.
+	fiftyoneDegreesSetUpMemoryTracking();
+	void *before = nullptr;
+	std::thread([&]() { before = fiftyoneDegreesMalloc(64); }).join();
+	ASSERT_NE(nullptr, before);
+
+	fiftyoneDegreesMemoryTrackingStartMeasuring();
+	void *mine = fiftyoneDegreesMalloc(16);
+	void *during = nullptr;
+	std::thread([&]() {
+		during = fiftyoneDegreesMalloc(1024);
+		fiftyoneDegreesFree(before);
+	}).join();
+	ASSERT_NE(nullptr, during);
+	EXPECT_EQ((size_t)16, fiftyoneDegreesMemoryTrackingGetAllocated());
+	EXPECT_EQ((size_t)16, fiftyoneDegreesMemoryTrackingGetMax());
+	fiftyoneDegreesFree(mine);
+	EXPECT_EQ((size_t)0, fiftyoneDegreesMemoryTrackingGetAllocated());
+	fiftyoneDegreesMemoryTrackingStopMeasuring();
+	EXPECT_TRUE(fiftyoneDegreesMalloc == fiftyoneDegreesMemoryStandardMalloc);
+	EXPECT_TRUE(fiftyoneDegreesFree == fiftyoneDegreesMemoryStandardFree);
+
+	// The block allocated during the measurement left no record to subtract.
+	fiftyoneDegreesMemoryTrackingFree(during);
+	EXPECT_EQ((size_t)0, fiftyoneDegreesMemoryTrackingGetAllocated());
+
+	// Once the measurement stops, every thread is tracked again.
+	fiftyoneDegreesSetUpMemoryTracking();
+	void *after = nullptr;
+	std::thread([&]() { after = fiftyoneDegreesMalloc(8); }).join();
+	EXPECT_EQ((size_t)8, fiftyoneDegreesMemoryTrackingGetAllocated());
+	fiftyoneDegreesFree(after);
+	EXPECT_EQ((size_t)0, fiftyoneDegreesUnsetMemoryTracking());
 }
 
 /**

@@ -21,11 +21,14 @@
  * ********************************************************************* */
 
 #include "../../common/pch.h"
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
 #include "../Constants.hpp"
 #include "../../common/Base.hpp"
+#include "../../common/SizeOtherThread.hpp"
 #include "../../../src/dd/hash/PropertyMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/ValueMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/fiftyone.h"
@@ -658,6 +661,52 @@ TEST_F(HashCTests, HashSizeManagerFromFileNullConfig) {
 	EXPECT_GT(size, (size_t)0);
 	EXPECT_EQ(balanced, size);
 
+	internalSetUp();
+}
+
+/*
+ * Check that the size from a file counts only the memory of the thread that
+ * measures it, and keeps no record of memory another thread allocates.
+ */
+TEST_F(HashCTests, HashSizeManagerFromFileOtherThread) {
+	internalTearDown();
+	expectSizeIgnoresOtherThread([&]() {
+		EXCEPTION_CREATE;
+		const size_t size = fiftyoneDegreesHashSizeManagerFromFile(
+			&fiftyoneDegreesHashInMemoryConfig,
+			&this->properties,
+			dataFilePath.c_str(),
+			exception);
+		EXPECT_TRUE(EXCEPTION_OKAY);
+		return size;
+	});
+	internalSetUp();
+}
+
+/*
+ * Check that the size from memory counts only the memory of the thread that
+ * measures it, and keeps no record of memory another thread allocates.
+ */
+TEST_F(HashCTests, HashSizeManagerFromMemoryOtherThread) {
+	internalTearDown();
+	std::ifstream file(dataFilePath, std::ios::binary);
+	ASSERT_TRUE(file.good()) << "Could not open '" << dataFilePath << "'.";
+	std::vector<char> data(
+		(std::istreambuf_iterator<char>(file)),
+		std::istreambuf_iterator<char>());
+	ASSERT_FALSE(data.empty());
+	expectSizeIgnoresOtherThread([&]() {
+		EXCEPTION_CREATE;
+		const size_t size = fiftyoneDegreesHashSizeManagerFromMemory(
+			&fiftyoneDegreesHashInMemoryConfig,
+			&this->properties,
+			data.data(),
+			(long)data.size(),
+			exception);
+		EXPECT_TRUE(EXCEPTION_OKAY);
+		return size;
+	});
+	std::vector<char>().swap(data);
 	internalSetUp();
 }
 

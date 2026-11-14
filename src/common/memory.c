@@ -46,6 +46,8 @@ typedef struct memory_allocation_tree_t {
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	fiftyoneDegreesMutex locks[FIFTYONE_DEGREES_MEMORY_TRACKER_SHARDS];
 	fiftyoneDegreesMutex lock;
+	bool measuring; /* True while one thread measures what it allocates */
+	FIFTYONE_DEGREES_THREAD_ID measurer; /* The thread that measures */
 #endif
 	size_t allocated;
 	size_t max;
@@ -104,6 +106,25 @@ static void tryInit() {
 	if (initialised == false) {
 		MemoryTrackingReset();
 	}
+}
+
+/**
+ * True while a thread other than the calling one measures, so that the
+ * calling thread's memory is left out of the measurement.
+ */
+static bool isOtherThreadMeasuring() {
+#ifndef FIFTYONE_DEGREES_NO_THREADING
+	bool other;
+	FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock);
+	other = state.measuring &&
+		FIFTYONE_DEGREES_THREAD_ID_EQUAL(
+			state.measurer,
+			FIFTYONE_DEGREES_THREAD_ID_CURRENT()) == false;
+	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.lock);
+	return other;
+#else
+	return false;
+#endif
 }
 
 static void trackAllocation(void* pointer, size_t size) {
@@ -188,6 +209,11 @@ static void untrackAllocation(void *pointer) {
 #endif
 	free(record);
 
+	// Memory another thread frees while one thread measures was allocated
+	// before the measurement started, so it is not taken from the count.
+	if (isOtherThreadMeasuring()) {
+		return;
+	}
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock);
 #endif
@@ -208,8 +234,10 @@ void* fiftyoneDegreesMemoryTrackingMallocAligned(
 		alignment,
 		size);
 
-	// Track the allocation.
-	trackAllocation(pointer, size + size % alignment);
+	// Track the allocation, unless another thread is measuring.
+	if (isOtherThreadMeasuring() == false) {
+		trackAllocation(pointer, size + size % alignment);
+	}
 	return pointer;
 }
 
@@ -221,8 +249,10 @@ void* fiftyoneDegreesMemoryTrackingMalloc(size_t size) {
 	// Allocate the memory.
 	void* pointer = MemoryStandardMalloc(size);
 
-	// Track the allocation.
-	trackAllocation(pointer, size);
+	// Track the allocation, unless another thread is measuring.
+	if (isOtherThreadMeasuring() == false) {
+		trackAllocation(pointer, size);
+	}
 	return pointer;
 }
 
@@ -292,6 +322,33 @@ size_t fiftyoneDegreesUnsetMemoryTracking() {
 	fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryStandardFreeAligned;
 	fiftyoneDegreesMemoryTrackingReset();
 	return memAlloced;
+}
+
+void fiftyoneDegreesMemoryTrackingStartMeasuring() {
+	fiftyoneDegreesMemoryTrackingReset();
+#ifndef FIFTYONE_DEGREES_NO_THREADING
+	FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock);
+	state.measurer = FIFTYONE_DEGREES_THREAD_ID_CURRENT();
+	state.measuring = true;
+	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.lock);
+#endif
+	fiftyoneDegreesMalloc = fiftyoneDegreesMemoryTrackingMalloc;
+	fiftyoneDegreesMallocAligned = fiftyoneDegreesMemoryTrackingMallocAligned;
+	fiftyoneDegreesFree = fiftyoneDegreesMemoryTrackingFree;
+	fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryTrackingFreeAligned;
+}
+
+void fiftyoneDegreesMemoryTrackingStopMeasuring() {
+	fiftyoneDegreesMalloc = fiftyoneDegreesMemoryStandardMalloc;
+	fiftyoneDegreesMallocAligned = fiftyoneDegreesMemoryStandardMallocAligned;
+	fiftyoneDegreesFree = fiftyoneDegreesMemoryStandardFree;
+	fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryStandardFreeAligned;
+#ifndef FIFTYONE_DEGREES_NO_THREADING
+	FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock);
+	state.measuring = false;
+	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.lock);
+#endif
+	fiftyoneDegreesMemoryTrackingReset();
 }
 
 #ifdef FIFTYONE_DEGREES_MEMORY_TRACK_ENABLED

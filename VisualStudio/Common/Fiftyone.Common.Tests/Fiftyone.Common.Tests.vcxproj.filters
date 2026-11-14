@@ -176,6 +176,9 @@
     <ClInclude Include="..\..\..\test\common\pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\test\common\SizeOtherThread.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\test\common\StringCollection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

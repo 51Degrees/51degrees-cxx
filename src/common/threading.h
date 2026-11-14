@@ -195,6 +195,33 @@ void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
 #endif
 
 /**
+ * The identity of a thread, as #FIFTYONE_DEGREES_THREAD_ID_CURRENT gives it.
+ */
+#ifdef _MSC_VER
+#define FIFTYONE_DEGREES_THREAD_ID DWORD
+#else
+#define FIFTYONE_DEGREES_THREAD_ID pthread_t
+#endif
+
+/**
+ * Gets the identity of the calling thread.
+ */
+#ifdef _MSC_VER
+#define FIFTYONE_DEGREES_THREAD_ID_CURRENT() GetCurrentThreadId()
+#else
+#define FIFTYONE_DEGREES_THREAD_ID_CURRENT() pthread_self()
+#endif
+
+/**
+ * True when two thread identities are the same thread.
+ */
+#ifdef _MSC_VER
+#define FIFTYONE_DEGREES_THREAD_ID_EQUAL(a, b) ((a) == (b))
+#else
+#define FIFTYONE_DEGREES_THREAD_ID_EQUAL(a, b) (pthread_equal((a), (b)) != 0)
+#endif
+
+/**
  * Creates a new signal that can be used to wait for
  * other operations to complete before continuing.
  * @param s signal to create

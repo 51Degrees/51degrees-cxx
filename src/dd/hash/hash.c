@@ -3251,12 +3251,8 @@ size_t fiftyoneDegreesHashSizeManagerFromFile(
 	ResourceManager manager;
 	StatusCode status;
 
-	// Set the memory allocation and free methods for tracking.
-	MemoryTrackingReset();
-	Malloc = MemoryTrackingMalloc;
-	MallocAligned = MemoryTrackingMallocAligned;
-	Free = MemoryTrackingFree;
-	FreeAligned = MemoryTrackingFreeAligned;
+	// Count the memory this thread allocates, and no other thread's.
+	MemoryTrackingStartMeasuring();
 
 	// Initialise the manager with the tracking methods in use to determine
 	// the amount of memory that is allocated. The init method has freed its
@@ -3283,11 +3279,7 @@ size_t fiftyoneDegreesHashSizeManagerFromFile(
 	assert(MemoryTrackingGetAllocated() == 0);
 
 	// Return the malloc and free methods to standard operation.
-	Malloc = MemoryStandardMalloc;
-	MallocAligned = MemoryStandardMallocAligned;
-	Free = MemoryStandardFree;
-	FreeAligned = MemoryStandardFreeAligned;
-	MemoryTrackingReset();
+	MemoryTrackingStopMeasuring();
 
 	return allocated;
 }
@@ -3491,12 +3483,8 @@ size_t fiftyoneDegreesHashSizeManagerFromMemory(
 	ResourceManager manager;
 	StatusCode status;
 
-	// Set the memory allocation and free methods for tracking.
-	MemoryTrackingReset();
-	Malloc = MemoryTrackingMalloc;
-	MallocAligned = MemoryTrackingMallocAligned;
-	Free = MemoryTrackingFree;
-	FreeAligned = MemoryTrackingFreeAligned;
+	// Count the memory this thread allocates, and no other thread's.
+	MemoryTrackingStartMeasuring();
 
 	// Ensure that the memory used is not freed with the data set. A null
 	// configuration means the balanced one, as it does in initDataSet.
@@ -3529,11 +3517,7 @@ size_t fiftyoneDegreesHashSizeManagerFromMemory(
 	assert(MemoryTrackingGetAllocated() == 0);
 
 	// Return the malloc and free methods to standard operation.
-	Malloc = MemoryStandardMalloc;
-	MallocAligned = MemoryStandardMallocAligned;
-	Free = MemoryStandardFree;
-	FreeAligned = MemoryStandardFreeAligned;
-	MemoryTrackingReset();
+	MemoryTrackingStopMeasuring();
 
 	return allocated;
 }
