@@ -296,6 +296,10 @@ The repeated Debug builds and macOS run only when `rc` itself or the release
 pull request is built, which `.github/workflows/release-pull-request.yml`
 does on every entry.
 
+Each build and test job gets 150 minutes, set by `build-test-timeout-minutes`
+in the workflows that build pull requests, because the sanitizer build takes
+up to 118 minutes and common-ci gives 120 unless told otherwise.
+
 An entry with `InstallCheck` also runs `ci/check-install.ps1` after its build.
 It builds an archive of the commit with the tests and examples off, offline on
 Linux, installs it, and builds and runs `test/install` against the install.
