@@ -21,7 +21,6 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
-#include "../../examples/ipi/Base/ExampleBase.h"
 #include "../../examples/ipi/CPP/IpIntelligence/ReloadFromMemory.cpp"
 
 class ExampleCPPTestReloadFromMemory : public ExampleIpIntelligenceTest {
@@ -40,7 +39,8 @@ public:
 
 		// The memory is freed after the engine using it has gone.
 		{
-			auto const config = std::make_shared<ConfigIpi>();
+			auto const config = std::make_shared<
+				FiftyoneDegrees::IpIntelligence::ConfigIpi>();
 			config->setConcurrency(THREAD_COUNT);
 			ReloadFromMemory example(
 				reader.startByte,

@@ -21,7 +21,6 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
-#include "../../examples/ipi/Base/ExampleBase.h"
 #include "../../examples/ipi/CPP/IpIntelligence/StronglyTyped.cpp"
 
 class ExampleCPPTestStronglyTyped : public ExampleIpIntelligenceTest {
@@ -48,7 +47,7 @@ public:
 			dataFilePath.find("Enterprise") != std::string::npos;
 		EXPECT_NE(output.find("Ipv4 Address: "), std::string::npos) << output;
 		EXPECT_EQ(enterprise, output.find(
-			FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE) == std::string::npos) <<
+			ExampleBase::needsEnterprise) == std::string::npos) <<
 			output;
 		EXPECT_EQ(enterprise, output.find(
 			"utm_term=free-data-file") == std::string::npos) << output;

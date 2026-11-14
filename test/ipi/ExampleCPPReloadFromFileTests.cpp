@@ -21,7 +21,6 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
-#include "../../examples/ipi/Base/ExampleBase.h"
 #include "../../examples/ipi/CPP/IpIntelligence/ReloadFromFile.cpp"
 
 class ExampleCPPTestReloadFromFile : public ExampleIpIntelligenceTest {
@@ -36,7 +35,8 @@ public:
 		// Capture stdout for the test.
 		testing::internal::CaptureStdout();
 		{
-			auto const config = std::make_shared<ConfigIpi>();
+			auto const config = std::make_shared<
+				FiftyoneDegrees::IpIntelligence::ConfigIpi>();
 			config->setConcurrency(THREAD_COUNT);
 			ReloadFromFile example(dataFilePath, evidenceFilePath, config);
 			example.run();
