@@ -59,11 +59,9 @@ protected:
 			codes.insert((*match)[1].str());
 			runs++;
 		}
-		EXPECT_GT(runs, 0) << "No processing run finished.
-" << output;
+		EXPECT_GT(runs, 0) << "No processing run finished.\n" << output;
 		EXPECT_EQ((size_t)1, codes.size()) << "Processing while the data set "
-			"was reloaded gave different results.
-" << output;
+			"was reloaded gave different results.\n" << output;
 	}
 };
 
