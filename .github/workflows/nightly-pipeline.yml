@@ -48,6 +48,12 @@ jobs:
     secrets:
       token: ${{ secrets.ACCESS_TOKEN }}
 
+  # Builds the examples from a fresh clone and runs each one with no settings,
+  # on the free data files.
+  Examples:
+    name: Nightly Examples
+    uses: ./.github/workflows/examples.yml
+
   PullRequests:
     if: ${{ !cancelled() }}
     needs: [SubmoduleUpdate, Publish]

@@ -183,10 +183,11 @@ describes.
 - **Memory.** `GettingStartedC` loads the whole IP Intelligence data file into
   memory (`IpiInMemoryConfig`), so it needs about 0.5 GB free.
 - **What CI does not test.** CI builds IP Intelligence on Windows and Linux,
-  not macOS (`ci/options.json`). It never runs the example programs, only the
-  tests that call each example's code. For IP Intelligence it links a paid data
-  file under the Lite file's name (`ci/fetch-assets.ps1`), so the Lite IP
-  Intelligence file itself is never used in CI.
+  not macOS (`ci/options.json`). The builds that run the tests call each
+  example's code and never run the example programs, and for IP Intelligence
+  they link a paid data file under the Lite file's name
+  (`ci/fetch-assets.ps1`). Only the examples workflow, described under
+  [CI](#ci), runs the example programs and uses the Lite IP Intelligence file.
 
 ## Environment variable names
 
@@ -305,7 +306,9 @@ runs each one from the root with no settings, on Ubuntu and Windows, so each
 finds or downloads the free data file it needs. It is the only check of what a
 fresh clone does, as the other builds give the tests the Enterprise files. It
 runs on a pull request that changes the examples, the sources, the CMake files
-or the data pin.
+or the data pin. The Nightly Pipeline, the release pull request into `main`
+and a manual run also run it, and add macOS with the Device Detection examples
+only, as CI builds only Device Detection there.
 
 Pull requests target `rc`, not `main`, because every language takes
 each commit on `main` at its next nightly. The README's "Making changes" says
