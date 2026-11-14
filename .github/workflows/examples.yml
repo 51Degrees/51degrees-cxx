@@ -16,6 +16,9 @@ on:
       - 'data'
       - '.gitmodules'
       - '.github/workflows/examples.yml'
+  # The Nightly Pipeline calls this workflow, so the examples of the branch
+  # the nightly builds are run every night.
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -27,7 +30,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # macOS runners are few, so a pull request into rc leaves macOS out.
+        # The nightly, the release pull request into main and a manual run
+        # include it.
+        os: ${{ fromJSON((github.event_name == 'pull_request' && github.base_ref == 'rc') && '["ubuntu-latest", "windows-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     defaults:
@@ -44,6 +50,9 @@ jobs:
           New-Item -ItemType Directory build | Out-Null
           Push-Location build
           $platform = $IsWindows ? @('-A', 'x64') : @()
+          # CI builds only Device Detection on macOS (ci/options.json), so
+          # the macOS run builds and runs the Device Detection examples.
+          if ($IsMacOS) { $platform += '-DFIFTYONE_BUILD_IP_INTELLIGENCE=OFF' }
           $configure = cmake .. @platform -DBUILD_TESTING=OFF 2>&1
           if ($LASTEXITCODE -ne 0) { $configure | Out-Host; throw "Configure failed" }
           $names = @($configure | ForEach-Object {
