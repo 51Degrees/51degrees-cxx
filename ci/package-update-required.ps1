@@ -8,9 +8,12 @@ param (
 # Exit 0 when a release is needed and 1 when not, as the publish workflow
 # expects. A release is the tag the language repositories take as a
 # submodule, so a change that adds nothing they build from is not an update.
-# That is Markdown, .github, and any docs, examples, test or tests folder or
-# LICENSE file at any depth, plus the data submodule at the root, which
-# tests and examples fetch and no language builds from.
+# That is Markdown, .github, the CI scripts in ci, and any docs, examples,
+# test or tests folder, Visual Studio test project (a folder whose name ends
+# with .Tests) or LICENSE file at any depth, plus .gitmodules and the data
+# submodule at the root, which tests and examples fetch and no language
+# builds from. A submodule a language did build from would still count
+# through its own path.
 Write-Output "Checking if update is required"
 git -C $RepoName show-ref --quiet --tags $Version
 
@@ -25,8 +28,11 @@ if ($LASTEXITCODE -eq 0 -and $lastTag) {
     $notPackage = @(
         '\.md$',
         '^\.github/',
+        '^ci/',
         '(^|/)(docs|examples|test|tests)/',
+        '(^|/)[^/]*\.Tests/',
         '(^|/)LICENSE[^/]*$',
+        '^\.gitmodules$',
         '^data(/|$)'
     )
     $changed = @(git -C $RepoName diff --name-only $lastTag HEAD)
