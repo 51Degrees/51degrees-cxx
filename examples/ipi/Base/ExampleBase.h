@@ -173,7 +173,7 @@ EXTERNAL void fiftyoneDegreesExampleReportEnterpriseProperties(
  * Says which of the properties the example asks for need the Enterprise data
  * file, as #fiftyoneDegreesExampleReportEnterpriseProperties does, then
  * reports the data file as #fiftyoneDegreesExampleOfferEnterprise does.
- * @param manager resource manager that holds a IP Intelligence dataset
+ * @param manager resource manager that holds an IP Intelligence dataset
  * @param propertyNames the properties the example asks for, separated by
  * commas
  */
