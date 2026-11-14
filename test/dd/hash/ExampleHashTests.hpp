@@ -46,10 +46,11 @@ protected:
 	 * to give the same code. Each processing run reads the same User-Agents,
 	 * and the data set is reloaded from the same file while they run, so
 	 * processing during a reload must give the results it gives without one.
+	 * The reload from memory example writes "hashcode" as one word.
 	 * @param output what the example printed
 	 */
 	void expectSameResultsWhileReloading(const string &output) {
-		const std::regex finished("Finished with hash code '(-?[0-9]+)'");
+		const std::regex finished("Finished with hash ?code '(-?[0-9]+)'");
 		std::set<string> codes;
 		int runs = 0;
 		for (std::sregex_iterator match(
