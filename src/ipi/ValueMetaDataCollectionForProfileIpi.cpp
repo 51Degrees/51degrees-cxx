@@ -67,22 +67,56 @@ ValueMetaData* ValueMetaDataCollectionForProfileIpi::getByKey(
 	if (propertyIndex < 0) {
 		return nullptr;
 	}
-	const long valueIndex = IpiGetValueIndex(
+	uint32_t firstValueIndex = 0;
+	uint32_t valueCount = 0;
+	if (IpiGetPropertyValueIndexes(
 		dataSet,
 		(uint32_t)propertyIndex,
-		key.getValueName().c_str(),
-		exception);
-	EXCEPTION_THROW;
-	if (valueIndex < 0) {
+		&firstValueIndex,
+		&valueCount,
+		nullptr,
+		exception) == false) {
+		EXCEPTION_THROW;
 		return nullptr;
 	}
-	// A profile's value indexes are in ascending order.
+	// The profile's own values of the property are compared by name, as a
+	// weighted property can hold several values with the same name, and a
+	// search of all the property's values can find another of them. The
+	// profile's value indexes are in ascending order, so its values of the
+	// property are the run within the property's range.
 	const Profile * const profile = getProfile();
 	const uint32_t * const first = (const uint32_t*)(profile + 1);
 	const uint32_t * const last = first + profile->valueCount;
-	return std::binary_search(first, last, (uint32_t)valueIndex)
-		? ValueMetaDataBuilderIpi::build(dataSet, (uint32_t)valueIndex)
-		: nullptr;
+	const uint32_t * const begin =
+		std::lower_bound(first, last, firstValueIndex);
+	const uint32_t * const end =
+		std::lower_bound(begin, last, firstValueIndex + valueCount);
+	const string &valueName = key.getValueName();
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	for (const uint32_t *valueIndex = begin; valueIndex < end; valueIndex++) {
+		char * const text = IpiGetValueText(
+			dataSet,
+			*valueIndex,
+			FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (text == nullptr) {
+			EXCEPTION_THROW;
+			continue;
+		}
+		const bool same = valueName == text;
+		if (text != buffer) {
+			Free(text);
+		}
+		if (same) {
+			return ValueMetaDataBuilderIpi::build(
+				dataSet,
+				*valueIndex,
+				key.getPropertyName());
+		}
+	}
+	return nullptr;
 }
 
 uint32_t ValueMetaDataCollectionForProfileIpi::getSize() const {
