@@ -23,7 +23,6 @@
 #include "ProfileMetaDataCollectionIpi.hpp"
 #include "../common/Exceptions.hpp"
 #include "fiftyone.h"
-#include "../common/collectionKeyTypes.h"
 
 using namespace std;
 using namespace FiftyoneDegrees::IpIntelligence;
@@ -35,8 +34,6 @@ ProfileMetaDataCollectionIpi::ProfileMetaDataCollectionIpi(
 	if (dataSet == nullptr) {
 		throw runtime_error("Data set pointer can not be null");
 	}
-	profiles = dataSet->profiles;
-	profileOffsets = dataSet->profileOffsets;
 }
 
 ProfileMetaDataCollectionIpi::~ProfileMetaDataCollectionIpi() {
@@ -45,43 +42,13 @@ ProfileMetaDataCollectionIpi::~ProfileMetaDataCollectionIpi() {
 
 ProfileMetaData* ProfileMetaDataCollectionIpi::getByIndex(
 	uint32_t index) const {
-	EXCEPTION_CREATE;
-	auto const profileOffsetValue = CollectionGetInteger32(
-		profileOffsets, index, exception);
-	EXCEPTION_THROW;
-	return getByKey(profileOffsetValue);
+	return ProfileMetaDataBuilderIpi::buildByIndex(dataSet, index);
 }
 
 ProfileMetaData* ProfileMetaDataCollectionIpi::getByKey(uint32_t key) const {
-	EXCEPTION_CREATE;
-	Item item;
-	ProfileMetaData *result = nullptr;
-	const Profile *profile;
-	DataReset(&item.data);
-	if (key != UINT32_MAX) {
-		// We use the offset as the unique key, as the profile is not stored, and
-		// is not unique accross datasets.
-		const CollectionKey profileKey = {
-			(uint32_t)key,
-			CollectionKeyType_Profile,
-		};
-		profile = (const Profile*)profiles->get(
-			profiles,
-			&profileKey,
-			&item,
-			exception);
-		EXCEPTION_THROW;
-		if (profile != nullptr) {
-			result = ProfileMetaDataBuilderIpi::build(
-				dataSet,
-				profile,
-				key);
-			COLLECTION_RELEASE(item.collection, &item);
-		}
-	}
-	return result;
+	return ProfileMetaDataBuilderIpi::buildByOffset(dataSet, key);
 }
 
 uint32_t ProfileMetaDataCollectionIpi::getSize() const {
-	return CollectionGetCount(profileOffsets);
+	return IpiGetProfileCount(dataSet);
 }

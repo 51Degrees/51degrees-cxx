@@ -59,6 +59,8 @@ namespace FiftyoneDegrees {
 			 * @param offset offset in the strings collection of the string to
 			 * copy
 			 * @return string copy of the string at the offset provided
+			 * @deprecated The builders read their texts with the C functions.
+			 * Kept for one release, as a name derived classes can call.
 			 */
 			static string getString(
 				fiftyoneDegreesCollection *stringsCollection,

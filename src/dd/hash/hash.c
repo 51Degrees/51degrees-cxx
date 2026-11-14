@@ -6386,6 +6386,205 @@ char* fiftyoneDegreesHashGetValueText(
 		exception);
 }
 
+/**
+ * An empty string, which is the name of a component the strings collection
+ * gives nothing for. The size of a string counts its terminating null.
+ */
+static const StoredBinaryValue hashNoText = { { 1, '\0' } };
+
+/**
+ * Gets the component at `componentIndex` in the data set's list of
+ * components, or NULL when the index is not less than the count.
+ */
+static const Component* hashMetaDataComponent(
+	DataSetHash * const dataSet,
+	const uint32_t componentIndex) {
+	return componentIndex < dataSet->componentsList.count
+		? (const Component*)dataSet->componentsList.items[
+			componentIndex].data.ptr
+		: NULL;
+}
+
+uint32_t fiftyoneDegreesHashGetComponentCount(
+	fiftyoneDegreesDataSetHash *dataSet) {
+	return dataSet->componentsList.count;
+}
+
+bool fiftyoneDegreesHashGetComponent(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t componentIndex,
+	uint8_t *componentId,
+	uint32_t *defaultProfileId,
+	fiftyoneDegreesException *exception) {
+	const Component * const component = hashMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		return false;
+	}
+	if (defaultProfileId != NULL) {
+		Item item;
+		DataReset(&item.data);
+		const CollectionKey profileKey = {
+			{(uint32_t)component->defaultProfileOffset},
+			CollectionKeyType_Profile,
+		};
+		const Profile * const profile = (const Profile*)dataSet->profiles->get(
+			dataSet->profiles,
+			&profileKey,
+			&item,
+			exception);
+		if (profile == NULL) {
+			return false;
+		}
+		const bool read = EXCEPTION_OKAY;
+		if (read) {
+			*defaultProfileId = profile->profileId;
+		}
+		COLLECTION_RELEASE(dataSet->profiles, &item);
+		if (read == false) {
+			return false;
+		}
+	}
+	if (componentId != NULL) {
+		*componentId = component->componentId;
+	}
+	return true;
+}
+
+char* fiftyoneDegreesHashGetComponentName(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t componentIndex,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	const Component * const component = hashMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+		return NULL;
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const name = StoredBinaryValueGet(
+		dataSet->strings,
+		(uint32_t)component->nameOffset,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		&item,
+		exception);
+	if (name == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: StoredBinaryValueToText(
+				&hashNoText,
+				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+				0,
+				buffer,
+				bufferLength,
+				exception);
+	}
+	char *text = NULL;
+	if (EXCEPTION_OKAY) {
+		// A string has no decimal places.
+		text = StoredBinaryValueToText(
+			name,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			0,
+			buffer,
+			bufferLength,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->strings, &item);
+	return text;
+}
+
+/**
+ * Sets `componentId` to the id of the component the profile belongs to and
+ * returns true, or sets the exception and returns false when the profile's
+ * component index is not less than the number of components.
+ */
+static bool hashMetaDataProfileComponentId(
+	DataSetHash * const dataSet,
+	const Profile * const profile,
+	uint8_t * const componentId,
+	Exception * const exception) {
+	const Component * const component = hashMetaDataComponent(
+		dataSet,
+		profile->componentIndex);
+	if (component == NULL) {
+		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+		return false;
+	}
+	*componentId = component->componentId;
+	return true;
+}
+
+uint32_t fiftyoneDegreesHashGetProfileCount(
+	fiftyoneDegreesDataSetHash *dataSet) {
+	return CollectionGetCount(dataSet->profileOffsets);
+}
+
+bool fiftyoneDegreesHashGetProfile(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t profileIndex,
+	uint32_t *profileId,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	DataReset(&item.data);
+	const Profile * const profile = ProfileGetByIndex(
+		dataSet->profileOffsets,
+		dataSet->profiles,
+		profileIndex,
+		&item,
+		exception);
+	if (profile == NULL) {
+		return false;
+	}
+	bool read = EXCEPTION_OKAY;
+	if (read && profileId != NULL) {
+		*profileId = profile->profileId;
+	}
+	if (read && componentId != NULL) {
+		read = hashMetaDataProfileComponentId(
+			dataSet,
+			profile,
+			componentId,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->profiles, &item);
+	return read;
+}
+
+bool fiftyoneDegreesHashGetProfileById(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t profileId,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	DataReset(&item.data);
+	const Profile * const profile = ProfileGetByProfileId(
+		dataSet->profileOffsets,
+		dataSet->profiles,
+		profileId,
+		&item,
+		exception);
+	if (profile == NULL) {
+		return false;
+	}
+	bool read = EXCEPTION_OKAY;
+	if (read && componentId != NULL) {
+		read = hashMetaDataProfileComponentId(
+			dataSet,
+			profile,
+			componentId,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->profiles, &item);
+	return read;
+}
+
 char* fiftyoneDegreesHashGetDeviceIdFromResult(
 	fiftyoneDegreesDataSetHash *dataSet,
 	fiftyoneDegreesResultHash *result, 

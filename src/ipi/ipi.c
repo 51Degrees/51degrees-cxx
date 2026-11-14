@@ -4551,3 +4551,152 @@ char* fiftyoneDegreesIpiGetValueText(
 		bufferLength,
 		exception);
 }
+
+/**
+ * Gets the component at `componentIndex` in the data set's list of
+ * components, or NULL when the index is not less than the count.
+ */
+static const Component* ipiMetaDataComponent(
+	DataSetIpi * const dataSet,
+	const uint32_t componentIndex) {
+	return componentIndex < dataSet->componentsList.count
+		? (const Component*)dataSet->componentsList.items[
+			componentIndex].data.ptr
+		: NULL;
+}
+
+uint32_t fiftyoneDegreesIpiGetComponentCount(
+	fiftyoneDegreesDataSetIpi *dataSet) {
+	return dataSet->componentsList.count;
+}
+
+bool fiftyoneDegreesIpiGetComponent(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t componentIndex,
+	uint8_t *componentId,
+	uint32_t *defaultProfileOffset) {
+	const Component * const component = ipiMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		return false;
+	}
+	if (componentId != NULL) {
+		*componentId = component->componentId;
+	}
+	if (defaultProfileOffset != NULL) {
+		*defaultProfileOffset = (uint32_t)component->defaultProfileOffset;
+	}
+	return true;
+}
+
+char* fiftyoneDegreesIpiGetComponentName(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t componentIndex,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	const Component * const component = ipiMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+		return NULL;
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const name = StoredBinaryValueGet(
+		dataSet->strings,
+		(uint32_t)component->nameOffset,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		&item,
+		exception);
+	if (name == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: ipiEmptyText(buffer, bufferLength, exception);
+	}
+	char *text = NULL;
+	if (EXCEPTION_OKAY) {
+		// A string has no decimal places.
+		text = StoredBinaryValueToText(
+			name,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			0,
+			buffer,
+			bufferLength,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->strings, &item);
+	return text;
+}
+
+uint32_t fiftyoneDegreesIpiGetProfileCount(
+	fiftyoneDegreesDataSetIpi *dataSet) {
+	return CollectionGetCount(dataSet->profileOffsets);
+}
+
+bool fiftyoneDegreesIpiGetProfile(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t profileIndex,
+	uint32_t *profileOffset,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	// Each profile offset is the offset of the profile, as an IP Intelligence
+	// data file holds no profile ids.
+	const uint32_t offset = (uint32_t)CollectionGetInteger32(
+		dataSet->profileOffsets,
+		profileIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return false;
+	}
+	if (profileOffset != NULL) {
+		*profileOffset = offset;
+	}
+	return fiftyoneDegreesIpiGetProfileByOffset(
+		dataSet,
+		offset,
+		componentId,
+		exception);
+}
+
+bool fiftyoneDegreesIpiGetProfileByOffset(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t profileOffset,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	// A component with no default profile gives this offset for it.
+	if (profileOffset == UINT32_MAX) {
+		return false;
+	}
+	Item item;
+	DataReset(&item.data);
+	const CollectionKey profileKey = {
+		{profileOffset},
+		CollectionKeyType_Profile,
+	};
+	const Profile * const profile = (const Profile*)dataSet->profiles->get(
+		dataSet->profiles,
+		&profileKey,
+		&item,
+		exception);
+	if (profile == NULL) {
+		return false;
+	}
+	bool read = EXCEPTION_OKAY;
+	if (read && componentId != NULL) {
+		const Component * const component = ipiMetaDataComponent(
+			dataSet,
+			profile->componentIndex);
+		if (component == NULL) {
+			EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+			read = false;
+		}
+		else {
+			*componentId = component->componentId;
+		}
+	}
+	COLLECTION_RELEASE(dataSet->profiles, &item);
+	return read;
+}

@@ -30,6 +30,34 @@ using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
 ComponentMetaData* ComponentMetaDataBuilderHash::build(
 	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t componentIndex) {
+	EXCEPTION_CREATE;
+	uint8_t componentId = 0;
+	uint32_t defaultProfileId = 0;
+	if (HashGetComponent(
+		dataSet,
+		componentIndex,
+		&componentId,
+		&defaultProfileId,
+		exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char * const name = HashGetComponentName(
+		dataSet,
+		componentIndex,
+		buffer,
+		sizeof(buffer),
+		exception);
+	return new ComponentMetaData(
+		componentId,
+		takeText(name, buffer, exception),
+		defaultProfileId);
+}
+
+ComponentMetaData* ComponentMetaDataBuilderHash::build(
+	fiftyoneDegreesDataSetHash *dataSet,
 	fiftyoneDegreesComponent *component) {
 	EXCEPTION_CREATE;
 	ComponentMetaData *result = nullptr;

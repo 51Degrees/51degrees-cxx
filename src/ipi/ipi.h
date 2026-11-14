@@ -1432,6 +1432,102 @@ EXTERNAL char* fiftyoneDegreesIpiGetValueText(
 	fiftyoneDegreesException *exception);
 
 /**
+ * Gets the number of components the data file defines.
+ * @param dataSet the data set to read
+ * @return the number of components
+ */
+EXTERNAL uint32_t fiftyoneDegreesIpiGetComponentCount(
+	fiftyoneDegreesDataSetIpi *dataSet);
+
+/**
+ * Gets the id of the component and the offset of its default profile. An IP
+ * Intelligence data file holds no profile ids, so the metadata gives the
+ * offset as the default profile's key, and UINT32_MAX for a component with
+ * no default profile. Either output pointer can be NULL.
+ * @param dataSet the data set to read
+ * @param componentIndex index of the component, less than
+ * #fiftyoneDegreesIpiGetComponentCount
+ * @param componentId set to the id of the component
+ * @param defaultProfileOffset set to the offset of the component's default
+ * profile, which #fiftyoneDegreesIpiGetProfileByOffset takes
+ * @return true when the index is less than the number of components,
+ * otherwise false
+ */
+EXTERNAL bool fiftyoneDegreesIpiGetComponent(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t componentIndex,
+	uint8_t *componentId,
+	uint32_t *defaultProfileOffset);
+
+/**
+ * Gets the name of the component, such as "Location". A name the strings
+ * collection gives nothing for is an empty text.
+ * @param dataSet the data set to read
+ * @param componentIndex index of the component
+ * @param buffer memory the name is written into when it fits
+ * @param bufferLength the bytes `buffer` holds
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the null terminated name, or NULL when the index is not less than
+ * the number of components or the name cannot be read or written
+ */
+EXTERNAL char* fiftyoneDegreesIpiGetComponentName(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t componentIndex,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the number of profiles the data file holds.
+ * @param dataSet the data set to read
+ * @return the number of profiles
+ */
+EXTERNAL uint32_t fiftyoneDegreesIpiGetProfileCount(
+	fiftyoneDegreesDataSetIpi *dataSet);
+
+/**
+ * Gets the offset of the profile at the index among the data file's
+ * profiles, which the metadata gives as the profile's key, and the id of
+ * the component it belongs to, as #fiftyoneDegreesIpiGetProfileByOffset
+ * gives it. Either output pointer can be NULL.
+ * @param dataSet the data set to read
+ * @param profileIndex index of the profile, less than
+ * #fiftyoneDegreesIpiGetProfileCount
+ * @param profileOffset set to the offset of the profile
+ * @param componentId set to the id of the profile's component
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return true when the profile was read, otherwise false. False with no
+ * exception set means the offset is UINT32_MAX or the profiles collection
+ * gave nothing at it.
+ */
+EXTERNAL bool fiftyoneDegreesIpiGetProfile(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t profileIndex,
+	uint32_t *profileOffset,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the id of the component the profile at the offset provided belongs
+ * to.
+ * @param dataSet the data set to read
+ * @param profileOffset offset of the profile in the profiles collection
+ * @param componentId set to the id of the profile's component, or NULL
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return true when the profile was read, otherwise false. False with no
+ * exception set means the offset is UINT32_MAX, which a component with no
+ * default profile gives, or the profiles collection gave nothing at it.
+ */
+EXTERNAL bool fiftyoneDegreesIpiGetProfileByOffset(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t profileOffset,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception);
+
+/**
  * @}
  */
 
