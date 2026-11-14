@@ -22,9 +22,9 @@ jobs:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}
       cache-assets: true
-      # The sanitizer build takes up to 118 minutes, so each build and test
-      # job gets 150 rather than common-ci's 120.
-      build-test-timeout-minutes: 150
+      # The sanitizer build takes up to 135 minutes, so each build and test
+      # job gets 170 rather than common-ci's 120.
+      build-test-timeout-minutes: 170
     secrets:
       token: ${{ secrets.ACCESS_TOKEN }}
       DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}

@@ -863,13 +863,15 @@ IpIntelligence::ResultsIpi::valuesAsWeightedDoubleListAt(
             // inserted.
             values.reserve(results->values.count);
 
-            // Add the values in their original form to the result.
+            // Add each value as the number its text reads as.
             for (i = 0; i < results->values.count; i++) {
                 WeightedValue<double> weightedDouble;
-                weightedDouble.setValue(StoredBinaryValueToDoubleOrDefault(
-                    (const StoredBinaryValue *)valuesItems[i].item.data.ptr,
-                    storedValueType,
-                    0));
+                weightedDouble.setValue(
+                    StoredBinaryValueToRoundedDoubleOrDefault(
+                        (const StoredBinaryValue *)valuesItems[i].item.data.ptr,
+                        storedValueType,
+                        DefaultWktDecimalPlaces,
+                        0));
                 weightedDouble.setRawWeight(valuesItems[i].rawWeighting);
                 values.push_back(weightedDouble);
             }
