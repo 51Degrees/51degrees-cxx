@@ -292,6 +292,53 @@ double fiftyoneDegreesStoredBinaryValueToDoubleOrDefault(
     }
 }
 
+/** Powers of ten that a double holds exactly. */
+static const double roundingScales[] = {
+    1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7,
+    1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15 };
+
+/** The largest scaled value that is rounded through a 64 bit integer. */
+#define ROUNDING_LIMIT 9e15
+
+/**
+ * Rounds the value to the decimal places, a half going away from zero. The
+ * scaled value is a whole number that a double holds exactly, so dividing it
+ * by the scale gives the double nearest to the rounded decimal.
+ */
+static double roundToPlaces(const double value, const uint8_t decimalPlaces) {
+    const double scale = roundingScales[
+        decimalPlaces < MAX_DOUBLE_DECIMAL_PLACES ?
+        decimalPlaces : MAX_DOUBLE_DECIMAL_PLACES];
+    const double scaled = value * scale;
+    if (scaled >= ROUNDING_LIMIT || scaled <= -ROUNDING_LIMIT) {
+        // A double this large has no fraction left to round.
+        return value;
+    }
+    return (double)(int64_t)(scaled + (scaled < 0 ? -0.5 : 0.5)) / scale;
+}
+
+double fiftyoneDegreesStoredBinaryValueToRoundedDoubleOrDefault(
+    const fiftyoneDegreesStoredBinaryValue * const value,
+    const fiftyoneDegreesPropertyValueType storedValueType,
+    const uint8_t decimalPlaces,
+    const double defaultValue) {
+
+    switch (storedValueType) {
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH: {
+            return roundToPlaces(toAzimuth(value), decimalPlaces);
+        }
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION: {
+            return roundToPlaces(toDeclination(value), decimalPlaces);
+        }
+        default: {
+            return StoredBinaryValueToDoubleOrDefault(
+                value,
+                storedValueType,
+                defaultValue);
+        }
+    }
+}
+
 bool fiftyoneDegreesStoredBinaryValueToBoolOrDefault(
     const fiftyoneDegreesStoredBinaryValue * const value,
     const fiftyoneDegreesPropertyValueType storedValueType,
