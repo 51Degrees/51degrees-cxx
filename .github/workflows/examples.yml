@@ -7,6 +7,8 @@ name: Examples on the free data files
 # and the other jobs restore them from a cache. The other builds give the
 # tests the Enterprise data files through secrets, so they cannot show it.
 on:
+  push:
+    branches: [tmp/examples-free-data]
   pull_request:
     branches: [rc, main]
     paths:
