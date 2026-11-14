@@ -93,6 +93,9 @@ MAP_TYPE(HashValueProfiles)
 #define HashGetPropertyValueIndexes fiftyoneDegreesHashGetPropertyValueIndexes /**< Synonym for #fiftyoneDegreesHashGetPropertyValueIndexes function. */
 #define HashGetPropertyText fiftyoneDegreesHashGetPropertyText /**< Synonym for #fiftyoneDegreesHashGetPropertyText function. */
 #define HashGetPropertyMapText fiftyoneDegreesHashGetPropertyMapText /**< Synonym for #fiftyoneDegreesHashGetPropertyMapText function. */
+#define HashGetValue fiftyoneDegreesHashGetValue /**< Synonym for #fiftyoneDegreesHashGetValue function. */
+#define HashGetValueIndex fiftyoneDegreesHashGetValueIndex /**< Synonym for #fiftyoneDegreesHashGetValueIndex function. */
+#define HashGetValueText fiftyoneDegreesHashGetValueText /**< Synonym for #fiftyoneDegreesHashGetValueText function. */
 #define ResultsHashGetValuesJson fiftyoneDegreesResultsHashGetValuesJson /**< Synonym for #fiftyoneDegreesResultsHashGetValuesJson function. */
 #define HashGetHardwareProfileScript fiftyoneDegreesHashGetHardwareProfileScript /**< Synonym for #fiftyoneDegreesHashGetHardwareProfileScript function. */
 

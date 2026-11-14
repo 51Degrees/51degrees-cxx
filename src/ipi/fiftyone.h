@@ -84,6 +84,9 @@ MAP_TYPE(WeightedValuesCollection)
 #define IpiGetPropertyValueIndexes fiftyoneDegreesIpiGetPropertyValueIndexes /**< Synonym for #fiftyoneDegreesIpiGetPropertyValueIndexes function. */
 #define IpiGetPropertyText fiftyoneDegreesIpiGetPropertyText /**< Synonym for #fiftyoneDegreesIpiGetPropertyText function. */
 #define IpiGetPropertyMapText fiftyoneDegreesIpiGetPropertyMapText /**< Synonym for #fiftyoneDegreesIpiGetPropertyMapText function. */
+#define IpiGetValue fiftyoneDegreesIpiGetValue /**< Synonym for #fiftyoneDegreesIpiGetValue function. */
+#define IpiGetValueIndex fiftyoneDegreesIpiGetValueIndex /**< Synonym for #fiftyoneDegreesIpiGetValueIndex function. */
+#define IpiGetValueText fiftyoneDegreesIpiGetValueText /**< Synonym for #fiftyoneDegreesIpiGetValueText function. */
 #define ResultsIpiGetValuesCollection fiftyoneDegreesResultsIpiGetValuesCollection /**< Synonym for #fiftyoneDegreesResultsIpiGetValuesCollection function. */
 #define WeightedValuesCollectionRelease fiftyoneDegreesWeightedValuesCollectionRelease /**< Synonym for #fiftyoneDegreesWeightedValuesCollectionRelease function. */
 

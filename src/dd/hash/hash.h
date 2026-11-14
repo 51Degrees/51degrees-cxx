@@ -1450,6 +1450,72 @@ EXTERNAL char* fiftyoneDegreesHashGetPropertyMapText(
 	fiftyoneDegreesException *exception);
 
 /**
+ * Gets the index of the property the value belongs to and each of the
+ * value's texts, from one read of the value. The method is called with the
+ * name, the description and then the URL, each as
+ * #fiftyoneDegreesHashGetValueText gives it.
+ * @param dataSet the data set to read
+ * @param valueIndex index of the value in the values collection
+ * @param propertyIndex set to the index of the value's property, or NULL
+ * @param state pointer passed to the method
+ * @param method called with each text of the value, or NULL when only the
+ * property index is wanted
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return true when the value was read and each text given, otherwise
+ * false. False with no exception set means the values collection gave
+ * nothing at the index.
+ */
+EXTERNAL bool fiftyoneDegreesHashGetValue(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	uint32_t *propertyIndex,
+	void *state,
+	fiftyoneDegreesValueTextMethod method,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets the index of the property's value with the name provided, which must
+ * match exactly. The search is a binary search, which reads few of the
+ * property's values and relies on the data file holding them in the byte
+ * order of their names. Where a data file does not keep that order, the
+ * search can miss a value.
+ * @param dataSet the data set to read
+ * @param propertyIndex index of the property
+ * @param valueName name of the value to find
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the index of the value in the values collection, or -1 when the
+ * search finds no value of that name or a value cannot be read
+ */
+EXTERNAL long fiftyoneDegreesHashGetValueIndex(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t propertyIndex,
+	const char *valueName,
+	fiftyoneDegreesException *exception);
+
+/**
+ * Gets a text of the value, as #fiftyoneDegreesValueGetMetaDataText gives it.
+ * Every Hash value is stored as a string.
+ * @param dataSet the data set to read
+ * @param valueIndex index of the value in the values collection
+ * @param text which text of the value to get
+ * @param buffer memory the text is written into when it fits
+ * @param bufferLength the bytes `buffer` holds
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the null terminated text, or NULL when the value or the text
+ * cannot be read or written
+ */
+EXTERNAL char* fiftyoneDegreesHashGetValueText(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	fiftyoneDegreesValueText text,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception);
+
+/**
  * @}
  */
 

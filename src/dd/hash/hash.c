@@ -6234,6 +6234,158 @@ char* fiftyoneDegreesHashGetPropertyMapText(
 	return result;
 }
 
+/**
+ * Gets the value at `valueIndex` into `item` and returns it, or returns NULL,
+ * releasing a value read with an exception set.
+ */
+static const Value* hashMetaDataValue(
+	DataSetHash * const dataSet,
+	const uint32_t valueIndex,
+	Item * const item,
+	Exception * const exception) {
+	DataReset(&item->data);
+	const Value * const value = ValueGet(
+		dataSet->values,
+		valueIndex,
+		item,
+		exception);
+	if (value != NULL && EXCEPTION_FAILED) {
+		COLLECTION_RELEASE(dataSet->values, item);
+		return NULL;
+	}
+	return value;
+}
+
+bool fiftyoneDegreesHashGetValue(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	uint32_t *propertyIndex,
+	void *state,
+	fiftyoneDegreesValueTextMethod method,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = hashMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return false;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	if (propertyIndex != NULL) {
+		*propertyIndex = (uint32_t)value.propertyIndex;
+	}
+	if (method == NULL) {
+		return true;
+	}
+	for (int text = FIFTYONE_DEGREES_VALUE_TEXT_NAME;
+		text <= FIFTYONE_DEGREES_VALUE_TEXT_URL;
+		text++) {
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		// Every Hash value is stored as a string, so there are no property
+		// types and no decimal places.
+		char * const written = ValueGetMetaDataText(
+			dataSet->strings,
+			NULL,
+			&value,
+			(ValueText)text,
+			0,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (written == NULL) {
+			return false;
+		}
+		method(state, (ValueText)text, written);
+		if (written != buffer) {
+			Free(written);
+		}
+	}
+	return true;
+}
+
+long fiftyoneDegreesHashGetValueIndex(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t propertyIndex,
+	const char *valueName,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Property * const held = hashMetaDataProperty(
+		dataSet,
+		propertyIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return -1;
+	}
+	// A copy, so only one item is held at a time during the search.
+	const Property property = *held;
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	if ((int32_t)property.firstValueIndex == -1) {
+		return -1;
+	}
+	// Every Hash value is stored as a string.
+	const long index = ValueGetIndexByNameAndType(
+		dataSet->values,
+		dataSet->strings,
+		&property,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		valueName,
+		exception);
+	if (index < 0 || EXCEPTION_FAILED) {
+		return -1;
+	}
+	// The search answers as found when it reads nothing for a value, so the
+	// value is only found when it can be read.
+	const Value * const value = hashMetaDataValue(
+		dataSet,
+		(uint32_t)index,
+		&item,
+		exception);
+	if (value == NULL) {
+		return -1;
+	}
+	COLLECTION_RELEASE(dataSet->values, &item);
+	return index;
+}
+
+char* fiftyoneDegreesHashGetValueText(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	fiftyoneDegreesValueText text,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = hashMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return NULL;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	// Every Hash value is stored as a string, so there are no property types
+	// and no decimal places.
+	return ValueGetMetaDataText(
+		dataSet->strings,
+		NULL,
+		&value,
+		text,
+		0,
+		buffer,
+		bufferLength,
+		exception);
+}
+
 char* fiftyoneDegreesHashGetDeviceIdFromResult(
 	fiftyoneDegreesDataSetHash *dataSet,
 	fiftyoneDegreesResultHash *result, 

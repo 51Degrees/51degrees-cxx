@@ -31,6 +31,7 @@
 #include "storedBinaryValue.h"
 #include "string.h"
 #include "string_pp.hpp"
+#include "value.h"
 
 
 using namespace FiftyoneDegrees;
@@ -114,6 +115,48 @@ namespace FiftyoneDegrees {
 				}
 				FIFTYONE_DEGREES_EXCEPTION_THROW;
 				return result;
+			}
+
+			/**
+			 * The texts of a value that addValueText copies.
+			 */
+			struct ValueTexts {
+				string name;
+				string description;
+				string url;
+				/** True when a text could not be copied. */
+				bool failed = false;
+			};
+
+			/**
+			 * Copies a text of a value into the ValueTexts that `state`
+			 * points to. A failure to copy is recorded rather than thrown
+			 * through the C layer that calls this.
+			 * @param state pointer to the ValueTexts
+			 * @param text which text of the value `value` is
+			 * @param value the text to copy
+			 */
+			static void addValueText(
+				void *state,
+				fiftyoneDegreesValueText text,
+				const char *value) {
+				ValueTexts * const texts = (ValueTexts*)state;
+				try {
+					switch (text) {
+					case FIFTYONE_DEGREES_VALUE_TEXT_NAME:
+						texts->name = value;
+						break;
+					case FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION:
+						texts->description = value;
+						break;
+					case FIFTYONE_DEGREES_VALUE_TEXT_URL:
+						texts->url = value;
+						break;
+					}
+				}
+				catch (...) {
+					texts->failed = true;
+				}
 			}
 
 			/**
