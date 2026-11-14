@@ -375,7 +375,7 @@ fiftyoneDegreesEvidencePrefixMap* fiftyoneDegreesEvidenceMapPrefix(
 	for (i = 0; i < sizeof(_map) / sizeof(EvidencePrefixMap); i++) {
 		map = &_map[i];
 		if (map->prefixLength < length &&
-			strncmp(map->prefix, key, map->prefixLength) == 0) {
+			StringCompareLength(map->prefix, key, map->prefixLength) == 0) {
 			result = map;
             break;
 		}
