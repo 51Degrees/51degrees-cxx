@@ -236,6 +236,24 @@ void fiftyoneDegreesExampleOfferEnterprise(
 	DataSetIpiRelease(dataset);
 }
 
+/**
+ * True when one of the free data files holds the property.
+ */
+static bool isFreeProperty(const char *name) {
+	size_t length = strlen(name);
+	const char *start = FIFTYONE_DEGREES_EXAMPLE_FREE_PROPERTIES;
+	while (start != NULL) {
+		const char *end = strchr(start, ',');
+		size_t itemLength = end == NULL ? strlen(start) : (size_t)(end - start);
+		if (itemLength == length &&
+			fiftyoneDegreesStringCompareLength(start, name, length) == 0) {
+			return true;
+		}
+		start = end == NULL ? NULL : end + 1;
+	}
+	return false;
+}
+
 void fiftyoneDegreesExampleReportEnterpriseProperties(
 	FILE *output,
 	fiftyoneDegreesDataSetIpi *dataset,
@@ -256,7 +274,8 @@ void fiftyoneDegreesExampleReportEnterpriseProperties(
 		if (length > 0 && length < sizeof(name)) {
 			memcpy(name, start, length);
 			name[length] = '\0';
-			if (fiftyoneDegreesExampleHasProperty(dataset, name) == false) {
+			if (isFreeProperty(name) == false &&
+				fiftyoneDegreesExampleHasProperty(dataset, name) == false) {
 				fprintf(output, "%s %s.\n", name,
 					FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE);
 			}

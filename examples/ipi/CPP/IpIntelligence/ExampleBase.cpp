@@ -103,6 +103,8 @@ bool ExampleBase::hasProperty(const char *name) const {
 
 void ExampleBase::reportEnterpriseProperties() const {
 	const std::string names = propertyNames;
+	const std::string freeNames =
+		std::string(",") + FIFTYONE_DEGREES_EXAMPLE_FREE_PROPERTIES + ",";
 	size_t start = 0;
 	while (start <= names.size()) {
 		size_t end = names.find(',', start);
@@ -114,7 +116,8 @@ void ExampleBase::reportEnterpriseProperties() const {
 		if (first != std::string::npos && first < end &&
 			last != std::string::npos && last >= first) {
 			const std::string name = names.substr(first, last - first + 1);
-			if (!hasProperty(name.c_str())) {
+			if (freeNames.find("," + name + ",") == std::string::npos &&
+				!hasProperty(name.c_str())) {
 				cout << name << " " <<
 					FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE << ".\n";
 			}

@@ -323,7 +323,7 @@ void run(
 	runMemoryTests(&state);
 
 	// Report the maximum memory usage.
-	printf("Maximum allocated memory %.2fMBs",
+	printf("Maximum allocated memory %.2fMBs\n",
 		(double)MemoryTrackingGetMax() / (double)(1024 * 1024));
 }
 

@@ -157,7 +157,7 @@ namespace FiftyoneDegrees {
 				/**
 				 * Says of each property the engine was asked for that the data
 				 * file does not have that it needs the Enterprise data file, one
-				 * line each.
+				 * line each, leaving out the properties the free data files hold.
 				 */
 				void reportEnterpriseProperties() const;
 

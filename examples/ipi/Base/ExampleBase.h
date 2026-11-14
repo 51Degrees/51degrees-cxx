@@ -145,9 +145,19 @@ EXTERNAL void fiftyoneDegreesExampleFindOutMore(FILE *output);
     "Latitude,Longitude,Areas"
 
 /**
+ * Properties the free data files hold, being RegisteredCountry,
+ * RegisteredName and RegisteredOwner in the Lite data file and Asn and
+ * AsnName in the ASN data file. The ASN data file lacks the Lite ones, which
+ * do not need the Enterprise data file.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FREE_PROPERTIES \
+    "RegisteredCountry,RegisteredName,RegisteredOwner,Asn,AsnName"
+
+/**
  * Says of each property the example asks for that the data file does not
- * have that it needs the Enterprise data file, one line each. An empty list
- * stands for #FIFTYONE_DEGREES_EXAMPLE_ENTERPRISE_PROPERTIES.
+ * have that it needs the Enterprise data file, one line each, leaving out
+ * #FIFTYONE_DEGREES_EXAMPLE_FREE_PROPERTIES. An empty list stands for
+ * #FIFTYONE_DEGREES_EXAMPLE_ENTERPRISE_PROPERTIES.
  * @param output stream to print to, which is standard error for an example
  * whose results go to standard output
  * @param dataset pointer to the dataset structure
