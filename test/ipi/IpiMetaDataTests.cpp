@@ -40,6 +40,7 @@
 #include "Constants.hpp"
 #include "../common/Base.hpp"
 #include "../../src/ipi/EngineIpi.hpp"
+#include "../../src/ipi/ValueMetaDataBuilderIpi.hpp"
 #include "../../src/ipi/fiftyone.h"
 
 using std::string;
@@ -652,6 +653,15 @@ protected:
 				EXPECT_EQ(valueName, metaDataValue->getName()) << name;
 				EXPECT_EQ(string(), metaDataValue->getDescription()) << name;
 				EXPECT_EQ(url, metaDataValue->getUrl()) << name;
+
+				// The deprecated builder taking the value gives the same.
+				unique_ptr<Common::ValueMetaData> fromValue(
+					Ipi::ValueMetaDataBuilderIpi::build(dataSet, &value));
+				ASSERT_TRUE(fromValue != nullptr) << name;
+				EXPECT_EQ(name, fromValue->getKey().getPropertyName());
+				EXPECT_EQ(valueName, fromValue->getName()) << name;
+				EXPECT_EQ(string(), fromValue->getDescription()) << name;
+				EXPECT_EQ(url, fromValue->getUrl()) << name;
 
 				// A number written to fewer places than the search compares
 				// it to is not found by its text, so only a string is. The
