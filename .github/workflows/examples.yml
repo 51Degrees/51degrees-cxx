@@ -16,6 +16,9 @@ on:
       - 'data'
       - '.gitmodules'
       - '.github/workflows/examples.yml'
+  # The Nightly Pipeline calls this workflow, so the examples of the branch
+  # the nightly builds are run every night.
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -27,7 +30,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # macOS runners are few, so a pull request into rc leaves macOS out.
+        # The nightly, the release pull request into main and a manual run
+        # include it.
+        os: ${{ fromJSON((github.event_name == 'pull_request' && github.base_ref == 'rc') && '["ubuntu-latest", "windows-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     defaults:
@@ -44,6 +50,9 @@ jobs:
           New-Item -ItemType Directory build | Out-Null
           Push-Location build
           $platform = $IsWindows ? @('-A', 'x64') : @()
+          # CI builds only Device Detection on macOS (ci/options.json), so
+          # the macOS run builds and runs the Device Detection examples.
+          if ($IsMacOS) { $platform += '-DFIFTYONE_BUILD_IP_INTELLIGENCE=OFF' }
           $configure = cmake .. @platform -DBUILD_TESTING=OFF 2>&1
           if ($LASTEXITCODE -ne 0) { $configure | Out-Host; throw "Configure failed" }
           $names = @($configure | ForEach-Object {
@@ -63,6 +72,9 @@ jobs:
             '&utm_medium=example&utm_campaign=51degrees-cxx' +
             '&utm_content=[a-z0-9.-]+&utm_term=[a-z0-9-]+$'
           $repositoryLink = 'Source code: https://github.com/51Degrees/51degrees-cxx'
+          $contactLink = 'https://51degrees\.com/contact-us\?utm_source=code' +
+            '&utm_medium=example&utm_campaign=51degrees-cxx' +
+            '&utm_content=[a-z0-9.-]+&utm_term=(?!find-out-more)[a-z0-9-]+'
           $failed = @()
           foreach ($name in $names) {
             $exe = $IsWindows ? "build/bin/Release/$name.exe" : "build/bin/$name"
@@ -108,6 +120,17 @@ jobs:
                 $failed += "$name (Find out more does not end the output)"
               }
             }
+            # On a free data file an example asks for properties only the
+            # Enterprise data file holds, says one of them needs that file,
+            # and gives the tagged contact link to ask for a copy, all before
+            # Find out more.
+            $body = $at -ge 0 ? @($lines | Select-Object -First $at) : $lines
+            if (-not ($body -match 'needs? the Enterprise data file')) {
+              $failed += "$name (no property said to need the Enterprise data file)"
+            }
+            if (-not ($body -match $contactLink)) {
+              $failed += "$name (no contact link for the Enterprise data file)"
+            }
           }
           if ($failed) { throw "Examples that failed: $($failed -join ', ')" }
-          "All $($names.Count) examples exited with 0 and ended with Find out more"
+          "All $($names.Count) examples exited with 0, said what needs the Enterprise data file with the contact link, and ended with Find out more"

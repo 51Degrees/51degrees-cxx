@@ -76,9 +76,6 @@ namespace FiftyoneDegrees {
 		private:
 			/** The underlying data set containing the components. */
 			fiftyoneDegreesDataSetIpi *dataSet;
-
-			/** The underlying data set containing the components. */
-			fiftyoneDegreesList *components;
 		};
 	}
 }

@@ -20,6 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+#include <utility>
 #include "ValueMetaData.hpp"
 #include "PropertyMetaData.hpp"
 #include "fiftyone.h"
@@ -33,8 +34,8 @@ ValueMetaDataKey::ValueMetaDataKey()
     ) { }
 
 ValueMetaDataKey::ValueMetaDataKey(string propertyName, string valueName) {
-	this->propertyName = propertyName;
-	this->valueName = valueName;
+	this->propertyName = std::move(propertyName);
+	this->valueName = std::move(valueName);
 }
 
 ValueMetaDataKey::ValueMetaDataKey(
@@ -102,9 +103,9 @@ ValueMetaData::ValueMetaData(ValueMetaData *value)
 ValueMetaData::ValueMetaData(
 	ValueMetaDataKey key,
 	string description,
-	string url) : EntityMetaData(key) {
-	this->description = description;
-	this->url = url;
+	string url) : EntityMetaData(std::move(key)) {
+	this->description = std::move(description);
+	this->url = std::move(url);
 }
 
 string ValueMetaData::getName() const {

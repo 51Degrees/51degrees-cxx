@@ -236,6 +236,66 @@ void fiftyoneDegreesExampleOfferEnterprise(
 	DataSetIpiRelease(dataset);
 }
 
+/**
+ * True when one of the free data files holds the property.
+ */
+static bool isFreeProperty(const char *name) {
+	size_t length = strlen(name);
+	const char *start = FIFTYONE_DEGREES_EXAMPLE_FREE_PROPERTIES;
+	while (start != NULL) {
+		const char *end = strchr(start, ',');
+		size_t itemLength = end == NULL ? strlen(start) : (size_t)(end - start);
+		if (itemLength == length &&
+			fiftyoneDegreesStringCompareLength(start, name, length) == 0) {
+			return true;
+		}
+		start = end == NULL ? NULL : end + 1;
+	}
+	return false;
+}
+
+void fiftyoneDegreesExampleReportEnterpriseProperties(
+	FILE *output,
+	fiftyoneDegreesDataSetIpi *dataset,
+	const char *propertyNames) {
+	char name[100];
+	const char *start = propertyNames == NULL || *propertyNames == '\0' ?
+		FIFTYONE_DEGREES_EXAMPLE_ENTERPRISE_PROPERTIES : propertyNames;
+	while (start != NULL) {
+		const char *end = strchr(start, ',');
+		size_t length = end == NULL ? strlen(start) : (size_t)(end - start);
+		while (length > 0 && *start == ' ') {
+			start++;
+			length--;
+		}
+		while (length > 0 && start[length - 1] == ' ') {
+			length--;
+		}
+		if (length > 0 && length < sizeof(name)) {
+			memcpy(name, start, length);
+			name[length] = '\0';
+			if (isFreeProperty(name) == false &&
+				fiftyoneDegreesExampleHasProperty(dataset, name) == false) {
+				fprintf(output, "%s %s.\n", name,
+					FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE);
+			}
+		}
+		start = end == NULL ? NULL : end + 1;
+	}
+}
+
+void fiftyoneDegreesExampleOfferEnterpriseProperties(
+	fiftyoneDegreesResourceManager *manager,
+	const char *propertyNames) {
+	DataSetIpi *dataset = DataSetIpiGet(manager);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stdout,
+		dataset,
+		propertyNames);
+	fiftyoneDegreesExampleCheckDataFile(dataset);
+	DataSetIpiRelease(dataset);
+}
+
 void fiftyoneDegreesExampleCheckDataFile(
 	fiftyoneDegreesDataSetIpi *dataset) {
 	Item item;

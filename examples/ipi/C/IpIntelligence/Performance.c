@@ -729,6 +729,10 @@ void executeBenchmark(
 	DataSetIpi* dataset = DataSetIpiGet(&state->manager);
 	state->availableProperties = PropertiesGetRequiredPropertyCount(
 		dataset->b.b.available);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stdout,
+		dataset,
+		properties.string);
 	fiftyoneDegreesExampleCheckDataFile(dataset);
 	DataSetIpiRelease(dataset);
 

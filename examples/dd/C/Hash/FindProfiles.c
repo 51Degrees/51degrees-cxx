@@ -165,7 +165,9 @@ void fiftyoneDegreesHashFindProfiles(
 	run(&manager);
 
 	// Say what the Enterprise data file adds, on a free data file.
-	fiftyoneDegreesExampleOfferEnterprise(&manager);
+	fiftyoneDegreesExampleOfferEnterpriseProperties(
+		&manager,
+		properties.string);
 
 	// Free the manager and related data structures.
 	ResourceManagerFree(&manager);

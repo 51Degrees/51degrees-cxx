@@ -143,7 +143,7 @@ namespace FiftyoneDegrees {
 								engine->refreshData(data, length);
 								numberOfReloads++;
 							}
-							catch (StatusCodeException e) {
+							catch (const StatusCodeException &) {
 								numberOfReloadFails++;
 							}
 #ifdef _MSC_VER
@@ -161,7 +161,7 @@ namespace FiftyoneDegrees {
 							engine->refreshData(data, length);
 							numberOfReloads++;
 						}
-						catch (StatusCodeException e) {
+						catch (const StatusCodeException &) {
 							numberOfReloadFails++;
 						}
 						state.processIpAddressesSingle();
@@ -173,6 +173,7 @@ namespace FiftyoneDegrees {
 
 					// On a free data file, say what the Enterprise data file
 					// adds and where to ask for a copy.
+					reportEnterpriseProperties();
 					offerEnterprise(
 						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-ipintelligence-reloadfrommemory.cpp&utm_term=free-data-file");
 					printf("Program execution complete. Press Return to exit.");
@@ -186,6 +187,8 @@ namespace FiftyoneDegrees {
 		}
 	}
 }
+
+#ifndef TEST
 
 /**
  * Main entry point.
@@ -291,3 +294,5 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
+
+#endif

@@ -229,6 +229,47 @@ void fiftyoneDegreesExampleOfferEnterprise(
 	DataSetHashRelease(dataset);
 }
 
+void fiftyoneDegreesExampleReportEnterpriseProperties(
+	FILE *output,
+	fiftyoneDegreesDataSetHash *dataset,
+	const char *propertyNames) {
+	char name[100];
+	const char *start = propertyNames == NULL || *propertyNames == '\0' ?
+		FIFTYONE_DEGREES_EXAMPLE_ENTERPRISE_PROPERTIES : propertyNames;
+	while (start != NULL) {
+		const char *end = strchr(start, ',');
+		size_t length = end == NULL ? strlen(start) : (size_t)(end - start);
+		while (length > 0 && *start == ' ') {
+			start++;
+			length--;
+		}
+		while (length > 0 && start[length - 1] == ' ') {
+			length--;
+		}
+		if (length > 0 && length < sizeof(name)) {
+			memcpy(name, start, length);
+			name[length] = '\0';
+			if (fiftyoneDegreesExampleHasProperty(dataset, name) == false) {
+				fprintf(output, "%s %s.\n", name,
+					FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE);
+			}
+		}
+		start = end == NULL ? NULL : end + 1;
+	}
+}
+
+void fiftyoneDegreesExampleOfferEnterpriseProperties(
+	fiftyoneDegreesResourceManager *manager,
+	const char *propertyNames) {
+	DataSetHash *dataset = DataSetHashGet(manager);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stdout,
+		dataset,
+		propertyNames);
+	fiftyoneDegreesExampleCheckDataFile(dataset);
+	DataSetHashRelease(dataset);
+}
+
 void fiftyoneDegreesExampleCheckDataFile(
 	fiftyoneDegreesDataSetHash *dataset) {
 	Item item;

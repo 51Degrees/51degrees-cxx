@@ -406,7 +406,9 @@ void fiftyoneDegreesIpiReloadFromMemoryRun(
 		run(&manager, ipAddressFilePath, &reader);
 
 		// Say what the Enterprise data file adds, on a free data file.
-		fiftyoneDegreesExampleOfferEnterprise(&manager);
+		fiftyoneDegreesExampleOfferEnterpriseProperties(
+			&manager,
+			requiredProperties);
 
 		// Free the memory used by the manager.
 		ResourceManagerFree(&manager);

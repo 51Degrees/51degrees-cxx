@@ -114,6 +114,41 @@ EXTERNAL void fiftyoneDegreesExampleCheckDataFile(
     "needs the Enterprise data file"
 
 /**
+ * Properties only the Enterprise data file holds. An example that names no
+ * properties asks for all of them, and these are the ones it says a free
+ * data file lacks.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_ENTERPRISE_PROPERTIES \
+    "HardwareVendor,HardwareName,DeviceType"
+
+/**
+ * Says of each property the example asks for that the data file does not
+ * have that it needs the Enterprise data file, one line each. An empty list
+ * stands for #FIFTYONE_DEGREES_EXAMPLE_ENTERPRISE_PROPERTIES.
+ * @param output stream to print to, which is standard error for an example
+ * whose results go to standard output
+ * @param dataset pointer to the dataset structure
+ * @param propertyNames the properties the example asks for, separated by
+ * commas
+ */
+EXTERNAL void fiftyoneDegreesExampleReportEnterpriseProperties(
+    FILE *output,
+    fiftyoneDegreesDataSetHash *dataset,
+    const char *propertyNames);
+
+/**
+ * Says which of the properties the example asks for need the Enterprise data
+ * file, as #fiftyoneDegreesExampleReportEnterpriseProperties does, then
+ * reports the data file as #fiftyoneDegreesExampleOfferEnterprise does.
+ * @param manager resource manager that holds a Device Detection dataset
+ * @param propertyNames the properties the example asks for, separated by
+ * commas
+ */
+EXTERNAL void fiftyoneDegreesExampleOfferEnterpriseProperties(
+    fiftyoneDegreesResourceManager *manager,
+    const char *propertyNames);
+
+/**
  * True when the data file has the property. The free data files leave out
  * the properties only the Enterprise data file has. The data file's own list
  * is read, so the answer does not depend on the required properties.

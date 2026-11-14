@@ -151,6 +151,13 @@ namespace FiftyoneDegrees {
 				bool hasProperty(const char *name) const;
 
 				/**
+				 * Says of each property the engine was asked for that the data
+				 * file does not have that it needs the Enterprise data file, one
+				 * line each.
+				 */
+				void reportEnterpriseProperties() const;
+
+				/**
 				 * On the free Lite data file, says what the Enterprise data
 				 * file adds and where to ask for a copy.
 				 * @param contactUs link to the contact page, tagged with the

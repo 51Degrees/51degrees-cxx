@@ -48,6 +48,18 @@ jobs:
     secrets:
       token: ${{ secrets.ACCESS_TOKEN }}
 
+  # Builds the examples from a fresh clone and runs each one with no settings,
+  # on the free data files.
+  Examples:
+    name: Nightly Examples
+    uses: ./.github/workflows/examples.yml
+
+  # Compiles the sources with the runner's compiler and its default language
+  # standard, which changes without any change here.
+  DefaultStandard:
+    name: Nightly Default Standard
+    uses: ./.github/workflows/default-standard.yml
+
   PullRequests:
     if: ${{ !cancelled() }}
     needs: [SubmoduleUpdate, Publish]
@@ -60,6 +72,9 @@ jobs:
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
       skip-lite-tests: ${{ inputs.skip-lite-tests || false }}
       cache-assets: true
+      # The sanitizer build takes up to 118 minutes, so each build and test
+      # job gets 150 rather than common-ci's 120.
+      build-test-timeout-minutes: 150
       # One configuration that fails does not cancel the others.
       fail-fast: false
     secrets:

@@ -227,6 +227,7 @@ namespace FiftyoneDegrees {
 					// On the free Lite data file, say what the Enterprise data
 					// file adds and where to ask for a copy.
 					cout << "\n";
+					reportEnterpriseProperties();
 					offerEnterprise(
 						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-hash-matchmetrics.cpp&utm_term=lite-data-file");
 				}

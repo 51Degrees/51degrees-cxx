@@ -11,7 +11,9 @@ add_executable(IpiTests
 	${COMMON_TEST}/Base.cpp
 	${COMMON_TEST}/EngineTests.cpp
 	${COMMON_TEST}/ExampleTests.cpp
-	${EXAMPLES_BASE_SRC} ${EXAMPLES_BASE_H})
+	${EXAMPLES_BASE_SRC} ${EXAMPLES_BASE_H}
+	${CMAKE_CURRENT_LIST_DIR}/../../examples/ipi/CPP/IpIntelligence/ExampleBase.cpp
+	${CMAKE_CURRENT_LIST_DIR}/../../examples/ipi/CPP/IpIntelligence/ExampleBase.hpp)
 
 if (TESTCOVERAGE_ENABLED)
 	target_link_libraries(IpiTests fiftyone-ip-intelligence-cxx-cov gtest_main)

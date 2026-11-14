@@ -22,8 +22,8 @@
 
 /**
  * @file MetaDataTextTests.cpp
- * @brief Checks the texts the metadata gives for properties, the rules for a
- * description, category or URL that is absent, the names of the
+ * @brief Checks the texts the metadata gives for properties and values, the
+ * rules for a description, category or URL that is absent, the names of the
  * maps a property is in, a property found by name and the number of values
  * a property has.
  */
@@ -57,6 +57,12 @@ protected:
 	string propertyText(
 		uint32_t index,
 		fiftyoneDegreesPropertyText text,
+		size_t length);
+
+	/** A text of the value at the index, as propertyText writes it. */
+	string valueText(
+		uint32_t index,
+		fiftyoneDegreesValueText text,
 		size_t length);
 
 	/** The property at the index. */
@@ -216,6 +222,39 @@ string MetaDataTextTests::propertyText(
 	return copy;
 }
 
+string MetaDataTextTests::valueText(
+	uint32_t index,
+	fiftyoneDegreesValueText text,
+	size_t length) {
+	EXCEPTION_CREATE;
+	const fiftyoneDegreesValue *value = fiftyoneDegreesValueGet(
+		values,
+		index,
+		&item,
+		exception);
+	EXCEPTION_THROW;
+	vector<char> buffer(length);
+	char *result = fiftyoneDegreesValueGetMetaDataText(
+		stringsCollection,
+		nullptr,
+		value,
+		text,
+		0,
+		buffer.data(),
+		buffer.size(),
+		exception);
+	FIFTYONE_DEGREES_COLLECTION_RELEASE(values, &item);
+	if (result == nullptr) {
+		return "<null>";
+	}
+	EXPECT_TRUE(EXCEPTION_OKAY);
+	const string copy(result);
+	if (result != buffer.data()) {
+		fiftyoneDegreesFree(result);
+	}
+	return copy;
+}
+
 /**
  * A property's texts are its strings, written in place when they fit and
  * otherwise into memory the caller frees.
@@ -346,4 +385,34 @@ TEST_F(MetaDataTextTests, PropertyValueCount) {
 	EXPECT_EQ(0u, fiftyoneDegreesPropertyGetValueCount(values, property(1)));
 	EXPECT_EQ(0u, fiftyoneDegreesPropertyGetValueCount(values, property(2)));
 	EXPECT_EQ(0u, fiftyoneDegreesPropertyGetValueCount(values, property(3)));
+}
+
+/**
+ * A value's texts are its strings, and a value with no description or URL,
+ * or a weighted one, has empty ones rather than the first string in the
+ * file.
+ */
+TEST_F(MetaDataTextTests, ValueTexts) {
+	for (size_t length : { (size_t)64, (size_t)2 }) {
+		for (uint32_t v = 0; v < 3; v++) {
+			EXPECT_EQ("ValueName", valueText(
+				v, FIFTYONE_DEGREES_VALUE_TEXT_NAME, length));
+		}
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+		EXPECT_EQ("ValueDescription", valueText(
+			0, FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION, length));
+#endif
+		EXPECT_EQ("https://51degrees.com/value", valueText(
+			0, FIFTYONE_DEGREES_VALUE_TEXT_URL, length));
+		EXPECT_EQ("", valueText(
+			1, FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION, length));
+		EXPECT_EQ("", valueText(
+			1, FIFTYONE_DEGREES_VALUE_TEXT_URL, length));
+		EXPECT_EQ("", valueText(
+			2, FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION, length));
+		EXPECT_EQ("", valueText(
+			2, FIFTYONE_DEGREES_VALUE_TEXT_URL, length));
+		EXPECT_EQ("<null>", valueText(
+			0, (fiftyoneDegreesValueText)99, length));
+	}
 }
