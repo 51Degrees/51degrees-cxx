@@ -87,8 +87,7 @@ inline void expectSizeIgnoresOtherThread(
 		other.join();
 
 		if (during) {
-			printf("The other thread allocated during measurement %d.
-",
+			printf("The other thread allocated during measurement %d.\n",
 				attempt);
 			EXPECT_EQ(alone, withOther) <<
 				"The size counted memory another thread allocated.";
