@@ -178,6 +178,22 @@ EXTERNAL void fiftyoneDegreesSetUpMemoryTracking();
 EXTERNAL size_t fiftyoneDegreesUnsetMemoryTracking();
 
 /**
+ * Starts measuring the memory the calling thread allocates, as the size
+ * functions do. Resets the counts and points the allocation and free functions
+ * at the tracking ones. Until #fiftyoneDegreesMemoryTrackingStopMeasuring is
+ * called, memory that any other thread allocates is neither counted nor
+ * recorded, and memory another thread frees is not taken from the count.
+ */
+EXTERNAL void fiftyoneDegreesMemoryTrackingStartMeasuring();
+
+/**
+ * Stops the measurement #fiftyoneDegreesMemoryTrackingStartMeasuring started.
+ * Points the allocation and free functions at the standard ones and resets
+ * the counts, so read them first.
+ */
+EXTERNAL void fiftyoneDegreesMemoryTrackingStopMeasuring();
+
+/**
  * Pointer to the method used to allocate memory. By default this maps to
  * #fiftyoneDegreesMemoryStandardMalloc which calls the standard library malloc.
  * @param __size to allocate

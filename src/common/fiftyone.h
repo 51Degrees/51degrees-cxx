@@ -265,6 +265,8 @@ MAP_TYPE(WeightedItemList)
 #define MemoryTrackingGetAllocated fiftyoneDegreesMemoryTrackingGetAllocated /**< Synonym for #fiftyoneDegreesMemoryTrackingGetAllocated function. */
 #define SetUpMemoryTracking fiftyoneDegreesSetUpMemoryTracking /**< Synonym for #fiftyoneDegreesSetUpMemoryTracking function. */
 #define UnsetMemoryTracking fiftyoneDegreesUnsetMemoryTracking /**< Synonym for #fiftyoneDegreesUnsetMemoryTracking function. */
+#define MemoryTrackingStartMeasuring fiftyoneDegreesMemoryTrackingStartMeasuring /**< Synonym for #fiftyoneDegreesMemoryTrackingStartMeasuring function. */
+#define MemoryTrackingStopMeasuring fiftyoneDegreesMemoryTrackingStopMeasuring /**< Synonym for #fiftyoneDegreesMemoryTrackingStopMeasuring function. */
 #define Malloc fiftyoneDegreesMalloc /**< Synonym for #fiftyoneDegreesMalloc function. */
 #define MallocAligned fiftyoneDegreesMallocAligned /**< Synonym for #fiftyoneDegreesMallocAligned function. */
 #define Free fiftyoneDegreesFree /**< Synonym for #fiftyoneDegreesFree function. */
