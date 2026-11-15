@@ -657,6 +657,10 @@ void executeBenchmark(
 	// Check data file
 	DataSetHash* dataset = DataSetHashGet(&state->manager);
 	state->availableProperties = (int)dataset->b.b.available->count;
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stdout,
+		dataset,
+		properties.string);
 	fiftyoneDegreesExampleCheckDataFile(dataset);
 	DataSetHashRelease(dataset);
 

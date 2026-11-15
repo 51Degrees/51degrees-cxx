@@ -112,8 +112,14 @@ static int run(fiftyoneDegreesResourceManager *manager) {
  * On a free data file, says on standard error what the Enterprise data file
  * adds and where to ask for a copy.
  */
-static void offerEnterprise(fiftyoneDegreesResourceManager *manager) {
+static void offerEnterprise(
+	fiftyoneDegreesResourceManager *manager,
+	const char *requiredProperties) {
 	DataSetIpi *dataset = DataSetIpiGet(manager);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stderr,
+		dataset,
+		requiredProperties);
 	if (fiftyoneDegreesExampleHasProperty(dataset, "IpRangeStart") ==
 		false) {
 		fprintf(stderr, "This example is using a free data file. The "
@@ -148,7 +154,7 @@ int fiftyoneDegreesProcIpiRun(
 
 		// Standard output holds the processed addresses, so the note goes
 		// to standard error.
-		offerEnterprise(&manager);
+		offerEnterprise(&manager, requiredProperties);
 
 		ResourceManagerFree(&manager);
 	}

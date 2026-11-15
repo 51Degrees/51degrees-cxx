@@ -499,7 +499,7 @@ void fiftyoneDegreesPerfIpiRun(
 	// Configure to return the network name, which the free ASN data file has
 	// as AsnName, and the areas.
 	PropertiesRequired properties = PropertiesDefault;
-	properties.string = "RegisteredName,AsnName,areas";
+	properties.string = "RegisteredName,AsnName,Areas";
 
 	ResourceManager manager;
 	EXCEPTION_CREATE;
@@ -521,7 +521,9 @@ void fiftyoneDegreesPerfIpiRun(
 		run(&manager, ipAddressFilePath);
 
 		// Say what the Enterprise data file adds, on a free data file.
-		fiftyoneDegreesExampleOfferEnterprise(&manager);
+		fiftyoneDegreesExampleOfferEnterpriseProperties(
+			&manager,
+			properties.string);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);

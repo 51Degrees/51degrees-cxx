@@ -228,6 +228,7 @@ void run(
 	ResourceManager *manager, 
 	const char *evidenceFilePath, 
 	const char *outputFilePath,
+	const char *requiredProperties,
 	FILE *output) {
 	char buffer[1000];
 	offlineProcessState state;
@@ -273,6 +274,10 @@ void run(
 	fprintf(output, "Output Written to %s\n", outputFilePath);
 
 	DataSetHash* dataset = (DataSetHash *)state.results->b.b.dataSet;
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		output,
+		dataset,
+		requiredProperties);
 	fiftyoneDegreesExampleCheckDataFile(dataset);
 
 	// Free the memory used by the results instance.
@@ -344,7 +349,12 @@ void fiftyoneDegreesOfflineProcessingRun(
 	else {
 
 		// Process the evidence writing the results to the output path.
-		run(&manager, evidenceFilePath, outputFilePath, output);
+		run(
+			&manager,
+			evidenceFilePath,
+			outputFilePath,
+			requiredProperties,
+			output);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);

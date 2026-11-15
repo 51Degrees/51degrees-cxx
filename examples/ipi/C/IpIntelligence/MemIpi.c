@@ -323,7 +323,7 @@ void run(
 	runMemoryTests(&state);
 
 	// Report the maximum memory usage.
-	printf("Maximum allocated memory %.2fMBs",
+	printf("Maximum allocated memory %.2fMBs\n",
 		(double)MemoryTrackingGetMax() / (double)(1024 * 1024));
 }
 
@@ -390,7 +390,9 @@ void fiftyoneDegreesMemIpiRun(
 		run(&manager, ipAddressFilePath);
 
 		// Say what the Enterprise data file adds, on a free data file.
-		fiftyoneDegreesExampleOfferEnterprise(&manager);
+		fiftyoneDegreesExampleOfferEnterpriseProperties(
+			&manager,
+			properties.string);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);

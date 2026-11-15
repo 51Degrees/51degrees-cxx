@@ -155,6 +155,13 @@ namespace FiftyoneDegrees {
 				bool hasProperty(const char *name) const;
 
 				/**
+				 * Says of each property the engine was asked for that the data
+				 * file does not have that it needs the Enterprise data file, one
+				 * line each, leaving out the properties the free data files hold.
+				 */
+				void reportEnterpriseProperties() const;
+
+				/**
 				 * On a free data file, says what the Enterprise data file adds
 				 * and where to ask for a copy.
 				 * @param contactUs link to the contact page, tagged with the
@@ -250,6 +257,8 @@ namespace FiftyoneDegrees {
 				std::shared_ptr<ConfigIpi> config;
 				/** Properties to initialise the Engine with */
 				std::unique_ptr<RequiredPropertiesConfig> properties;
+				/** The same properties, separated by commas */
+				std::string propertyNames;
 				/** IP Intelligence Engine used for the example */
 				std::unique_ptr<EngineIpi> engine;
 			

@@ -1731,9 +1731,9 @@ int fiftyoneDegreesIpiCountryOverlap(
 		if (status == REQ_PROP_NOT_PRESENT) {
 			printf(
 				"Measuring how often IP addresses overlap country "
-				"borders needs properties only the Enterprise data file "
-				"has (%s), and the data file in use has none of them, so "
-				"the example stops here. Contact us for a copy of the "
+				"borders needs the properties %s, which need the "
+				"Enterprise data file. The data file in use has none of "
+				"them, so the example stops here. Contact us for a copy of the "
 				"Enterprise data file at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=properties-missing\n",
 				countryOverlapProperties);
 			return COUNTRY_OVERLAP_PROPERTIES_MISSING;

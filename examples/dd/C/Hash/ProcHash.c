@@ -89,8 +89,14 @@ static void reportStatus(
  * On a free data file, says on standard error what the Enterprise data file
  * adds and where to ask for a copy.
  */
-static void offerEnterprise(fiftyoneDegreesResourceManager *manager) {
+static void offerEnterprise(
+	fiftyoneDegreesResourceManager *manager,
+	const char *requiredProperties) {
 	DataSetHash *dataset = DataSetHashGet(manager);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stderr,
+		dataset,
+		requiredProperties);
 	if (fiftyoneDegreesExampleHasProperty(dataset, "HardwareVendor") ==
 		false) {
 		fprintf(stderr, "This example is using a free data file. The "
@@ -156,7 +162,7 @@ int fiftyoneDegreesProcHashRun(
 
 		// Standard output holds the processed User-Agents, so the note goes
 		// to standard error.
-		offerEnterprise(&manager);
+		offerEnterprise(&manager, requiredProperties);
 
 		ResourceManagerFree(&manager);
 	}
