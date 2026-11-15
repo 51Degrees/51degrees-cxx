@@ -608,6 +608,78 @@ TEST_F(HashCTests, ResultsHashGetValuesStringNoTrailingSeparator) {
 		"Buffer should only contain a string without separator.\n";
 }
 
+/** A reload that the allocation function starts inside another reload. */
+static struct {
+	ResourceManager *manager;
+	const char *fileName;
+	decltype(fiftyoneDegreesMalloc) previous;
+	bool started;
+	StatusCode status;
+} innerReload;
+
+/**
+ * Puts the allocation function back, reloads the manager the first time it
+ * is called, and then allocates.
+ */
+static void* reloadOnFirstAllocation(size_t size) {
+	fiftyoneDegreesMalloc = innerReload.previous;
+	if (innerReload.started == false) {
+		innerReload.started = true;
+		EXCEPTION_CREATE;
+		innerReload.status = HashReloadManagerFromFile(
+			innerReload.manager,
+			innerReload.fileName,
+			exception);
+	}
+	return innerReload.previous(size);
+}
+
+/*
+ * A reload reads the properties and configuration of the data set in use to
+ * make the replacement. Another reload of the same manager can replace and
+ * free that data set meanwhile, so here a second reload runs, with nothing
+ * else holding the data set, as the first allocates its replacement. The
+ * first reload must still read the data set it began with.
+ */
+TEST_F(HashCTests, ReloadFromFile_AnotherReloadMeanwhile) {
+	innerReload.manager = &manager;
+	innerReload.fileName = dataFilePath.c_str();
+	innerReload.previous = fiftyoneDegreesMalloc;
+	innerReload.started = false;
+	innerReload.status = NOT_SET;
+
+	EXCEPTION_CREATE;
+	fiftyoneDegreesMalloc = reloadOnFirstAllocation;
+	StatusCode status = HashReloadManagerFromFile(
+		&manager,
+		dataFilePath.c_str(),
+		exception);
+	fiftyoneDegreesMalloc = innerReload.previous;
+
+	ASSERT_TRUE(innerReload.started);
+	EXPECT_EQ(SUCCESS, innerReload.status);
+	EXPECT_EQ(SUCCESS, status);
+
+	// The data set the first reload made is in use and works.
+	OwnedResults results(ResultsHashCreate(&manager, 0), &ResultsHashFree);
+	ResultsHashFromUserAgent(
+		results.get(),
+		mobileUserAgent,
+		strlen(mobileUserAgent),
+		exception);
+	EXCEPTION_THROW;
+	char isMobile[40] = "";
+	ResultsHashGetValuesString(
+		results.get(),
+		"IsMobile",
+		isMobile,
+		sizeof(isMobile),
+		(char* const)",",
+		exception);
+	EXCEPTION_THROW;
+	EXPECT_STREQ("True", isMobile);
+}
+
 /*
  * This test check that the HashSizeManagerFromFile will set the exception
  * status correctly if an error occurred during the sizing.
