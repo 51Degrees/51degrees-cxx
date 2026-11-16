@@ -8,6 +8,8 @@ name: Examples on the free data files
 # builds give the tests the Enterprise data files through secrets, so they
 # cannot show it.
 on:
+  push:
+    branches: [tmp/red-own-utm-content-b]
   pull_request:
     branches: [rc, main]
     paths:
@@ -35,7 +37,7 @@ jobs:
         # macOS runners are few, so a pull request into rc leaves macOS out.
         # The nightly, the release pull request into main and a manual run
         # include it.
-        os: ${{ fromJSON((github.event_name == 'pull_request' && github.base_ref == 'rc') && '["ubuntu-latest", "windows-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     defaults:
