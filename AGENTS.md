@@ -154,6 +154,12 @@ file has RegisteredCountry, RegisteredName and RegisteredOwner, so the lines
 for the properties it does not have, such as `Longitude`, are empty. The exit
 code is 0.
 
+`GettingStartedWebCPP` is a CGI program, the Getting Started Web example. Under
+a web server it reads the client's address from `HTTP_X_FORWARDED_FOR` or
+`REMOTE_ADDR`. From a console it uses an example address. Either way it writes
+a `Content-Type` header and an HTML page to standard output, and the
+`Find out more` section to standard error. It does not wait for a key press.
+
 Every example ends with a `Find out more` section, which links to the
 product's pages on 51degrees.com and to this repository. `ProcHash.c` and
 `ProcIpi.c` write their results to standard output, so they print the section
