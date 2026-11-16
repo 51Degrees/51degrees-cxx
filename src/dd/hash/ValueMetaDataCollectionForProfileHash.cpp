@@ -61,59 +61,22 @@ ValueMetaData* ValueMetaDataCollectionForProfileHash::getByKey(
 	if (propertyIndex < 0) {
 		return nullptr;
 	}
-	uint32_t firstValueIndex = 0;
-	uint32_t valueCount = 0;
-	if (HashGetPropertyValueIndexes(
+	const long valueIndex = HashGetValueIndex(
 		dataSet,
 		(uint32_t)propertyIndex,
-		&firstValueIndex,
-		&valueCount,
-		nullptr,
-		exception) == false) {
-		EXCEPTION_THROW;
+		key.getValueName().c_str(),
+		exception);
+	EXCEPTION_THROW;
+	if (valueIndex < 0) {
 		return nullptr;
 	}
-	if (valueCount == 0) {
-		return nullptr;
-	}
-	// The profile's own values of the property are compared by name, rather
-	// than the property's values searched by name, as that search relies on
-	// the data file holding the names in byte order, which not every data
-	// file does. The profile's value indexes are in ascending order, so its
-	// values of the property are the run within the property's range.
+	// A profile's value indexes are in ascending order.
 	const Profile * const profile = getProfile();
 	const uint32_t * const first = (const uint32_t*)(profile + 1);
 	const uint32_t * const last = first + profile->valueCount;
-	const uint32_t * const begin =
-		std::lower_bound(first, last, firstValueIndex);
-	const uint32_t * const end =
-		std::upper_bound(begin, last, firstValueIndex + valueCount - 1);
-	const string valueName = key.getValueName();
-	char buffer[REASONABLE_WKT_STRING_LENGTH];
-	for (const uint32_t *valueIndex = begin; valueIndex < end; valueIndex++) {
-		char * const text = HashGetValueText(
-			dataSet,
-			*valueIndex,
-			FIFTYONE_DEGREES_VALUE_TEXT_NAME,
-			buffer,
-			sizeof(buffer),
-			exception);
-		if (text == nullptr) {
-			EXCEPTION_THROW;
-			continue;
-		}
-		const bool same = valueName == text;
-		if (text != buffer) {
-			Free(text);
-		}
-		if (same) {
-			return ValueMetaDataBuilderHash::build(
-				dataSet,
-				*valueIndex,
-				key.getPropertyName());
-		}
-	}
-	return nullptr;
+	return std::binary_search(first, last, (uint32_t)valueIndex)
+		? ValueMetaDataBuilderHash::build(dataSet, (uint32_t)valueIndex)
+		: nullptr;
 }
 
 uint32_t ValueMetaDataCollectionForProfileHash::getSize() const {
