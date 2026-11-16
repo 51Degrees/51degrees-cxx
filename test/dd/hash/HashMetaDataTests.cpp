@@ -30,6 +30,7 @@
  * small, so both the written and the allocated text are checked.
  */
 
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -66,6 +67,12 @@ static const uint32_t hashMetaDataSampledValues = 500;
 
 /** The profiles checked, spread across them. */
 static const uint32_t hashMetaDataSampledProfiles = 2000;
+
+/**
+ * The profiles whose values are each found by name, spread across them, as
+ * well as every profile holding a value a search by name order misses.
+ */
+static const uint32_t hashMetaDataSampledProfileValues = 500;
 
 /** A name no property or value has. */
 static const char *hashMetaDataNoName = "NoSuchName51Degrees";
@@ -738,6 +745,149 @@ protected:
 			EXPECT_EQ(componentId, byKey->getComponentId());
 		}
 	}
+
+	/**
+	 * Marks each value that a search of its property's values by name does
+	 * not find at its own index. A search that relies on the byte order of
+	 * the names can only miss in a property whose values are not in that
+	 * order, so only those properties are searched.
+	 * @return the number of values marked
+	 */
+	static uint32_t markValuesMissedByName(
+		fiftyoneDegreesDataSetHash *dataSet,
+		vector<bool> &missed) {
+		uint32_t count = 0;
+		const uint32_t properties =
+			fiftyoneDegreesHashGetPropertyCount(dataSet);
+		for (uint32_t i = 0; i < properties; i++) {
+			EXCEPTION_CREATE;
+			uint32_t first = 0, valueCount = 0;
+			if (fiftyoneDegreesHashGetPropertyValueIndexes(
+				dataSet,
+				i,
+				&first,
+				&valueCount,
+				nullptr,
+				exception) == false) {
+				EXCEPTION_THROW;
+				continue;
+			}
+			vector<string> names;
+			names.reserve(valueCount);
+			bool ordered = true;
+			for (uint32_t v = 0; v < valueCount; v++) {
+				names.push_back(hashMetaDataStored(
+					dataSet,
+					(uint32_t)hashMetaDataStoredValue(
+						dataSet,
+						first + v).nameOffset));
+				if (v > 0 &&
+					strcmp(names[v - 1].c_str(), names[v].c_str()) > 0) {
+					ordered = false;
+				}
+			}
+			if (ordered) {
+				continue;
+			}
+			for (uint32_t v = 0; v < valueCount; v++) {
+				const long found = fiftyoneDegreesHashGetValueIndex(
+					dataSet,
+					i,
+					names[v].c_str(),
+					exception);
+				EXCEPTION_THROW;
+				if (found != (long)(first + v)) {
+					missed[first + v] = true;
+					count++;
+				}
+			}
+		}
+		return count;
+	}
+
+	/**
+	 * Checks that each value a profile holds is found by its name among the
+	 * profile's values. Every profile holding a value that a search by name
+	 * order misses is checked, as are profiles spread across the rest, so
+	 * the check is quick on any data file and covers the values a data file
+	 * holds out of order.
+	 */
+	void checkProfileValuesByName(const string &path) {
+		const auto manager = openHashMetaData(path, nullptr);
+		Hash::MetaDataHash metaData(manager);
+		HashMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetHash *dataSet = scope.dataSet;
+		vector<bool> missed(
+			fiftyoneDegreesCollectionGetCount(dataSet->values),
+			false);
+		const uint32_t missedCount = markValuesMissedByName(dataSet, missed);
+		unique_ptr<Profiles> profiles(metaData.getProfiles());
+		const uint32_t profileCount =
+			fiftyoneDegreesHashGetProfileCount(dataSet);
+		const uint32_t step =
+			profileCount / hashMetaDataSampledProfileValues + 1;
+		uint32_t checkedProfiles = 0, holdingMissed = 0, checkedValues = 0;
+		for (uint32_t p = 0; p < profileCount; p++) {
+			bool holds = false;
+			if (missedCount > 0) {
+				EXCEPTION_CREATE;
+				fiftyoneDegreesCollectionItem item;
+				fiftyoneDegreesDataReset(&item.data);
+				const fiftyoneDegreesProfile *stored =
+					fiftyoneDegreesProfileGetByIndex(
+						dataSet->profileOffsets,
+						dataSet->profiles,
+						p,
+						&item,
+						exception);
+				EXCEPTION_THROW;
+				const uint32_t *valueIndexes = (const uint32_t*)(stored + 1);
+				for (uint32_t v = 0;
+					v < stored->valueCount && holds == false;
+					v++) {
+					holds = valueIndexes[v] < missed.size() &&
+						missed[valueIndexes[v]];
+				}
+				FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->profiles, &item);
+			}
+			if (holds == false && p % step != 0) {
+				continue;
+			}
+			checkedProfiles++;
+			holdingMissed += holds ? 1 : 0;
+			unique_ptr<Common::ProfileMetaData> profile(
+				profiles->getByIndex(p));
+			ASSERT_TRUE(profile != nullptr);
+			const uint32_t profileId = profile->getProfileId();
+			unique_ptr<Values> values(
+				metaData.getValuesForProfile(profile.get()));
+			const uint32_t valueCount = values->getSize();
+			for (uint32_t v = 0; v < valueCount; v++) {
+				unique_ptr<Common::ValueMetaData> value(values->getByIndex(v));
+				ASSERT_TRUE(value != nullptr) << profileId;
+				const string propertyName = value->getKey().getPropertyName();
+				unique_ptr<Common::ValueMetaData> byKey(
+					values->getByKey(value->getKey()));
+				checkedValues++;
+				EXPECT_TRUE(byKey != nullptr) << "Profile " << profileId <<
+					" does not find its " << propertyName << " value '" <<
+					value->getName() << "' by name";
+				if (byKey == nullptr) {
+					continue;
+				}
+				EXPECT_EQ(propertyName, byKey->getKey().getPropertyName()) <<
+					profileId;
+				EXPECT_EQ(value->getName(), byKey->getName()) << profileId;
+			}
+		}
+		printf("%u values a search by name order misses, %u profiles "
+			"checked, %u of them holding such a value, %u values found\n",
+			missedCount,
+			checkedProfiles,
+			holdingMissed,
+			checkedValues);
+		EXPECT_GT(checkedProfiles, 0u);
+	}
 };
 
 TEST_F(HashMetaDataTests, PropertiesOfEachDataFile) {
@@ -751,6 +901,17 @@ TEST_F(HashMetaDataTests, ValuesOfEachDataFile) {
 TEST_F(HashMetaDataTests, ComponentsAndProfilesOfEachDataFile) {
 	eachDataFile([this](const string &path) {
 		checkComponentsAndProfiles(path);
+	});
+}
+
+/**
+ * Each value a profile holds is found by its name among the profile's
+ * values, including where the data file does not hold a property's values in
+ * the byte order of their names.
+ */
+TEST_F(HashMetaDataTests, ProfileValuesByNameOfEachDataFile) {
+	eachDataFile([this](const string &path) {
+		checkProfileValuesByName(path);
 	});
 }
 
