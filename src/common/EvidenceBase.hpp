@@ -92,6 +92,9 @@ namespace FiftyoneDegrees {
 			  * Get the underlying C structure containing the evidence. This
 			  * only includes evidence which is relevant to the engine. Any
 			  * evidence which is irrelevant will not be included in the result.
+			  * Keys are case-insensitive, so where keys added through the map
+			  * itself differ only in case, only the first in the map's order
+			  * is included.
 			  * @return pointer to a populated C evidence structure
 			  */
 			fiftyoneDegreesEvidenceKeyValuePairArray* get();
@@ -101,6 +104,24 @@ namespace FiftyoneDegrees {
 			 * @name Overrides
 			 * @{
 			 */
+
+			/**
+			 * Get the value held under the key, ignoring case. Evidence keys
+			 * are case-insensitive, so a key that differs from one already
+			 * held only in case returns the value held under that key, and
+			 * setting it replaces that value. A key not held is added.
+			 * @param key of the evidence item
+			 * @return reference to the value held under the key
+			 */
+			string& operator[](const string& key);
+
+			/**
+			 * Get the value held under the key, ignoring case, as the other
+			 * operator[] does.
+			 * @param key of the evidence item
+			 * @return reference to the value held under the key
+			 */
+			string& operator[](string&& key);
 
 			 /**
 			  * Clear all evidence items from the instance.
@@ -133,6 +154,13 @@ namespace FiftyoneDegrees {
 			 */
 			virtual bool isRelevant(fiftyoneDegreesEvidencePrefix prefix);
 		private:
+			/**
+			 * Find the item whose key is the key given, ignoring case.
+			 * @param key to find
+			 * @return the item, or end() if no key matches
+			 */
+			iterator findIgnoringCase(const string& key);
+
 			/** The underlying evidence structure. */
 			fiftyoneDegreesEvidenceKeyValuePairArray* evidence;
 		};

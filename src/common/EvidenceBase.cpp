@@ -47,6 +47,22 @@ fiftyoneDegreesEvidenceKeyValuePairArray* EvidenceBase::get() {
 		for (map<string, string>::const_iterator iterator = begin();
 			iterator != end();
 			iterator++) {
+			// Keys are case-insensitive, so a key that differs only in case
+			// from one earlier in the map is the same key, and is left out.
+			bool duplicate = false;
+			for (std::map<string, string>::const_iterator earlier = begin();
+				earlier != iterator;
+				earlier++) {
+				if (StringCompare(
+					earlier->first.c_str(),
+					iterator->first.c_str()) == 0) {
+					duplicate = true;
+					break;
+				}
+			}
+			if (duplicate) {
+				continue;
+			}
 			EvidencePrefixMap* map =
 				EvidenceMapPrefix(iterator->first.c_str());
 			if (map != NULL && isRelevant(map->prefixEnum)) {
@@ -71,6 +87,35 @@ bool EvidenceBase::isRelevant(
 #ifdef _MSC_VER
 #pragma warning (default:4100)  
 #endif
+
+EvidenceBase::iterator EvidenceBase::findIgnoringCase(const string& key) {
+	iterator item = find(key);
+	if (item != end()) {
+		return item;
+	}
+	for (item = begin(); item != end(); item++) {
+		if (StringCompare(item->first.c_str(), key.c_str()) == 0) {
+			return item;
+		}
+	}
+	return end();
+}
+
+string& EvidenceBase::operator[](const string& key) {
+	iterator item = findIgnoringCase(key);
+	if (item != end()) {
+		return item->second;
+	}
+	return map<string, string>::operator[](key);
+}
+
+string& EvidenceBase::operator[](string&& key) {
+	iterator item = findIgnoringCase(key);
+	if (item != end()) {
+		return item->second;
+	}
+	return map<string, string>::operator[](std::move(key));
+}
 
 void EvidenceBase::clear() {
 	map<string, string>::clear();
