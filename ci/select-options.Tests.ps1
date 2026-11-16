@@ -1,6 +1,8 @@
 # Each test runs the script on the entries of options.json for one shape of
 # change and checks which entries it chooses, with the products each builds
-# and its depth.
+# and its depth. The entries are read as common-ci's steps/select-options.ps1
+# reads them, and common-ci builds nothing for a change to documentation
+# alone, so no test gives the script that.
 BeforeAll {
     $script:Script = Join-Path $PSScriptRoot 'select-options.ps1'
     $script:OptionsPath = Join-Path $PSScriptRoot 'options.json'
@@ -8,7 +10,8 @@ BeforeAll {
     # Returns each chosen entry's name with "<products> <depth>", and fails
     # on an entry that would measure performance.
     function Select-For([string[]]$Changed, [string[]]$CommentOnly = @()) {
-        $options = Get-Content $script:OptionsPath -Raw | ConvertFrom-Json
+        $options = @(Get-Content $script:OptionsPath -Raw |
+            ConvertFrom-Json -AsHashtable)
         $chosen = & $script:Script -Options $options -ChangedFiles $Changed `
             -CommentOnlyFiles $CommentOnly 6>$null
         $result = @{}
@@ -86,15 +89,6 @@ Describe 'select-options' {
             'Ubuntu_x86_Release' = 'common,dd deep'
             'Ubuntu_x64_Release_CxxBothProducts' = 'dd,ipi deep'
             'Ubuntu_arm64_Release' = 'ipi deep'
-        }
-    }
-
-    It 'builds the standard set when only documentation changed' {
-        Assert-Chosen (Select-For @()) @{
-            'Windows_VS_x64_Release' = 'common,dd standard'
-            'Windows_VS_IPI_x64_Release_BuildOnly' = 'ipi standard'
-            'Ubuntu_x64_Release' = 'common,dd,ipi standard'
-            'Ubuntu_x64_Release_ExceptionsDisabled_BuildOnly' = 'dd,ipi standard'
         }
     }
 }
