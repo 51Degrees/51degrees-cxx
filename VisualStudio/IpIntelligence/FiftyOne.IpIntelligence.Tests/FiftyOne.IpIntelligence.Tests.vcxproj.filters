@@ -48,6 +48,9 @@
     <ClCompile Include="..\..\..\test\ipi\ExampleCPPGettingStartedTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPGettingStartedWebTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\ExampleCPPMetaDataTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

@@ -27,6 +27,7 @@
     <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsFile.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsMemory.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleCPPGettingStartedTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPGettingStartedWebTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleCPPMetaDataTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleCPPReloadFromFileTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleCPPReloadFromMemoryTests.cpp" />
