@@ -767,10 +767,10 @@ static StatusCode readHeaderFromMemory(
 		SUCCESS : CORRUPT_DATA;
 }
 
-static StatusCode checkVersion(DataSetIpi* dataSet) {
-	if (!(dataSet->header.versionMajor ==
+static StatusCode checkHeaderVersion(const DataSetIpiHeader* header) {
+	if (!(header->versionMajor ==
 		FIFTYONE_DEGREES_IPI_TARGET_VERSION_MAJOR &&
-		dataSet->header.versionMinor ==
+		header->versionMinor ==
 		FIFTYONE_DEGREES_IPI_TARGET_VERSION_MINOR)) {
 		return INCORRECT_VERSION;
 	}
@@ -780,8 +780,8 @@ static StatusCode checkVersion(DataSetIpi* dataSet) {
 	// outside the range is one this API cannot use, so it is reported as an
 	// unsupported version. The message for corrupt data would send the reader
 	// to check the file is uncompressed, which it is.
-	if (dataSet->header.profilesOffsetShift < 0 ||
-		dataSet->header.profilesOffsetShift >
+	if (header->profilesOffsetShift < 0 ||
+		header->profilesOffsetShift >
 		FIFTYONE_DEGREES_IPI_MAX_PROFILES_OFFSET_SHIFT) {
 		return INCORRECT_VERSION;
 	}
@@ -792,11 +792,15 @@ static StatusCode checkVersion(DataSetIpi* dataSet) {
 	// collection positions in the header are read as 4 bytes where every IP
 	// Intelligence data file has 8. The builds in this repository always
 	// define it for IP Intelligence.
-	if (dataSet->header.profilesOffsetShift != 0) {
+	if (header->profilesOffsetShift != 0) {
 		return INCORRECT_VERSION;
 	}
 #endif
 	return SUCCESS;
+}
+
+static StatusCode checkVersion(DataSetIpi* dataSet) {
+	return checkHeaderVersion(&dataSet->header);
 }
 
 /**
@@ -2474,6 +2478,42 @@ bool fiftyoneDegreesIpiGetNextUpdate(
 	fiftyoneDegreesResourceManager *manager,
 	fiftyoneDegreesDate *date) {
 	return getHeaderDate(manager, true, date);
+}
+
+fiftyoneDegreesStatusCode fiftyoneDegreesIpiGetPublishedFromFile(
+	const char *fileName,
+	fiftyoneDegreesDate *date) {
+	FILE *file = NULL;
+	fiftyoneDegreesDate published;
+	DataSetIpiHeader *header;
+	StatusCode status;
+	date->year = 0;
+	date->month = 0;
+	date->day = 0;
+
+	// The header's members are constant, so it is read into allocated memory
+	// rather than into a local that would have to be initialised.
+	header = (DataSetIpiHeader*)Malloc(sizeof(DataSetIpiHeader));
+	if (header == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	status = FileOpen(fileName, &file);
+	if (status == SUCCESS) {
+		status = fread((void*)header, sizeof(DataSetIpiHeader), 1, file) == 1 ?
+			checkHeaderVersion(header) : CORRUPT_DATA;
+		fclose(file);
+	}
+	if (status == SUCCESS) {
+		published = header->published;
+		if (DateIsValid(&published)) {
+			*date = published;
+		}
+		else {
+			status = CORRUPT_DATA;
+		}
+	}
+	Free(header);
+	return status;
 }
 
 /**

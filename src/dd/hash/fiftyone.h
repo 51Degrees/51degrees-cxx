@@ -76,6 +76,7 @@ MAP_TYPE(HashValueProfiles)
 #define HashGetEvidenceKeys fiftyoneDegreesHashGetEvidenceKeys /**< Synonym for #fiftyoneDegreesHashGetEvidenceKeys function. */
 #define HashGetPublished fiftyoneDegreesHashGetPublished /**< Synonym for #fiftyoneDegreesHashGetPublished function. */
 #define HashGetNextUpdate fiftyoneDegreesHashGetNextUpdate /**< Synonym for #fiftyoneDegreesHashGetNextUpdate function. */
+#define HashGetPublishedFromFile fiftyoneDegreesHashGetPublishedFromFile /**< Synonym for #fiftyoneDegreesHashGetPublishedFromFile function. */
 #define HashSizeManagerFromFile fiftyoneDegreesHashSizeManagerFromFile /**< Synonym for #fiftyoneDegreesHashSizeManagerFromFile function. */
 #define HashSizeManagerFromMemory fiftyoneDegreesHashSizeManagerFromMemory /**< Synonym for #fiftyoneDegreesHashSizeManagerFromMemory function. */
 #define HashInitManagerFromFile fiftyoneDegreesHashInitManagerFromFile /**< Synonym for #fiftyoneDegreesHashInitManagerFromFile function. */

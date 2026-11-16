@@ -592,6 +592,26 @@ EXTERNAL bool fiftyoneDegreesIpiGetNextUpdate(
 	fiftyoneDegreesDate *date);
 
 /**
+ * Gets the date an IP Intelligence data file was published from its header,
+ * reading the header alone rather than loading the file, so that an update
+ * can tell whether a new file is newer before loading it.
+ * @param fileName path to the data file
+ * @param date pointer to the date to set, to the published date in the
+ * header when the file is an IP Intelligence data file of the version this
+ * library reads and the date is valid (see #fiftyoneDegreesDateIsValid),
+ * otherwise to a year, month and day of zero
+ * @return #FIFTYONE_DEGREES_STATUS_SUCCESS when the date is set from the
+ * header, the status of opening the file when it cannot be opened,
+ * #FIFTYONE_DEGREES_STATUS_CORRUPT_DATA when the file is shorter than the
+ * header or the date is not valid, and
+ * #FIFTYONE_DEGREES_STATUS_INCORRECT_VERSION when the file is not of the
+ * version this library reads
+ */
+EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiGetPublishedFromFile(
+	const char *fileName,
+	fiftyoneDegreesDate *date);
+
+/**
  * Gets the total size in bytes which will be allocated when intialising a
  * IP Intelligence resource and associated manager with the same parameters. If any of
  * the configuration options prevent the memory from being constant (i.e. more

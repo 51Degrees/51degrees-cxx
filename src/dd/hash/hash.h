@@ -1208,6 +1208,26 @@ EXTERNAL bool fiftyoneDegreesHashGetNextUpdate(
 	fiftyoneDegreesResourceManager *manager,
 	fiftyoneDegreesDate *date);
 
+/**
+ * Gets the date a Hash data file was published from its header, reading the
+ * header alone rather than loading the file, so that an update can tell
+ * whether a new file is newer before loading it.
+ * @param fileName path to the data file
+ * @param date pointer to the date to set, to the published date in the
+ * header when the file is a Hash data file of the version this library reads
+ * and the date is valid (see #fiftyoneDegreesDateIsValid), otherwise to a
+ * year, month and day of zero
+ * @return #FIFTYONE_DEGREES_STATUS_SUCCESS when the date is set from the
+ * header, the status of opening the file when it cannot be opened,
+ * #FIFTYONE_DEGREES_STATUS_CORRUPT_DATA when the file is shorter than the
+ * header or the date is not valid, and
+ * #FIFTYONE_DEGREES_STATUS_INCORRECT_VERSION when the file is not of the
+ * version this library reads
+ */
+EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesHashGetPublishedFromFile(
+	const char *fileName,
+	fiftyoneDegreesDate *date);
+
 
 /**
  * Iterates over the profiles in the data set calling the callback method for

@@ -2386,14 +2386,18 @@ static StatusCode readHeaderFromMemory(
 		SUCCESS : CORRUPT_DATA;
 }
 
-static StatusCode checkVersion(DataSetHash *dataSet) {
-	if (!(dataSet->header.versionMajor ==
+static StatusCode checkHeaderVersion(const DataSetHashHeader *header) {
+	if (!(header->versionMajor ==
 		FIFTYONE_DEGREES_HASH_TARGET_VERSION_MAJOR &&
-		dataSet->header.versionMinor ==
+		header->versionMinor ==
 		FIFTYONE_DEGREES_HASH_TARGET_VERSION_MINOR)) {
 		return INCORRECT_VERSION;
 	}
 	return SUCCESS;
+}
+
+static StatusCode checkVersion(DataSetHash *dataSet) {
+	return checkHeaderVersion(&dataSet->header);
 }
 
 /**
@@ -5156,6 +5160,42 @@ bool fiftyoneDegreesHashGetNextUpdate(
 	fiftyoneDegreesResourceManager *manager,
 	fiftyoneDegreesDate *date) {
 	return getHeaderDate(manager, true, date);
+}
+
+fiftyoneDegreesStatusCode fiftyoneDegreesHashGetPublishedFromFile(
+	const char *fileName,
+	fiftyoneDegreesDate *date) {
+	FILE *file = NULL;
+	fiftyoneDegreesDate published;
+	DataSetHashHeader *header;
+	StatusCode status;
+	date->year = 0;
+	date->month = 0;
+	date->day = 0;
+
+	// The header's members are constant, so it is read into allocated memory
+	// rather than into a local that would have to be initialised.
+	header = (DataSetHashHeader*)Malloc(sizeof(DataSetHashHeader));
+	if (header == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	status = FileOpen(fileName, &file);
+	if (status == SUCCESS) {
+		status = fread((void*)header, sizeof(DataSetHashHeader), 1, file) == 1 ?
+			checkHeaderVersion(header) : CORRUPT_DATA;
+		fclose(file);
+	}
+	if (status == SUCCESS) {
+		published = header->published;
+		if (DateIsValid(&published)) {
+			*date = published;
+		}
+		else {
+			status = CORRUPT_DATA;
+		}
+	}
+	Free(header);
+	return status;
 }
 
 /**
