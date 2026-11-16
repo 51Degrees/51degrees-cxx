@@ -79,7 +79,8 @@ install(TARGETS ${targets} EXPORT 51DegreesTargets
 foreach (folder ${headers})
 	install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../src/${folder}/
 		DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/51degrees/${folder}
-		FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+		FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+		PATTERN "textfile.h" EXCLUDE)
 endforeach()
 
 install(EXPORT 51DegreesTargets
