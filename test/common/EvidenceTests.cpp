@@ -261,6 +261,34 @@ TEST_F(Evidence, EvidenceBase_PrefixIgnoresCase) {
         pairs->items[0].prefix);
     EXPECT_STREQ("User-Agent", pairs->items[0].item.key);
 }
+
+// Evidence keys are case-insensitive, so a key that differs from one already
+// held only in case is the same key. Setting it replaces the value held, and
+// the evidence the engines read has the key once.
+TEST_F(Evidence, EvidenceBase_KeysIgnoreCase) {
+    EvidenceBase given;
+    given["header.user-agent"] = "first";
+    given["Header.User-Agent"] = "second";
+    EXPECT_EQ(1u, given.size()) << "Header.User-Agent was held twice";
+    EXPECT_EQ("second", given["HEADER.USER-AGENT"]);
+    fiftyoneDegreesEvidenceKeyValuePairArray *pairs = given.get();
+    ASSERT_NE(nullptr, pairs);
+    ASSERT_EQ(1u, pairs->count) << "Header.User-Agent reached the engines twice";
+    EXPECT_STREQ("second", pairs->items[0].item.value);
+}
+
+// Keys added through the map itself, as the wrappers for other languages do,
+// still reach the engines once when they differ only in case.
+TEST_F(Evidence, EvidenceBase_KeysIgnoreCase_ThroughMap) {
+    EvidenceBase given;
+    std::map<std::string, std::string> &asMap = given;
+    asMap.insert({ "header.user-agent", "first" });
+    asMap.insert({ "Header.User-Agent", "second" });
+    asMap.insert({ "query.name", "value" });
+    fiftyoneDegreesEvidenceKeyValuePairArray *pairs = given.get();
+    ASSERT_NE(nullptr, pairs);
+    EXPECT_EQ(2u, pairs->count) << "Header.User-Agent reached the engines twice";
+}
                                                           
 TEST_F(Evidence, IterateForHeaders_Order) {
     const char *headers[] = {
