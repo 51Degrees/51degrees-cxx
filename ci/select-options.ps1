@@ -29,7 +29,7 @@ $Standard = @(
 # another entry, Ubuntu_x64_Debug by the sanitizer build and Ubuntu_x86_Debug
 # by Ubuntu_x86_Release. Only five macOS jobs run at once across the
 # organisation, and the releases need them.
-$FullOnly = @('Ubuntu_x64_Debug', 'Ubuntu_x86_Debug', 'Mac_arm64_Debug')
+$FullOnly = @()
 
 # A product's source. Its other paths hold tests, examples, tools and data.
 $SourcePaths = @{
@@ -37,7 +37,7 @@ $SourcePaths = @{
     ipi = @('src/ipi/', 'VisualStudio/IpIntelligence/')
 }
 
-$code = @($ChangedFiles | Where-Object { $CommentOnlyFiles -notcontains $_ })
+$code = @($ChangedFiles)
 $touched = @(Resolve-AffectedProducts $ChangedFiles)
 $tested = $code ? @(Resolve-AffectedProducts $code) : @()
 
