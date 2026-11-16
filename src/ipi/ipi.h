@@ -603,9 +603,11 @@ EXTERNAL bool fiftyoneDegreesIpiGetNextUpdate(
  * @return #FIFTYONE_DEGREES_STATUS_SUCCESS when the date is set from the
  * header, the status of opening the file when it cannot be opened,
  * #FIFTYONE_DEGREES_STATUS_CORRUPT_DATA when the file is shorter than the
- * header or the date is not valid, and
+ * header or the date is not valid,
  * #FIFTYONE_DEGREES_STATUS_INCORRECT_VERSION when the file is not of the
- * version this library reads
+ * version this library reads, and
+ * #FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY when the header cannot be
+ * allocated
  */
 EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesIpiGetPublishedFromFile(
 	const char *fileName,
