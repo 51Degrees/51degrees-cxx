@@ -29,6 +29,12 @@
 #include "../../Base/ExampleBase.h"
 
 /**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-performance.c"
+
+/**
  * @example IpIntelligence/Performance.c
  * The example illustrates a "clock-time" benchmark for assessing IP address
  * lookup speed.
@@ -733,7 +739,7 @@ void executeBenchmark(
 		stdout,
 		dataset,
 		properties.string);
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleCheckDataFile(dataset, FIFTYONE_DEGREES_EXAMPLE_FILE);
 	DataSetIpiRelease(dataset);
 
 	// Normally the benchmark is run twice, the first pass warming the caches.
@@ -1140,7 +1146,7 @@ int main(int argc, char* argv[]) {
 			strcmp(argv[i], HELP_OPTION_SHORT) == 0) {
 			// Print the help options
 			printHelp();
-			fiftyoneDegreesExampleFindOutMore(stdout);
+			fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 			return 0;
 		}
 		else if (argv[i][0] == '-') {
@@ -1229,7 +1235,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	// End with where to find out more.
-	fiftyoneDegreesExampleFindOutMore(stdout);
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	return exitCode;
 }

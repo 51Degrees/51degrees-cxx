@@ -222,10 +222,27 @@ void fiftyoneDegreesExampleOutputEnterpriseValue(
 	printf("   %s: %s\n", propertyName, buffer);
 }
 
+/**
+ * Writes a link with the example's own file as its utm_content in place of
+ * this file's, so that an enquiry can be traced to the example.
+ */
+static void writeLink(FILE *output, const char *link, const char *example) {
+	static const char content[] = "utm_content=";
+	const char *start = strstr(link, content);
+	const char *rest = start == NULL ? NULL : strchr(start, '&');
+	if (example == NULL || rest == NULL) {
+		fputs(link, output);
+		return;
+	}
+	start += sizeof(content) - 1;
+	fprintf(output, "%.*s%s%s", (int)(start - link), link, example, rest);
+}
+
 void fiftyoneDegreesExampleOfferEnterprise(
-	fiftyoneDegreesResourceManager *manager) {
+	fiftyoneDegreesResourceManager *manager,
+	const char *example) {
 	DataSetHash *dataset = DataSetHashGet(manager);
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleCheckDataFile(dataset, example);
 	DataSetHashRelease(dataset);
 }
 
@@ -260,18 +277,20 @@ void fiftyoneDegreesExampleReportEnterpriseProperties(
 
 void fiftyoneDegreesExampleOfferEnterpriseProperties(
 	fiftyoneDegreesResourceManager *manager,
-	const char *propertyNames) {
+	const char *propertyNames,
+	const char *example) {
 	DataSetHash *dataset = DataSetHashGet(manager);
 	fiftyoneDegreesExampleReportEnterpriseProperties(
 		stdout,
 		dataset,
 		propertyNames);
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleCheckDataFile(dataset, example);
 	DataSetHashRelease(dataset);
 }
 
 void fiftyoneDegreesExampleCheckDataFile(
-	fiftyoneDegreesDataSetHash *dataset) {
+	fiftyoneDegreesDataSetHash *dataset,
+	const char *example) {
 	Item item;
 	DataReset(&item.data);
 
@@ -331,29 +350,30 @@ void fiftyoneDegreesExampleCheckDataFile(
 			"or data/get-data-files.ps1 51Degrees-LiteV4.1.hash "
 			"-Update on Windows. "
 			"Contact us about the Enterprise data file, which "
-			"includes automatic daily updates, at "
-			"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=data-file-age-warning\n"), DATA_FILE_AGE_WARNING);
-		printf("\033[0m");
+			"includes automatic daily updates, at "), DATA_FILE_AGE_WARNING);
+		writeLink(stdout, "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=data-file-age-warning", example);
+		printf("\n\033[0m");
 	}
 
 	if (strncmp(dataTier, "Lite", strlen("Lite")) == 0) {
 		printf("This example is using the free Lite data file. The "
 			"Enterprise data file adds many more properties, such as "
 			"HardwareVendor, HardwareName and DeviceType. Contact us for "
-			"a copy at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=lite-data-file\n");
+			"a copy at ");
+		writeLink(stdout, "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=lite-data-file", example);
+		printf("\n");
 	}
 	if (!CollectionGetIsMemoryOnly()) {
 		COLLECTION_RELEASE(dataset->strings, &item);
 	}
 }
 
-void fiftyoneDegreesExampleFindOutMore(FILE *output) {
-	fprintf(output,
-		"\n"
-		"Find out more\n"
-		"-------------\n"
-		"Device Detection: https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=find-out-more\n"
-		"Documentation: https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=find-out-more\n"
-		"Contact us: https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=find-out-more\n"
-		"Source code: https://github.com/51Degrees/51degrees-cxx\n");
+void fiftyoneDegreesExampleFindOutMore(FILE *output, const char *example) {
+	fprintf(output, "\nFind out more\n-------------\nDevice Detection: ");
+	writeLink(output, "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=find-out-more", example);
+	fprintf(output, "\nDocumentation: ");
+	writeLink(output, "https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=find-out-more", example);
+	fprintf(output, "\nContact us: ");
+	writeLink(output, "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=find-out-more", example);
+	fprintf(output, "\nSource code: https://github.com/51Degrees/51degrees-cxx\n");
 }

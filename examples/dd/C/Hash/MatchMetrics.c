@@ -130,6 +130,12 @@ fiftyoneDegreesResourceManagerFree(&manager);
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-matchmetrics.c"
+
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
@@ -296,7 +302,8 @@ void fiftyoneDegreesHashMatchMetrics(
 	// Say what the Enterprise data file adds, on a free data file.
 	fiftyoneDegreesExampleOfferEnterpriseProperties(
 		&manager,
-		properties.string);
+		properties.string,
+		FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Ensure the results are freed to avoid memory leaks.
 	ResultsHashFree(results);
@@ -349,7 +356,7 @@ int main(int argc, char* argv[]) {
 		fiftyoneDegreesExampleCMatchMetricsRun);
 
 	// End with where to find out more.
-	fiftyoneDegreesExampleFindOutMore(stdout);
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

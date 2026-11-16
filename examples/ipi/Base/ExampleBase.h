@@ -106,9 +106,12 @@ EXTERNAL void fiftyoneDegreesExampleMemCheck(
  * Reports the data file in use, and warns when it is old. On a free data
  * file, says what the Enterprise data file adds and where to ask for a copy.
  * @param dataset pointer to the dataset structure
+ * @param example the example's own source file, which every link it
+ * prints carries as its utm_content
  */
 EXTERNAL void fiftyoneDegreesExampleCheckDataFile(
-    fiftyoneDegreesDataSetIpi *dataset);
+    fiftyoneDegreesDataSetIpi *dataset,
+    const char *example);
 
 /**
  * Reports the data file the resource manager holds, as
@@ -116,17 +119,24 @@ EXTERNAL void fiftyoneDegreesExampleCheckDataFile(
  * dataset of its own to give. On a free data file this says what the
  * Enterprise data file adds and links to the contact page.
  * @param manager resource manager that holds an IP Intelligence dataset
+ * @param example the example's own source file, which every link it
+ * prints carries as its utm_content
  */
 EXTERNAL void fiftyoneDegreesExampleOfferEnterprise(
-    fiftyoneDegreesResourceManager *manager);
+    fiftyoneDegreesResourceManager *manager,
+    const char *example);
 
 /**
  * Prints the "Find out more" section that every example ends with, which
  * links to the IP Intelligence pages and to this repository.
  * @param output stream to print to, which is standard error for an example
  * whose results go to standard output
+ * @param example the example's own source file, which every link it
+ * prints carries as its utm_content
  */
-EXTERNAL void fiftyoneDegreesExampleFindOutMore(FILE *output);
+EXTERNAL void fiftyoneDegreesExampleFindOutMore(
+    FILE *output,
+    const char *example);
 
 /**
  * Shown in place of a value for a property that the data file in use does
@@ -176,10 +186,13 @@ EXTERNAL void fiftyoneDegreesExampleReportEnterpriseProperties(
  * @param manager resource manager that holds an IP Intelligence dataset
  * @param propertyNames the properties the example asks for, separated by
  * commas
+ * @param example the example's own source file, which every link it
+ * prints carries as its utm_content
  */
 EXTERNAL void fiftyoneDegreesExampleOfferEnterpriseProperties(
     fiftyoneDegreesResourceManager *manager,
-    const char *propertyNames);
+    const char *propertyNames,
+    const char *example);
 
 /**
  * True when the data file has the property. The free data files leave out

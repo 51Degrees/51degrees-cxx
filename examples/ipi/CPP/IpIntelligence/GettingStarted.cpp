@@ -26,6 +26,12 @@
 #include "../../../../src/ipi/EngineIpi.hpp"
 #include "ExampleBase.hpp"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-cpp-ipintelligence-gettingstarted.cpp"
+
 using namespace std;
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
@@ -271,7 +277,7 @@ int main(int argc, char *argv[]) {
 #endif
 
 	// End with where to find out more.
-	ExampleBase::findOutMore();
+	ExampleBase::findOutMore(FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

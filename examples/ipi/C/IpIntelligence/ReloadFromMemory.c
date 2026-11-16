@@ -124,6 +124,12 @@ Failed to reload '0' times.
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-reloadfrommemory.c"
+
 #define THREAD_COUNT 4
 
 static const char *dataDir = "data/ip-intelligence";
@@ -408,7 +414,8 @@ void fiftyoneDegreesIpiReloadFromMemoryRun(
 		// Say what the Enterprise data file adds, on a free data file.
 		fiftyoneDegreesExampleOfferEnterpriseProperties(
 			&manager,
-			requiredProperties);
+			requiredProperties,
+			FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		// Free the memory used by the manager.
 		ResourceManagerFree(&manager);
@@ -490,7 +497,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 	// End with where to find out more.
-	fiftyoneDegreesExampleFindOutMore(stdout);
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);
