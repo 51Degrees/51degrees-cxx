@@ -349,6 +349,14 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromMemory(
 		return status;
 	}
 
+	// Memory has no file name, so the replacement keeps the name of the file
+	// the existing data set came from, and a reload from the original file
+	// still finds it.
+	memcpy(
+		(char*)replacement->masterFileName,
+		existing->masterFileName,
+		sizeof(replacement->masterFileName));
+
 	status = replace(manager, replacement);
 	DataSetRelease(existing);
 	return status;
