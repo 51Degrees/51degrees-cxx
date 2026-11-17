@@ -403,7 +403,7 @@ void fiftyoneDegreesResourceReplace(
 	} while (INTERLOCK_EXCHANGE_PTR(
 		manager->active,
 		*newResourceHandle,
-		oldHandle) == false);
+		oldHandle) != oldHandle);
 #else
 	oldHandle = ResourceHandleIncUse(manager);
 	((RetainedHandle*)*newResourceHandle)->replaced = oldHandle;
