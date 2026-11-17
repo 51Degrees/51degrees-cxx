@@ -23,6 +23,7 @@
 #include "pch.h"
 #include "../../src/common/resource.h"
 #include "Base.hpp"
+#include <thread>
 
 class ResourceManager : public Base
 {
@@ -474,17 +475,26 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_IncDec) {
 // Number of resources freed by freeCountedResource
 static volatile long countedFrees = 0;
 
+// Number of replacing threads that have started, so that none starts
+// replacing until all of them are ready
+static volatile long readyThreads = 0;
+
 static void freeCountedResource(void *pointer) {
 	FIFTYONE_DEGREES_INTERLOCK_INC(&countedFrees);
 	delete (CheckedResource*)pointer;
 }
 
 /*
- * Run by each thread to replace the resource many times.
+ * Run by each thread to replace the resource many times. Each thread waits
+ * until every thread has started, so that the replacements overlap.
  */
 static void runResourceReplace(void *pointer) {
 	fiftyoneDegreesResourceManager *manager =
 		(fiftyoneDegreesResourceManager*)pointer;
+	FIFTYONE_DEGREES_INTERLOCK_INC(&readyThreads);
+	while (readyThreads < THREAD_COUNT) {
+		std::this_thread::yield();
+	}
 	for (int i = 0; i < CONCURRENT_REPLACEMENTS; i++) {
 		CheckedResource *next = newCheckedResource();
 		fiftyoneDegreesResourceReplace(manager, next, &next->handle);
@@ -502,6 +512,7 @@ TEST_F(ResourceManager, MultiThreading_ResourceReplace_Concurrent) {
 		FIFTYONE_DEGREES_THREAD threads[THREAD_COUNT];
 		fiftyoneDegreesResourceManager replacedManager;
 		countedFrees = 0;
+		readyThreads = 0;
 		CheckedResource *first = newCheckedResource();
 		fiftyoneDegreesResourceManagerInit(
 			&replacedManager,
