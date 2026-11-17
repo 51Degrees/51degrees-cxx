@@ -467,3 +467,59 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_IncDec) {
 			"A thread was given a handle without a live resource.";
 	}
 }
+
+// Number of times each thread replaces the resource while the others do too
+#define CONCURRENT_REPLACEMENTS 5000
+
+// Number of resources freed by freeCountedResource
+static volatile long countedFrees = 0;
+
+static void freeCountedResource(void *pointer) {
+	FIFTYONE_DEGREES_INTERLOCK_INC(&countedFrees);
+	delete (CheckedResource*)pointer;
+}
+
+/*
+ * Run by each thread to replace the resource many times.
+ */
+static void runResourceReplace(void *pointer) {
+	fiftyoneDegreesResourceManager *manager =
+		(fiftyoneDegreesResourceManager*)pointer;
+	for (int i = 0; i < CONCURRENT_REPLACEMENTS; i++) {
+		CheckedResource *next = newCheckedResource();
+		fiftyoneDegreesResourceReplace(manager, next, &next->handle);
+	}
+}
+
+/*
+ * Check that when several threads replace the resource at the same time,
+ * every resource put in place is freed in the end. A replacement that loses
+ * the race to another must try again rather than leave its resource
+ * neither active nor freed.
+ */
+TEST_F(ResourceManager, MultiThreading_ResourceReplace_Concurrent) {
+	if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
+		FIFTYONE_DEGREES_THREAD threads[THREAD_COUNT];
+		fiftyoneDegreesResourceManager replacedManager;
+		countedFrees = 0;
+		CheckedResource *first = newCheckedResource();
+		fiftyoneDegreesResourceManagerInit(
+			&replacedManager,
+			first,
+			&first->handle,
+			freeCountedResource);
+
+		startThreads(
+			threads,
+			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceReplace,
+			&replacedManager);
+		joinThreads(threads);
+
+		fiftyoneDegreesResourceManagerFree(&replacedManager);
+		ASSERT_EQ(
+			(long)THREAD_COUNT * CONCURRENT_REPLACEMENTS + 1,
+			(long)countedFrees) <<
+			"A resource put in place while another thread replaced the " <<
+			"resource was never freed.";
+	}
+}
