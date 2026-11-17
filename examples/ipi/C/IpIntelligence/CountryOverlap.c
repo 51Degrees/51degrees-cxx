@@ -150,6 +150,12 @@ CountryOverlap <data file> --probe <ip> [ip...]
 #include "../../../../src/ipi/fiftyone.h"
 #include "../../../../src/ipi/ipi_weighted_results.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-countryoverlap.c"
+
 /** Properties the analysis needs. */
 #define PROPERTY_COUNTRY_CODE "CountryCode"
 #define PROPERTY_COUNTRY "Country"
@@ -2358,7 +2364,7 @@ int main(int argc, char* argv[]) {
 			return COUNTRY_OVERLAP_FAILED;
 		}
 		const int probed = runProbe(dataFilePath, argc, argv);
-		fiftyoneDegreesExampleFindOutMore(stdout);
+		fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 		return probed;
 	}
 
@@ -2379,7 +2385,7 @@ int main(int argc, char* argv[]) {
 		minSecondaryPercent);
 
 	// End with where to find out more.
-	fiftyoneDegreesExampleFindOutMore(stdout);
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// A data file without the properties is explained, not a failure.
 	return result == COUNTRY_OVERLAP_PROPERTIES_MISSING ?

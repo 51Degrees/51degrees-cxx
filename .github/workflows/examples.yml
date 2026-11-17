@@ -152,9 +152,27 @@ jobs:
             if (-not ($body -match $contactLink)) {
               $failed += "$name (no contact link for the Enterprise data file)"
             }
+            # Every link an example prints, tagged utm_medium=example, carries
+            # the example's own source file as utm_content, so that an enquiry
+            # can be traced to the example. The library's own messages tag
+            # their links utm_medium=comment and name the library's file.
+            # GettingStartedHashC is GettingStarted.c and GettingStartedCPP
+            # is GettingStarted.cpp.
+            $file = ($name -creplace 'HashCPP$', '.cpp' -creplace 'HashC$', '.c' `
+              -creplace 'CPP$', '.cpp' -creplace 'C$', '.c').ToLowerInvariant()
+            $exampleContent = 'utm_medium=example&utm_campaign=51degrees-cxx' +
+              '&utm_content=([a-z0-9._-]+)'
+            $contents = @($output | ForEach-Object {
+                [regex]::Matches("$_", $exampleContent) |
+                  ForEach-Object { $_.Groups[1].Value } } |
+              Sort-Object -Unique)
+            $others = @($contents | Where-Object { -not $_.EndsWith("-$file") })
+            if ($contents.Count -eq 0 -or $others) {
+              $failed += "$name (links carry utm_content $($contents -join ' and '), not $file)"
+            }
           }
           if ($failed) { throw "Examples that failed: $($failed -join ', ')" }
-          "All $($names.Count) examples exited with 0, said what needs the Enterprise data file with the contact link, and ended with Find out more"
+          "All $($names.Count) examples exited with 0, said what needs the Enterprise data file with the contact link, named their own file in every link and ended with Find out more"
 
       - name: Save the free data files
         if: runner.os == 'Linux' && success()

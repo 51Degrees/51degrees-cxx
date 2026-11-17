@@ -115,6 +115,12 @@ https://51degrees.com/support/documentation/how-device-detection-works?utm_sourc
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-matchfordeviceid.c"
+
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
@@ -298,7 +304,7 @@ void fiftyoneDegreesHashMatchForDeviceId(
 		"IsMobile"));
 
 	// Say what the Enterprise data file adds, on a free data file.
-	fiftyoneDegreesExampleOfferEnterprise(&manager);
+	fiftyoneDegreesExampleOfferEnterprise(&manager, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Ensure the results are freed to avoid memory leaks.
 	ResultsHashFree(resultsDeviceId);
@@ -352,7 +358,7 @@ int main(int argc, char* argv[]) {
 		fiftyoneDegreesExampleCMatchForDeviceIdRun);
 
 	// End with where to find out more.
-	fiftyoneDegreesExampleFindOutMore(stdout);
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

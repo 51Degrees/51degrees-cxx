@@ -104,6 +104,12 @@ https://51degrees.com/Support/Documentation/APIs/C-V32/Benchmarks?utm_source=cod
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-reloadfrommemory.c"
+
 #define THREAD_COUNT 4
 
 static const char *dataDir = "data/device-detection";
@@ -388,7 +394,8 @@ void fiftyoneDegreesHashReloadFromMemoryRun(
 		// Say what the Enterprise data file adds, on a free data file.
 		fiftyoneDegreesExampleOfferEnterpriseProperties(
 			&manager,
-			requiredProperties);
+			requiredProperties,
+			FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		// Free the memory used by the manager.
 		ResourceManagerFree(&manager);
@@ -460,7 +467,7 @@ int main(int argc, char* argv[]) {
 		fiftyoneDegreesExampleCReloadFromMemoryRun);
 
 	// End with where to find out more.
-	fiftyoneDegreesExampleFindOutMore(stdout);
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

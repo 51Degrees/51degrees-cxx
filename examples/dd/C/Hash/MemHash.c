@@ -33,6 +33,12 @@
 
 #include "../../../../src/common/textfile.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-memhash.c"
+
 // Number of marks to make when showing progress.
 #define PROGRESS_MARKS 40
 
@@ -375,7 +381,8 @@ void fiftyoneDegreesMemHashRun(
 		// Say what the Enterprise data file adds, on a free data file.
 		fiftyoneDegreesExampleOfferEnterpriseProperties(
 			&manager,
-			properties.string);
+			properties.string,
+			FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);
@@ -485,7 +492,7 @@ int main(int argc, char* argv[]) {
 		fiftyoneDegreesExampleCMemHashRun);
 
 	// End with where to find out more.
-	fiftyoneDegreesExampleFindOutMore(stdout);
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	//fgetc(stdin);

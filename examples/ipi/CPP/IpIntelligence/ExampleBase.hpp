@@ -140,8 +140,10 @@ namespace FiftyoneDegrees {
 				/**
 				 * Prints the "Find out more" section that every example
 				 * ends with.
+				 * @param example the example's own source file, which
+				 * every link it prints carries as its utm_content
 				 */
-				static void findOutMore();
+				static void findOutMore(const char *example);
 			
 			protected:
 				/**

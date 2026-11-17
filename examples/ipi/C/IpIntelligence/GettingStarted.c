@@ -150,6 +150,12 @@ Areas: "POLYGON EMPTY":1
 #include "../../../../src/ipi/fiftyone.h"
 #include "../../../../src/ipi/ipi_weighted_results.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-gettingstarted.c"
+
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
@@ -361,7 +367,7 @@ void fiftyoneDegreesIpiGettingStarted(
 	// Report the data file, and on a free one what the Enterprise data file
 	// adds and where to ask for a copy.
 	printf("\n");
-	fiftyoneDegreesExampleCheckDataFile((DataSetIpi*)results->b.dataSet);
+	fiftyoneDegreesExampleCheckDataFile((DataSetIpi*)results->b.dataSet, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Ensure the results are freed to avoid memory leaks.
 	ResultsIpiFree(results);
@@ -420,7 +426,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 	// End with where to find out more.
-	fiftyoneDegreesExampleFindOutMore(stdout);
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

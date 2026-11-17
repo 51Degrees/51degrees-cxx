@@ -229,10 +229,27 @@ bool fiftyoneDegreesExampleHasProperty(
 	return !EXCEPTION_FAILED;
 }
 
+/**
+ * Writes a link with the example's own file as its utm_content in place of
+ * this file's, so that an enquiry can be traced to the example.
+ */
+static void writeLink(FILE *output, const char *link, const char *example) {
+	static const char content[] = "utm_content=";
+	const char *start = strstr(link, content);
+	const char *rest = start == NULL ? NULL : strchr(start, '&');
+	if (example == NULL || rest == NULL) {
+		fputs(link, output);
+		return;
+	}
+	start += sizeof(content) - 1;
+	fprintf(output, "%.*s%s%s", (int)(start - link), link, example, rest);
+}
+
 void fiftyoneDegreesExampleOfferEnterprise(
-	fiftyoneDegreesResourceManager *manager) {
+	fiftyoneDegreesResourceManager *manager,
+	const char *example) {
 	DataSetIpi *dataset = DataSetIpiGet(manager);
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleCheckDataFile(dataset, example);
 	DataSetIpiRelease(dataset);
 }
 
@@ -286,18 +303,20 @@ void fiftyoneDegreesExampleReportEnterpriseProperties(
 
 void fiftyoneDegreesExampleOfferEnterpriseProperties(
 	fiftyoneDegreesResourceManager *manager,
-	const char *propertyNames) {
+	const char *propertyNames,
+	const char *example) {
 	DataSetIpi *dataset = DataSetIpiGet(manager);
 	fiftyoneDegreesExampleReportEnterpriseProperties(
 		stdout,
 		dataset,
 		propertyNames);
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleCheckDataFile(dataset, example);
 	DataSetIpiRelease(dataset);
 }
 
 void fiftyoneDegreesExampleCheckDataFile(
-	fiftyoneDegreesDataSetIpi *dataset) {
+	fiftyoneDegreesDataSetIpi *dataset,
+	const char *example) {
 	Item item;
 	DataReset(&item.data);
 
@@ -362,9 +381,9 @@ void fiftyoneDegreesExampleCheckDataFile(
 			"or data/get-data-files.ps1 51Degrees-LiteV41.ipi "
 			"-Update on Windows. "
 			"Contact us about the Enterprise data file, which "
-			"includes automatic daily updates, at "
-			"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=data-file-age-warning\n"), DATA_FILE_AGE_WARNING);
-		printf("\033[0m");
+			"includes automatic daily updates, at "), DATA_FILE_AGE_WARNING);
+		writeLink(stdout, "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=data-file-age-warning", example);
+		printf("\n\033[0m");
 	}
 
 	// Only the Enterprise data file has the range properties, so a check
@@ -373,22 +392,23 @@ void fiftyoneDegreesExampleCheckDataFile(
 	if (!fiftyoneDegreesExampleHasProperty(dataset, "IpRangeStart")) {
 		printf("This example is using a free data file. The Enterprise "
 			"data file adds the location, range and connection "
-			"properties. Contact us for a copy at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=free-data-file\n");
+			"properties. Contact us for a copy at ");
+		writeLink(stdout, "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=free-data-file", example);
+		printf("\n");
 	}
 	if (!CollectionGetIsMemoryOnly()) {
 		COLLECTION_RELEASE(dataset->strings, &item);
 	}
 }
 
-void fiftyoneDegreesExampleFindOutMore(FILE *output) {
-	fprintf(output,
-		"\n"
-		"Find out more\n"
-		"-------------\n"
-		"IP Intelligence: https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more\n"
-		"Documentation: https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more\n"
-		"Contact us: https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more\n"
-		"Source code: https://github.com/51Degrees/51degrees-cxx\n");
+void fiftyoneDegreesExampleFindOutMore(FILE *output, const char *example) {
+	fprintf(output, "\nFind out more\n-------------\nIP Intelligence: ");
+	writeLink(output, "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more", example);
+	fprintf(output, "\nDocumentation: ");
+	writeLink(output, "https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more", example);
+	fprintf(output, "\nContact us: ");
+	writeLink(output, "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more", example);
+	fprintf(output, "\nSource code: https://github.com/51Degrees/51degrees-cxx\n");
 }
 
 uint32_t fiftyoneDegreesIterateFakeIPv4s(

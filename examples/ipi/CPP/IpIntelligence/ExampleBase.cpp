@@ -88,8 +88,8 @@ const char *ExampleBase::getDataFilePathFromEnvironment() {
 	return fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 }
 
-void ExampleBase::findOutMore() {
-	fiftyoneDegreesExampleFindOutMore(stdout);
+void ExampleBase::findOutMore(const char *example) {
+	fiftyoneDegreesExampleFindOutMore(stdout, example);
 }
 
 bool ExampleBase::hasProperty(const char *name) const {

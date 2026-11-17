@@ -102,6 +102,12 @@ There are '1' countries in the data set with code 'gb'.
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-findprofiles.c"
+
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
@@ -202,7 +208,8 @@ void fiftyoneDegreesIpiFindProfiles(
 	// Say what the Enterprise data file adds, on a free data file.
 	fiftyoneDegreesExampleOfferEnterpriseProperties(
 		&manager,
-		properties.string);
+		properties.string,
+		FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Free the manager and related data structures.
 	ResourceManagerFree(&manager);
@@ -259,7 +266,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 	// End with where to find out more.
-	fiftyoneDegreesExampleFindOutMore(stdout);
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

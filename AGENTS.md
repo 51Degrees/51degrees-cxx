@@ -157,7 +157,10 @@ code is 0.
 Every example ends with a `Find out more` section, which links to the
 product's pages on 51degrees.com and to this repository. `ProcHash.c` and
 `ProcIpi.c` write their results to standard output, so they print the section
-to standard error.
+to standard error. Every link an example prints carries the example's own
+source file as `utm_content`, which each example gives the base functions as
+`FIFTYONE_DEGREES_EXAMPLE_FILE`, and the examples workflow fails an example
+whose links name any other file.
 
 The C++ examples print the same kind of values in a different layout. The paid
 data files have many more properties, as the

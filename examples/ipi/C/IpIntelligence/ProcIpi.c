@@ -27,6 +27,12 @@
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-procipi.c"
+
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
@@ -213,7 +219,7 @@ int main(int argc, char* argv[]) {
 
 	// Standard output holds the results, so where to find out more goes
 	// to standard error.
-	fiftyoneDegreesExampleFindOutMore(stderr);
+	fiftyoneDegreesExampleFindOutMore(stderr, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		return exitCode;
 }

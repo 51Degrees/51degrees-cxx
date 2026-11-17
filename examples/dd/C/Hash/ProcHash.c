@@ -26,6 +26,12 @@
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-prochash.c"
+
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
@@ -209,7 +215,7 @@ int main(int argc, char* argv[]) {
 	
 	// Standard output holds the results, so where to find out more goes
 	// to standard error.
-	fiftyoneDegreesExampleFindOutMore(stderr);
+	fiftyoneDegreesExampleFindOutMore(stderr, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	return exitCode;
 }
