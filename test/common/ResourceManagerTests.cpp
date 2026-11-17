@@ -23,6 +23,7 @@
 #include "pch.h"
 #include "../../src/common/resource.h"
 #include "Base.hpp"
+#include <thread>
 
 class ResourceManager : public Base
 {
@@ -465,5 +466,71 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_IncDec) {
 		fiftyoneDegreesResourceManagerFree(&replacedManager);
 		ASSERT_EQ(0L, (long)state.faults) <<
 			"A thread was given a handle without a live resource.";
+	}
+}
+
+// Number of times each thread replaces the resource while the others do too
+#define CONCURRENT_REPLACEMENTS 5000
+
+// Number of resources freed by freeCountedResource
+static volatile long countedFrees = 0;
+
+// Number of replacing threads that have started, so that none starts
+// replacing until all of them are ready
+static volatile long readyThreads = 0;
+
+static void freeCountedResource(void *pointer) {
+	FIFTYONE_DEGREES_INTERLOCK_INC(&countedFrees);
+	delete (CheckedResource*)pointer;
+}
+
+/*
+ * Run by each thread to replace the resource many times. Each thread waits
+ * until every thread has started, so that the replacements overlap.
+ */
+static void runResourceReplace(void *pointer) {
+	fiftyoneDegreesResourceManager *manager =
+		(fiftyoneDegreesResourceManager*)pointer;
+	FIFTYONE_DEGREES_INTERLOCK_INC(&readyThreads);
+	while (readyThreads < THREAD_COUNT) {
+		std::this_thread::yield();
+	}
+	for (int i = 0; i < CONCURRENT_REPLACEMENTS; i++) {
+		CheckedResource *next = newCheckedResource();
+		fiftyoneDegreesResourceReplace(manager, next, &next->handle);
+	}
+}
+
+/*
+ * Check that when several threads replace the resource at the same time,
+ * every resource put in place is freed in the end. A replacement that loses
+ * the race to another must try again rather than leave its resource
+ * neither active nor freed.
+ */
+TEST_F(ResourceManager, MultiThreading_ResourceReplace_Concurrent) {
+	if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
+		FIFTYONE_DEGREES_THREAD threads[THREAD_COUNT];
+		fiftyoneDegreesResourceManager replacedManager;
+		countedFrees = 0;
+		readyThreads = 0;
+		CheckedResource *first = newCheckedResource();
+		fiftyoneDegreesResourceManagerInit(
+			&replacedManager,
+			first,
+			&first->handle,
+			freeCountedResource);
+
+		startThreads(
+			threads,
+			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceReplace,
+			&replacedManager);
+		joinThreads(threads);
+
+		fiftyoneDegreesResourceManagerFree(&replacedManager);
+		ASSERT_EQ(
+			(long)THREAD_COUNT * CONCURRENT_REPLACEMENTS + 1,
+			(long)countedFrees) <<
+			"A resource put in place while another thread replaced the " <<
+			"resource was never freed.";
 	}
 }
