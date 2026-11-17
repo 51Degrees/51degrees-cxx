@@ -183,9 +183,10 @@ namespace FiftyoneDegrees {
 			bool getAutomaticUpdatesEnabled() const;
 
 			/**
-			 * Get the path to the data file the current data set was
-			 * initialised from.
-			 * @return data file path
+			 * Get the path to the data file the engine was built from or
+			 * last refreshed from. A refresh from memory keeps the path.
+			 * @return data file path, empty for an engine that has only
+			 * ever been given data in memory
 			 */
 			virtual string getDataFilePath() const = 0;
 
