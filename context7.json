@@ -28,5 +28,17 @@
     "benchmark",
     "benchmarks",
     "benches"
+  ],
+  "excludeFiles": [
+    "CHANGELOG.md",
+    "changelog.md",
+    "CHANGELOG.mdx",
+    "changelog.mdx",
+    "LICENSE.md",
+    "license.md",
+    "CODE_OF_CONDUCT.md",
+    "code_of_conduct.md",
+    "NEWS.md",
+    "STORED_WEIGHTED_VALUE_DESIGN_PROPOSAL.md"
   ]
 }
