@@ -131,9 +131,9 @@ namespace FiftyoneDegrees {
 
 				/**
 				 * The data file path set in the _51DEGREES_IPI_PATH
-				 * environment variable, or in the deprecated name without the
-				 * leading underscore when that is unset or empty.
-				 * @return the path, or NULL when neither name is set
+				 * environment variable.
+				 * @return the path, or NULL when the variable is unset or
+				 * empty
 				 */
 				static const char *getDataFilePathFromEnvironment();
 
