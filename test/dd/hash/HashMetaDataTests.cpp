@@ -30,6 +30,7 @@
  * small, so both the written and the allocated text are checked.
  */
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -77,10 +78,12 @@ static const uint32_t hashMetaDataSampledProfileValues = 500;
 /**
  * The values the TAC data file holds out of the byte order of their names,
  * which the search of a property's values by name misses, as a CI run
- * against that file found. Each is skipped by its property and its exact
- * name in the TAC data file only, and every other value, and every value of
- * the other data files, is checked. The list comes out once a corrected TAC
- * data file is published.
+ * against that file found. A value is skipped only in the TAC data file, only
+ * when its property and its exact name are listed, and only when the test's
+ * own search of the property's values by name misses that value. So a listed
+ * name the search finds, and any value a profile does not find for another
+ * reason, is still checked. The list comes out once a corrected TAC data file
+ * is published.
  */
 static const char *hashMetaDataKnownMisorderedFile = "TAC-HashV41.hash";
 static const char *hashMetaDataKnownMisorderedProperty = "NativeName";
@@ -805,6 +808,30 @@ protected:
 	}
 
 	/**
+	 * Reads the value indexes the profile at the index holds, in the order
+	 * the data file holds them.
+	 */
+	static void readProfileValueIndexes(
+		fiftyoneDegreesDataSetHash *dataSet,
+		uint32_t profileIndex,
+		vector<uint32_t> &valueIndexes) {
+		EXCEPTION_CREATE;
+		fiftyoneDegreesCollectionItem item;
+		fiftyoneDegreesDataReset(&item.data);
+		const fiftyoneDegreesProfile *stored =
+			fiftyoneDegreesProfileGetByIndex(
+				dataSet->profileOffsets,
+				dataSet->profiles,
+				profileIndex,
+				&item,
+				exception);
+		EXCEPTION_THROW;
+		const uint32_t *first = (const uint32_t*)(stored + 1);
+		valueIndexes.assign(first, first + stored->valueCount);
+		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->profiles, &item);
+	}
+
+	/**
 	 * Marks each value that a search of its property's values by name does
 	 * not find at its own index. A search that relies on the byte order of
 	 * the names can only miss in a property whose values are not in that
@@ -868,7 +895,10 @@ protected:
 	 * profile's values. Every profile holding a value that a search by name
 	 * order misses is checked, as are profiles spread across the rest, so
 	 * the check is quick on any data file and covers the values a data file
-	 * holds out of order.
+	 * holds out of order. Each profile holding such a value is printed with
+	 * whether its value indexes are in ascending order, as the search among
+	 * them assumes, and a value not found says whether the search by name
+	 * order misses it.
 	 */
 	void checkProfileValuesByName(const string &path) {
 		const auto manager = openHashMetaData(path, nullptr);
@@ -888,54 +918,60 @@ protected:
 			skippedValues = 0;
 		const bool knownMisorderedFile = isKnownMisorderedFile(path);
 		for (uint32_t p = 0; p < profileCount; p++) {
+			if (missedCount == 0 && p % step != 0) {
+				continue;
+			}
+			vector<uint32_t> valueIndexes;
+			readProfileValueIndexes(dataSet, p, valueIndexes);
 			bool holds = false;
-			if (missedCount > 0) {
-				EXCEPTION_CREATE;
-				fiftyoneDegreesCollectionItem item;
-				fiftyoneDegreesDataReset(&item.data);
-				const fiftyoneDegreesProfile *stored =
-					fiftyoneDegreesProfileGetByIndex(
-						dataSet->profileOffsets,
-						dataSet->profiles,
-						p,
-						&item,
-						exception);
-				EXCEPTION_THROW;
-				const uint32_t *valueIndexes = (const uint32_t*)(stored + 1);
-				for (uint32_t v = 0;
-					v < stored->valueCount && holds == false;
-					v++) {
-					holds = valueIndexes[v] < missed.size() &&
-						missed[valueIndexes[v]];
-				}
-				FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->profiles, &item);
+			for (const uint32_t valueIndex : valueIndexes) {
+				holds = holds ||
+					(valueIndex < missed.size() && missed[valueIndex]);
 			}
 			if (holds == false && p % step != 0) {
 				continue;
 			}
 			checkedProfiles++;
 			holdingMissed += holds ? 1 : 0;
+			const bool ascending = std::is_sorted(
+				valueIndexes.begin(),
+				valueIndexes.end());
 			unique_ptr<Common::ProfileMetaData> profile(
 				profiles->getByIndex(p));
 			ASSERT_TRUE(profile != nullptr);
 			const uint32_t profileId = profile->getProfileId();
+			if (holds) {
+				printf("Profile %u holds a value a search by name order "
+					"misses, and its %u value indexes are %sin ascending "
+					"order\n",
+					profileId,
+					(uint32_t)valueIndexes.size(),
+					ascending ? "" : "not ");
+			}
 			unique_ptr<Values> values(
 				metaData.getValuesForProfile(profile.get()));
 			const uint32_t valueCount = values->getSize();
+			ASSERT_EQ((uint32_t)valueIndexes.size(), valueCount) << profileId;
 			for (uint32_t v = 0; v < valueCount; v++) {
 				unique_ptr<Common::ValueMetaData> value(values->getByIndex(v));
 				ASSERT_TRUE(value != nullptr) << profileId;
 				const string propertyName = value->getKey().getPropertyName();
+				const uint32_t valueIndex = valueIndexes[v];
+				const bool missedByName =
+					valueIndex < missed.size() && missed[valueIndex];
 				if (knownMisorderedFile &&
+					missedByName &&
 					isKnownMisorderedValue(propertyName, value->getName())) {
 					if (skippedValues == 0) {
 						printf("%s\n", hashMetaDataKnownMisorderedReason);
 					}
 					skippedValues++;
-					printf("Skipped profile %u %s value '%s'\n",
+					printf("Skipped profile %u %s value '%s' at index %u, "
+						"which a search by name order misses\n",
 						profileId,
 						propertyName.c_str(),
-						value->getName().c_str());
+						value->getName().c_str(),
+						valueIndex);
 					continue;
 				}
 				unique_ptr<Common::ValueMetaData> byKey(
@@ -943,7 +979,11 @@ protected:
 				checkedValues++;
 				EXPECT_TRUE(byKey != nullptr) << "Profile " << profileId <<
 					" does not find its " << propertyName << " value '" <<
-					value->getName() << "' by name";
+					value->getName() << "' at index " << valueIndex <<
+					" by name. A search of the property's values by name " <<
+					(missedByName ? "misses" : "finds") << " it, and the " <<
+					"profile's value indexes are " <<
+					(ascending ? "" : "not ") << "in ascending order.";
 				if (byKey == nullptr) {
 					continue;
 				}
@@ -983,9 +1023,10 @@ TEST_F(HashMetaDataTests, ComponentsAndProfilesOfEachDataFile) {
 /**
  * Each value a profile holds is found by its name among the profile's
  * values, including where the data file does not hold a property's values in
- * the byte order of their names. The values the TAC data file is known to
- * hold out of that order are skipped, and printed with their profiles, until
- * a corrected TAC data file is published, so any other value missed fails.
+ * the byte order of their names. A value the TAC data file is known to hold
+ * out of that order is skipped, and printed with its profile, only where the
+ * test's own search by name order misses it, until a corrected TAC data file
+ * is published. So any other value missed fails, whatever the cause.
  */
 TEST_F(HashMetaDataTests, ProfileValuesByNameOfEachDataFile) {
 	eachDataFile([this](const string &path) {
