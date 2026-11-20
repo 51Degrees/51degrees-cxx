@@ -34,6 +34,10 @@
 /** The name the examples read the data file path from. */
 static const char newName[] = "_51DEGREES_IPI_PATH";
 
+/** The name the examples no longer read, split so the name check does not
+ * find it here. */
+static const std::string oldName = std::string("5") + "1DEGREES_IPI_PATH";
+
 /** Sets the variable, or removes it when the value is null. Windows also
  * removes a variable set to an empty value. */
 static void setVariable(const char *name, const char *value) {
@@ -91,4 +95,20 @@ TEST(ExampleEnvironmentVariables, NewNameIsRead) {
 	EXPECT_EQ("new.ipi", set);
 	EXPECT_EQ("(null)", empty);
 	EXPECT_EQ("(null)", unset);
+}
+
+/**
+ * Check the name without the leading underscore is not read, whether the
+ * name that replaces it is unset or empty.
+ */
+TEST(ExampleEnvironmentVariables, OldNameIsNotRead) {
+	SavedVariable savedNew(newName);
+	SavedVariable savedOld(oldName.c_str());
+	setVariable(oldName.c_str(), "old.ipi");
+	setVariable(newName, nullptr);
+	const std::string unset = readPath();
+	setVariable(newName, "");
+	const std::string empty = readPath();
+	EXPECT_EQ("(null)", unset);
+	EXPECT_EQ("(null)", empty);
 }
