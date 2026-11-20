@@ -240,6 +240,27 @@ static uint32_t presetCacheCapacity(const fiftyoneDegreesCollection* cached) {
 		->cache->capacity;
 }
 
+// The capacity that fiftyoneDegreesCacheCreate in src/common/cache.c gives a
+// cache asked for the capacity and concurrency given, by the same rule. It
+// makes one shard for each operation that can run at once, or fewer when the
+// capacity is too small, and gives each shard the remainder of the capacity
+// over the shards on top of its share, so the total is more than asked for
+// whenever the shards do not divide the capacity.
+static uint32_t presetExpectedCacheCapacity(
+	uint32_t capacity,
+	uint16_t concurrency) {
+	if (concurrency == 0) {
+		concurrency = 1;
+	}
+	if (capacity < concurrency) {
+		capacity = concurrency;
+	}
+	const uint32_t shards = capacity / concurrency < concurrency ?
+		capacity / concurrency :
+		concurrency;
+	return (capacity % shards + capacity / shards) * shards;
+}
+
 // The state of a held collection, laid out as collectionHeld in
 // src/common/collection.c, which the tests read to report and check what is
 // held.
@@ -908,7 +929,9 @@ TEST_F(IpiPresetTests, HighPerformanceKeepsStringsNeededInFullHeld) {
 }
 
 TEST_F(IpiPresetTests, NamingNothingKeepsThePreset) {
-	// 64 operations at once, which does not divide the capacity of 20000.
+	// The cache's capacity depends on the concurrency, which the preset leaves
+	// to the number of processors. A fixed concurrency of 64, which does not
+	// divide the capacity of 20000, gives the same answer on any machine.
 	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
 	config.profiles.concurrency = 64;
 	PresetManager manager(
@@ -923,7 +946,9 @@ TEST_F(IpiPresetTests, NamingNothingKeepsThePreset) {
 		EXPECT_STREQ(presetHeldType, dataSet->values->typeName);
 		EXPECT_STREQ(presetCacheType, dataSet->profiles->typeName);
 		EXPECT_EQ(
-			fiftyoneDegreesIpiBalancedConfig.profiles.capacity,
+			presetExpectedCacheCapacity(
+				fiftyoneDegreesIpiBalancedConfig.profiles.capacity,
+				config.profiles.concurrency),
 			presetCacheCapacity(dataSet->profiles));
 		for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
 			EXPECT_STREQ(
