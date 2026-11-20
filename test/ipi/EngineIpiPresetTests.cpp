@@ -908,9 +908,12 @@ TEST_F(IpiPresetTests, HighPerformanceKeepsStringsNeededInFullHeld) {
 }
 
 TEST_F(IpiPresetTests, NamingNothingKeepsThePreset) {
+	// 64 operations at once, which does not divide the capacity of 20000.
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+	config.profiles.concurrency = 64;
 	PresetManager manager(
 		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
+		config,
 		nullptr);
 	{
 		PresetDataSet dataSet(&manager.manager);
