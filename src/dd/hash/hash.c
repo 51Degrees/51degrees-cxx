@@ -1138,7 +1138,22 @@ static bool processFromRoot(
 		state->complete = false;
 	}
 
+	// A route through a valid graph visits each node at most once, so it is
+	// never longer than the number of nodes in the graph. A route that is
+	// longer has met a cycle, which only a corrupt node can make. A streaming
+	// profile reads nodes on demand, and where its file handles are shared,
+	// as they are with processes forked after the data set was created, a
+	// node can be read from the wrong place. Report corrupt data rather than
+	// follow the cycle forever.
+	const uint32_t maxSteps = dataSet->header.nodes.count;
+	uint32_t steps = 0;
 	do {
+		if (steps++ >= maxSteps) {
+			COLLECTION_RELEASE(dataSet->nodes, &state->node);
+			state->node.data.ptr = NULL;
+			EXCEPTION_SET(CORRUPT_DATA);
+			return false;
+		}
 		if (NODE(state)->hashesCount == 1) {
 			// If there is only 1 hash then it's a binary node.
 			evaluateBinaryNode(state);
@@ -1188,10 +1203,15 @@ static bool processRoot(
 	detectionState* state,
 	DataSetHash* dataSet,
 	uint32_t rootNodeOffset) {
+	Exception *exception = state->exception;
 	
 	// Initial result without drift or difference being applied.
 	bool matched = processFromRoot(dataSet, rootNodeOffset, state);
 	if (matched) return true;
+
+	// A walk that failed, for example on a corrupt node, fails again from
+	// the same root, so do not repeat it with drift or difference.
+	if (EXCEPTION_FAILED) return false;
 
 	// Record the depth in case more attempts are needed.
 	int depth = state->currentDepth;
@@ -1200,7 +1220,7 @@ static bool processRoot(
 	if (dataSet->config.difference > 0) {
 		state->allowedDifference = dataSet->config.difference;
 		state->breakDepth = depth;
-		while (matched == false && state->breakDepth > 0) {
+		while (matched == false && state->breakDepth > 0 && EXCEPTION_OKAY) {
 			matched = processFromRoot(dataSet, rootNodeOffset, state);
 			state->breakDepth--;
 		}
@@ -1212,7 +1232,7 @@ static bool processRoot(
 	if (dataSet->config.drift > 0) {
 		state->allowedDrift = dataSet->config.drift;
 		state->breakDepth = depth;
-		while (matched == false && state->breakDepth > 0) {
+		while (matched == false && state->breakDepth > 0 && EXCEPTION_OKAY) {
 
 			matched = processFromRoot(dataSet, rootNodeOffset, state);
 			state->breakDepth--;
@@ -1227,7 +1247,7 @@ static bool processRoot(
 		state->allowedDifference = dataSet->config.difference;
 		state->allowedDrift = dataSet->config.drift;
 		state->breakDepth = depth;
-		while (matched == false && state->breakDepth > 0) {
+		while (matched == false && state->breakDepth > 0 && EXCEPTION_OKAY) {
 			matched = processFromRoot(dataSet, rootNodeOffset, state);
 			state->breakDepth--;
 		}
@@ -1243,6 +1263,7 @@ static bool processRoots(
 	uint32_t componentIndex,
 	Component *component,
 	HashRootNodes *rootNodes) {
+	Exception *exception = state->exception;
 	bool matched = false;
 
 	// First try searching in the performance graph if it is enabled.
@@ -1271,7 +1292,9 @@ static bool processRoots(
 
 	// Now try searching in the predictive graph if it is enabled and there was
 	// no match found in the performance graph.
-	if (matched == false && dataSet->config.usePredictiveGraph == true) {
+	if (matched == false &&
+		EXCEPTION_OKAY &&
+		dataSet->config.usePredictiveGraph == true) {
 #ifdef DEBUG
 		if (dataSet->config.traceRoute == true) {
 			// Add the start point to the trace if it is enabled (and we are in
