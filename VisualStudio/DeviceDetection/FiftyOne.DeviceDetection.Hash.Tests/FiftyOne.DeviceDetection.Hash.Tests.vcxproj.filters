@@ -52,6 +52,7 @@
     <ClCompile Include="..\..\..\test\dd\hash\EngineHashGraphFilterTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\GraphDataFileTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\GraphNodeTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashGraphCycleTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ResultsHashSerializerTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\SimpleEngineTestBase.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\SimpleEngineTests.cpp" />
