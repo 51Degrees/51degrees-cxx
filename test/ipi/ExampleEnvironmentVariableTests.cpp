@@ -34,7 +34,8 @@
 /** The name the examples read the data file path from. */
 static const char newName[] = "_51DEGREES_IPI_PATH";
 
-/** The deprecated name, split so the name check does not find it here. */
+/** The name the examples no longer read, split so the name check does not
+ * find it here. */
 static const std::string oldName = std::string("5") + "1DEGREES_IPI_PATH";
 
 /** Sets the variable, or removes it when the value is null. Windows also
@@ -79,59 +80,35 @@ static std::string readPath() {
 	return path == nullptr ? std::string("(null)") : std::string(path);
 }
 
-/** The number of times the text is found in the output. */
-static int count(const std::string &output, const std::string &text) {
-	int found = 0;
-	size_t at = output.find(text);
-	while (at != std::string::npos) {
-		found++;
-		at = output.find(text, at + text.size());
-	}
-	return found;
-}
-
 /**
  * Check the path is read from the name that starts with an underscore, and
- * that nothing is said about a deprecated name.
+ * that nothing is read when it is unset or empty.
  */
 TEST(ExampleEnvironmentVariables, NewNameIsRead) {
 	SavedVariable savedNew(newName);
-	SavedVariable savedOld(oldName.c_str());
-	setVariable(oldName.c_str(), nullptr);
-	testing::internal::CaptureStderr();
 	setVariable(newName, "new.ipi");
 	const std::string set = readPath();
+	setVariable(newName, "");
+	const std::string empty = readPath();
 	setVariable(newName, nullptr);
 	const std::string unset = readPath();
-	const std::string output = testing::internal::GetCapturedStderr();
 	EXPECT_EQ("new.ipi", set);
+	EXPECT_EQ("(null)", empty);
 	EXPECT_EQ("(null)", unset);
-	EXPECT_EQ(0, count(output, "deprecated")) << output;
 }
 
 /**
- * Check the deprecated name is still read when the new name is unset or
- * empty, that the new name wins when both are set, and that the deprecation
- * and the name that replaces it are printed once. This is the only test that
- * sets the deprecated name, so it is the first to read it in the process.
+ * Check the name without the leading underscore is not read, whether the
+ * name that replaces it is unset or empty.
  */
-TEST(ExampleEnvironmentVariables, DeprecatedNameIsReadWhenNewNameIsUnsetOrEmpty) {
+TEST(ExampleEnvironmentVariables, OldNameIsNotRead) {
 	SavedVariable savedNew(newName);
 	SavedVariable savedOld(oldName.c_str());
-	testing::internal::CaptureStderr();
-	setVariable(newName, nullptr);
 	setVariable(oldName.c_str(), "old.ipi");
+	setVariable(newName, nullptr);
 	const std::string unset = readPath();
 	setVariable(newName, "");
 	const std::string empty = readPath();
-	setVariable(newName, "new.ipi");
-	const std::string both = readPath();
-	const std::string output = testing::internal::GetCapturedStderr();
-	EXPECT_EQ("old.ipi", unset);
-	EXPECT_EQ("old.ipi", empty);
-	EXPECT_EQ("new.ipi", both);
-	EXPECT_EQ(1, count(output, "which is deprecated")) << output;
-	EXPECT_EQ(1, count(output, "from " + oldName + ",")) << output;
-	EXPECT_EQ(1, count(output, std::string(newName) + " replaces it")) <<
-		output;
+	EXPECT_EQ("(null)", unset);
+	EXPECT_EQ("(null)", empty);
 }
