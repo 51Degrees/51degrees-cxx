@@ -217,6 +217,12 @@ TEST_F(HashGraphCycleTests, CycleEndsWithCorruptData)
 		dataFilePath.c_str(),
 		exception);
 	EXCEPTION_THROW;
+	// Frees the manager however the test ends, so a failed assertion before
+	// the detection is not also reported as a leak.
+	struct ManagerGuard {
+		fiftyoneDegreesResourceManager *manager;
+		~ManagerGuard() { fiftyoneDegreesResourceManagerFree(manager); }
+	} managerGuard = { &manager };
 
 	fiftyoneDegreesDataSetHash * const dataSet =
 		fiftyoneDegreesDataSetHashGet(&manager);
@@ -302,5 +308,4 @@ TEST_F(HashGraphCycleTests, CycleEndsWithCorruptData)
 		"A walk which visits more nodes than the graph holds must report "
 		"corrupt data.";
 	fiftyoneDegreesResultsHashFree(results);
-	fiftyoneDegreesResourceManagerFree(&manager);
 }
