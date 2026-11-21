@@ -33,6 +33,12 @@
 
 #include "../../../../src/common/textfile.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-memhash.c"
+
 // Number of marks to make when showing progress.
 #define PROGRESS_MARKS 40
 
@@ -293,7 +299,7 @@ void run(
 	runMemoryTests(&state);
 
 	// Report the maximum memory usage.
-	printf("Maximum allocated memory %.2fMBs",
+	printf("Maximum allocated memory %.2fMBs\n",
 		(double)MemoryTrackingGetMax() / (double)(1024 * 1024));
 }
 
@@ -373,7 +379,10 @@ void fiftyoneDegreesMemHashRun(
 		run(&manager, userAgentFilePath);
 
 		// Say what the Enterprise data file adds, on a free data file.
-		fiftyoneDegreesExampleOfferEnterprise(&manager);
+		fiftyoneDegreesExampleOfferEnterpriseProperties(
+			&manager,
+			properties.string,
+			FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);
@@ -481,6 +490,9 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesExampleMemCheck(
 		&params,
 		fiftyoneDegreesExampleCMemHashRun);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	//fgetc(stdin);

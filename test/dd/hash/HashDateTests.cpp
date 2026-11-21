@@ -331,3 +331,117 @@ TEST_F(HashDateTests, Engine_InvalidDate_GivesZeros) {
 		expectDate(zero, nextUpdate, invalid.name);
 	}
 }
+
+/**
+ * Writes the first length bytes of the data file copy to a file of the given
+ * name, for the tests that read the published date from a file.
+ */
+static void writeFile(
+	const char *path,
+	const std::vector<unsigned char> &bytes,
+	size_t length) {
+	FILE *file = fopen(path, "wb");
+	ASSERT_NE(nullptr, file) << "Could not create '" << path << "'.";
+	const size_t written = fwrite(bytes.data(), 1, length, file);
+	fclose(file);
+	ASSERT_EQ(length, written) << "Could not write '" << path << "'.";
+}
+
+/** A file the tests below write and remove. */
+static const char fromFileName[] = "HashDateTests-FromFile.hash";
+
+/**
+ * Test that the published date read from a data file without loading it is
+ * the date in its header.
+ */
+TEST_F(HashDateTests, FromFile_GivesThePublishedDate) {
+	fiftyoneDegreesDate date = makeDate(1, 1, 1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesHashGetPublishedFromFile(dataFilePath.c_str(), &date));
+	expectDate(getDate(publishedPosition), date, "published, from the file");
+}
+
+/**
+ * Test that only the header is read, as a file holding nothing but the
+ * header of the data file gives the same date.
+ */
+TEST_F(HashDateTests, FromFile_ReadsOnlyTheHeader) {
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetHashHeader)));
+	fiftyoneDegreesDate date = makeDate(1, 1, 1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesHashGetPublishedFromFile(fromFileName, &date));
+	expectDate(getDate(publishedPosition), date, "published, from the header");
+	remove(fromFileName);
+}
+
+/**
+ * Test that a file that does not exist gives its status and a zero date.
+ */
+TEST_F(HashDateTests, FromFile_MissingFile) {
+	fiftyoneDegreesDate date = makeDate(1, 1, 1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_FILE_NOT_FOUND,
+		fiftyoneDegreesHashGetPublishedFromFile(
+			"HashDateTests-NoSuchFile.hash",
+			&date));
+	expectDate(makeDate(0, 0, 0), date, "a file that does not exist");
+}
+
+/**
+ * Test that a file shorter than the header is corrupt and gives a zero date.
+ */
+TEST_F(HashDateTests, FromFile_ShorterThanTheHeader) {
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetHashHeader) - 1));
+	fiftyoneDegreesDate date = makeDate(1, 1, 1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+		fiftyoneDegreesHashGetPublishedFromFile(fromFileName, &date));
+	expectDate(makeDate(0, 0, 0), date, "a file shorter than the header");
+	remove(fromFileName);
+}
+
+/**
+ * Test that a file of another version is not read as a Hash data file.
+ */
+TEST_F(HashDateTests, FromFile_OtherVersion) {
+	const int32_t major = 3;
+	memcpy(
+		data.data() + offsetof(fiftyoneDegreesDataSetHashHeader, versionMajor),
+		&major,
+		sizeof(major));
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetHashHeader)));
+	fiftyoneDegreesDate date = makeDate(1, 1, 1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_INCORRECT_VERSION,
+		fiftyoneDegreesHashGetPublishedFromFile(fromFileName, &date));
+	expectDate(makeDate(0, 0, 0), date, "a file of version 3");
+	remove(fromFileName);
+}
+
+/**
+ * Test that a header whose published date is not valid is corrupt and gives
+ * a zero date, so a caller never compares an invalid date.
+ */
+TEST_F(HashDateTests, FromFile_InvalidDate) {
+	for (const InvalidDate &invalid : invalidDates) {
+		setDate(
+			publishedPosition,
+			makeDate(invalid.year, invalid.month, invalid.day));
+		ASSERT_NO_FATAL_FAILURE(writeFile(
+			fromFileName,
+			data,
+			sizeof(fiftyoneDegreesDataSetHashHeader)));
+		fiftyoneDegreesDate date = makeDate(1, 1, 1);
+		EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+			fiftyoneDegreesHashGetPublishedFromFile(fromFileName, &date)) <<
+			invalid.name;
+		expectDate(makeDate(0, 0, 0), date, invalid.name);
+		remove(fromFileName);
+	}
+}

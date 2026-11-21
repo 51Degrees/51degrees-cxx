@@ -767,10 +767,10 @@ static StatusCode readHeaderFromMemory(
 		SUCCESS : CORRUPT_DATA;
 }
 
-static StatusCode checkVersion(DataSetIpi* dataSet) {
-	if (!(dataSet->header.versionMajor ==
+static StatusCode checkHeaderVersion(const DataSetIpiHeader* header) {
+	if (!(header->versionMajor ==
 		FIFTYONE_DEGREES_IPI_TARGET_VERSION_MAJOR &&
-		dataSet->header.versionMinor ==
+		header->versionMinor ==
 		FIFTYONE_DEGREES_IPI_TARGET_VERSION_MINOR)) {
 		return INCORRECT_VERSION;
 	}
@@ -780,8 +780,8 @@ static StatusCode checkVersion(DataSetIpi* dataSet) {
 	// outside the range is one this API cannot use, so it is reported as an
 	// unsupported version. The message for corrupt data would send the reader
 	// to check the file is uncompressed, which it is.
-	if (dataSet->header.profilesOffsetShift < 0 ||
-		dataSet->header.profilesOffsetShift >
+	if (header->profilesOffsetShift < 0 ||
+		header->profilesOffsetShift >
 		FIFTYONE_DEGREES_IPI_MAX_PROFILES_OFFSET_SHIFT) {
 		return INCORRECT_VERSION;
 	}
@@ -792,11 +792,15 @@ static StatusCode checkVersion(DataSetIpi* dataSet) {
 	// collection positions in the header are read as 4 bytes where every IP
 	// Intelligence data file has 8. The builds in this repository always
 	// define it for IP Intelligence.
-	if (dataSet->header.profilesOffsetShift != 0) {
+	if (header->profilesOffsetShift != 0) {
 		return INCORRECT_VERSION;
 	}
 #endif
 	return SUCCESS;
+}
+
+static StatusCode checkVersion(DataSetIpi* dataSet) {
+	return checkHeaderVersion(&dataSet->header);
 }
 
 /**
@@ -2204,12 +2208,8 @@ size_t fiftyoneDegreesIpiSizeManagerFromFile(
 	ResourceManager manager;
 	StatusCode status;
 
-	// Set the memory allocation and free methods for tracking.
-	MemoryTrackingReset();
-	Malloc = MemoryTrackingMalloc;
-	MallocAligned = MemoryTrackingMallocAligned;
-	Free = MemoryTrackingFree;
-	FreeAligned = MemoryTrackingFreeAligned;
+	// Count the memory this thread allocates, and no other thread's.
+	MemoryTrackingStartMeasuring();
 
 	// Initialise the manager with the tracking methods in use to determine
 	// the amount of memory that is allocated. The init method has freed its
@@ -2236,11 +2236,7 @@ size_t fiftyoneDegreesIpiSizeManagerFromFile(
 	assert(MemoryTrackingGetAllocated() == 0);
 
 	// Return the malloc and free methods to standard operation.
-	Malloc = MemoryStandardMalloc;
-	MallocAligned = MemoryStandardMallocAligned;
-	Free = MemoryStandardFree;
-	FreeAligned = MemoryStandardFreeAligned;
-	MemoryTrackingReset();
+	MemoryTrackingStopMeasuring();
 
 	return allocated;
 }
@@ -2350,12 +2346,8 @@ size_t fiftyoneDegreesIpiSizeManagerFromMemory(
 	ResourceManager manager;
 	StatusCode status;
 
-	// Set the memory allocation and free methods for tracking.
-	MemoryTrackingReset();
-	Malloc = MemoryTrackingMalloc;
-	MallocAligned = MemoryTrackingMallocAligned;
-	Free = MemoryTrackingFree;
-	FreeAligned = MemoryTrackingFreeAligned;
+	// Count the memory this thread allocates, and no other thread's.
+	MemoryTrackingStartMeasuring();
 
 	// Ensure that the memory used is not freed with the data set. A null
 	// configuration means the balanced one, as it does in initDataSet.
@@ -2388,11 +2380,7 @@ size_t fiftyoneDegreesIpiSizeManagerFromMemory(
 	assert(MemoryTrackingGetAllocated() == 0);
 
 	// Return the malloc and free methods to standard operation.
-	Malloc = MemoryStandardMalloc;
-	MallocAligned = MemoryStandardMallocAligned;
-	Free = MemoryStandardFree;
-	FreeAligned = MemoryStandardFreeAligned;
-	MemoryTrackingReset();
+	MemoryTrackingStopMeasuring();
 
 	return allocated;
 }
@@ -2490,6 +2478,42 @@ bool fiftyoneDegreesIpiGetNextUpdate(
 	fiftyoneDegreesResourceManager *manager,
 	fiftyoneDegreesDate *date) {
 	return getHeaderDate(manager, true, date);
+}
+
+fiftyoneDegreesStatusCode fiftyoneDegreesIpiGetPublishedFromFile(
+	const char *fileName,
+	fiftyoneDegreesDate *date) {
+	FILE *file = NULL;
+	fiftyoneDegreesDate published;
+	DataSetIpiHeader *header;
+	StatusCode status;
+	date->year = 0;
+	date->month = 0;
+	date->day = 0;
+
+	// The header's members are constant, so it is read into allocated memory
+	// rather than into a local that would have to be initialised.
+	header = (DataSetIpiHeader*)Malloc(sizeof(DataSetIpiHeader));
+	if (header == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	status = FileOpen(fileName, &file);
+	if (status == SUCCESS) {
+		status = fread((void*)header, sizeof(DataSetIpiHeader), 1, file) == 1 ?
+			checkHeaderVersion(header) : CORRUPT_DATA;
+		fclose(file);
+	}
+	if (status == SUCCESS) {
+		published = header->published;
+		if (DateIsValid(&published)) {
+			*date = published;
+		}
+		else {
+			status = CORRUPT_DATA;
+		}
+	}
+	Free(header);
+	return status;
 }
 
 /**
@@ -4365,4 +4389,338 @@ char* fiftyoneDegreesIpiGetPropertyMapText(
 		exception);
 	COLLECTION_RELEASE(dataSet->properties, &item);
 	return result;
+}
+
+/**
+ * Gets the value at `valueIndex` into `item` and returns it, or returns NULL,
+ * releasing a value read with an exception set.
+ */
+static const Value* ipiMetaDataValue(
+	DataSetIpi * const dataSet,
+	const uint32_t valueIndex,
+	Item * const item,
+	Exception * const exception) {
+	DataReset(&item->data);
+	const Value * const value = ValueGet(
+		dataSet->values,
+		valueIndex,
+		item,
+		exception);
+	if (value != NULL && EXCEPTION_FAILED) {
+		COLLECTION_RELEASE(dataSet->values, item);
+		return NULL;
+	}
+	return value;
+}
+
+/**
+ * An empty string, which is the text the metadata gives as the description
+ * of every IP Intelligence value. The size of a string counts its
+ * terminating null.
+ */
+static const StoredBinaryValue ipiNoText = { { 1, '\0' } };
+
+/**
+ * Writes the empty text, in `buffer` when it has room and otherwise in
+ * memory the caller frees.
+ */
+static char* ipiEmptyText(
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	return StoredBinaryValueToText(
+		&ipiNoText,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		0,
+		buffer,
+		bufferLength,
+		exception);
+}
+
+bool fiftyoneDegreesIpiGetValue(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	uint32_t *propertyIndex,
+	void *state,
+	fiftyoneDegreesValueTextMethod method,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = ipiMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return false;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	if (propertyIndex != NULL) {
+		*propertyIndex = (uint32_t)value.propertyIndex;
+	}
+	if (method == NULL) {
+		return true;
+	}
+	for (int text = FIFTYONE_DEGREES_VALUE_TEXT_NAME;
+		text <= FIFTYONE_DEGREES_VALUE_TEXT_URL;
+		text++) {
+		// The metadata gives no description for an IP Intelligence value.
+		if (text == FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION) {
+			method(state, (ValueText)text, "");
+			continue;
+		}
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		char * const written = ValueGetMetaDataText(
+			dataSet->strings,
+			dataSet->propertyTypes,
+			&value,
+			(ValueText)text,
+			DefaultWktDecimalPlaces,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (written == NULL) {
+			return false;
+		}
+		method(state, (ValueText)text, written);
+		if (written != buffer) {
+			Free(written);
+		}
+	}
+	return true;
+}
+
+long fiftyoneDegreesIpiGetValueIndex(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t propertyIndex,
+	const char *valueName,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Property * const held = ipiMetaDataProperty(
+		dataSet,
+		propertyIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return -1;
+	}
+	// A copy, so only one item is held at a time during the search.
+	const Property property = *held;
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	const PropertyValueType storedValueType = PropertyGetStoredType(
+		dataSet->propertyTypes,
+		&property,
+		exception);
+	if (EXCEPTION_FAILED || (int32_t)property.firstValueIndex == -1) {
+		return -1;
+	}
+	const long index = ValueGetIndexByNameAndType(
+		dataSet->values,
+		dataSet->strings,
+		&property,
+		storedValueType,
+		valueName,
+		exception);
+	if (index < 0 || EXCEPTION_FAILED) {
+		return -1;
+	}
+	// The search answers as found when it reads nothing for a value, so the
+	// value is only found when it can be read.
+	const Value * const value = ipiMetaDataValue(
+		dataSet,
+		(uint32_t)index,
+		&item,
+		exception);
+	if (value == NULL) {
+		return -1;
+	}
+	COLLECTION_RELEASE(dataSet->values, &item);
+	return index;
+}
+
+char* fiftyoneDegreesIpiGetValueText(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	fiftyoneDegreesValueText text,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = ipiMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return NULL;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	// The metadata gives no description for an IP Intelligence value, and
+	// writes a number in a value's name to DefaultWktDecimalPlaces places.
+	if (text == FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION) {
+		return ipiEmptyText(buffer, bufferLength, exception);
+	}
+	return ValueGetMetaDataText(
+		dataSet->strings,
+		dataSet->propertyTypes,
+		&value,
+		text,
+		DefaultWktDecimalPlaces,
+		buffer,
+		bufferLength,
+		exception);
+}
+
+/**
+ * Gets the component at `componentIndex` in the data set's list of
+ * components, or NULL when the index is not less than the count.
+ */
+static const Component* ipiMetaDataComponent(
+	DataSetIpi * const dataSet,
+	const uint32_t componentIndex) {
+	return componentIndex < dataSet->componentsList.count
+		? (const Component*)dataSet->componentsList.items[
+			componentIndex].data.ptr
+		: NULL;
+}
+
+uint32_t fiftyoneDegreesIpiGetComponentCount(
+	fiftyoneDegreesDataSetIpi *dataSet) {
+	return dataSet->componentsList.count;
+}
+
+bool fiftyoneDegreesIpiGetComponent(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t componentIndex,
+	uint8_t *componentId,
+	uint32_t *defaultProfileOffset) {
+	const Component * const component = ipiMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		return false;
+	}
+	if (componentId != NULL) {
+		*componentId = component->componentId;
+	}
+	if (defaultProfileOffset != NULL) {
+		*defaultProfileOffset = (uint32_t)component->defaultProfileOffset;
+	}
+	return true;
+}
+
+char* fiftyoneDegreesIpiGetComponentName(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t componentIndex,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	const Component * const component = ipiMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+		return NULL;
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const name = StoredBinaryValueGet(
+		dataSet->strings,
+		(uint32_t)component->nameOffset,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		&item,
+		exception);
+	if (name == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: ipiEmptyText(buffer, bufferLength, exception);
+	}
+	char *text = NULL;
+	if (EXCEPTION_OKAY) {
+		// A string has no decimal places.
+		text = StoredBinaryValueToText(
+			name,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			0,
+			buffer,
+			bufferLength,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->strings, &item);
+	return text;
+}
+
+uint32_t fiftyoneDegreesIpiGetProfileCount(
+	fiftyoneDegreesDataSetIpi *dataSet) {
+	return CollectionGetCount(dataSet->profileOffsets);
+}
+
+bool fiftyoneDegreesIpiGetProfile(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t profileIndex,
+	uint32_t *profileOffset,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	// Each profile offset is the offset of the profile, as an IP Intelligence
+	// data file holds no profile ids.
+	const uint32_t offset = (uint32_t)CollectionGetInteger32(
+		dataSet->profileOffsets,
+		profileIndex,
+		exception);
+	if (EXCEPTION_FAILED) {
+		return false;
+	}
+	if (profileOffset != NULL) {
+		*profileOffset = offset;
+	}
+	return fiftyoneDegreesIpiGetProfileByOffset(
+		dataSet,
+		offset,
+		componentId,
+		exception);
+}
+
+bool fiftyoneDegreesIpiGetProfileByOffset(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t profileOffset,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	// A component with no default profile gives this offset for it.
+	if (profileOffset == UINT32_MAX) {
+		return false;
+	}
+	Item item;
+	DataReset(&item.data);
+	const CollectionKey profileKey = {
+		{profileOffset},
+		CollectionKeyType_Profile,
+	};
+	const Profile * const profile = (const Profile*)dataSet->profiles->get(
+		dataSet->profiles,
+		&profileKey,
+		&item,
+		exception);
+	if (profile == NULL) {
+		return false;
+	}
+	bool read = EXCEPTION_OKAY;
+	if (read && componentId != NULL) {
+		const Component * const component = ipiMetaDataComponent(
+			dataSet,
+			profile->componentIndex);
+		if (component == NULL) {
+			EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+			read = false;
+		}
+		else {
+			*componentId = component->componentId;
+		}
+	}
+	COLLECTION_RELEASE(dataSet->profiles, &item);
+	return read;
 }

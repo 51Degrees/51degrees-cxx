@@ -70,6 +70,7 @@ MAP_TYPE(WeightedValuesCollection)
 #define IpiGetEvidenceKeys fiftyoneDegreesIpiGetEvidenceKeys /**< Synonym for #fiftyoneDegreesIpiGetEvidenceKeys function. */
 #define IpiGetPublished fiftyoneDegreesIpiGetPublished /**< Synonym for #fiftyoneDegreesIpiGetPublished function. */
 #define IpiGetNextUpdate fiftyoneDegreesIpiGetNextUpdate /**< Synonym for #fiftyoneDegreesIpiGetNextUpdate function. */
+#define IpiGetPublishedFromFile fiftyoneDegreesIpiGetPublishedFromFile /**< Synonym for #fiftyoneDegreesIpiGetPublishedFromFile function. */
 #define IpiReloadManagerFromOriginalFile fiftyoneDegreesIpiReloadManagerFromOriginalFile /**< Synonym for #fiftyoneDegreesIpiReloadManagerFromOriginalFile function. */
 #define IpiReloadManagerFromFile fiftyoneDegreesIpiReloadManagerFromFile /**< Synonym for #fiftyoneDegreesIpiReloadManagerFromFile function. */
 #define IpiReloadManagerFromMemory fiftyoneDegreesIpiReloadManagerFromMemory /**< Synonym for #fiftyoneDegreesIpiReloadManagerFromMemory function. */
@@ -84,6 +85,15 @@ MAP_TYPE(WeightedValuesCollection)
 #define IpiGetPropertyValueIndexes fiftyoneDegreesIpiGetPropertyValueIndexes /**< Synonym for #fiftyoneDegreesIpiGetPropertyValueIndexes function. */
 #define IpiGetPropertyText fiftyoneDegreesIpiGetPropertyText /**< Synonym for #fiftyoneDegreesIpiGetPropertyText function. */
 #define IpiGetPropertyMapText fiftyoneDegreesIpiGetPropertyMapText /**< Synonym for #fiftyoneDegreesIpiGetPropertyMapText function. */
+#define IpiGetValue fiftyoneDegreesIpiGetValue /**< Synonym for #fiftyoneDegreesIpiGetValue function. */
+#define IpiGetValueIndex fiftyoneDegreesIpiGetValueIndex /**< Synonym for #fiftyoneDegreesIpiGetValueIndex function. */
+#define IpiGetValueText fiftyoneDegreesIpiGetValueText /**< Synonym for #fiftyoneDegreesIpiGetValueText function. */
+#define IpiGetComponentCount fiftyoneDegreesIpiGetComponentCount /**< Synonym for #fiftyoneDegreesIpiGetComponentCount function. */
+#define IpiGetComponent fiftyoneDegreesIpiGetComponent /**< Synonym for #fiftyoneDegreesIpiGetComponent function. */
+#define IpiGetComponentName fiftyoneDegreesIpiGetComponentName /**< Synonym for #fiftyoneDegreesIpiGetComponentName function. */
+#define IpiGetProfileCount fiftyoneDegreesIpiGetProfileCount /**< Synonym for #fiftyoneDegreesIpiGetProfileCount function. */
+#define IpiGetProfile fiftyoneDegreesIpiGetProfile /**< Synonym for #fiftyoneDegreesIpiGetProfile function. */
+#define IpiGetProfileByOffset fiftyoneDegreesIpiGetProfileByOffset /**< Synonym for #fiftyoneDegreesIpiGetProfileByOffset function. */
 #define ResultsIpiGetValuesCollection fiftyoneDegreesResultsIpiGetValuesCollection /**< Synonym for #fiftyoneDegreesResultsIpiGetValuesCollection function. */
 #define WeightedValuesCollectionRelease fiftyoneDegreesWeightedValuesCollectionRelease /**< Synonym for #fiftyoneDegreesWeightedValuesCollectionRelease function. */
 

@@ -675,7 +675,7 @@ static fiftyoneDegreesStatusCode getBasenameWithoutExtension(
 	size_t length) {
 	StatusCode status = NOT_SET;
 	const char* pos = getNameFromPath(path);
-	char* dot = strrchr(path, '.');
+	const char* dot = strrchr(path, '.');
 	size_t end = strlen(pos);
 	if (dot != NULL) {
 		end = dot - pos;
@@ -852,7 +852,8 @@ static fiftyoneDegreesStatusCode createTempFileWithPaths(
 	StatusCode status = NOT_SET;
 	const char* masterFileName = getNameFromPath(masterFile);
 
-	for (int i = 0; i < count; i++) {
+	// The paths are in order of preference, so stop at the first that works.
+	for (int i = 0; i < count && status != SUCCESS; i++) {
 		int charAdded = 0;
 		nameStart = strlen(paths[i]);
 		if (nameStart != 0 &&

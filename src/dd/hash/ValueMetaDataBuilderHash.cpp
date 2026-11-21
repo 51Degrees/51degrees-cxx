@@ -20,6 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+#include <utility>
 #include "ValueMetaDataBuilderHash.hpp"
 #include "../../common/Exceptions.hpp"
 #include "fiftyone.h"
@@ -28,32 +29,113 @@ using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
 ValueMetaData* ValueMetaDataBuilderHash::build(
 	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex) {
+	return buildValue(dataSet, valueIndex, nullptr, nullptr);
+}
+
+ValueMetaData* ValueMetaDataBuilderHash::build(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	const string &propertyName) {
+	return buildValue(dataSet, valueIndex, &propertyName, nullptr);
+}
+
+ValueMetaData* ValueMetaDataBuilderHash::build(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	const std::vector<std::string> &propertyNames) {
+	return buildValue(dataSet, valueIndex, nullptr, &propertyNames);
+}
+
+ValueMetaData* ValueMetaDataBuilderHash::buildValue(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	const string *propertyName,
+	const std::vector<std::string> *propertyNames) {
+	EXCEPTION_CREATE;
+	uint32_t propertyIndex = 0;
+	ValueTexts texts;
+	if (HashGetValue(
+		dataSet,
+		valueIndex,
+		&propertyIndex,
+		&texts,
+		addValueText,
+		exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
+	if (texts.failed) {
+		throw StatusCodeException(INSUFFICIENT_MEMORY);
+	}
+	string name;
+	if (propertyName != nullptr) {
+		name = *propertyName;
+	}
+	else if (propertyNames != nullptr &&
+		propertyIndex < propertyNames->size()) {
+		name = (*propertyNames)[propertyIndex];
+	}
+	else {
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		char * const text = HashGetPropertyText(
+			dataSet,
+			propertyIndex,
+			FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (text == nullptr) {
+			EXCEPTION_THROW;
+			return nullptr;
+		}
+		name = takeText(text, buffer, exception);
+	}
+	// Moved rather than copied, as a text can be long.
+	return new ValueMetaData(
+		ValueMetaDataKey(std::move(name), std::move(texts.name)),
+		std::move(texts.description),
+		std::move(texts.url));
+}
+
+ValueMetaData* ValueMetaDataBuilderHash::build(
+	fiftyoneDegreesDataSetHash *dataSet,
 	const fiftyoneDegreesValue *value) {
 	EXCEPTION_CREATE;
-	ValueMetaData *result = nullptr;
-	Item item;
-	Property *property;
-	DataReset(&item.data);
-	property = PropertyGet(
-		dataSet->properties,
-		value->propertyIndex, 
-		&item,
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char *text = HashGetPropertyText(
+		dataSet,
+		value->propertyIndex,
+		FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+		buffer,
+		sizeof(buffer),
 		exception);
-	EXCEPTION_THROW;
-	if (property != nullptr) {
-		result = new ValueMetaData(
-			ValueMetaDataKey(
-				getString(dataSet->strings, property->nameOffset),
-				getString(dataSet->strings, value->nameOffset)),
-			// A value with no description points at offset 0, which holds
-			// the first string in the file rather than a description.
-			value->descriptionOffset <= 0 ?
-			"" :
-			getString(dataSet->strings, value->descriptionOffset),
-			value->urlOffsetOrWeight <= 0 ?
-			"" :
-			getString(dataSet->strings, value->urlOffsetOrWeight));
-		COLLECTION_RELEASE(dataSet->properties, &item);
+	if (text == nullptr) {
+		EXCEPTION_THROW;
+		return nullptr;
 	}
-	return result;
+	string propertyName = takeText(text, buffer, exception);
+	string texts[3];
+	const fiftyoneDegreesValueText which[3] = {
+		FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+		FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION,
+		FIFTYONE_DEGREES_VALUE_TEXT_URL };
+	for (int i = 0; i < 3; i++) {
+		texts[i] = takeText(
+			ValueGetMetaDataText(
+				dataSet->strings,
+				nullptr,
+				value,
+				which[i],
+				0,
+				buffer,
+				sizeof(buffer),
+				exception),
+			buffer,
+			exception);
+	}
+	return new ValueMetaData(
+		ValueMetaDataKey(std::move(propertyName), std::move(texts[0])),
+		std::move(texts[1]),
+		std::move(texts[2]));
 }

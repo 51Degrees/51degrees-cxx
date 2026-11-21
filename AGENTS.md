@@ -154,6 +154,14 @@ file has RegisteredCountry, RegisteredName and RegisteredOwner, so the lines
 for the properties it does not have, such as `Longitude`, are empty. The exit
 code is 0.
 
+Every example ends with a `Find out more` section, which links to the
+product's pages on 51degrees.com and to this repository. `ProcHash.c` and
+`ProcIpi.c` write their results to standard output, so they print the section
+to standard error. Every link an example prints carries the example's own
+source file as `utm_content`, which each example gives the base functions as
+`FIFTYONE_DEGREES_EXAMPLE_FILE`, and the examples workflow fails an example
+whose links name any other file.
+
 The C++ examples print the same kind of values in a different layout. The paid
 data files have many more properties, as the
 [pricing page](https://51degrees.com/pricing?utm_source=github&utm_medium=docs&utm_campaign=51degrees-cxx&utm_content=agents.md&utm_term=correct-output)
@@ -183,10 +191,21 @@ describes.
 - **Memory.** `GettingStartedC` loads the whole IP Intelligence data file into
   memory (`IpiInMemoryConfig`), so it needs about 0.5 GB free.
 - **What CI does not test.** CI builds IP Intelligence on Windows and Linux,
-  not macOS (`ci/options.json`). It never runs the example programs, only the
-  tests that call each example's code. For IP Intelligence it links a paid data
-  file under the Lite file's name (`ci/fetch-assets.ps1`), so the Lite IP
-  Intelligence file itself is never used in CI.
+  not macOS (`ci/options.json`). The builds that run the tests call each
+  example's code and never run the example programs, and for IP Intelligence
+  they link a paid data file under the Lite file's name
+  (`ci/fetch-assets.ps1`). Only the examples workflow, described under
+  [CI](#ci), runs the example programs and uses the Lite IP Intelligence file.
+
+## Environment variable names
+
+[common-ci's list of environment variable names](https://github.com/51Degrees/common-ci/blob/18f9a570ed862a0b7e1ecb1c55a8319f35f02491/environment-variables.md)
+holds every environment variable name that the packages, tests, examples and
+CI scripts of every language read, with what each name holds and the
+deprecated names each replaced. The list decides. Use the names it gives, and
+when a change needs a new name, or reads an old name again, change
+[`environment-variables.json`](https://github.com/51Degrees/common-ci/blob/18f9a570ed862a0b7e1ecb1c55a8319f35f02491/environment-variables.json)
+in common-ci in the same piece of work.
 
 ## The two copies of common
 
@@ -263,14 +282,11 @@ directory for the folder `data/device-detection` or `data/ip-intelligence`.
 Those names are fixed. `data` is the data repository, a submodule at the root,
 which holds a `<file>.link` for each free data file rather than the file.
 `data/get-data-files.ps1` and `data/get-data-files.sh` download them, and an
-example whose file is missing runs the script for it. The
-`device-detection-data` and `ip-intelligence-data` submodules are kept only
-until the other language APIs read `data`, so nothing here uses them. The
-enterprise files used in CI are fetched by `ci/fetch-assets.ps1` and are never
-committed. CI takes every data file from common-ci's assets, which each run
-caches once, so no test job downloads one. A file added to the data
-repository needs an entry in common-ci's `steps/fetch-assets.ps1` before CI
-can use it.
+example whose file is missing runs the script for it. The enterprise files used
+in CI are fetched by `ci/fetch-assets.ps1` and are never committed. CI takes
+every data file from common-ci's assets, which each run caches once, so no test
+job downloads one. A file added to the data repository needs an entry in
+common-ci's `steps/fetch-assets.ps1` before CI can use it.
 
 ## CI
 
@@ -281,9 +297,38 @@ tests. On a pull request, `ci/products.ps1` skips a product the change does
 not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
 docs and tools counts as touching every product.
 
+`ci/select-options.ps1` chooses the entries a pull request runs. The standard
+set builds the products a change touches with GCC and MSVC, without the IP
+Intelligence tests unless an IP Intelligence file changed in more than its
+comments. A change to a product's source adds that product's other entries.
+The repeated Debug builds and macOS run only when `rc` itself or the release
+pull request is built, which `.github/workflows/release-pull-request.yml`
+does on every entry.
+
+Each build and test job gets 170 minutes, set by `build-test-timeout-minutes`
+in the workflows that build pull requests, because the sanitizer build takes
+up to 135 minutes and common-ci gives 120 unless told otherwise.
+
 An entry with `InstallCheck` also runs `ci/check-install.ps1` after its build.
 It builds an archive of the commit with the tests and examples off, offline on
 Linux, installs it, and builds and runs `test/install` against the install.
+It then builds every example against the install with `test/install/examples`,
+and runs the getting started examples.
+
+`.github/workflows/examples.yml` builds the examples from a fresh clone and
+runs each one from the root with no settings, on Ubuntu and Windows, so each
+finds or downloads the free data file it needs. The Ubuntu job downloads them,
+which tests the download, and saves them to a cache keyed on the data links.
+The other jobs restore them when the cache has an entry they can read, which a
+pull request has once one of its own runs or a run on the default branch has
+saved it, and download them otherwise. It fails an example that exits
+with an error or whose output does not end with the `Find out more` section.
+It is the only check of what a
+fresh clone does, as the other builds give the tests the Enterprise files. It
+runs on a pull request that changes the examples, the sources, the CMake files
+or the data pin. The Nightly Pipeline, the release pull request into `main`
+and a manual run also run it, and add macOS with the Device Detection examples
+only, as CI builds only Device Detection there.
 
 Pull requests target `rc`, not `main`, because every language takes
 each commit on `main` at its next nightly. The README's "Making changes" says
@@ -324,3 +369,11 @@ The history of `common-cxx`, `device-detection-cxx`, `ip-intelligence-cxx`
 and `ip-graph-cxx` was brought in with `git subtree add`, so commit SHAs match
 the original repositories. Use `git log --follow` to trace a file back through
 its move into this layout.
+
+## Tests that fail on timing
+
+A test that fails on a time limit, a performance threshold or a timeout is
+fixed, not run again until it passes. Either the limit is set to fit the
+slowest runner the test runs on, with each runner's measurement behind it, or
+the reason it takes too long is found and fixed. A failure that comes and goes
+costs everyone who meets it the time to look into it.

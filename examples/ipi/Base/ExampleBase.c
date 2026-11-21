@@ -177,6 +177,37 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 	return status;
 }
 
+// The name the data file path is read from. The same name without the
+// leading underscore is deprecated, because a POSIX shell cannot set a name
+// that starts with a digit, and is read only when this one is unset or
+// empty.
+#define EXAMPLE_IPI_PATH "_51DEGREES_IPI_PATH"
+#define EXAMPLE_IPI_PATH_DEPRECATED "51DEGREES_IPI_PATH"
+
+// True once the deprecated name has been reported, so that it is reported
+// once.
+static bool deprecatedPathReported = false;
+
+const char* fiftyoneDegreesExampleGetDataFilePathFromEnvironment(void) {
+	const char *path = getenv(EXAMPLE_IPI_PATH);
+	if (path != NULL && path[0] != '\0') {
+		return path;
+	}
+	path = getenv(EXAMPLE_IPI_PATH_DEPRECATED);
+	if (path != NULL && path[0] != '\0') {
+		if (deprecatedPathReported == false) {
+			deprecatedPathReported = true;
+			fprintf(stderr,
+				"The data file path was read from %s, which is deprecated. "
+				"%s replaces it, so set that to the same value.\n",
+				EXAMPLE_IPI_PATH_DEPRECATED,
+				EXAMPLE_IPI_PATH);
+		}
+		return path;
+	}
+	return NULL;
+}
+
 bool fiftyoneDegreesExampleHasProperty(
 	fiftyoneDegreesDataSetIpi *dataset,
 	const char *propertyName) {
@@ -198,15 +229,94 @@ bool fiftyoneDegreesExampleHasProperty(
 	return !EXCEPTION_FAILED;
 }
 
+/**
+ * Writes a link with the example's own file as its utm_content in place of
+ * this file's, so that an enquiry can be traced to the example.
+ */
+static void writeLink(FILE *output, const char *link, const char *example) {
+	static const char content[] = "utm_content=";
+	const char *start = strstr(link, content);
+	const char *rest = start == NULL ? NULL : strchr(start, '&');
+	if (example == NULL || rest == NULL) {
+		fputs(link, output);
+		return;
+	}
+	start += sizeof(content) - 1;
+	fprintf(output, "%.*s%s%s", (int)(start - link), link, example, rest);
+}
+
 void fiftyoneDegreesExampleOfferEnterprise(
-	fiftyoneDegreesResourceManager *manager) {
+	fiftyoneDegreesResourceManager *manager,
+	const char *example) {
 	DataSetIpi *dataset = DataSetIpiGet(manager);
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleCheckDataFile(dataset, example);
+	DataSetIpiRelease(dataset);
+}
+
+/**
+ * True when one of the free data files holds the property.
+ */
+static bool isFreeProperty(const char *name) {
+	size_t length = strlen(name);
+	const char *start = FIFTYONE_DEGREES_EXAMPLE_FREE_PROPERTIES;
+	while (start != NULL) {
+		const char *end = strchr(start, ',');
+		size_t itemLength = end == NULL ? strlen(start) : (size_t)(end - start);
+		if (itemLength == length &&
+			fiftyoneDegreesStringCompareLength(start, name, length) == 0) {
+			return true;
+		}
+		start = end == NULL ? NULL : end + 1;
+	}
+	return false;
+}
+
+void fiftyoneDegreesExampleReportEnterpriseProperties(
+	FILE *output,
+	fiftyoneDegreesDataSetIpi *dataset,
+	const char *propertyNames) {
+	char name[100];
+	const char *start = propertyNames == NULL || *propertyNames == '\0' ?
+		FIFTYONE_DEGREES_EXAMPLE_ENTERPRISE_PROPERTIES : propertyNames;
+	while (start != NULL) {
+		const char *end = strchr(start, ',');
+		size_t length = end == NULL ? strlen(start) : (size_t)(end - start);
+		while (length > 0 && *start == ' ') {
+			start++;
+			length--;
+		}
+		while (length > 0 && start[length - 1] == ' ') {
+			length--;
+		}
+		if (length > 0 && length < sizeof(name)) {
+			memcpy(name, start, length);
+			name[length] = '\0';
+			if (isFreeProperty(name) == false &&
+				fiftyoneDegreesExampleHasProperty(dataset, name) == false) {
+				fprintf(output, "%s %s.\n", name,
+					FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE);
+			}
+		}
+		start = end == NULL ? NULL : end + 1;
+	}
+}
+
+void fiftyoneDegreesExampleOfferEnterpriseProperties(
+	fiftyoneDegreesResourceManager *manager,
+	const char *propertyNames,
+	const char *example) {
+	DataSetIpi *dataset = DataSetIpiGet(manager);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stdout,
+		dataset,
+		propertyNames);
+	fiftyoneDegreesExampleCheckDataFile(dataset, example);
 	DataSetIpiRelease(dataset);
 }
 
 void fiftyoneDegreesExampleCheckDataFile(
-	fiftyoneDegreesDataSetIpi *dataset) {
+	fiftyoneDegreesDataSetIpi *dataset,
+	const char *example) {
 	Item item;
 	DataReset(&item.data);
 
@@ -271,9 +381,9 @@ void fiftyoneDegreesExampleCheckDataFile(
 			"or data/get-data-files.ps1 51Degrees-LiteV41.ipi "
 			"-Update on Windows. "
 			"Contact us about the Enterprise data file, which "
-			"includes automatic daily updates, at "
-			"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=data-file-age-warning\n"), DATA_FILE_AGE_WARNING);
-		printf("\033[0m");
+			"includes automatic daily updates, at "), DATA_FILE_AGE_WARNING);
+		writeLink(stdout, "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=data-file-age-warning", example);
+		printf("\n\033[0m");
 	}
 
 	// Only the Enterprise data file has the range properties, so a check
@@ -282,11 +392,23 @@ void fiftyoneDegreesExampleCheckDataFile(
 	if (!fiftyoneDegreesExampleHasProperty(dataset, "IpRangeStart")) {
 		printf("This example is using a free data file. The Enterprise "
 			"data file adds the location, range and connection "
-			"properties. Contact us for a copy at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=free-data-file\n");
+			"properties. Contact us for a copy at ");
+		writeLink(stdout, "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=free-data-file", example);
+		printf("\n");
 	}
 	if (!CollectionGetIsMemoryOnly()) {
 		COLLECTION_RELEASE(dataset->strings, &item);
 	}
+}
+
+void fiftyoneDegreesExampleFindOutMore(FILE *output, const char *example) {
+	fprintf(output, "\nFind out more\n-------------\nIP Intelligence: ");
+	writeLink(output, "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more", example);
+	fprintf(output, "\nDocumentation: ");
+	writeLink(output, "https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more", example);
+	fprintf(output, "\nContact us: ");
+	writeLink(output, "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-base-examplebase.c&utm_term=find-out-more", example);
+	fprintf(output, "\nSource code: https://github.com/51Degrees/51degrees-cxx\n");
 }
 
 uint32_t fiftyoneDegreesIterateFakeIPv4s(

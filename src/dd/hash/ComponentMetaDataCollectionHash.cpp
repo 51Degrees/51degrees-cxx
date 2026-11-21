@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include "ComponentMetaDataCollectionHash.hpp"
+#include "../../common/Exceptions.hpp"
 #include "fiftyone.h"
 
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
@@ -32,7 +33,6 @@ ComponentMetaDataCollectionHash::ComponentMetaDataCollectionHash(
 	if (dataSet == nullptr) {
 		throw runtime_error("Data set pointer can not be null");
 	}
-	components = &dataSet->componentsList;
 }
 
 ComponentMetaDataCollectionHash::~ComponentMetaDataCollectionHash() {
@@ -41,29 +41,27 @@ ComponentMetaDataCollectionHash::~ComponentMetaDataCollectionHash() {
 
 ComponentMetaData* ComponentMetaDataCollectionHash::getByIndex(
 	uint32_t index) const {
-	ComponentMetaData *component = nullptr;
-	if (index < components->count) {
-		component = ComponentMetaDataBuilderHash::build(
-			dataSet, 
-			(Component*)components->items[index].data.ptr);
-	}
-	return component;
+	return ComponentMetaDataBuilderHash::build(dataSet, index);
 }
 
 ComponentMetaData* ComponentMetaDataCollectionHash::getByKey(
 	byte componentId) const {
 	ComponentMetaData *result = nullptr;
-	Component *component;
-	uint32_t i;
-	for (i = 0; i < dataSet->componentsList.count; i++) {
-		component = (Component*)dataSet->componentsList.items[i].data.ptr;
-		if (component->componentId == componentId) {
-			result = ComponentMetaDataBuilderHash::build(dataSet, component);
+	const uint32_t count = HashGetComponentCount(dataSet);
+	for (uint32_t i = 0; i < count; i++) {
+		uint8_t id = 0;
+		EXCEPTION_CREATE;
+		HashGetComponent(dataSet, i, &id, nullptr, exception);
+		EXCEPTION_THROW;
+		// The last component with the id is the one given.
+		if (id == componentId) {
+			delete result;
+			result = ComponentMetaDataBuilderHash::build(dataSet, i);
 		}
 	}
 	return result;
 }
 
 uint32_t ComponentMetaDataCollectionHash::getSize() const {
-	return components->count;
+	return HashGetComponentCount(dataSet);
 }

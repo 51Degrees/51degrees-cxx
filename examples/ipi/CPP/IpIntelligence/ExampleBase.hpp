@@ -128,6 +128,22 @@ namespace FiftyoneDegrees {
 					const char *fileName,
 					char *destination,
 					size_t size);
+
+				/**
+				 * The data file path set in the _51DEGREES_IPI_PATH
+				 * environment variable, or in the deprecated name without the
+				 * leading underscore when that is unset or empty.
+				 * @return the path, or NULL when neither name is set
+				 */
+				static const char *getDataFilePathFromEnvironment();
+
+				/**
+				 * Prints the "Find out more" section that every example
+				 * ends with.
+				 * @param example the example's own source file, which
+				 * every link it prints carries as its utm_content
+				 */
+				static void findOutMore(const char *example);
 			
 			protected:
 				/**
@@ -139,6 +155,13 @@ namespace FiftyoneDegrees {
 				 * @return true when the data file has the property
 				 */
 				bool hasProperty(const char *name) const;
+
+				/**
+				 * Says of each property the engine was asked for that the data
+				 * file does not have that it needs the Enterprise data file, one
+				 * line each, leaving out the properties the free data files hold.
+				 */
+				void reportEnterpriseProperties() const;
 
 				/**
 				 * On a free data file, says what the Enterprise data file adds
@@ -236,6 +259,8 @@ namespace FiftyoneDegrees {
 				std::shared_ptr<ConfigIpi> config;
 				/** Properties to initialise the Engine with */
 				std::unique_ptr<RequiredPropertiesConfig> properties;
+				/** The same properties, separated by commas */
+				std::string propertyNames;
 				/** IP Intelligence Engine used for the example */
 				std::unique_ptr<EngineIpi> engine;
 			

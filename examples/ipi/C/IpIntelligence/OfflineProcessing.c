@@ -129,6 +129,12 @@ Expected content of output file:
 #include "../../../../src/common/textfile.h"
 #include "../../../../src/ipi/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-offlineprocessing.c"
+
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
@@ -400,7 +406,8 @@ int main(int argc, char* argv[]) {
 	char outputFilePath[FILE_MAX_PATH];
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char* envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}
@@ -472,6 +479,9 @@ int main(int argc, char* argv[]) {
 #else
 #endif
 #endif
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

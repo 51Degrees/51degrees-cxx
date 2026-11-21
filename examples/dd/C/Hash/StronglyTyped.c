@@ -116,6 +116,12 @@ values for the isMobile property instead of string values.
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-stronglytyped.c"
+
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
@@ -281,7 +287,7 @@ void fiftyoneDegreesHashStronglyTyped(
 	printBoolValues(results);
 
 	// Say what the Enterprise data file adds, on a free data file.
-	fiftyoneDegreesExampleOfferEnterprise(&manager);
+	fiftyoneDegreesExampleOfferEnterprise(&manager, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Ensure the results are freed to avoid memory leaks.
 	ResultsHashFree(results);
@@ -332,6 +338,9 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesExampleMemCheck(
 		&params,
 		fiftyoneDegreesExampleCStronglyTypedRun);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

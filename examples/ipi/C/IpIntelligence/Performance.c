@@ -29,6 +29,12 @@
 #include "../../Base/ExampleBase.h"
 
 /**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-performance.c"
+
+/**
  * @example IpIntelligence/Performance.c
  * The example illustrates a "clock-time" benchmark for assessing IP address
  * lookup speed.
@@ -729,7 +735,11 @@ void executeBenchmark(
 	DataSetIpi* dataset = DataSetIpiGet(&state->manager);
 	state->availableProperties = PropertiesGetRequiredPropertyCount(
 		dataset->b.b.available);
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stdout,
+		dataset,
+		properties.string);
+	fiftyoneDegreesExampleCheckDataFile(dataset, FIFTYONE_DEGREES_EXAMPLE_FILE);
 	DataSetIpiRelease(dataset);
 
 	// Normally the benchmark is run twice, the first pass warming the caches.
@@ -1059,7 +1069,8 @@ int main(int argc, char* argv[]) {
 	uint16_t numberOfThreads = DEFAULT_NUMBER_OF_THREADS;
 	int iterations = DEFAULT_ITERATIONS;
 	char *outFile = NULL;
-	const char *envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char *envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	dataFilePath[0] = '\0';
 	evidenceFilePath[0] = '\0';
 
@@ -1135,6 +1146,7 @@ int main(int argc, char* argv[]) {
 			strcmp(argv[i], HELP_OPTION_SHORT) == 0) {
 			// Print the help options
 			printHelp();
+			fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 			return 0;
 		}
 		else if (argv[i][0] == '-') {
@@ -1156,8 +1168,8 @@ int main(int argc, char* argv[]) {
 	if (strlen(dataFilePath) == 0 &&
 		envDataFilePath != NULL && envDataFilePath[0] != '\0') {
 		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			printf("The data file path in the _51DEGREES_IPI_PATH "
-				"environment variable is too long.\n");
+			printf("The data file path set in the environment is too "
+				"long.\n");
 #ifndef TEST
 			fgetc(stdin);
 #endif
@@ -1221,6 +1233,9 @@ int main(int argc, char* argv[]) {
 	if (outFile != NULL) {
 		fclose(params.resultsOutput);
 	}
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	return exitCode;
 }

@@ -10,6 +10,10 @@ holds, without the submodules, so the build shows it needs no data files. On
 Linux the build also runs with no network. Each program runs once with no data
 file, and again with the product's data file when the job has fetched it.
 
+Every example is then built against the install, from a copy of the examples
+folder with the installed headers beside it, and the getting started examples
+of each product are run when the job has fetched the product's data file.
+
 .PARAMETER Options
 The CMake options of the job's own build, which the install build repeats.
 #>
@@ -109,5 +113,34 @@ foreach ($product in $installed) {
             Write-Output "Running $product-$language with $($data[$product])"
             & $program $data[$product]
         }
+    }
+}
+
+# The examples include the headers by path from the src folder beside them.
+# A copy of the examples with the installed headers in that place therefore
+# builds them from the install alone, as a customer with the package would.
+$Staged = (New-Item -ItemType Directory -Force "$Work/examples-source").FullName
+Copy-Item -Recurse "$Source/examples" "$Staged/examples"
+Copy-Item -Recurse "$Prefix/include/51degrees" "$Staged/src"
+cmake -S "$Source/test/install/examples" -B "$Work/examples" @platform `
+    "-DCMAKE_BUILD_TYPE=$Configuration" "-DCMAKE_PREFIX_PATH=$Prefix" `
+    "-DEXAMPLES=$Staged/examples"
+cmake --build "$Work/examples" --config $Configuration `
+    --parallel ([Environment]::ProcessorCount)
+
+$bin = $IsWindows ? "$Work/examples/$Configuration" : "$Work/examples"
+$gettingStarted = @{
+    dd = 'GettingStartedHashC', 'GettingStartedHashCPP'
+    ipi = 'GettingStartedC', 'GettingStartedCPP'
+}
+foreach ($product in $installed) {
+    if (!(Test-Path $data[$product])) {
+        Write-Output "The $product examples are built and not run, as the job has no data file for them"
+        continue
+    }
+    foreach ($name in $gettingStarted[$product]) {
+        Write-Output "Running $name, built against the install, with $($data[$product])"
+        # The example waits for a key, which the empty line gives it.
+        '' | & "$bin/$name$exe" $data[$product] | Select-Object -Last 8
     }
 }

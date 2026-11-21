@@ -78,6 +78,12 @@ Average matching per second: ***
 #include "../../../../src/ipi/fiftyone.h"
 #include "../../../../src/common/textfile.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-perfipi.c"
+
  // Size of the character buffers
 #define BUFFER 1000
 
@@ -499,7 +505,7 @@ void fiftyoneDegreesPerfIpiRun(
 	// Configure to return the network name, which the free ASN data file has
 	// as AsnName, and the areas.
 	PropertiesRequired properties = PropertiesDefault;
-	properties.string = "RegisteredName,AsnName,areas";
+	properties.string = "RegisteredName,AsnName,Areas";
 
 	ResourceManager manager;
 	EXCEPTION_CREATE;
@@ -521,7 +527,10 @@ void fiftyoneDegreesPerfIpiRun(
 		run(&manager, ipAddressFilePath);
 
 		// Say what the Enterprise data file adds, on a free data file.
-		fiftyoneDegreesExampleOfferEnterprise(&manager);
+		fiftyoneDegreesExampleOfferEnterpriseProperties(
+			&manager,
+			properties.string,
+			FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);
@@ -568,7 +577,8 @@ int main(int argc, char* argv[]) {
 	char ipAddressFilePath[FILE_MAX_PATH];
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char* envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}
@@ -626,6 +636,9 @@ int main(int argc, char* argv[]) {
 #else
 #endif
 #endif
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

@@ -40,18 +40,77 @@ namespace FiftyoneDegrees {
 			class ValueMetaDataBuilderHash: EntityMetaDataBuilder {
 			public:
 				/**
-				 * Build a new instance of ValueMetaData from the underlying
-				 * value provided. The instance returned does not hold a
+				 * Build a new instance of ValueMetaData from the value at the
+				 * index provided. The instance returned does not hold a
 				 * reference to the data set or value, and contains a copy of
 				 * all meta data.
-				 * @param dataSet pointer to the data set containing the
-				 * component
+				 * @param dataSet pointer to the data set containing the value
+				 * @param valueIndex index of the value in the values
+				 * collection
+				 * @return the new instance, or nullptr when the data set gives
+				 * no value at the index or no property for the value
+				 */
+				static ValueMetaData* build(
+					fiftyoneDegreesDataSetHash *dataSet,
+					uint32_t valueIndex);
+
+				/**
+				 * Build a new instance of ValueMetaData from the value at the
+				 * index provided, which is a value of the property named, so
+				 * the property's name is not read again.
+				 * @param dataSet pointer to the data set containing the value
+				 * @param valueIndex index of the value in the values
+				 * collection
+				 * @param propertyName name of the value's property
+				 * @return the new instance, or nullptr when the data set gives
+				 * no value at the index
+				 */
+				static ValueMetaData* build(
+					fiftyoneDegreesDataSetHash *dataSet,
+					uint32_t valueIndex,
+					const std::string &propertyName);
+
+				/**
+				 * Build a new instance of ValueMetaData from the value at the
+				 * index provided, taking its property's name from the names
+				 * given rather than reading it again.
+				 * @param dataSet pointer to the data set containing the value
+				 * @param valueIndex index of the value in the values
+				 * collection
+				 * @param propertyNames the name of each property, by the
+				 * property's index
+				 * @return the new instance, or nullptr when the data set gives
+				 * no value at the index
+				 */
+				static ValueMetaData* build(
+					fiftyoneDegreesDataSetHash *dataSet,
+					uint32_t valueIndex,
+					const std::vector<std::string> &propertyNames);
+				/**
+				 * Build a new instance of ValueMetaData from the underlying
+				 * value provided.
+				 * @deprecated Use build(dataSet, valueIndex), which reads the
+				 * value once in C. Kept for one release, as a public name.
+				 * @param dataSet pointer to the data set containing the value
 				 * @param value pointer to the underlying value to create the
 				 * meta data from
+				 * @return the new instance, or nullptr when the data set gives
+				 * no property for the value
 				 */
 				static ValueMetaData* build(
 					fiftyoneDegreesDataSetHash *dataSet,
 					const fiftyoneDegreesValue *value);
+			private:
+				/**
+				 * Build a new instance of ValueMetaData from the value at the
+				 * index provided, reading the name of its property when
+				 * neither its name nor the names of every property are given.
+				 */
+				static ValueMetaData* buildValue(
+					fiftyoneDegreesDataSetHash *dataSet,
+					uint32_t valueIndex,
+					const std::string *propertyName,
+					const std::vector<std::string> *propertyNames);
 			};
 		}
 	}

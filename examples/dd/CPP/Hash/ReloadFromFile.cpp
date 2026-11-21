@@ -25,6 +25,12 @@
 #include "../../C/Hash/ExampleBase.h" 
 #include "ExampleBase.hpp"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-cpp-hash-reloadfromfile.cpp"
+
 using namespace FiftyoneDegrees::Examples::Hash;
 
 /**
@@ -148,6 +154,7 @@ namespace FiftyoneDegrees {
 
 					// On the free Lite data file, say what the Enterprise data
 					// file adds and where to ask for a copy.
+					reportEnterpriseProperties();
 					offerEnterprise(
 						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-hash-reloadfromfile.cpp&utm_term=lite-data-file");
 					printf("Program execution complete. Press Return to exit.");
@@ -232,6 +239,9 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesExampleMemCheck(
 		&params,
 		fiftyoneDegreesExampleCPPReloadFromFileRun);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

@@ -176,6 +176,8 @@ MAP_TYPE(PropertyAvailable)
 MAP_TYPE(PropertyNamed)
 MAP_TYPE(PropertyValueType)
 MAP_TYPE(PropertyText)
+MAP_TYPE(ValueText)
+MAP_TYPE(ValueTextMethod)
 MAP_TYPE(PropertiesAvailable)
 MAP_TYPE(EvidencePropertyIndex)
 MAP_TYPE(EvidenceProperties)
@@ -263,6 +265,8 @@ MAP_TYPE(WeightedItemList)
 #define MemoryTrackingGetAllocated fiftyoneDegreesMemoryTrackingGetAllocated /**< Synonym for #fiftyoneDegreesMemoryTrackingGetAllocated function. */
 #define SetUpMemoryTracking fiftyoneDegreesSetUpMemoryTracking /**< Synonym for #fiftyoneDegreesSetUpMemoryTracking function. */
 #define UnsetMemoryTracking fiftyoneDegreesUnsetMemoryTracking /**< Synonym for #fiftyoneDegreesUnsetMemoryTracking function. */
+#define MemoryTrackingStartMeasuring fiftyoneDegreesMemoryTrackingStartMeasuring /**< Synonym for #fiftyoneDegreesMemoryTrackingStartMeasuring function. */
+#define MemoryTrackingStopMeasuring fiftyoneDegreesMemoryTrackingStopMeasuring /**< Synonym for #fiftyoneDegreesMemoryTrackingStopMeasuring function. */
 #define Malloc fiftyoneDegreesMalloc /**< Synonym for #fiftyoneDegreesMalloc function. */
 #define MallocAligned fiftyoneDegreesMallocAligned /**< Synonym for #fiftyoneDegreesMallocAligned function. */
 #define Free fiftyoneDegreesFree /**< Synonym for #fiftyoneDegreesFree function. */
@@ -318,6 +322,7 @@ MAP_TYPE(WeightedItemList)
 #define StoredBinaryValueCompareWithString fiftyoneDegreesStoredBinaryValueCompareWithString /**< Synonym for #fiftyoneDegreesStoredBinaryValueCompareWithString function. */
 #define StoredBinaryValueToIntOrDefault fiftyoneDegreesStoredBinaryValueToIntOrDefault /**< Synonym for #fiftyoneDegreesStoredBinaryValueToIntOrDefault function. */
 #define StoredBinaryValueToDoubleOrDefault fiftyoneDegreesStoredBinaryValueToDoubleOrDefault /**< Synonym for #fiftyoneDegreesStoredBinaryValueToDoubleOrDefault function. */
+#define StoredBinaryValueToRoundedDoubleOrDefault fiftyoneDegreesStoredBinaryValueToRoundedDoubleOrDefault /**< Synonym for #fiftyoneDegreesStoredBinaryValueToRoundedDoubleOrDefault function. */
 #define StoredBinaryValueToBoolOrDefault fiftyoneDegreesStoredBinaryValueToBoolOrDefault /**< Synonym for #fiftyoneDegreesStoredBinaryValueToBoolOrDefault function. */
 #define StoredBinaryValueToText fiftyoneDegreesStoredBinaryValueToText /**< Synonym for #fiftyoneDegreesStoredBinaryValueToText function. */
 #define EvidenceFree fiftyoneDegreesEvidenceFree /**< Synonym for #fiftyoneDegreesEvidenceFree function. */
@@ -394,6 +399,7 @@ MAP_TYPE(WeightedItemList)
 #define ValueGetText fiftyoneDegreesValueGetText /**< Synonym for #fiftyoneDegreesValueGetText function. */
 #define ValueGetDefaultText fiftyoneDegreesValueGetDefaultText /**< Synonym for #fiftyoneDegreesValueGetDefaultText function. */
 #define ValueGetDefaultIndex fiftyoneDegreesValueGetDefaultIndex /**< Synonym for #fiftyoneDegreesValueGetDefaultIndex function. */
+#define ValueGetMetaDataText fiftyoneDegreesValueGetMetaDataText /**< Synonym for #fiftyoneDegreesValueGetMetaDataText function. */
 #define CollectionBinarySearch fiftyoneDegreesCollectionBinarySearch /**< Synonym for #fiftyoneDegreesCollectionBinarySearch function. */
 #define PropertyGetName fiftyoneDegreesPropertyGetName /**< Synonym for #fiftyoneDegreesPropertyGetName function. */
 #define PropertyGetStoredType fiftyoneDegreesPropertyGetStoredType /**< Synonym for #fiftyoneDegreesPropertyGetStoredType function. */

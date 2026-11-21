@@ -76,12 +76,6 @@ namespace FiftyoneDegrees {
 		private:
 			/** Pointer to the data set managed by the resource manager */
 			fiftyoneDegreesDataSetIpi *dataSet;
-
-			/** Pointer to the profiles collection in the data set */
-			fiftyoneDegreesCollection *profiles;
-
-			/** Pointer to the profile offsets collection in the data set */
-			fiftyoneDegreesCollection *profileOffsets;
 		};
 	}
 }

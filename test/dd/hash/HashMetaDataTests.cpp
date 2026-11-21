@@ -22,8 +22,8 @@
 
 /**
  * @file HashMetaDataTests.cpp
- * @brief Checks the metadata the Hash C functions give for every property of
- * each data file found against the data
+ * @brief Checks the metadata the Hash C functions give for every property,
+ * value, component and profile of each data file found against the data
  * set's own records, and that the C++ metadata gives the same answers.
  *
  * Each text is read twice, into a buffer that holds it and into one too
@@ -36,6 +36,8 @@
 #include "../Constants.hpp"
 #include "../../common/Base.hpp"
 #include "../../../src/dd/hash/EngineHash.hpp"
+#include "../../../src/dd/hash/ComponentMetaDataBuilderHash.hpp"
+#include "../../../src/dd/hash/ProfileMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/fiftyone.h"
 
 using std::string;
@@ -45,12 +47,25 @@ namespace Hash = FiftyoneDegrees::DeviceDetection::Hash;
 namespace Common = FiftyoneDegrees::Common;
 
 using Properties = Common::Collection<string, Common::PropertyMetaData>;
+using Values =
+	Common::Collection<Common::ValueMetaDataKey, Common::ValueMetaData>;
+using Components = Common::Collection<::byte, Common::ComponentMetaData>;
+using Profiles = Common::Collection<uint32_t, Common::ProfileMetaData>;
 
 /** Bytes that hold most texts, so the C functions write them in place. */
 static const size_t hashMetaDataTextBytes = 1024;
 
 /** Bytes too few for most texts, so the C functions allocate the text. */
 static const size_t hashMetaDataShortBytes = 2;
+
+/** Every value of a property with at most this many is checked. */
+static const uint32_t hashMetaDataAllValues = 2000;
+
+/** The values of a larger property checked, spread across them. */
+static const uint32_t hashMetaDataSampledValues = 500;
+
+/** The profiles checked, spread across them. */
+static const uint32_t hashMetaDataSampledProfiles = 2000;
 
 /** A name no property or value has. */
 static const char *hashMetaDataNoName = "NoSuchName51Degrees";
@@ -154,6 +169,24 @@ static fiftyoneDegreesProperty hashMetaDataStoredProperty(
 	return property;
 }
 
+/** A copy of the value at the index, as stored. */
+static fiftyoneDegreesValue hashMetaDataStoredValue(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t index) {
+	EXCEPTION_CREATE;
+	fiftyoneDegreesCollectionItem item;
+	fiftyoneDegreesDataReset(&item.data);
+	const fiftyoneDegreesValue *stored = fiftyoneDegreesValueGet(
+		dataSet->values,
+		index,
+		&item,
+		exception);
+	EXCEPTION_THROW;
+	const fiftyoneDegreesValue value = *stored;
+	FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->values, &item);
+	return value;
+}
+
 /** A text of the property, read with a buffer of the length given. */
 static string hashMetaDataPropertyText(
 	fiftyoneDegreesDataSetHash *dataSet,
@@ -184,6 +217,56 @@ static string hashMetaDataMapText(
 		dataSet,
 		index,
 		mapIndex,
+		buffer.data(),
+		buffer.size(),
+		exception);
+	return hashMetaDataTake(result, buffer.data(), exception);
+}
+
+/** The texts a value gives its method, in the order they were given. */
+struct HashMetaDataValueTexts {
+	vector<fiftyoneDegreesValueText> order;
+	vector<string> texts;
+};
+
+/** Records a text of a value in the HashMetaDataValueTexts given. */
+static void hashMetaDataAddText(
+	void *state,
+	fiftyoneDegreesValueText text,
+	const char *value) {
+	HashMetaDataValueTexts * const texts = (HashMetaDataValueTexts*)state;
+	texts->order.push_back(text);
+	texts->texts.push_back(value);
+}
+
+/** A text of the value, read with a buffer of the length given. */
+static string hashMetaDataValueText(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t index,
+	fiftyoneDegreesValueText text,
+	size_t length) {
+	EXCEPTION_CREATE;
+	vector<char> buffer(length);
+	char *result = fiftyoneDegreesHashGetValueText(
+		dataSet,
+		index,
+		text,
+		buffer.data(),
+		buffer.size(),
+		exception);
+	return hashMetaDataTake(result, buffer.data(), exception);
+}
+
+/** The name of the component, read with a buffer of the length given. */
+static string hashMetaDataComponentName(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t index,
+	size_t length) {
+	EXCEPTION_CREATE;
+	vector<char> buffer(length);
+	char *result = fiftyoneDegreesHashGetComponentName(
+		dataSet,
+		index,
 		buffer.data(),
 		buffer.size(),
 		exception);
@@ -417,10 +500,258 @@ protected:
 			EXPECT_EQ(name, byName->getName());
 		}
 	}
+
+	/** Checks the values of every property. */
+	void checkValues(const string &path) {
+		const auto manager = openHashMetaData(path, nullptr);
+		Hash::MetaDataHash metaData(manager);
+		HashMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetHash *dataSet = scope.dataSet;
+		unique_ptr<Properties> properties(metaData.getProperties());
+		const uint32_t count = fiftyoneDegreesHashGetPropertyCount(dataSet);
+		for (uint32_t i = 0; i < count; i++) {
+			EXCEPTION_CREATE;
+			uint32_t first = 0, valueCount = 0;
+			ASSERT_TRUE(fiftyoneDegreesHashGetPropertyValueIndexes(
+				dataSet,
+				i,
+				&first,
+				&valueCount,
+				nullptr,
+				exception));
+			unique_ptr<Common::PropertyMetaData> property(
+				properties->getByIndex(i));
+			const string &name = property->getName();
+			unique_ptr<Values> values(
+				metaData.getValuesForProperty(property.get()));
+			EXPECT_EQ(valueCount, values->getSize()) << name;
+			const uint32_t step = valueCount <= hashMetaDataAllValues
+				? 1
+				: valueCount / hashMetaDataSampledValues;
+			for (uint32_t v = 0; v < valueCount; v += step) {
+				const uint32_t valueIndex = first + v;
+				const fiftyoneDegreesValue stored =
+					hashMetaDataStoredValue(dataSet, valueIndex);
+				uint32_t propertyIndex = UINT32_MAX;
+				HashMetaDataValueTexts texts;
+				ASSERT_TRUE(fiftyoneDegreesHashGetValue(
+					dataSet,
+					valueIndex,
+					&propertyIndex,
+					&texts,
+					hashMetaDataAddText,
+					exception)) << name;
+				EXPECT_EQ((uint32_t)stored.propertyIndex, propertyIndex);
+				EXPECT_EQ(i, propertyIndex) << name;
+				uint32_t indexOnly = UINT32_MAX;
+				ASSERT_TRUE(fiftyoneDegreesHashGetValue(
+					dataSet,
+					valueIndex,
+					&indexOnly,
+					nullptr,
+					nullptr,
+					exception)) << name;
+				EXPECT_EQ(i, indexOnly) << name;
+				const string valueName = hashMetaDataStored(
+					dataSet,
+					(uint32_t)stored.nameOffset);
+				const string description = stored.descriptionOffset <= 0
+					? string()
+					: hashMetaDataStored(
+						dataSet,
+						(uint32_t)stored.descriptionOffset);
+				const string url = stored.urlOffsetOrWeight <= 0
+					? string()
+					: hashMetaDataStored(
+						dataSet,
+						(uint32_t)stored.urlOffsetOrWeight);
+				// The three texts from one read are the texts read one by one.
+				const vector<fiftyoneDegreesValueText> order = {
+					FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+					FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION,
+					FIFTYONE_DEGREES_VALUE_TEXT_URL };
+				EXPECT_EQ(order, texts.order) << name;
+				EXPECT_EQ(
+					vector<string>({ valueName, description, url }),
+					texts.texts) << name;
+				for (size_t length : {
+					hashMetaDataTextBytes,
+					hashMetaDataShortBytes }) {
+					EXPECT_EQ(valueName, hashMetaDataValueText(
+						dataSet,
+						valueIndex,
+						FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+						length)) << name;
+					EXPECT_EQ(description, hashMetaDataValueText(
+						dataSet,
+						valueIndex,
+						FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION,
+						length)) << name;
+					EXPECT_EQ(url, hashMetaDataValueText(
+						dataSet,
+						valueIndex,
+						FIFTYONE_DEGREES_VALUE_TEXT_URL,
+						length)) << name;
+				}
+				EXPECT_EQ(
+					(long)valueIndex,
+					fiftyoneDegreesHashGetValueIndex(
+						dataSet,
+						i,
+						valueName.c_str(),
+						exception)) << name << " " << valueName;
+				EXPECT_TRUE(EXCEPTION_OKAY) << name;
+
+				// The C++ metadata gives the same answers.
+				unique_ptr<Common::ValueMetaData> value(
+					values->getByIndex(v));
+				ASSERT_TRUE(value != nullptr) << name;
+				EXPECT_EQ(name, value->getKey().getPropertyName());
+				EXPECT_EQ(valueName, value->getName()) << name;
+				EXPECT_EQ(description, value->getDescription()) << name;
+				EXPECT_EQ(url, value->getUrl()) << name;
+				unique_ptr<Common::ValueMetaData> byKey(
+					values->getByKey(value->getKey()));
+				ASSERT_TRUE(byKey != nullptr) << name << " " << valueName;
+				EXPECT_EQ(valueName, byKey->getName()) << name;
+			}
+		}
+	}
+
+	/** Checks the components and the profiles. */
+	void checkComponentsAndProfiles(const string &path) {
+		const auto manager = openHashMetaData(path, nullptr);
+		Hash::MetaDataHash metaData(manager);
+		HashMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetHash *dataSet = scope.dataSet;
+		unique_ptr<Components> components(metaData.getComponents());
+		const uint32_t count = fiftyoneDegreesHashGetComponentCount(dataSet);
+		EXPECT_EQ(dataSet->componentsList.count, count);
+		EXPECT_EQ(count, components->getSize());
+		for (uint32_t c = 0; c < count; c++) {
+			EXCEPTION_CREATE;
+			fiftyoneDegreesComponent *stored = (fiftyoneDegreesComponent*)
+				dataSet->componentsList.items[c].data.ptr;
+			uint8_t componentId = 0;
+			uint32_t defaultProfileId = 0;
+			ASSERT_TRUE(fiftyoneDegreesHashGetComponent(
+				dataSet,
+				c,
+				&componentId,
+				&defaultProfileId,
+				exception));
+			EXPECT_EQ(stored->componentId, componentId);
+			EXPECT_EQ(
+				fiftyoneDegreesComponentGetDefaultProfileId(
+					dataSet->profiles,
+					stored,
+					exception),
+				defaultProfileId);
+			const string name = hashMetaDataStored(
+				dataSet,
+				(uint32_t)stored->nameOffset);
+			EXPECT_EQ(name, hashMetaDataComponentName(
+				dataSet,
+				c,
+				hashMetaDataTextBytes));
+			EXPECT_EQ(name, hashMetaDataComponentName(
+				dataSet,
+				c,
+				hashMetaDataShortBytes));
+			unique_ptr<Common::ComponentMetaData> component(
+				components->getByIndex(c));
+			ASSERT_TRUE(component != nullptr) << name;
+			EXPECT_EQ(componentId, component->getComponentId()) << name;
+			EXPECT_EQ(name, component->getName());
+			EXPECT_EQ(defaultProfileId, component->getDefaultProfileId());
+			// The deprecated builder taking the component gives the same.
+			unique_ptr<Common::ComponentMetaData> fromStored(
+				Hash::ComponentMetaDataBuilderHash::build(dataSet, stored));
+			ASSERT_TRUE(fromStored != nullptr) << name;
+			EXPECT_EQ(componentId, fromStored->getComponentId()) << name;
+			EXPECT_EQ(name, fromStored->getName());
+			EXPECT_EQ(defaultProfileId, fromStored->getDefaultProfileId());
+			unique_ptr<Common::ComponentMetaData> byKey(
+				components->getByKey(componentId));
+			ASSERT_TRUE(byKey != nullptr) << name;
+			EXPECT_EQ(name, byKey->getName());
+		}
+
+		unique_ptr<Profiles> profiles(metaData.getProfiles());
+		const uint32_t profileCount =
+			fiftyoneDegreesHashGetProfileCount(dataSet);
+		EXPECT_EQ(
+			fiftyoneDegreesCollectionGetCount(dataSet->profileOffsets),
+			profileCount);
+		EXPECT_EQ(profileCount, profiles->getSize());
+		const uint32_t step =
+			profileCount / hashMetaDataSampledProfiles + 1;
+		for (uint32_t p = 0; p < profileCount; p += step) {
+			EXCEPTION_CREATE;
+			fiftyoneDegreesCollectionItem item;
+			fiftyoneDegreesDataReset(&item.data);
+			const fiftyoneDegreesProfile *stored =
+				fiftyoneDegreesProfileGetByIndex(
+					dataSet->profileOffsets,
+					dataSet->profiles,
+					p,
+					&item,
+					exception);
+			EXCEPTION_THROW;
+			const uint32_t storedId = stored->profileId;
+			const uint8_t storedComponentId =
+				((fiftyoneDegreesComponent*)dataSet->componentsList.items[
+					stored->componentIndex].data.ptr)->componentId;
+			// The deprecated builder taking the profile gives the same.
+			unique_ptr<Common::ProfileMetaData> fromStored(
+				Hash::ProfileMetaDataBuilderHash::build(
+					dataSet,
+					(fiftyoneDegreesProfile*)stored));
+			EXPECT_EQ(storedId, fromStored->getProfileId());
+			EXPECT_EQ(storedComponentId, fromStored->getComponentId());
+			FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->profiles, &item);
+			uint32_t profileId = 0;
+			uint8_t componentId = 0;
+			ASSERT_TRUE(fiftyoneDegreesHashGetProfile(
+				dataSet,
+				p,
+				&profileId,
+				&componentId,
+				exception));
+			EXPECT_EQ(storedId, profileId);
+			EXPECT_EQ(storedComponentId, componentId);
+			uint8_t byIdComponentId = 0;
+			ASSERT_TRUE(fiftyoneDegreesHashGetProfileById(
+				dataSet,
+				profileId,
+				&byIdComponentId,
+				exception));
+			EXPECT_EQ(storedComponentId, byIdComponentId);
+			unique_ptr<Common::ProfileMetaData> profile(
+				profiles->getByIndex(p));
+			ASSERT_TRUE(profile != nullptr);
+			EXPECT_EQ(profileId, profile->getProfileId());
+			EXPECT_EQ(componentId, profile->getComponentId());
+			unique_ptr<Common::ProfileMetaData> byKey(
+				profiles->getByKey(profileId));
+			ASSERT_TRUE(byKey != nullptr);
+			EXPECT_EQ(componentId, byKey->getComponentId());
+		}
+	}
 };
 
 TEST_F(HashMetaDataTests, PropertiesOfEachDataFile) {
 	eachDataFile([this](const string &path) { checkProperties(path); });
+}
+
+TEST_F(HashMetaDataTests, ValuesOfEachDataFile) {
+	eachDataFile([this](const string &path) { checkValues(path); });
+}
+
+TEST_F(HashMetaDataTests, ComponentsAndProfilesOfEachDataFile) {
+	eachDataFile([this](const string &path) {
+		checkComponentsAndProfiles(path);
+	});
 }
 
 /**
@@ -491,6 +822,145 @@ TEST_F(HashMetaDataTests, NoPropertyPastTheEnd) {
 				exception));
 			EXPECT_TRUE(EXCEPTION_OKAY);
 		}
+	});
+}
+
+/**
+ * Reading past the last value, or for a name the property does not have,
+ * gives no answer rather than another value.
+ */
+TEST_F(HashMetaDataTests, NoValuePastTheEnd) {
+	eachDataFile([](const string &path) {
+		const auto manager = openHashMetaData(path, nullptr);
+		HashMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetHash *dataSet = scope.dataSet;
+		{
+			EXCEPTION_CREATE;
+			const int isMobile = fiftyoneDegreesHashGetPropertyIndex(
+				dataSet,
+				"IsMobile",
+				exception);
+			ASSERT_GE(isMobile, 0);
+			EXPECT_EQ(-1, fiftyoneDegreesHashGetValueIndex(
+				dataSet,
+				(uint32_t)isMobile,
+				hashMetaDataNoName,
+				exception));
+			EXPECT_TRUE(EXCEPTION_OKAY);
+		}
+		{
+			EXCEPTION_CREATE;
+			const uint32_t values =
+				fiftyoneDegreesCollectionGetCount(dataSet->values);
+			uint32_t propertyIndex = 0;
+			HashMetaDataValueTexts texts;
+			EXPECT_FALSE(fiftyoneDegreesHashGetValue(
+				dataSet,
+				values,
+				&propertyIndex,
+				&texts,
+				hashMetaDataAddText,
+				exception));
+			EXPECT_FALSE(EXCEPTION_OKAY);
+			EXPECT_TRUE(texts.texts.empty());
+		}
+	});
+}
+
+/**
+ * Reading past the last component, or for a profile id the data file does
+ * not have, gives no answer rather than another component or profile.
+ */
+TEST_F(HashMetaDataTests, NoComponentPastTheEnd) {
+	eachDataFile([](const string &path) {
+		const auto manager = openHashMetaData(path, nullptr);
+		HashMetaDataDataSet scope(manager.get());
+		fiftyoneDegreesDataSetHash *dataSet = scope.dataSet;
+		{
+			EXCEPTION_CREATE;
+			const uint32_t components =
+				fiftyoneDegreesHashGetComponentCount(dataSet);
+			uint8_t componentId = 0;
+			uint32_t defaultProfileId = 0;
+			EXPECT_FALSE(fiftyoneDegreesHashGetComponent(
+				dataSet,
+				components,
+				&componentId,
+				&defaultProfileId,
+				exception));
+			EXPECT_TRUE(EXCEPTION_OKAY);
+			char buffer[8];
+			EXPECT_EQ(nullptr, fiftyoneDegreesHashGetComponentName(
+				dataSet,
+				components,
+				buffer,
+				sizeof(buffer),
+				exception));
+			EXPECT_TRUE(EXCEPTION_CHECK(
+				FIFTYONE_DEGREES_STATUS_COLLECTION_INDEX_OUT_OF_RANGE));
+		}
+		{
+			EXCEPTION_CREATE;
+			uint8_t componentId = 0;
+			// No profile has the id 0, which a device id gives for a
+			// component with no profile.
+			EXPECT_FALSE(fiftyoneDegreesHashGetProfileById(
+				dataSet,
+				0,
+				&componentId,
+				exception));
+			EXPECT_FALSE(EXCEPTION_OKAY);
+		}
+	});
+}
+
+/**
+ * A property's values have no value of a name the property does not have,
+ * nor a value of another property, which the C++ collection read through a
+ * null pointer for.
+ */
+TEST_F(HashMetaDataTests, ValueNotOfTheProperty) {
+	eachDataFile([](const string &path) {
+		const auto manager = openHashMetaData(path, nullptr);
+		Hash::MetaDataHash metaData(manager);
+		unique_ptr<Properties> properties(metaData.getProperties());
+		unique_ptr<Common::PropertyMetaData> isMobile(
+			properties->getByKey("IsMobile"));
+		ASSERT_TRUE(isMobile != nullptr);
+		unique_ptr<Common::PropertyMetaData> browser(
+			properties->getByKey("BrowserName"));
+		ASSERT_TRUE(browser != nullptr);
+		unique_ptr<Values> isMobileValues(
+			metaData.getValuesForProperty(isMobile.get()));
+		unique_ptr<Values> browserValues(
+			metaData.getValuesForProperty(browser.get()));
+		ASSERT_GT(browserValues->getSize(), 0u);
+		unique_ptr<Common::ValueMetaData> browserValue(
+			browserValues->getByIndex(0));
+		ASSERT_TRUE(browserValue != nullptr);
+
+		unique_ptr<Common::ValueMetaData> none(isMobileValues->getByKey(
+			Common::ValueMetaDataKey("IsMobile", hashMetaDataNoName)));
+		EXPECT_TRUE(none == nullptr);
+		unique_ptr<Common::ValueMetaData> other(isMobileValues->getByKey(
+			browserValue->getKey()));
+		EXPECT_TRUE(other == nullptr);
+		unique_ptr<Common::ValueMetaData> unknown(isMobileValues->getByKey(
+			Common::ValueMetaDataKey(hashMetaDataNoName, "True")));
+		EXPECT_TRUE(unknown == nullptr);
+		unique_ptr<Common::ValueMetaData> own(isMobileValues->getByKey(
+			Common::ValueMetaDataKey("IsMobile", "True")));
+		ASSERT_TRUE(own != nullptr);
+		EXPECT_EQ("True", own->getName());
+		unique_ptr<Common::ValueMetaData> mine(browserValues->getByKey(
+			browserValue->getKey()));
+		ASSERT_TRUE(mine != nullptr);
+		EXPECT_EQ(browserValue->getName(), mine->getName());
+
+		unique_ptr<Values> all(metaData.getValues());
+		unique_ptr<Common::ValueMetaData> nowhere(all->getByKey(
+			Common::ValueMetaDataKey("IsMobile", hashMetaDataNoName)));
+		EXPECT_TRUE(nowhere == nullptr);
 	});
 }
 

@@ -110,6 +110,12 @@ Failed to reload '0' times.
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-reloadfromfile.c"
+
 #define THREAD_COUNT 4
 
 static const char* dataDir = "data/ip-intelligence";
@@ -389,7 +395,10 @@ void fiftyoneDegreesIpiReloadFromFileRun(
 		run(&manager, ipAddressFilePath);
 
 		// Say what the Enterprise data file adds, on a free data file.
-		fiftyoneDegreesExampleOfferEnterprise(&manager);
+		fiftyoneDegreesExampleOfferEnterpriseProperties(
+			&manager,
+			requiredProperties,
+			FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);
@@ -414,7 +423,8 @@ int main(int argc, char* argv[]) {
 	char ipAddressFilePath[FILE_MAX_PATH];
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char* envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}
@@ -466,6 +476,9 @@ int main(int argc, char* argv[]) {
 	_CrtDumpMemoryLeaks();
 #endif
 #endif
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

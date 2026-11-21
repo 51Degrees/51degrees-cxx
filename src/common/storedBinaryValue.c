@@ -24,7 +24,10 @@
 
 #include "string.h"
 #include "fiftyone.h"
+#include <float.h>
 #include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "collectionKeyTypes.h"
 
@@ -288,6 +291,76 @@ double fiftyoneDegreesStoredBinaryValueToDoubleOrDefault(
         }
         default: {
             return defaultValue;
+        }
+    }
+}
+
+/** Powers of ten that a double holds exactly. */
+static const double roundingScales[] = {
+    1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7,
+    1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15 };
+
+/** The largest scaled value that is rounded through a 64 bit integer. */
+#define ROUNDING_LIMIT 9e15
+
+/**
+ * Defined where the compiler works out a double in a wider type, as GCC does
+ * for 32 bit x86 with the x87 instructions. A quotient is then rounded twice,
+ * to the wider type and then to a double, and can be one unit in the last
+ * place from the double nearest to it.
+ */
+#if defined(FLT_EVAL_METHOD) && (FLT_EVAL_METHOD < 0 || FLT_EVAL_METHOD > 1)
+#define ROUND_TO_PLACES_THROUGH_TEXT
+#endif
+
+/**
+ * Rounds the value to the decimal places, a half going away from zero, and
+ * gives the double nearest to the rounded decimal. The scaled value is a
+ * whole number that a double holds exactly, so dividing it by the scale is
+ * rounded once. Where a division is rounded twice, strtod reads the decimal
+ * instead, written with an exponent so there is no decimal point for the
+ * locale to change.
+ */
+static double roundToPlaces(const double value, const uint8_t decimalPlaces) {
+    const uint8_t places = decimalPlaces < MAX_DOUBLE_DECIMAL_PLACES ?
+        decimalPlaces : MAX_DOUBLE_DECIMAL_PLACES;
+    const double scale = roundingScales[places];
+    const double scaled = value * scale;
+    int64_t whole;
+#ifdef ROUND_TO_PLACES_THROUGH_TEXT
+    char text[32];
+#endif
+    if (scaled >= ROUNDING_LIMIT || scaled <= -ROUNDING_LIMIT) {
+        // A double this large has no fraction left to round.
+        return value;
+    }
+    whole = (int64_t)(scaled + (scaled < 0 ? -0.5 : 0.5));
+#ifdef ROUND_TO_PLACES_THROUGH_TEXT
+    snprintf(text, sizeof(text), "%" PRId64 "e-%d", whole, (int)places);
+    return strtod(text, NULL);
+#else
+    return (double)whole / scale;
+#endif
+}
+
+double fiftyoneDegreesStoredBinaryValueToRoundedDoubleOrDefault(
+    const fiftyoneDegreesStoredBinaryValue * const value,
+    const fiftyoneDegreesPropertyValueType storedValueType,
+    const uint8_t decimalPlaces,
+    const double defaultValue) {
+
+    switch (storedValueType) {
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH: {
+            return roundToPlaces(toAzimuth(value), decimalPlaces);
+        }
+        case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION: {
+            return roundToPlaces(toDeclination(value), decimalPlaces);
+        }
+        default: {
+            return StoredBinaryValueToDoubleOrDefault(
+                value,
+                storedValueType,
+                defaultValue);
         }
     }
 }

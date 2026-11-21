@@ -1,0 +1,33 @@
+name: Default language standard
+
+# Compiles every source file under src with the runner's compiler, its
+# default language standard and warnings as errors, as the languages that
+# build this library from its sources may. The CMake builds set C11 and
+# C++17, so they cannot show a warning that only a newer default gives.
+on:
+  pull_request:
+    branches: [rc, main]
+    paths:
+      - 'src/**'
+      - 'ci/check-default-standard.ps1'
+      - '.github/workflows/default-standard.yml'
+  # The Nightly Pipeline calls this workflow, because the runner's compiler
+  # changes without any change here.
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    name: Default standard, ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: Compile each source file with the default standard
+        shell: pwsh
+        run: ./ci/check-default-standard.ps1

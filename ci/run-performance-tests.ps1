@@ -4,7 +4,10 @@ param(
     [string]$Arch = "x64",
     [string]$Configuration = "Release",
     [string]$BuildMethod = "cmake",
-    [string[]]$Products
+    [string[]]$Products,
+    # The branch a pull request merges into, which its changes are measured
+    # against.
+    [string]$Branch = 'main'
 )
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
@@ -14,7 +17,7 @@ if ($BuildMethod -ne "cmake") {
     exit 0
 }
 
-$Products = Get-Products -Products $Products -RepoPath $RepoName
+$Products = Get-Products -Products $Products -RepoPath $RepoName -Branch $Branch
 $RepoPath = (Resolve-Path $RepoName).Path
 $BuildPath = "$RepoPath/build"
 $BinPath = $IsWindows ? "$BuildPath/bin/$Configuration" : "$BuildPath/bin"

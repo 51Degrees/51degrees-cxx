@@ -257,7 +257,8 @@ EXTERNAL fiftyoneDegreesEvidenceKeyValuePair* fiftyoneDegreesEvidenceAddPair(
 	fiftyoneDegreesKeyValuePair pair);
 
 /**
- * Determines the evidence map prefix from the key.
+ * Determines the evidence map prefix from the key. Evidence keys are
+ * case-insensitive, so the prefix is matched ignoring case.
  * @param key the evidence key including the evidence prefix .i.e. header
  * @return the prefix enumeration, or NULL if one does not exist
  */

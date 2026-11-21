@@ -27,6 +27,12 @@
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-procipi.c"
+
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
@@ -112,8 +118,14 @@ static int run(fiftyoneDegreesResourceManager *manager) {
  * On a free data file, says on standard error what the Enterprise data file
  * adds and where to ask for a copy.
  */
-static void offerEnterprise(fiftyoneDegreesResourceManager *manager) {
+static void offerEnterprise(
+	fiftyoneDegreesResourceManager *manager,
+	const char *requiredProperties) {
 	DataSetIpi *dataset = DataSetIpiGet(manager);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stderr,
+		dataset,
+		requiredProperties);
 	if (fiftyoneDegreesExampleHasProperty(dataset, "IpRangeStart") ==
 		false) {
 		fprintf(stderr, "This example is using a free data file. The "
@@ -148,7 +160,7 @@ int fiftyoneDegreesProcIpiRun(
 
 		// Standard output holds the processed addresses, so the note goes
 		// to standard error.
-		offerEnterprise(&manager);
+		offerEnterprise(&manager, requiredProperties);
 
 		ResourceManagerFree(&manager);
 	}
@@ -169,7 +181,8 @@ int main(int argc, char* argv[]) {
 	ConfigIpi config = fiftyoneDegreesIpiInMemoryConfig;
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char* envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}
@@ -203,6 +216,10 @@ int main(int argc, char* argv[]) {
 		argc > 2 ? argv[2] : "IpRangeStart,IpRangeEnd,"
 			"RegisteredCountry,AccuracyRadiusMin",
 		& config);
+
+	// Standard output holds the results, so where to find out more goes
+	// to standard error.
+	fiftyoneDegreesExampleFindOutMore(stderr, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		return exitCode;
 }

@@ -1,0 +1,188 @@
+name: Examples on the free data files
+
+# Builds the examples from a fresh clone as the README says, and runs each one
+# from the root of the clone with no settings, as someone trying them would.
+# Each example finds the free data file it needs or downloads it, so this is
+# the check that a fresh clone works. The Ubuntu job downloads the free files
+# and the other jobs restore them from a cache when it has them. The other
+# builds give the tests the Enterprise data files through secrets, so they
+# cannot show it.
+on:
+  pull_request:
+    branches: [rc, main]
+    paths:
+      - 'examples/**'
+      - 'src/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'data'
+      - '.gitmodules'
+      - '.github/workflows/examples.yml'
+  # The Nightly Pipeline calls this workflow, so the examples of the branch
+  # the nightly builds are run every night.
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  examples:
+    name: Examples, ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS runners are few, so a pull request into rc leaves macOS out.
+        # The nightly, the release pull request into main and a manual run
+        # include it.
+        os: ${{ fromJSON((github.event_name == 'pull_request' && github.base_ref == 'rc') && '["ubuntu-latest", "windows-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Clone with the submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # The Ubuntu job downloads the free data files as a fresh clone does,
+      # which tests the download, and saves them to a cache. The other jobs
+      # restore them when the cache has an entry they can read. A pull
+      # request reads only its own runs' entries and those of the default
+      # branch, and an entry unused for seven days is removed, so the other
+      # jobs still download until such an entry exists.
+      - name: Restore the free data files
+        if: runner.os != 'Linux'
+        uses: actions/cache/restore@v4
+        with:
+          key: examples-free-data-${{ hashFiles('data/device-detection/*.link', 'data/ip-intelligence/*.link') }}
+          path: |
+            data/device-detection/51Degrees-LiteV4.1.hash
+            data/device-detection/20000 Evidence Records.yml
+            data/device-detection/20000 User Agents.csv
+            data/ip-intelligence/51Degrees-LiteV41.ipi
+            data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
+          enableCrossOsArchive: true
+
+      - name: Build as the README says, without the tests
+        run: |
+          New-Item -ItemType Directory build | Out-Null
+          Push-Location build
+          $platform = $IsWindows ? @('-A', 'x64') : @()
+          # CI builds only Device Detection on macOS (ci/options.json), so
+          # the macOS run builds and runs the Device Detection examples.
+          if ($IsMacOS) { $platform += '-DFIFTYONE_BUILD_IP_INTELLIGENCE=OFF' }
+          $configure = cmake .. @platform -DBUILD_TESTING=OFF 2>&1
+          if ($LASTEXITCODE -ne 0) { $configure | Out-Host; throw "Configure failed" }
+          $names = @($configure | ForEach-Object {
+            if ("$_" -match "Found C(\+\+)? example '([A-Za-z0-9]+)'") { $Matches[2] } })
+          "Examples: $($names -join ', ')"
+          if ($names.Count -eq 0) { throw "Configure found no examples" }
+          $build = cmake --build . --config Release --parallel 4 2>&1
+          if ($LASTEXITCODE -ne 0) { $build | Select-Object -Last 80 | Out-Host; throw "The build failed" }
+          Pop-Location
+          $names -join ' ' | Set-Content examples.txt
+
+      - name: Run each example from the root of the clone
+        run: |
+          $names = (Get-Content examples.txt -Raw).Trim() -split ' '
+          New-Item -ItemType File empty.txt | Out-Null
+          $taggedLink = ': https://51degrees\.com/\S+\?utm_source=code' +
+            '&utm_medium=example&utm_campaign=51degrees-cxx' +
+            '&utm_content=[a-z0-9.-]+&utm_term=[a-z0-9-]+$'
+          $repositoryLink = 'Source code: https://github.com/51Degrees/51degrees-cxx'
+          $contactLink = 'https://51degrees\.com/contact-us\?utm_source=code' +
+            '&utm_medium=example&utm_campaign=51degrees-cxx' +
+            '&utm_content=[a-z0-9.-]+&utm_term=(?!find-out-more)[a-z0-9-]+'
+          $failed = @()
+          foreach ($name in $names) {
+            $exe = $IsWindows ? "build/bin/Release/$name.exe" : "build/bin/$name"
+            Write-Output "::group::$name"
+            if (-not (Test-Path $exe)) {
+              Write-Output "$exe was not built"
+              $failed += "$name (not built)"
+              Write-Output "::endgroup::"
+              continue
+            }
+            # Standard input is an empty file, so an example that waits for
+            # a key reads the end of the file and carries on.
+            $start = Get-Date
+            $process = Start-Process -FilePath (Resolve-Path $exe).Path `
+              -WorkingDirectory $PWD -NoNewWindow -Wait -PassThru `
+              -RedirectStandardInput empty.txt `
+              -RedirectStandardOutput output.txt -RedirectStandardError errors.txt
+            $code = $process.ExitCode
+            $output = @(Get-Content output.txt) + @(Get-Content errors.txt)
+            $output | Select-Object -First 60 | Out-Host
+            if ($output.Count -gt 60) {
+              "... $($output.Count) lines" | Out-Host
+              $output | Select-Object -Last 15 | Out-Host
+            }
+            "Exit $code after $([int]((Get-Date) - $start).TotalSeconds) s" | Out-Host
+            Write-Output "::endgroup::"
+            if ($code -ne 0) { $failed += "$name (exit $code)" }
+            # Every example ends with a "Find out more" section, which links
+            # to 51degrees.com with the tags of an example and names this
+            # repository. Nothing but its links may follow the heading.
+            $lines = [string[]]@($output | Where-Object { "$_".Trim() -ne '' })
+            $at = [Array]::LastIndexOf($lines, 'Find out more')
+            if ($at -lt 0) {
+              $failed += "$name (no Find out more section)"
+            }
+            else {
+              $links = @($lines | Select-Object -Skip ($at + 1) |
+                Where-Object { $_ -notmatch '^-+$' })
+              $notLinks = @($links | Where-Object { $_ -notmatch ': https://\S+$' })
+              $tagged = @($links | Where-Object { $_ -match $taggedLink })
+              if ($notLinks -or $tagged.Count -eq 0 -or
+                  $links -notcontains $repositoryLink) {
+                $failed += "$name (Find out more does not end the output)"
+              }
+            }
+            # On a free data file an example asks for properties only the
+            # Enterprise data file holds, says one of them needs that file,
+            # and gives the tagged contact link to ask for a copy, all before
+            # Find out more.
+            $body = $at -ge 0 ? @($lines | Select-Object -First $at) : $lines
+            if (-not ($body -match 'needs? the Enterprise data file')) {
+              $failed += "$name (no property said to need the Enterprise data file)"
+            }
+            if (-not ($body -match $contactLink)) {
+              $failed += "$name (no contact link for the Enterprise data file)"
+            }
+            # Every link an example prints, tagged utm_medium=example, carries
+            # the example's own source file as utm_content, so that an enquiry
+            # can be traced to the example. The library's own messages tag
+            # their links utm_medium=comment and name the library's file.
+            # GettingStartedHashC is GettingStarted.c and GettingStartedCPP
+            # is GettingStarted.cpp.
+            $file = ($name -creplace 'HashCPP$', '.cpp' -creplace 'HashC$', '.c' `
+              -creplace 'CPP$', '.cpp' -creplace 'C$', '.c').ToLowerInvariant()
+            $exampleContent = 'utm_medium=example&utm_campaign=51degrees-cxx' +
+              '&utm_content=([a-z0-9._-]+)'
+            $contents = @($output | ForEach-Object {
+                [regex]::Matches("$_", $exampleContent) |
+                  ForEach-Object { $_.Groups[1].Value } } |
+              Sort-Object -Unique)
+            $others = @($contents | Where-Object { -not $_.EndsWith("-$file") })
+            if ($contents.Count -eq 0 -or $others) {
+              $failed += "$name (links carry utm_content $($contents -join ' and '), not $file)"
+            }
+          }
+          if ($failed) { throw "Examples that failed: $($failed -join ', ')" }
+          "All $($names.Count) examples exited with 0, said what needs the Enterprise data file with the contact link, named their own file in every link and ended with Find out more"
+
+      - name: Save the free data files
+        if: runner.os == 'Linux' && success()
+        uses: actions/cache/save@v4
+        with:
+          key: examples-free-data-${{ hashFiles('data/device-detection/*.link', 'data/ip-intelligence/*.link') }}
+          path: |
+            data/device-detection/51Degrees-LiteV4.1.hash
+            data/device-detection/20000 Evidence Records.yml
+            data/device-detection/20000 User Agents.csv
+            data/ip-intelligence/51Degrees-LiteV41.ipi
+            data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
+          enableCrossOsArchive: true

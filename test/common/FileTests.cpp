@@ -739,6 +739,109 @@ TEST_F(File, TempExists_DeleteEveryPath) {
 	removeDir(tempPath2);
 }
 
+/**
+ * Check that a temporary file is created only in the first of two writable
+ * directories, as the directories are used in order of preference.
+ */
+TEST_F(File, TempFileCreate_FirstOfTwoPaths) {
+	const char *paths[] = { tempPath1, tempPath2 };
+	const std::string first = std::string(tempPath1) + "/";
+	char tempFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	char foundFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	tempFileName[0] = '\0';
+	foundFileName[0] = '\0';
+	createDir(tempPath1);
+	createDir(tempPath2);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileNewTempFile(
+			fileName,
+			paths,
+			2,
+			tempFileName,
+			FIFTYONE_DEGREES_FILE_MAX_PATH)) <<
+		"A temporary file was not created.";
+	EXPECT_EQ(0, strncmp(first.c_str(), tempFileName, first.size())) <<
+		"The temporary file '" << tempFileName << "' is not in the first " <<
+		"directory.";
+	EXPECT_FALSE(fiftyoneDegreesFileGetExistingTempFile(
+		fileName,
+		&paths[1],
+		1,
+		-1,
+		foundFileName)) <<
+		"A copy '" << foundFileName << "' was also left in the second " <<
+		"directory.";
+
+	EXPECT_EQ(1,
+		fiftyoneDegreesFileDeleteUnusedTempFiles(fileName, paths, 2, -1)) <<
+		"There should be one temporary file in the two directories.";
+	removeDir(tempPath1);
+	removeDir(tempPath2);
+}
+
+/**
+ * Check that a temporary file is created in the first directory when the
+ * second directory does not exist, rather than failing on the second.
+ */
+TEST_F(File, TempFileCreate_SecondPathMissing) {
+	const char *paths[] = { tempPath1, tempPath2 };
+	const std::string first = std::string(tempPath1) + "/";
+	char tempFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	tempFileName[0] = '\0';
+	createDir(tempPath1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileNewTempFile(
+			fileName,
+			paths,
+			2,
+			tempFileName,
+			FIFTYONE_DEGREES_FILE_MAX_PATH)) <<
+		"A temporary file was not created when only the first directory " <<
+		"exists.";
+	EXPECT_EQ(0, strncmp(first.c_str(), tempFileName, first.size())) <<
+		"The temporary file '" << tempFileName << "' is not in the first " <<
+		"directory.";
+	EXPECT_TRUE(fileExists(tempFileName)) <<
+		"The temporary file was not created.";
+
+	EXPECT_EQ(1,
+		fiftyoneDegreesFileDeleteUnusedTempFiles(fileName, paths, 1, -1)) <<
+		"There should be one temporary file in the first directory.";
+	removeDir(tempPath1);
+}
+
+/**
+ * Check that a temporary file is created in the second directory when the
+ * first directory does not exist.
+ */
+TEST_F(File, TempFileCreate_FirstPathMissing) {
+	const char *paths[] = { tempPath1, tempPath2 };
+	const std::string second = std::string(tempPath2) + "/";
+	char tempFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	tempFileName[0] = '\0';
+	createDir(tempPath2);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileNewTempFile(
+			fileName,
+			paths,
+			2,
+			tempFileName,
+			FIFTYONE_DEGREES_FILE_MAX_PATH)) <<
+		"A temporary file was not created when only the second directory " <<
+		"exists.";
+	EXPECT_EQ(0, strncmp(second.c_str(), tempFileName, second.size())) <<
+		"The temporary file '" << tempFileName << "' is not in the second " <<
+		"directory.";
+	EXPECT_TRUE(fileExists(tempFileName)) <<
+		"The temporary file was not created.";
+
+	EXPECT_EQ(1,
+		fiftyoneDegreesFileDeleteUnusedTempFiles(
+			fileName, &paths[1], 1, -1)) <<
+		"There should be one temporary file in the second directory.";
+	removeDir(tempPath2);
+}
+
 #ifndef __APPLE__
 
 /**

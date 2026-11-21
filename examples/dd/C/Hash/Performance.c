@@ -28,6 +28,12 @@
 #include "ExampleBase.h"
 
 /**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-performance.c"
+
+/**
  * @example Hash/Performance.c
  * The example illustrates a "clock-time" benchmark for assessing detection speed.
  *
@@ -657,7 +663,11 @@ void executeBenchmark(
 	// Check data file
 	DataSetHash* dataset = DataSetHashGet(&state->manager);
 	state->availableProperties = (int)dataset->b.b.available->count;
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stdout,
+		dataset,
+		properties.string);
+	fiftyoneDegreesExampleCheckDataFile(dataset, FIFTYONE_DEGREES_EXAMPLE_FILE);
 	DataSetHashRelease(dataset);
 
 	// Normally the benchmark is run twice, the first pass warming the caches.
@@ -975,6 +985,7 @@ int main(int argc, char* argv[]) {
 			strcmp(argv[i], HELP_OPTION_SHORT) == 0) {
 			// Print the help options
 			printHelp();
+			fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 			return 0;
 		}
 		else if (argv[i][0] == '-') {
@@ -1043,6 +1054,9 @@ int main(int argc, char* argv[]) {
 	if (outFile != NULL) {
 		fclose(params.resultsOutput);
 	}
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	return exitCode;
 }

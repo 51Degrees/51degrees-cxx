@@ -106,9 +106,12 @@ EXTERNAL void fiftyoneDegreesExampleMemCheck(
  * Reports the data file in use, and warns when it is old. On a free data
  * file, says what the Enterprise data file adds and where to ask for a copy.
  * @param dataset pointer to the dataset structure
+ * @param example the example's own source file, which every link it
+ * prints carries as its utm_content
  */
 EXTERNAL void fiftyoneDegreesExampleCheckDataFile(
-    fiftyoneDegreesDataSetIpi *dataset);
+    fiftyoneDegreesDataSetIpi *dataset,
+    const char *example);
 
 /**
  * Reports the data file the resource manager holds, as
@@ -116,9 +119,24 @@ EXTERNAL void fiftyoneDegreesExampleCheckDataFile(
  * dataset of its own to give. On a free data file this says what the
  * Enterprise data file adds and links to the contact page.
  * @param manager resource manager that holds an IP Intelligence dataset
+ * @param example the example's own source file, which every link it
+ * prints carries as its utm_content
  */
 EXTERNAL void fiftyoneDegreesExampleOfferEnterprise(
-    fiftyoneDegreesResourceManager *manager);
+    fiftyoneDegreesResourceManager *manager,
+    const char *example);
+
+/**
+ * Prints the "Find out more" section that every example ends with, which
+ * links to the IP Intelligence pages and to this repository.
+ * @param output stream to print to, which is standard error for an example
+ * whose results go to standard output
+ * @param example the example's own source file, which every link it
+ * prints carries as its utm_content
+ */
+EXTERNAL void fiftyoneDegreesExampleFindOutMore(
+    FILE *output,
+    const char *example);
 
 /**
  * Shown in place of a value for a property that the data file in use does
@@ -127,6 +145,54 @@ EXTERNAL void fiftyoneDegreesExampleOfferEnterprise(
  */
 #define FIFTYONE_DEGREES_EXAMPLE_NEEDS_ENTERPRISE \
     "needs the Enterprise data file"
+
+/**
+ * Properties only the Enterprise data file holds. An example that names no
+ * properties asks for all of them, and these are the ones it says a free
+ * data file lacks.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_ENTERPRISE_PROPERTIES \
+    "Latitude,Longitude,Areas"
+
+/**
+ * Properties the free data files hold, being RegisteredCountry,
+ * RegisteredName and RegisteredOwner in the Lite data file and Asn and
+ * AsnName in the ASN data file. The ASN data file lacks the Lite ones, which
+ * do not need the Enterprise data file.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FREE_PROPERTIES \
+    "RegisteredCountry,RegisteredName,RegisteredOwner,Asn,AsnName"
+
+/**
+ * Says of each property the example asks for that the data file does not
+ * have that it needs the Enterprise data file, one line each, leaving out
+ * #FIFTYONE_DEGREES_EXAMPLE_FREE_PROPERTIES. An empty list stands for
+ * #FIFTYONE_DEGREES_EXAMPLE_ENTERPRISE_PROPERTIES.
+ * @param output stream to print to, which is standard error for an example
+ * whose results go to standard output
+ * @param dataset pointer to the dataset structure
+ * @param propertyNames the properties the example asks for, separated by
+ * commas
+ */
+EXTERNAL void fiftyoneDegreesExampleReportEnterpriseProperties(
+    FILE *output,
+    fiftyoneDegreesDataSetIpi *dataset,
+    const char *propertyNames);
+
+/**
+ * Says which of the properties the example asks for need the Enterprise data
+ * file, as #fiftyoneDegreesExampleReportEnterpriseProperties does, then
+ * reports the data file as #fiftyoneDegreesExampleOfferEnterprise does.
+ * @param manager resource manager that holds an IP Intelligence dataset
+ * @param propertyNames the properties the example asks for, separated by
+ * commas
+ * @param example the example's own source file, which every link it
+ * prints carries as its utm_content
+ */
+EXTERNAL void fiftyoneDegreesExampleOfferEnterpriseProperties(
+    fiftyoneDegreesResourceManager *manager,
+    const char *propertyNames,
+    const char *example);
 
 /**
  * True when the data file has the property. The free data files leave out
@@ -156,6 +222,15 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
     const char *fileName,
     char *destination,
     size_t size);
+
+/**
+ * The data file path set in the _51DEGREES_IPI_PATH environment variable.
+ * When that is unset or empty, the deprecated name without the leading
+ * underscore is read instead, and the first time it is used a message
+ * naming the name that replaces it is written to stderr.
+ * @return the path, or NULL when neither name is set to a value
+ */
+EXTERNAL const char* fiftyoneDegreesExampleGetDataFilePathFromEnvironment(void);
 
 /**
  * Function pointer for generic function to be handle IP address.

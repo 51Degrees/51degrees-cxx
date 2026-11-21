@@ -26,6 +26,8 @@
 #include "TestUtils_Pointers.hpp"
 #include "FixedSizeCollection.hpp"
 #include "../../src/common/collectionKeyTypes.h"
+#include <cstdint>
+#include <cstdlib>
 #include <string>
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
@@ -2752,4 +2754,95 @@ TEST_F(StoredBinaryValueDefaults, ValueGetText_EmptyWhenNotWritable) {
             exception));
         EXPECT_TRUE(EXCEPTION_CHECK(INCORRECT_IP_ADDRESS_FORMAT));
     }
+}
+
+/** The text the library gives the value to the decimal places. */
+static std::string storedBinaryValueText(
+    const StoredBinaryValue &value,
+    const PropertyValueType type,
+    const uint8_t places) {
+    char text[64];
+    FIFTYONE_DEGREES_EXCEPTION_CREATE;
+    StringBuilder builder = { text, sizeof(text) };
+    StringBuilderInit(&builder);
+    StringBuilderAddStringValue(&builder, &value, type, places, exception);
+    StringBuilderComplete(&builder);
+    EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+    return std::string(text);
+}
+
+// A stored declination of 6751 is 18.542741172521133 degrees, which is given
+// to a caller as 18.543.
+TEST(StoredBinaryValueRounded, Declination) {
+    StoredBinaryValue value;
+    value.shortValue = 6751;
+    EXPECT_DOUBLE_EQ(18.542741172521133, StoredBinaryValueToDoubleOrDefault(
+        &value, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION, 0));
+    EXPECT_EQ(18.543, StoredBinaryValueToRoundedDoubleOrDefault(
+        &value, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION, 3, 0));
+    EXPECT_EQ(18.5, StoredBinaryValueToRoundedDoubleOrDefault(
+        &value, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION, 1, 0));
+    EXPECT_EQ(19.0, StoredBinaryValueToRoundedDoubleOrDefault(
+        &value, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION, 0, 0));
+    value.shortValue = -6751;
+    EXPECT_EQ(-18.543, StoredBinaryValueToRoundedDoubleOrDefault(
+        &value, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION, 3, 0));
+}
+
+// The same stored number as an azimuth is twice the angle.
+TEST(StoredBinaryValueRounded, Azimuth) {
+    StoredBinaryValue value;
+    value.shortValue = 6751;
+    EXPECT_EQ(37.085, StoredBinaryValueToRoundedDoubleOrDefault(
+        &value, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH, 3, 0));
+    value.shortValue = -6751;
+    EXPECT_EQ(-37.085, StoredBinaryValueToRoundedDoubleOrDefault(
+        &value, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH, 3, 0));
+}
+
+// Every number an azimuth or a declination can hold is given as the number
+// its text reads as, for each number of decimal places the text is quick to
+// write and for the most a double is written to.
+TEST(StoredBinaryValueRounded, EveryAngleIsItsText) {
+    const PropertyValueType types[] = {
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION };
+    const uint8_t allPlaces[] = { 0, 1, 2, 3, 4, 5, 6 };
+    for (const PropertyValueType type : types) {
+        for (const uint8_t places : allPlaces) {
+            int different = 0;
+            for (int stored = INT16_MIN; stored <= INT16_MAX; stored++) {
+                StoredBinaryValue value;
+                value.shortValue = (int16_t)stored;
+                const double number =
+                    StoredBinaryValueToRoundedDoubleOrDefault(
+                        &value, type, places, 0);
+                const std::string text =
+                    storedBinaryValueText(value, type, places);
+                if (strtod(text.c_str(), nullptr) != number) {
+                    if (different++ < 5) {
+                        ADD_FAILURE() << "Stored " << stored << " of type " <<
+                            type << " to " << (int)places <<
+                            " places is the number " << number <<
+                            " and the text " << text;
+                    }
+                }
+            }
+            EXPECT_EQ(0, different) << "type " << type << ", places " <<
+                (int)places;
+        }
+    }
+}
+
+// A value that is not an angle is the number it always was.
+TEST(StoredBinaryValueRounded, OtherTypesAreNotRounded) {
+    StoredBinaryValue value;
+    value.intValue = 123456789;
+    EXPECT_EQ(123456789.0, StoredBinaryValueToRoundedDoubleOrDefault(
+        &value, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER, 3, 0));
+    value.byteValue = 7;
+    EXPECT_EQ(7.0, StoredBinaryValueToRoundedDoubleOrDefault(
+        &value, FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE, 3, 0));
+    EXPECT_EQ(-1.5, StoredBinaryValueToRoundedDoubleOrDefault(
+        &value, FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB, 3, -1.5));
 }

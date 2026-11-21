@@ -26,6 +26,12 @@
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-prochash.c"
+
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
@@ -89,8 +95,14 @@ static void reportStatus(
  * On a free data file, says on standard error what the Enterprise data file
  * adds and where to ask for a copy.
  */
-static void offerEnterprise(fiftyoneDegreesResourceManager *manager) {
+static void offerEnterprise(
+	fiftyoneDegreesResourceManager *manager,
+	const char *requiredProperties) {
 	DataSetHash *dataset = DataSetHashGet(manager);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stderr,
+		dataset,
+		requiredProperties);
 	if (fiftyoneDegreesExampleHasProperty(dataset, "HardwareVendor") ==
 		false) {
 		fprintf(stderr, "This example is using a free data file. The "
@@ -156,7 +168,7 @@ int fiftyoneDegreesProcHashRun(
 
 		// Standard output holds the processed User-Agents, so the note goes
 		// to standard error.
-		offerEnterprise(&manager);
+		offerEnterprise(&manager, requiredProperties);
 
 		ResourceManagerFree(&manager);
 	}
@@ -201,6 +213,10 @@ int main(int argc, char* argv[]) {
 		argc > 2 ? argv[2] : "IsMobile,DeviceType,PriceBand",
 		&config);
 	
+	// Standard output holds the results, so where to find out more goes
+	// to standard error.
+	fiftyoneDegreesExampleFindOutMore(stderr, FIFTYONE_DEGREES_EXAMPLE_FILE);
+
 	return exitCode;
 }
 

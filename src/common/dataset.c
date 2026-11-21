@@ -305,19 +305,23 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromMemory(
 	void(*freeDataSet)(void*),
 	fiftyoneDegreesException *exception) {
 	DataSetBase *replacement = NULL;
+	DataSetBase *existing;
 	const void *config;
 	PropertiesRequired properties = PropertiesDefault;
 	Exception ownException;
 	exception = getReloadException(exception, &ownException);
 
 	// Reference the properties and config from the existing data set in the
-	// replacement.
-	properties.existing = ((DataSetBase*)manager->active->resource)->available;
-	config = ((DataSetBase*)manager->active->resource)->config;
+	// replacement. The existing data set is held until the replacement is in
+	// use, so that another reload cannot free it meanwhile.
+	existing = DataSetGet(manager);
+	properties.existing = existing->available;
+	config = existing->config;
 
 	// Allocate memory for the replacement dataset.
 	StatusCode status = allocate(&replacement, dataSetSize);
 	if (status != SUCCESS) {
+		DataSetRelease(existing);
 		return status;
 	}
 
@@ -341,10 +345,21 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromMemory(
 		// Every init method resets the data set's pointers before anything
 		// can fail, so it is safe on a partially initialised data set.
 		freeDataSet(replacement);
+		DataSetRelease(existing);
 		return status;
 	}
-	
-	return replace(manager, replacement);
+
+	// Memory has no file name, so the replacement keeps the name of the file
+	// the existing data set came from, and a reload from the original file
+	// still finds it.
+	memcpy(
+		(char*)replacement->masterFileName,
+		existing->masterFileName,
+		sizeof(replacement->masterFileName));
+
+	status = replace(manager, replacement);
+	DataSetRelease(existing);
+	return status;
 }
 
 fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromFile(
@@ -355,20 +370,24 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromFile(
 	void(*freeDataSet)(void*),
 	fiftyoneDegreesException *exception) {
 	DataSetBase *replacement = NULL;
+	DataSetBase *existing;
 	const void *config;
 	PropertiesRequired properties = PropertiesDefault;
 	Exception ownException;
 	exception = getReloadException(exception, &ownException);
 
 	// Reference the properties and config from the existing data set in the
-	// replacement.
-	properties.existing = ((DataSetBase*)manager->active->resource)->available;
-	config = ((DataSetBase*)manager->active->resource)->config;
-	
+	// replacement. The existing data set is held until the replacement is in
+	// use, so that another reload cannot free it meanwhile.
+	existing = DataSetGet(manager);
+	properties.existing = existing->available;
+	config = existing->config;
+
 	// Allocate memory for the replacement dataset.
 	StatusCode status = allocate(&replacement, dataSetSize);
 	if (status != SUCCESS) {
-		return status; 
+		DataSetRelease(existing);
+		return status;
 	}
 
 	// Initialise the new data set with the properties of the current one.
@@ -385,8 +404,11 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetReloadManagerFromFile(
 		// Every init method resets the data set's pointers before anything
 		// can fail, so it is safe on a partially initialised data set.
 		freeDataSet(replacement);
+		DataSetRelease(existing);
 		return status;
 	}
-	
-	return replace(manager, replacement);
+
+	status = replace(manager, replacement);
+	DataSetRelease(existing);
+	return status;
 }

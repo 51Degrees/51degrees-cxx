@@ -28,6 +28,12 @@
 #include "ExampleBase.hpp"
 #include "../../../../src/common/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-cpp-ipintelligence-reloadfrommemory.cpp"
+
 using namespace std;
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
@@ -143,7 +149,7 @@ namespace FiftyoneDegrees {
 								engine->refreshData(data, length);
 								numberOfReloads++;
 							}
-							catch (StatusCodeException e) {
+							catch (const StatusCodeException &) {
 								numberOfReloadFails++;
 							}
 #ifdef _MSC_VER
@@ -161,7 +167,7 @@ namespace FiftyoneDegrees {
 							engine->refreshData(data, length);
 							numberOfReloads++;
 						}
-						catch (StatusCodeException e) {
+						catch (const StatusCodeException &) {
 							numberOfReloadFails++;
 						}
 						state.processIpAddressesSingle();
@@ -173,6 +179,7 @@ namespace FiftyoneDegrees {
 
 					// On a free data file, say what the Enterprise data file
 					// adds and where to ask for a copy.
+					reportEnterpriseProperties();
 					offerEnterprise(
 						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-ipintelligence-reloadfrommemory.cpp&utm_term=free-data-file");
 					printf("Program execution complete. Press Return to exit.");
@@ -187,6 +194,8 @@ namespace FiftyoneDegrees {
 	}
 }
 
+#ifndef TEST
+
 /**
  * Main entry point.
  */
@@ -196,7 +205,7 @@ int main(int argc, char* argv[]) {
 	char ipAddressFilePath[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char* envDataFilePath = ExampleBase::getDataFilePathFromEnvironment();
 	if (argc > 1) {
 		strcpy(dataFilePath, argv[1]);
 	}
@@ -281,6 +290,9 @@ int main(int argc, char* argv[]) {
 #endif
 #endif
 
+	// End with where to find out more.
+	ExampleBase::findOutMore(FIFTYONE_DEGREES_EXAMPLE_FILE);
+
 	// Wait for a character to be pressed.
 #ifndef TEST
 	fgetc(stdin);
@@ -288,3 +300,5 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
+
+#endif

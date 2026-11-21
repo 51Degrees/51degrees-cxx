@@ -150,6 +150,12 @@ CountryOverlap <data file> --probe <ip> [ip...]
 #include "../../../../src/ipi/fiftyone.h"
 #include "../../../../src/ipi/ipi_weighted_results.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-countryoverlap.c"
+
 /** Properties the analysis needs. */
 #define PROPERTY_COUNTRY_CODE "CountryCode"
 #define PROPERTY_COUNTRY "Country"
@@ -1731,9 +1737,9 @@ int fiftyoneDegreesIpiCountryOverlap(
 		if (status == REQ_PROP_NOT_PRESENT) {
 			printf(
 				"Measuring how often IP addresses overlap country "
-				"borders needs properties only the Enterprise data file "
-				"has (%s), and the data file in use has none of them, so "
-				"the example stops here. Contact us for a copy of the "
+				"borders needs the properties %s, which need the "
+				"Enterprise data file. The data file in use has none of "
+				"them, so the example stops here. Contact us for a copy of the "
 				"Enterprise data file at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=properties-missing\n",
 				countryOverlapProperties);
 			return COUNTRY_OVERLAP_PROPERTIES_MISSING;
@@ -2357,7 +2363,9 @@ int main(int argc, char* argv[]) {
 				"CountryOverlap <data file> --probe <ip> [ip...]\n");
 			return COUNTRY_OVERLAP_FAILED;
 		}
-		return runProbe(dataFilePath, argc, argv);
+		const int probed = runProbe(dataFilePath, argc, argv);
+		fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
+		return probed;
 	}
 
 	const char* outputPath = argc > 2 ? argv[2] :
@@ -2375,6 +2383,9 @@ int main(int argc, char* argv[]) {
 		0,
 		totalChunks,
 		minSecondaryPercent);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// A data file without the properties is explained, not a failure.
 	return result == COUNTRY_OVERLAP_PROPERTIES_MISSING ?

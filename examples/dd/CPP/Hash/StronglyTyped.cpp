@@ -22,6 +22,12 @@
  
 #include "ExampleBase.hpp"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-cpp-hash-stronglytyped.cpp"
+
 using namespace FiftyoneDegrees::Examples::Hash;
 
 /**
@@ -248,6 +254,9 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesExampleMemCheck(
 		&params,
 		fiftyoneDegreesExampleCPPStronglyTypedRun);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

@@ -50,7 +50,6 @@ cmake --build . --config Release
 | `tools/dd` | Command line tools, such as `js-snippet-export`, which exports the JavaScript snippets in a data file |
 | `VisualStudio` | Visual Studio solutions for each product |
 | `data` | The [data](https://github.com/51Degrees/data) submodule, whose `device-detection` and `ip-intelligence` folders hold the data files the tests and examples use |
-| `device-detection-data`, `ip-intelligence-data` | The earlier data submodules, kept for the other language APIs until they read `data`. Nothing here uses them |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
 
 ## Getting the code and data
@@ -180,6 +179,8 @@ definitions their copy of common is compiled with. A program that uses both
 products in C++ needs libraries built with `-DFIFTYONE_CXX_BOTH_PRODUCTS=ON`.
 [`test/install`](test/install) is a small project that builds against an
 install, and `ci/check-install.ps1` runs it in CI.
+[`test/install/examples`](test/install/examples) builds the examples against
+an install in the same way.
 
 ## Building with Visual Studio
 
@@ -236,11 +237,20 @@ So small changes merge into `rc` rather than `main`. Pull requests target `rc`,
 and when a release is wanted one pull request merges `rc` into `main`, so the
 languages update once for all of them.
 
-- The nightly builds and merges any pull request into `rc` that is not a draft
-  and has no review requested, so a pull request stays a draft until it has
-  been reviewed. To build a draft, use common-ci's
+- The nightly build and the Pull Requests workflow build each pull request into
+  `rc` on the configurations its changes need, which
+  [`ci/select-options.ps1`](ci/select-options.ps1) chooses, and merge one that
+  passes when it is not a draft and has no review requested, so a pull request
+  stays a draft until it has been reviewed. A change to documentation alone
+  builds nothing. To build a draft, use common-ci's
   [`nightly-pull-request.yml`](https://github.com/51Degrees/common-ci/blob/main/.github/workflows/nightly-pull-request.yml)
-  started with `dryrun: 'true'` and `branch: rc`.
+  started with `dryrun: 'true'` and `branch: rc`. It builds the entries
+  `ci/select-options.ps1` chooses unless `full-matrix` is `true`, which
+  builds every entry, macOS included.
+- The release pull request from `rc` into `main` is built on every
+  configuration by
+  [`release-pull-request.yml`](.github/workflows/release-pull-request.yml).
+  Wait for it to pass before merging.
 - Data file updates still reach `main` every night. Merge `main` into
   `rc` before opening the release pull request.
 - GitHub closes an issue only when its fix reaches `main`, so the release pull

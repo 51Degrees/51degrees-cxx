@@ -32,6 +32,8 @@
  * for a spread of raw weightings without a data file.
  */
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <sstream>
@@ -545,4 +547,126 @@ TEST(IpiWeightTextTests, EveryWeightHasTheStreamForm) {
 	EXPECT_EQ("0.5", valueTextsWeight(2147418112u));
 	EXPECT_EQ("1", valueTextsWeight(4294836224u));
 	EXPECT_EQ("1", valueTextsWeight(FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT));
+}
+
+/** IP addresses the angle numbers are read for. */
+static const char* valueTextsAngleAddresses[] = {
+	"185.28.167.77",
+	"81.2.69.142",
+	"102.89.32.1",
+	"1.1.1.1",
+	"8.8.8.8",
+	"116.154.188.222",
+	"2a00:23c5:a1a6:a01::1",
+	"2001:4860:4860::8888",
+};
+
+/**
+ * True when the number is the double nearest to itself written to the decimal
+ * places, which a number rounded to those places is and another is not.
+ */
+static bool valueTextsIsRounded(const double value, const int places) {
+	char text[64];
+	snprintf(text, sizeof(text), "%.*f", places, value);
+	return strtod(text, nullptr) == value;
+}
+
+/**
+ * A number stored as an azimuth or a declination is given rounded to the
+ * decimal places its text has, by the C++ results and by the C collection of
+ * weighted values, so that the number and the text are the same value.
+ */
+TEST_F(IpiValueTextsTests, AnAngleNumberIsRoundedAsItsText) {
+	const int places = fiftyoneDegreesDefaultWktDecimalPlaces;
+	uint32_t cppNumbers = 0;
+	uint32_t cNumbers = 0;
+	for (const char* address : valueTextsAngleAddresses) {
+		const ValueTextsCase item = {
+			"server.client-ip", address, nullptr, nullptr };
+		fiftyoneDegreesResultsIpi* results = lookUp(item);
+		Ipi::EvidenceIpi evidence;
+		addEvidence(evidence, item);
+		std::unique_ptr<Ipi::ResultsIpi> cppResults(engine->process(&evidence));
+		const fiftyoneDegreesDataSetIpi* dataSet =
+			(const fiftyoneDegreesDataSetIpi*)results->b.dataSet;
+		const int count = requiredCount(results);
+
+		// The properties whose values are stored as an angle.
+		vector<bool> angle((size_t)count, false);
+		for (int i = 0; i < count; i++) {
+			FIFTYONE_DEGREES_EXCEPTION_CREATE;
+			const fiftyoneDegreesPropertyValueType stored =
+				fiftyoneDegreesPropertyGetStoredTypeByIndex(
+					dataSet->propertyTypes,
+					fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
+						dataSet->b.b.available,
+						i),
+					exception);
+			ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY) << nameOf(results, i);
+			angle[(size_t)i] =
+				stored == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH ||
+				stored == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION;
+		}
+
+		// The C++ results give the number its text reads as.
+		for (int i = 0; i < count; i++) {
+			if (!angle[(size_t)i]) {
+				continue;
+			}
+			const string name = nameOf(results, i);
+			auto numbers = cppResults->getValuesAsWeightedDoubleList(name);
+			auto texts = cppResults->getValuesAsWeightedStringList(name);
+			if (!numbers.hasValue() || !texts.hasValue()) {
+				continue;
+			}
+			ASSERT_EQ(texts.getValue().size(), numbers.getValue().size()) <<
+				address << " " << name;
+			for (size_t v = 0; v < numbers.getValue().size(); v++) {
+				const double number = numbers.getValue()[v].getValue();
+				const string text = texts.getValue()[v].getValue();
+				EXPECT_EQ(strtod(text.c_str(), nullptr), number) <<
+					address << " " << name << " " << text;
+				EXPECT_TRUE(valueTextsIsRounded(number, places)) <<
+					address << " " << name << " " << text;
+				cppNumbers++;
+			}
+		}
+
+		// The C collection gives the same kind of number.
+		FIFTYONE_DEGREES_EXCEPTION_CREATE;
+		fiftyoneDegreesWeightedValuesCollection collection =
+			fiftyoneDegreesResultsIpiGetValuesCollection(
+				results,
+				nullptr,
+				0,
+				nullptr,
+				exception);
+		ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY) << address;
+		for (uint32_t c = 0; c < collection.itemsCount; c++) {
+			const fiftyoneDegreesWeightedValueHeader* header =
+				collection.items[c];
+			if (header->valueType ==
+				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DOUBLE &&
+				header->requiredPropertyIndex >= 0 &&
+				header->requiredPropertyIndex < count &&
+				angle[(size_t)header->requiredPropertyIndex]) {
+				const double number =
+					((const fiftyoneDegreesWeightedDouble*)header)->value;
+				EXPECT_TRUE(valueTextsIsRounded(number, places)) <<
+					address << " " <<
+					nameOf(results, header->requiredPropertyIndex) << " " <<
+					number;
+				cNumbers++;
+			}
+		}
+		fiftyoneDegreesWeightedValuesCollectionRelease(&collection);
+		fiftyoneDegreesResultsIpiFree(results);
+	}
+	// Only the Enterprise data file has properties stored as angles.
+	if (dataFilePath.find("Enterprise") != string::npos) {
+		EXPECT_GT(cppNumbers, 0u) << "The C++ should give some angle numbers.";
+		EXPECT_GT(cNumbers, 0u) << "The C should give some angle numbers.";
+	}
+	std::cout << "Compared " << cppNumbers << " numbers from the C++ and " <<
+		cNumbers << " from the C.\n";
 }
