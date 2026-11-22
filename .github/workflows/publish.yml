@@ -25,6 +25,4 @@ jobs:
       allow-early-release: ${{ inputs.allow-early-release || false }}
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
       cache-assets: true
-    secrets:
-      _51DEGREES_ACCESS_TOKEN: ${{ secrets._51DEGREES_ACCESS_TOKEN }}
-      _51DEGREES_LICENSE_KEY: ${{ secrets._51DEGREES_LICENSE_KEY }}
+    secrets: inherit

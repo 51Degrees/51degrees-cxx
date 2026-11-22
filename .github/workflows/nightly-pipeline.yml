@@ -31,9 +31,7 @@ jobs:
       dryrun: ${{ inputs.dryrun || false }}
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
       cache-assets: true
-    secrets:
-      _51DEGREES_ACCESS_TOKEN: ${{ secrets._51DEGREES_ACCESS_TOKEN }}
-      _51DEGREES_LICENSE_KEY: ${{ secrets._51DEGREES_LICENSE_KEY }}
+    secrets: inherit
 
   SubmoduleUpdate:
     name: Nightly Submodule Update
@@ -43,8 +41,7 @@ jobs:
       org-name: ${{ github.event.repository.owner.login }}
       dryrun: ${{ inputs.dryrun || false }}
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
-    secrets:
-      _51DEGREES_ACCESS_TOKEN: ${{ secrets._51DEGREES_ACCESS_TOKEN }}
+    secrets: inherit
 
   # Builds the examples from a fresh clone and runs each one with no settings,
   # on the free data files.
@@ -75,6 +72,4 @@ jobs:
       build-test-timeout-minutes: 170
       # One configuration that fails does not cancel the others.
       fail-fast: false
-    secrets:
-      _51DEGREES_ACCESS_TOKEN: ${{ secrets._51DEGREES_ACCESS_TOKEN }}
-      _51DEGREES_LICENSE_KEY: ${{ secrets._51DEGREES_LICENSE_KEY }}
+    secrets: inherit
