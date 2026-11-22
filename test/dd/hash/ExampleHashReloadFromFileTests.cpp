@@ -31,7 +31,7 @@ public:
 
 		fiftyoneDegreesHashReloadFromFileRun(
 			dataFilePath.c_str(),
-			userAgentFilePath.c_str(),
+			evidenceFilePath.c_str(),
 			requiredProperties,
 			config);
 

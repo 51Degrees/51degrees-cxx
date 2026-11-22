@@ -47,7 +47,7 @@ public:
 			ReloadFromMemory reloadFromMemory(
 				reader.startByte,
 				reader.length,
-				userAgentFilePath,
+				evidenceFilePath,
 				config);
 			reloadFromMemory.run();
 		}

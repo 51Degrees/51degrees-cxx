@@ -29,10 +29,10 @@
 #include <unistd.h>
 #endif
 
-#include "../../../src/common/textfile.h"
 #include "../../../src/dd/hash/hash.h"
 #include "../../../src/dd/hash/fiftyone.h"
 #include "ExampleHashTests.hpp"
+#include "../../../examples/dd/C/Hash/ExampleBase.h"
 
 #define THREAD_COUNT 4
 
@@ -57,8 +57,8 @@ typedef struct thread_state_t {
 } threadState;
 
 /*
- * Runs the performance test for the User-Agent provided. Called from the text
- * file iterator.
+ * Runs the performance test for the User-Agent provided. Called with the
+ * User-Agent of each record of the evidence file.
  * @param userAgent to be used for the test
  * @param state instance of performanceThreadState
  */
@@ -83,7 +83,7 @@ static void runRequestsSingle(sharedState *state) {
 	sharedState *shared = (sharedState*)state;
 	threadState thread;
 	thread.manager = shared->manager;
-	TextFileIterateWithLimit(
+	fiftyoneDegreesExampleUserAgentsIterateWithLimit(
 		shared->userAgentFilePath,
 		userAgent,
 		sizeof(userAgent),
@@ -287,7 +287,7 @@ public:	\
 	void run(fiftyoneDegreesConfigHash config) {	\
 		hashMemReloadRun(	\
 			dataFilePath.c_str(),	\
-			userAgentFilePath.c_str(),	\
+			evidenceFilePath.c_str(),	\
 			requiredProperties,	\
 			config,	\
 			f);	\

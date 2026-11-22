@@ -103,7 +103,7 @@ public:
 		const char *directory,
 		const char **fileNames,
 		int fileNamesLength,
-		const char *userAgentsFileName);
+		const char *evidenceFileName);
 	virtual ~EngineDeviceDetectionTests();
 	virtual void SetUp();
 	virtual void TearDown();
@@ -164,7 +164,7 @@ public: \
 		_dataFolderName, \
 		_##e##FileNames, \
 		_##e##FileNamesLength, \
-		_userAgentsFileName) {} \
+		_evidenceFileName) {} \
 	void SetUp() { ENGINE_CLASS_NAME_BASE(e,t)::SetUp(); } \
 	void TearDown() { ENGINE_CLASS_NAME_BASE(e,t)::TearDown(); } \
 }; \

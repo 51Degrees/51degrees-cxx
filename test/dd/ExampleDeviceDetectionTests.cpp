@@ -25,7 +25,6 @@
 ExampleDeviceDetectionTest::ExampleDeviceDetectionTest(
 	const char **dataFileNames,
     int dataFileNamesLength,
-	const char *userAgentFileName,
     const char *evidenceFileName) : ExampleTests() {
     dataFilePath = "";
     for (int i = 0;
@@ -34,7 +33,6 @@ ExampleDeviceDetectionTest::ExampleDeviceDetectionTest(
         dataFilePath = GetFilePath(_dataFolderName, dataFileNames[i]);
     }
 
-	userAgentFilePath = GetFilePath(_dataFolderName, userAgentFileName);
     evidenceFilePath = GetFilePath(_dataFolderName, evidenceFileName);
 	requiredProperties = "Id,IsMobile,BrowserName,DeviceType";
 };

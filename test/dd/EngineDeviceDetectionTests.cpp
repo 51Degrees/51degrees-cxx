@@ -31,6 +31,7 @@
 #endif
 #endif
 #include "../../src/common/fiftyone.h"
+#include "Constants.hpp"
 
 using std::ofstream;
 using std::endl;
@@ -40,20 +41,21 @@ EngineDeviceDetectionTests::EngineDeviceDetectionTests(
 	const char *directory,
 	const char **fileNames,
 	int fileNamesLength,
-	const char *userAgentsFileName)
+	const char *evidenceFileName)
 	: EngineTests(requiredProperties, directory, fileNames, fileNamesLength) {
-	char userAgentsFullName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	char evidenceFullName[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	char userAgent[500] = "";
 	fiftyoneDegreesFileGetPath(
 		directory,
-		userAgentsFileName,
-		userAgentsFullName,
-		sizeof(userAgentsFullName));
-	fiftyoneDegreesTextFileIterate(
-		userAgentsFullName, 
-		userAgent, 
-		sizeof(userAgent), 
-		this, 
+		evidenceFileName,
+		evidenceFullName,
+		sizeof(evidenceFullName));
+	// The User-Agent of each record of the evidence file.
+	fiftyoneDegreesExampleUserAgentsIterate(
+		evidenceFullName,
+		userAgent,
+		sizeof(userAgent),
+		this,
 		EngineDeviceDetectionTests::userAgentRead);
 }
 

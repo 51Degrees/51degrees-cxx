@@ -29,7 +29,6 @@ public:
 	ExampleHashTest() : ExampleDeviceDetectionTest(
 		_HashFileNames,
         _HashFileNamesLength,
-		_userAgentsFileName,
 		_evidenceFileName) {}
 
 protected:

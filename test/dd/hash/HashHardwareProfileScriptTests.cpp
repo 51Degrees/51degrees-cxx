@@ -41,7 +41,6 @@
 #include <vector>
 #include "../Constants.hpp"
 #include "../../common/Base.hpp"
-#include "../../../src/common/textfile.h"
 #include "../../../src/dd/hash/EngineHash.hpp"
 #include "../../../src/dd/hash/hash.h"
 
@@ -231,20 +230,20 @@ public:
 		if (dataFilePaths.empty()) {
 			GTEST_SKIP() << "No Hash data file was found.";
 		}
-		userAgentsPath = GetFilePath(_dataFolderName, _userAgentsFileName);
+		evidencePath = GetFilePath(_dataFolderName, _evidenceFileName);
 	}
 
 	void TearDown() override {
 		// Released here as the memory check in the base class would otherwise
 		// count them as a leak.
 		std::vector<std::string>().swap(dataFilePaths);
-		std::string().swap(userAgentsPath);
+		std::string().swap(evidencePath);
 		Base::TearDown();
 	}
 
 protected:
 	std::vector<std::string> dataFilePaths;
-	std::string userAgentsPath;
+	std::string evidencePath;
 };
 
 /**
@@ -258,10 +257,10 @@ TEST_F(HashHardwareProfileScriptTests, Results_GiveEachValueInTheScript) {
 		GTEST_SKIP() << "The set up did not finish.";
 	}
 	std::vector<std::string> userAgents = { iPhoneUserAgent };
-	if (userAgentsPath.empty() == false) {
+	if (evidencePath.empty() == false) {
 		char line[1000] = "";
-		fiftyoneDegreesTextFileIterate(
-			userAgentsPath.c_str(),
+		fiftyoneDegreesExampleUserAgentsIterate(
+			evidencePath.c_str(),
 			line,
 			(int)sizeof(line),
 			&userAgents,

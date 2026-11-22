@@ -38,13 +38,13 @@ public:
 		const char *dataDirectory,
 		const char **hashFileNames,
 		int hashFileNamesLength,
-		const char *userAgentsFileName) 
+		const char *evidenceFileName) 
 		: EngineDeviceDetectionTests(
 			properties, 
 			dataDirectory, 
 			hashFileNames,
 			hashFileNamesLength,
-			userAgentsFileName) {
+			evidenceFileName) {
 		this->config = config;
 		// Unset allow unmatched nodes as the tests for this will explicitly set it.
 		this->config->setAllowUnmatched(true);
@@ -886,14 +886,14 @@ public:
 		const char *dataDirectory,
 		const char **hashFileNames,
 		int hashFileNamesLength,
-		const char *userAgentsFileName)
+		const char *evidenceFileName)
 		: EngineHashTests(
 			config, 
 			properties, 
 			dataDirectory,
 			hashFileNames, 
 			hashFileNamesLength,
-			userAgentsFileName) {
+			evidenceFileName) {
 	};
 	void SetUp() {
 		EngineHashTests::SetUp();
@@ -941,14 +941,14 @@ public:
 		const char *dataDirectory,
 		const char **hashFileNames,
 		int hashFileNamesLength,
-		const char *userAgentsFileName)
+		const char *evidenceFileName)
 		: EngineHashTests(
 			config,
 			properties,
 			dataDirectory,
 			hashFileNames,
 			hashFileNamesLength,
-			userAgentsFileName) {
+			evidenceFileName) {
 	};
 	void SetUp() {
 		EngineHashTests::SetUp();

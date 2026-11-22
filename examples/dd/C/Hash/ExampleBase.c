@@ -377,3 +377,102 @@ void fiftyoneDegreesExampleFindOutMore(FILE *output, const char *example) {
 	writeLink(output, "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-examplebase.c&utm_term=find-out-more", example);
 	fprintf(output, "\nSource code: https://github.com/51Degrees/51degrees-cxx\n");
 }
+
+// Memory used to read one record of an evidence file.
+#define EXAMPLE_EVIDENCE_PAIRS 20
+#define EXAMPLE_EVIDENCE_KEY_SIZE 200
+#define EXAMPLE_EVIDENCE_VALUE_SIZE 1000
+
+// The key of the User-Agent in a record of an evidence file.
+#define EXAMPLE_EVIDENCE_USER_AGENT_KEY "header.user-agent"
+
+/**
+ * The buffer, state and callback given to
+ * fiftyoneDegreesExampleUserAgentsIterateWithLimit, which the callback for
+ * each record needs.
+ */
+typedef struct example_user_agents_state_t {
+	char *buffer;
+	size_t length;
+	void *state;
+	void(*callback)(const char*, void*);
+} exampleUserAgentsState;
+
+/**
+ * Called with each record of the evidence file. Copies the record's
+ * User-Agent, when it has one, to the buffer and calls the callback with it.
+ * @param pairs keys and values of the record
+ * @param size number of pairs in the record
+ * @param state instance of exampleUserAgentsState
+ */
+static void exampleUserAgentsRecord(
+	KeyValuePair *pairs,
+	uint16_t size,
+	void *state) {
+	exampleUserAgentsState *userAgents = (exampleUserAgentsState*)state;
+	for (uint16_t i = 0; i < size; i++) {
+		if (StringCompare(
+			pairs[i].key,
+			EXAMPLE_EVIDENCE_USER_AGENT_KEY) == 0) {
+			size_t length = strlen(pairs[i].value);
+			if (length > userAgents->length - 1) {
+				length = userAgents->length - 1;
+			}
+			memcpy(userAgents->buffer, pairs[i].value, length);
+			userAgents->buffer[length] = '\0';
+			userAgents->callback(userAgents->buffer, userAgents->state);
+			break;
+		}
+	}
+}
+
+void fiftyoneDegreesExampleUserAgentsIterateWithLimit(
+	const char *fileName,
+	char *buffer,
+	int length,
+	int limit,
+	void *state,
+	void(*callback)(const char*, void*)) {
+	char fileBuffer[1000];
+	KeyValuePair pairs[EXAMPLE_EVIDENCE_PAIRS];
+	char keys[EXAMPLE_EVIDENCE_PAIRS][EXAMPLE_EVIDENCE_KEY_SIZE];
+	char values[EXAMPLE_EVIDENCE_PAIRS][EXAMPLE_EVIDENCE_VALUE_SIZE];
+	exampleUserAgentsState userAgents;
+	if (length <= 0) {
+		return;
+	}
+	for (int i = 0; i < EXAMPLE_EVIDENCE_PAIRS; i++) {
+		pairs[i].key = keys[i];
+		pairs[i].keyLength = EXAMPLE_EVIDENCE_KEY_SIZE;
+		pairs[i].value = values[i];
+		pairs[i].valueLength = EXAMPLE_EVIDENCE_VALUE_SIZE;
+	}
+	userAgents.buffer = buffer;
+	userAgents.length = (size_t)length;
+	userAgents.state = state;
+	userAgents.callback = callback;
+	YamlFileIterateWithLimit(
+		fileName,
+		fileBuffer,
+		sizeof(fileBuffer),
+		pairs,
+		EXAMPLE_EVIDENCE_PAIRS,
+		limit,
+		&userAgents,
+		exampleUserAgentsRecord);
+}
+
+void fiftyoneDegreesExampleUserAgentsIterate(
+	const char *fileName,
+	char *buffer,
+	int length,
+	void *state,
+	void(*callback)(const char*, void*)) {
+	fiftyoneDegreesExampleUserAgentsIterateWithLimit(
+		fileName,
+		buffer,
+		length,
+		-1,
+		state,
+		callback);
+}
