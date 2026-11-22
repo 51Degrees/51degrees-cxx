@@ -204,7 +204,8 @@ CMake option this repository reads or defines, with what each holds. Every
 name 51Degrees defines starts `_51DEGREES_`. When a change reads a new name,
 add it to the list in the same change. The test in
 `test/ipi/EnvironmentVariableNameTests.cpp` fails when a tracked file reads a
-name the list does not have.
+name the list does not have. A job that calls a shared workflow of common-ci
+passes `secrets: inherit` and names no secret, and the same test checks that.
 
 ## The two copies of common
 

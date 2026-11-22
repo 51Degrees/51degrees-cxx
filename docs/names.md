@@ -6,8 +6,9 @@ name. This page lists every name the code, examples, tests, build files and
 workflows of this repository read or define. The test in
 [`test/ipi/EnvironmentVariableNameTests.cpp`](../test/ipi/EnvironmentVariableNameTests.cpp)
 reads the tables below and fails when a tracked file reads a name that is not
-listed, or when a 51Degrees name does not start `_51DEGREES_`. Add a name here
-in the same change that first reads it.
+listed, or when a 51Degrees name does not start `_51DEGREES_`. It also fails
+when a job that calls a shared workflow of common-ci passes a secret by name.
+Add a name here in the same change that first reads it.
 
 ## Environment variables
 
@@ -20,12 +21,16 @@ argument and read no environment variable.
 
 ## Secrets
 
-Each workflow passes a job only the secrets that job uses.
+A job that calls a shared workflow of
+[common-ci](https://github.com/51Degrees/common-ci) passes `secrets: inherit`
+and names no secret. The shared workflow puts each secret in the environment
+of the job under its own name, and the script that uses it reads it there. No
+workflow of this repository reads a secret by name.
 
 | Name | Read by | What it holds |
 | --- | --- | --- |
-| `_51DEGREES_ACCESS_TOKEN` | Every workflow that calls a shared workflow of [common-ci](https://github.com/51Degrees/common-ci) | The token the shared workflows use to read and write this repository and its pull requests |
-| `_51DEGREES_LICENSE_KEY` | The jobs that build and test, in the Nightly Pipeline, Publish, Pull Requests and Release Pull Request workflows | The license key that `ci/fetch-assets.ps1` downloads the licensed data files with |
+| `_51DEGREES_ACCESS_TOKEN` | The shared workflows of common-ci | The token the shared workflows use to read and write this repository and its pull requests |
+| `_51DEGREES_LICENSE_KEY` | The data file download of common-ci, which `ci/fetch-assets.ps1` calls | The license key the licensed data files are downloaded with |
 
 ## CMake options
 
