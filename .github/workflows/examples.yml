@@ -61,7 +61,6 @@ jobs:
           path: |
             data/device-detection/51Degrees-LiteV4.1.hash
             data/device-detection/20000 Evidence Records.yml
-            data/device-detection/20000 User Agents.csv
             data/ip-intelligence/51Degrees-LiteV41.ipi
             data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
           enableCrossOsArchive: true
@@ -182,7 +181,6 @@ jobs:
           path: |
             data/device-detection/51Degrees-LiteV4.1.hash
             data/device-detection/20000 Evidence Records.yml
-            data/device-detection/20000 User Agents.csv
             data/ip-intelligence/51Degrees-LiteV41.ipi
             data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
           enableCrossOsArchive: true
