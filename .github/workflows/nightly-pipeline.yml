@@ -32,10 +32,8 @@ jobs:
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
       cache-assets: true
     secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
+      _51DEGREES_ACCESS_TOKEN: ${{ secrets._51DEGREES_ACCESS_TOKEN }}
+      _51DEGREES_LICENSE_KEY: ${{ secrets._51DEGREES_LICENSE_KEY }}
 
   SubmoduleUpdate:
     name: Nightly Submodule Update
@@ -46,7 +44,7 @@ jobs:
       dryrun: ${{ inputs.dryrun || false }}
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
     secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
+      _51DEGREES_ACCESS_TOKEN: ${{ secrets._51DEGREES_ACCESS_TOKEN }}
 
   # Builds the examples from a fresh clone and runs each one with no settings,
   # on the free data files.
@@ -78,7 +76,5 @@ jobs:
       # One configuration that fails does not cancel the others.
       fail-fast: false
     secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
+      _51DEGREES_ACCESS_TOKEN: ${{ secrets._51DEGREES_ACCESS_TOKEN }}
+      _51DEGREES_LICENSE_KEY: ${{ secrets._51DEGREES_LICENSE_KEY }}
