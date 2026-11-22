@@ -53,7 +53,6 @@ This example is available in full on [GitHub](https://github.com/51Degrees/51deg
 // which requires to be included before 'malloc.h'.
 #include "ExampleBase.h"
 #include "../../../../src/dd/hash/hash.h"
-#include "../../../../src/common/textfile.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
 /**
@@ -201,7 +200,7 @@ static void analyse(
 
 /**
  * Processes the User-Agent provided, writing the results to the output file.
- * Called from the text file iterator.
+ * Called with each record of the evidence file.
  * @param userAgent to be used for the test
  * @param state instance of offlineProcessState
  */

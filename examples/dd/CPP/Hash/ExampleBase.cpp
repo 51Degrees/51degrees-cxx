@@ -170,7 +170,7 @@ void ExampleBase::processUserAgent(
 void ExampleBase::SharedState::processUserAgentsSingle() {
 	char userAgent[500] = "";
 	ThreadState thread(engine);
-	fiftyoneDegreesTextFileIterate(
+	fiftyoneDegreesExampleUserAgentsIterate(
 		userAgentFilePath.c_str(),
 		userAgent,
 		sizeof(userAgent),

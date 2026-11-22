@@ -89,7 +89,6 @@ https://51degrees.com/Support/Documentation/APIs/C-V32/Benchmarks?utm_source=cod
 // which requires to be included before 'malloc.h'.
 #include "ExampleBase.h"
 
-#include "../../../../src/common/textfile.h"
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
@@ -105,7 +104,10 @@ static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
-static const char *userAgentFileName = "20000 User Agents.csv";
+// This file contains the 20,000 most commonly seen combinations of header
+// values that are relevant to device detection. This example reads the
+// User-Agent of each record.
+static const char *userAgentFileName = "20000 Evidence Records.yml";
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -191,8 +193,8 @@ static unsigned long getHashCode(ResultsHash *results) {
 }
 
 /**
- * Runs the performance test for the User-Agent provided. Called from the text
- * file iterator.
+ * Runs the performance test for the User-Agent provided. Called with the
+ * User-Agent of each record of the evidence file.
  * @param userAgent to be used for the test
  * @param state instance of performanceThreadState
  */
@@ -219,7 +221,7 @@ static void runRequestsSingle(sharedState *state) {
 	threadState thread;
 	thread.hashCode = 0;
 	thread.manager = shared->manager;
-	TextFileIterate(
+	fiftyoneDegreesExampleUserAgentsIterate(
 		shared->userAgentFilePath,
 		userAgent,
 		sizeof(userAgent),
