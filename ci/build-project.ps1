@@ -34,18 +34,18 @@ if ($BuildMethod -eq "cmake") {
     # copy of the common tests runs on 64 bit only. The shared script selects
     # 32 bit on Windows, and Linux needs the CMake option.
     $extraArgs = @(
-        "-D32bit=$(OnOff ($IsLinux -and $Arch -eq 'x86'))"
-        "-DFIFTYONE_BUILD_DEVICE_DETECTION=$(OnOff ($Products -contains 'dd'))"
-        "-DFIFTYONE_BUILD_IP_INTELLIGENCE=$(OnOff ($Products -contains 'ipi'))"
-        "-DFIFTYONE_COMMON_CXX_BUILD_TESTING=$(OnOff ($Products -contains 'common'))"
-        "-DFIFTYONE_COMMON_CXX_BUILD_TESTING_IPI=$(OnOff ($Arch -in 'x64', 'arm64'))"
-        "-DFIFTYONE_IPI_SYMBOLS=$(OnOff $IpiSymbols)"
-        "-DFIFTYONE_CXX_BOTH_PRODUCTS=$(OnOff $CxxBothProducts)"
-        "-DWITH_ASAN=$(OnOff $Asan)"
+        "-D_51DEGREES_32BIT=$(OnOff ($IsLinux -and $Arch -eq 'x86'))"
+        "-D_51DEGREES_BUILD_DEVICE_DETECTION=$(OnOff ($Products -contains 'dd'))"
+        "-D_51DEGREES_BUILD_IP_INTELLIGENCE=$(OnOff ($Products -contains 'ipi'))"
+        "-D_51DEGREES_COMMON_CXX_BUILD_TESTING=$(OnOff ($Products -contains 'common'))"
+        "-D_51DEGREES_COMMON_CXX_BUILD_TESTING_IPI=$(OnOff ($Arch -in 'x64', 'arm64'))"
+        "-D_51DEGREES_IPI_SYMBOLS=$(OnOff $IpiSymbols)"
+        "-D_51DEGREES_CXX_BOTH_PRODUCTS=$(OnOff $CxxBothProducts)"
+        "-D_51DEGREES_WITH_ASAN=$(OnOff $Asan)"
     )
     # The tests read the exception that ExceptionsDisabled removes, so the
     # entry that turns it on is BuildOnly as well.
-    if ($ExceptionsDisabled) { $extraArgs += "-DExceptionsDisabled=ON" }
+    if ($ExceptionsDisabled) { $extraArgs += "-D_51DEGREES_EXCEPTIONS_DISABLED=ON" }
     if ($BuildOnly) { $extraArgs += "-DBUILD_TESTING=OFF" }
     ./cxx/build-project.ps1 -RepoName $RepoName -ProjectDir . -Name $Name `
         -Configuration $Configuration -Arch $Arch -BuildMethod $BuildMethod `

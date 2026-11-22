@@ -1,5 +1,5 @@
 # Common tests, included from the root CMakeLists.txt when
-# FIFTYONE_COMMON_CXX_BUILD_TESTING is on.
+# _51DEGREES_COMMON_CXX_BUILD_TESTING is on.
 
 add_executable(CachePerf ${CMAKE_CURRENT_LIST_DIR}/performance/CachePerf.c)
 target_link_libraries(CachePerf fiftyone-common-c)
@@ -50,6 +50,6 @@ function(fiftyone_add_common_tests name suffix prefix)
 endfunction()
 
 fiftyone_add_common_tests(CommonTests "" "")
-if (FIFTYONE_COMMON_CXX_BUILD_TESTING_IPI)
+if (_51DEGREES_COMMON_CXX_BUILD_TESTING_IPI)
 	fiftyone_add_common_tests(CommonTestsIpi -ipi "Ipi.")
 endif()

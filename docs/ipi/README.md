@@ -74,7 +74,7 @@ When the properties were named, in C through the required properties and in C++ 
 
 ## Threads
 
-A set of results is used by one thread at a time, because reading a value writes into the results and, when no properties were named, the first read of a property of a component walks the component's graph. A program that looks up addresses on several threads uses a set of results for each thread. The resource manager, or in C++ the engine, can be shared by every thread, unless the library is built with the `NoThreading` option described in the [common library README](../../src/common/README.md#nothreading).
+A set of results is used by one thread at a time, because reading a value writes into the results and, when no properties were named, the first read of a property of a component walks the component's graph. A program that looks up addresses on several threads uses a set of results for each thread. The resource manager, or in C++ the engine, can be shared by every thread, unless the library is built with the `_51DEGREES_NO_THREADING` option described in the [common library README](../../src/common/README.md#nothreading).
 
 ## Referencing the API
 

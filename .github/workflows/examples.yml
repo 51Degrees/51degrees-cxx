@@ -73,7 +73,7 @@ jobs:
           $platform = $IsWindows ? @('-A', 'x64') : @()
           # CI builds only Device Detection on macOS (ci/options.json), so
           # the macOS run builds and runs the Device Detection examples.
-          if ($IsMacOS) { $platform += '-DFIFTYONE_BUILD_IP_INTELLIGENCE=OFF' }
+          if ($IsMacOS) { $platform += '-D_51DEGREES_BUILD_IP_INTELLIGENCE=OFF' }
           $configure = cmake .. @platform -DBUILD_TESTING=OFF 2>&1
           if ($LASTEXITCODE -ne 0) { $configure | Out-Host; throw "Configure failed" }
           $names = @($configure | ForEach-Object {

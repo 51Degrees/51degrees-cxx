@@ -24,10 +24,10 @@ Windows, where only the 51Degrees names are read because each object also
 carries the C runtime's inline functions as external names.
 
 .PARAMETER BuildPath
-The CMake build folder of a build with FIFTYONE_IPI_SYMBOLS on.
+The CMake build folder of a build with _51DEGREES_IPI_SYMBOLS on.
 
 .PARAMETER Cxx
-Also check the C++ libraries, for a build with FIFTYONE_CXX_BOTH_PRODUCTS on.
+Also check the C++ libraries, for a build with _51DEGREES_CXX_BOTH_PRODUCTS on.
 #>
 param(
     [Parameter(Mandatory)][string] $BuildPath,

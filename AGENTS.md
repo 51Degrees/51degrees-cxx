@@ -67,7 +67,7 @@ downloads every free file, and keeps a file that is already there.
 Build in a folder named `build`. `-DBUILD_TESTING=OFF` leaves out the tests
 and the Google Test download, so the build is quicker, and every example is
 still built. To build one product only, also add
-`-DFIFTYONE_BUILD_IP_INTELLIGENCE=OFF` or `-DFIFTYONE_BUILD_DEVICE_DETECTION=OFF`
+`-D_51DEGREES_BUILD_IP_INTELLIGENCE=OFF` or `-D_51DEGREES_BUILD_DEVICE_DETECTION=OFF`
 to the first `cmake` command.
 
 On Linux and macOS, build with these commands.
@@ -230,7 +230,7 @@ every common function and global and renames them with an `ipi_` prefix. Common
 headers include it first when `FIFTYONE_DEGREES_IPI_SYMBOLS` is defined.
 
 That define must never change anything for a language wrapper. CMake sets it on
-the IP Intelligence copy through the `FIFTYONE_IPI_SYMBOLS` option, which is on
+the IP Intelligence copy through the `_51DEGREES_IPI_SYMBOLS` option, which is on
 only when this repository is the top level project. A project that includes this
 CMake file, and any build that compiles the sources itself, keeps the original
 names and doesn't need the list. `Ubuntu_arm64_Release` in `ci/options.json`
@@ -245,7 +245,7 @@ The common C++ classes have the same problem, so each common C++ header opens
 `FIFTYONE_DEGREES_COMMON_CXX_BEGIN` inside its namespace. That expands to nothing
 unless `FIFTYONE_DEGREES_IPI_CXX_SYMBOLS` is defined, which makes it an inline
 namespace, changing linked names and not source names. The CMake option
-`FIFTYONE_CXX_BOTH_PRODUCTS` turns it on, and it stays off by default until the
+`_51DEGREES_CXX_BOTH_PRODUCTS` turns it on, and it stays off by default until the
 wrappers SWIG generates have been checked. The
 `Ubuntu_x64_Release_CxxBothProducts` entry in `ci/options.json` builds and tests
 with it on.
@@ -265,7 +265,7 @@ of `src`, which the relative includes need. A new library that an installed
 library links has to be added to its list, or the install fails to export the
 targets. Package managers build from a source archive, which has neither the
 submodules nor the Git history, so a build with `BUILD_TESTING` and
-`FIFTYONE_BUILD_EXAMPLES` off must not read `data` or download anything.
+`_51DEGREES_BUILD_EXAMPLES` off must not read `data` or download anything.
 
 ## HighPerformance and required properties
 

@@ -1,4 +1,4 @@
-# Install rules, included from the root CMakeLists.txt when FIFTYONE_INSTALL is
+# Install rules, included from the root CMakeLists.txt when _51DEGREES_INSTALL is
 # on. They install the libraries of each product built, their headers and a
 # CMake package, which another project uses like this.
 #
@@ -11,19 +11,19 @@
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-set(FIFTYONE_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/51degrees)
+set(_51DEGREES_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/51degrees)
 
 # Each product installs the copy of common it links.
 set(targets "")
 set(headers common)
-if (FIFTYONE_BUILD_DEVICE_DETECTION)
+if (_51DEGREES_BUILD_DEVICE_DETECTION)
 	list(APPEND targets
 		fiftyone-common-c fiftyone-common-cxx
 		fiftyone-device-detection-c fiftyone-device-detection-cxx
 		fiftyone-hash-c fiftyone-hash-cxx)
 	list(APPEND headers dd)
 endif()
-if (FIFTYONE_BUILD_IP_INTELLIGENCE)
+if (_51DEGREES_BUILD_IP_INTELLIGENCE)
 	list(APPEND targets
 		fiftyone-common-c-ipi fiftyone-common-cxx-ipi
 		fiftyone-ip-intelligence-c fiftyone-ip-intelligence-cxx)
@@ -47,18 +47,19 @@ foreach (target fiftyone-common-cxx fiftyone-common-cxx-ipi)
 	endif()
 endforeach()
 
-# MemoryOnly, NoThreading and ExceptionsDisabled set compiler flags, which an
+# _51DEGREES_MEMORY_ONLY, _51DEGREES_NO_THREADING and
+# _51DEGREES_EXCEPTIONS_DISABLED set compiler flags, which an
 # installed target does not carry, so their definitions are added to it. As in
-# this build, NoThreading applies to C only.
+# this build, _51DEGREES_NO_THREADING applies to C only.
 set(definitions "")
-if (MemoryOnly)
+if (_51DEGREES_MEMORY_ONLY)
 	list(APPEND definitions FIFTYONE_DEGREES_MEMORY_ONLY)
 endif()
-if (NoThreading)
+if (_51DEGREES_NO_THREADING)
 	list(APPEND definitions
 		"$<$<COMPILE_LANGUAGE:C>:FIFTYONE_DEGREES_NO_THREADING>")
 endif()
-if (ExceptionsDisabled)
+if (_51DEGREES_EXCEPTIONS_DISABLED)
 	list(APPEND definitions FIFTYONE_DEGREES_EXCEPTIONS_DISABLED)
 endif()
 foreach (target fiftyone-common-c fiftyone-common-c-ipi)
@@ -85,12 +86,12 @@ endforeach()
 install(EXPORT 51DegreesTargets
 	NAMESPACE 51Degrees::
 	FILE 51degrees-targets.cmake
-	DESTINATION ${FIFTYONE_INSTALL_CMAKEDIR})
+	DESTINATION ${_51DEGREES_INSTALL_CMAKEDIR})
 
 configure_package_config_file(
 	${CMAKE_CURRENT_LIST_DIR}/51degrees-config.cmake.in
 	${CMAKE_CURRENT_BINARY_DIR}/51degrees-config.cmake
-	INSTALL_DESTINATION ${FIFTYONE_INSTALL_CMAKEDIR})
+	INSTALL_DESTINATION ${_51DEGREES_INSTALL_CMAKEDIR})
 write_basic_package_version_file(
 	${CMAKE_CURRENT_BINARY_DIR}/51degrees-config-version.cmake
 	VERSION ${51Degrees_VERSION}
@@ -98,4 +99,4 @@ write_basic_package_version_file(
 install(FILES
 	${CMAKE_CURRENT_BINARY_DIR}/51degrees-config.cmake
 	${CMAKE_CURRENT_BINARY_DIR}/51degrees-config-version.cmake
-	DESTINATION ${FIFTYONE_INSTALL_CMAKEDIR})
+	DESTINATION ${_51DEGREES_INSTALL_CMAKEDIR})
