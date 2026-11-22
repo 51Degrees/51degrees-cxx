@@ -60,7 +60,7 @@ if ($BuildMethod -eq "msbuild") {
         }
         $run = {
             param($suffix)
-            ./cxx/run-unit-tests.ps1 -RepoName $RepoName -ProjectDir $SolutionDirs[$product] `
+            & $PSScriptRoot/cxx/run-unit-tests.ps1 -RepoName $RepoName -ProjectDir $SolutionDirs[$product] `
                 -Name "$Name-$product$suffix" -Configuration $Configuration -Arch $Arch `
                 -BuildMethod $BuildMethod
             if ($LASTEXITCODE -ne 0) { $script:failed = $LASTEXITCODE }
@@ -72,7 +72,7 @@ if ($BuildMethod -eq "msbuild") {
     }
     if ($Products -contains 'common' -and $Arch -eq "x64" -and
         !$Configuration.StartsWith("Debug")) {
-        ./cxx/run-unit-tests.ps1 -RepoName $RepoName -ProjectDir $SolutionDirs.common `
+        & $PSScriptRoot/cxx/run-unit-tests.ps1 -RepoName $RepoName -ProjectDir $SolutionDirs.common `
             -Name "${Name}_LargeDataFiles" -BuildDir "build-LargeDataFiles" `
             -Configuration "$Configuration-LargeDataFiles" -Arch $Arch `
             -BuildMethod $BuildMethod

@@ -31,7 +31,7 @@ function OnOff([bool]$value) { $value ? 'ON' : 'OFF' }
 if ($BuildMethod -eq "cmake") {
 
     # One configure builds every product in the entry. The large data file
-    # copy of the common tests runs on 64 bit only. The shared script selects
+    # copy of the common tests runs on 64 bit only. cxx/build-project.ps1 selects
     # 32 bit on Windows, and Linux needs the CMake option.
     $extraArgs = @(
         "-D_51DEGREES_32BIT=$(OnOff ($IsLinux -and $Arch -eq 'x86'))"
@@ -47,7 +47,7 @@ if ($BuildMethod -eq "cmake") {
     # entry that turns it on is BuildOnly as well.
     if ($ExceptionsDisabled) { $extraArgs += "-D_51DEGREES_EXCEPTIONS_DISABLED=ON" }
     if ($BuildOnly) { $extraArgs += "-DBUILD_TESTING=OFF" }
-    ./cxx/build-project.ps1 -RepoName $RepoName -ProjectDir . -Name $Name `
+    & $PSScriptRoot/cxx/build-project.ps1 -RepoName $RepoName -ProjectDir . -Name $Name `
         -Configuration $Configuration -Arch $Arch -BuildMethod $BuildMethod `
         -ExtraArgs $extraArgs
 
@@ -74,7 +74,7 @@ if ($BuildMethod -eq "cmake") {
             Write-Output "No Visual Studio build for '$product'"
             continue
         }
-        ./cxx/build-project.ps1 -RepoName $RepoName -ProjectDir $SolutionDirs[$product] `
+        & $PSScriptRoot/cxx/build-project.ps1 -RepoName $RepoName -ProjectDir $SolutionDirs[$product] `
             -Name "$Name-$product" -Configuration $Configuration -Arch $Arch `
             -BuildMethod $BuildMethod
     }
@@ -82,7 +82,7 @@ if ($BuildMethod -eq "cmake") {
     # Common is also built with large data file support, x64 release only.
     if ($Products -contains 'common' -and $Arch -eq "x64" -and
         !$Configuration.StartsWith("Debug")) {
-        ./cxx/build-project.ps1 -RepoName $RepoName -ProjectDir $SolutionDirs.common `
+        & $PSScriptRoot/cxx/build-project.ps1 -RepoName $RepoName -ProjectDir $SolutionDirs.common `
             -Name "${Name}_LargeDataFiles" -BuildDir "build-LargeDataFiles" `
             -Configuration "$Configuration-LargeDataFiles" -Arch $Arch `
             -BuildMethod $BuildMethod
