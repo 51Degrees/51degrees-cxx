@@ -25,7 +25,6 @@
 ExampleIpIntelligenceTest::ExampleIpIntelligenceTest(
     const char * const * const dataFileNames,
     const int dataFileNamesLength,
-    const char * const ipAddressFileName,
     const char * const evidenceFileName) : ExampleTests() {
     dataFilePath = "";
     for (int i = 0;
@@ -34,7 +33,6 @@ ExampleIpIntelligenceTest::ExampleIpIntelligenceTest(
         dataFilePath = GetFilePath(_dataFolderName, dataFileNames[i]);
     }
 
-    ipAddressFilePath = GetFilePath(_dataFolderName, ipAddressFileName);
     evidenceFilePath = GetFilePath(_dataFolderName, evidenceFileName);
     requiredProperties = "RegisteredName,Areas";
 };
@@ -43,5 +41,4 @@ ExampleIpIntelligenceTest::ExampleIpIntelligenceTest()
     : ExampleIpIntelligenceTest(
         _IpiFileNames,
         _IpiFileNamesLength,
-        _ipAddressesFileName,
         _evidenceFileName) {}

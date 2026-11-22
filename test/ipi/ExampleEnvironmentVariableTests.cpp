@@ -32,7 +32,7 @@
 #include "../../examples/ipi/Base/ExampleBase.h"
 
 /** The name the examples read the data file path from. */
-static const char name[] = "_51DEGREES_IPI_PATH";
+static const char pathName[] = "_51DEGREES_IPI_PATH";
 
 /** Sets the variable, or removes it when the value is null. Windows also
  * removes a variable set to an empty value. */
@@ -81,12 +81,12 @@ static std::string readPath() {
  * unset or empty.
  */
 TEST(ExampleEnvironmentVariables, NameIsRead) {
-	SavedVariable saved(name);
-	setVariable(name, "new.ipi");
+	SavedVariable saved(pathName);
+	setVariable(pathName, "new.ipi");
 	const std::string set = readPath();
-	setVariable(name, "");
+	setVariable(pathName, "");
 	const std::string empty = readPath();
-	setVariable(name, nullptr);
+	setVariable(pathName, nullptr);
 	const std::string unset = readPath();
 	EXPECT_EQ("new.ipi", set);
 	EXPECT_EQ("(null)", empty);

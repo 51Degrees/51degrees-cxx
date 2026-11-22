@@ -47,20 +47,21 @@ EngineIpIntelligenceTests::EngineIpIntelligenceTests(
 	const char *directory,
 	const char **fileNames,
 	int fileNamesLength,
-	const char *ipAddressesFileName)
+	const char *evidenceFileName)
 	: EngineTests(requiredProperties, directory, fileNames, fileNamesLength) {
-	char ipAddressesFullName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	char evidenceFullName[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	char ipAddress[500] = "";
 	fiftyoneDegreesFileGetPath(
 		directory,
-		ipAddressesFileName,
-		ipAddressesFullName,
-		sizeof(ipAddressesFullName));
-	fiftyoneDegreesTextFileIterate(
-		ipAddressesFullName, 
-		ipAddress, 
-		sizeof(ipAddress), 
-		this, 
+		evidenceFileName,
+		evidenceFullName,
+		sizeof(evidenceFullName));
+	// The IP address of each record of the evidence file.
+	fiftyoneDegreesEvidenceFileIterate(
+		evidenceFullName,
+		ipAddress,
+		sizeof(ipAddress),
+		this,
 		EngineIpIntelligenceTests::ipAddressRead);
 	this->config = config;
 	engine = nullptr;
