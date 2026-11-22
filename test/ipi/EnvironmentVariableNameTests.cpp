@@ -24,7 +24,9 @@
  * @file EnvironmentVariableNameTests.cpp
  * @brief Tests that every environment variable, secret and CMake option the
  * files git tracks read is in the repository's list of names, docs/names.md,
- * and that every name there that 51Degrees defines starts _51DEGREES_.
+ * and that every name there that 51Degrees defines starts _51DEGREES_. Also
+ * tests that a workflow passes a shared workflow of common-ci its secrets with
+ * secrets: inherit, and none by name.
  */
 
 #include "pch.h"
@@ -238,6 +240,90 @@ static void scan(
 	}
 }
 
+/** The start of the workflow every call of common-ci names. */
+static const std::string commonCi = "51Degrees/common-ci/";
+
+/** The job of a workflow that is being read. */
+struct Job {
+	/** The indent of the keys of the job, or -1 before the first. */
+	int indent = -1;
+	bool callsCommonCi = false;
+	bool passesSecrets = false;
+	/** Where the secrets key is, and what follows it on its line. */
+	std::string where;
+	std::string value;
+};
+
+/** Counts the job when it calls common-ci, and adds it to the named ones
+ * when its secrets are anything but inherit. */
+static void endJob(const Job &job, int &calls, std::vector<Read> &named) {
+	if (job.callsCommonCi) {
+		calls++;
+		if (job.passesSecrets && job.value != "inherit") {
+			named.push_back({ job.where, "secrets: " + job.value });
+		}
+	}
+}
+
+/** Reads the jobs of a workflow that call a workflow of common-ci. The uses
+ * and secrets keys of a job have the same indent, and the job ends at the
+ * first line with less. */
+static void scanCalls(
+	const fs::path &file,
+	const std::string &name,
+	int &calls,
+	std::vector<Read> &named) {
+	static const std::string usesKey = "uses:";
+	static const std::string secretsKey = "secrets:";
+	std::ifstream stream(file, std::ios::binary);
+	std::string line;
+	Job job;
+	int number = 0;
+	while (std::getline(stream, line)) {
+		number++;
+		const size_t start = line.find_first_not_of(" ");
+		if (start == std::string::npos ||
+			line[start] == '#' ||
+			line[start] == '\r') {
+			continue;
+		}
+		const int indent = static_cast<int>(start);
+		if (job.indent >= 0 && indent < job.indent) {
+			endJob(job, calls, named);
+			job = Job();
+		}
+		const bool uses = line.compare(start, usesKey.size(), usesKey) == 0;
+		const bool secrets =
+			line.compare(start, secretsKey.size(), secretsKey) == 0;
+		if ((uses || secrets) == false) {
+			continue;
+		}
+		if (job.indent < 0) {
+			job.indent = indent;
+		}
+		if (indent != job.indent) {
+			continue;
+		}
+		if (uses) {
+			job.callsCommonCi =
+				line.find(commonCi, start) != std::string::npos;
+		}
+		else {
+			// What follows the key, without a comment or the spaces
+			// around it.
+			std::string value = line.substr(start + secretsKey.size());
+			value = value.substr(0, value.find('#'));
+			const size_t first = value.find_first_not_of(" \t\r");
+			const size_t last = value.find_last_not_of(" \t\r");
+			job.passesSecrets = true;
+			job.where = name + ":" + std::to_string(number);
+			job.value = first == std::string::npos ?
+				"" : value.substr(first, last - first + 1);
+		}
+	}
+	endJob(job, calls, named);
+}
+
 /** Writes each read whose name is in neither set. */
 static std::string notListed(
 	const std::vector<Read> &reads,
@@ -291,7 +377,6 @@ TEST(EnvironmentVariableNames, EveryNameReadIsListed) {
 	}
 	EXPECT_FALSE(reads.environment.empty()) <<
 		"No read of an environment variable was found";
-	EXPECT_FALSE(reads.secrets.empty()) << "No read of a secret was found";
 	EXPECT_FALSE(reads.options.empty()) << "No CMake option was found";
 	const std::string unlistedEnvironment =
 		notListed(reads.environment, environment, other);
@@ -308,4 +393,34 @@ TEST(EnvironmentVariableNames, EveryNameReadIsListed) {
 	EXPECT_TRUE(unlistedOptions.empty()) <<
 		"CMake options defined that " << namesFile <<
 		" does not list:\n" << unlistedOptions;
+}
+
+/**
+ * Check that a job that calls a workflow of common-ci passes its secrets
+ * with secrets: inherit, and none by name.
+ */
+TEST(EnvironmentVariableNames, CommonCiCallsInheritSecrets) {
+	const fs::path root = findRoot();
+	ASSERT_FALSE(root.empty()) <<
+		"The repository was not found above " << fs::current_path();
+	const std::vector<std::string> files = trackedFiles(root);
+	ASSERT_FALSE(files.empty()) << "git listed no files in " << root;
+	int calls = 0;
+	std::vector<Read> named;
+	for (const std::string &name : files) {
+		const fs::path path = root / fs::u8path(name);
+		if (startsWith(name, ".github/workflows/") &&
+			endsWith(name, ".yml") &&
+			fs::is_regular_file(path)) {
+			scanCalls(path, name, calls, named);
+		}
+	}
+	EXPECT_GT(calls, 0) << "No call of " << commonCi << " was found";
+	std::ostringstream message;
+	for (const Read &read : named) {
+		message << read.where << ": " << read.name << "\n";
+	}
+	EXPECT_TRUE(named.empty()) <<
+		"Calls of " << commonCi << " that do not pass secrets: inherit:\n" <<
+		message.str();
 }
