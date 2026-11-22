@@ -197,15 +197,14 @@ describes.
   (`ci/fetch-assets.ps1`). Only the examples workflow, described under
   [CI](#ci), runs the example programs and uses the Lite IP Intelligence file.
 
-## Environment variable names
+## Names
 
-[common-ci's list of environment variable names](https://github.com/51Degrees/common-ci/blob/18f9a570ed862a0b7e1ecb1c55a8319f35f02491/environment-variables.md)
-holds every environment variable name that the packages, tests, examples and
-CI scripts of every language read, with what each name holds and the
-deprecated names each replaced. The list decides. Use the names it gives, and
-when a change needs a new name, or reads an old name again, change
-[`environment-variables.json`](https://github.com/51Degrees/common-ci/blob/18f9a570ed862a0b7e1ecb1c55a8319f35f02491/environment-variables.json)
-in common-ci in the same piece of work.
+[`docs/names.md`](docs/names.md) lists every environment variable, secret and
+CMake option this repository reads or defines, with what each holds. Every
+name 51Degrees defines starts `_51DEGREES_`. When a change reads a new name,
+add it to the list in the same change. The test in
+`test/ipi/EnvironmentVariableNameTests.cpp` fails when a tracked file reads a
+name the list does not have.
 
 ## The two copies of common
 

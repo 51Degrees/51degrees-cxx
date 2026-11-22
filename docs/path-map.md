@@ -18,7 +18,6 @@ not listed moved with its parent. Deleted: each repository's `ci/` and
 | `device-detection-cxx/docs/` | `docs/dd/` |
 | `device-detection-cxx/examples/C/Hash/` | `examples/dd/C/Hash/` |
 | `device-detection-cxx/examples/CPP/Hash/` | `examples/dd/CPP/Hash/` |
-| `device-detection-cxx/scripts/` | `scripts/` |
 | `device-detection-cxx/src/` | `src/dd/` |
 | `device-detection-cxx/test/` | `test/dd/` |
 | `ip-graph-cxx/` | `src/ipi/graph/` |

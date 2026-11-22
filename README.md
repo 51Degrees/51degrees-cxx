@@ -129,6 +129,9 @@ These options choose what is built:
 | `_51DEGREES_INSTALL` | `ON` when this repository is the top level build | The install rules described in [Installing](#installing) |
 | `_51DEGREES_VERSION` | The nearest version tag in a Git clone, otherwise `0.0.0` | The version the installed package reports |
 
+[`docs/names.md`](docs/names.md) lists every CMake option, environment
+variable and secret this repository reads or defines.
+
 The compile options of the common library, `_51DEGREES_MEMORY_ONLY`,
 `_51DEGREES_NO_THREADING` and `_51DEGREES_EXCEPTIONS_DISABLED`, apply to the
 whole build and are described in the
