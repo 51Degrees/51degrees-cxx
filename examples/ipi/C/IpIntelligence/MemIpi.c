@@ -285,15 +285,15 @@ static void ipAddressCount(const char* ipAddress, void* state) {
 #endif
 
 /**
- * Iterate the IP Address source file and count the number of lines it
+ * Iterate the evidence file and count the number of IP addresses it
  * contains. Used to determine progress during the test.
  * @param ipAddressFilePath
- * @param number of lines the file contains
+ * @param number of IP addresses the file contains
  */
 static int getIpAddressesCount(const char* ipAddressFilePath) {
 	int count = 0;
 	char ipAddress[50];
-	TextFileIterate(
+	fiftyoneDegreesEvidenceFileIterate(
 		ipAddressFilePath,
 		ipAddress,
 		sizeof(ipAddress),

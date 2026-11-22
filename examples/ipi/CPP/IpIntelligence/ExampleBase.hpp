@@ -181,7 +181,7 @@ namespace FiftyoneDegrees {
 					 * Construct a new shared state instance.
 					 * @param engine pointer to the engine the threads should
 					 * use
-					 * @param ipAddressFilePath path to the IP Addresses CSV
+					 * @param ipAddressFilePath path to the YAML evidence file
 					 */
 					SharedState(EngineIpi *engine, const string &ipAddressFilePath);
 				
