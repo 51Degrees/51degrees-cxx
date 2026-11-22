@@ -219,4 +219,41 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
     char *destination,
     size_t size);
 
+/**
+ * Reads a YAML evidence file, such as "20000 Evidence Records.yml", and calls
+ * the callback with the User-Agent of each record that has one. The
+ * User-Agent is the value of the record's header.user-agent key.
+ * @param fileName path of the evidence file
+ * @param buffer memory the User-Agent is copied to before each call. A
+ * longer User-Agent is cut to fit.
+ * @param length of the buffer in bytes
+ * @param state pointer passed to the callback
+ * @param callback called with the User-Agent and the state
+ */
+EXTERNAL void fiftyoneDegreesExampleUserAgentsIterate(
+    const char *fileName,
+    char *buffer,
+    int length,
+    void *state,
+    void(*callback)(const char*, void*));
+
+/**
+ * Reads the first records of a YAML evidence file as
+ * #fiftyoneDegreesExampleUserAgentsIterate does.
+ * @param fileName path of the evidence file
+ * @param buffer memory the User-Agent is copied to before each call. A
+ * longer User-Agent is cut to fit.
+ * @param length of the buffer in bytes
+ * @param limit number of records to read, or -1 to read them all
+ * @param state pointer passed to the callback
+ * @param callback called with the User-Agent and the state
+ */
+EXTERNAL void fiftyoneDegreesExampleUserAgentsIterateWithLimit(
+    const char *fileName,
+    char *buffer,
+    int length,
+    int limit,
+    void *state,
+    void(*callback)(const char*, void*));
+
 #endif

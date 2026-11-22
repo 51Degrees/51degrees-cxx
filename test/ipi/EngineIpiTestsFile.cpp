@@ -30,14 +30,14 @@ public:
 		const char *dataDirectory,
 		const char **ipiFileNames,
 		int ipiFileNamesLength,
-		const char *ipAddressesFileName)
+		const char *evidenceFileName)
 		: EngineIpIntelligenceTests(
 			config, 
 			properties, 
 			dataDirectory,
 			ipiFileNames, 
 			ipiFileNamesLength,
-			ipAddressesFileName) {
+			evidenceFileName) {
 	};
 	void SetUp() override {
 		EngineIpIntelligenceTests::SetUp();

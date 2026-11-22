@@ -82,8 +82,8 @@ Invoke-Offline (@('-S', $Source, '-B', "$Work/build") + $Options + $platform + @
     "-DCMAKE_BUILD_TYPE=$Configuration"
     "-DCMAKE_INSTALL_PREFIX=$Prefix"
     '-DBUILD_TESTING=OFF'
-    '-DFIFTYONE_BUILD_EXAMPLES=OFF'
-    "-DFIFTYONE_VERSION=$version"))
+    '-D_51DEGREES_BUILD_EXAMPLES=OFF'
+    "-D_51DEGREES_VERSION=$version"))
 Invoke-Offline @('--build', "$Work/build", '--config', $Configuration,
     '--parallel', [Environment]::ProcessorCount)
 cmake --install "$Work/build" --config $Configuration
@@ -95,7 +95,7 @@ Get-ChildItem -Recurse -File $Prefix |
 
 cmake -S "$Source/test/install" -B "$Work/consumer" @platform `
     "-DCMAKE_BUILD_TYPE=$Configuration" "-DCMAKE_PREFIX_PATH=$Prefix" `
-    "-DEXPECTED_VERSION=$version"
+    "-D_51DEGREES_EXPECTED_VERSION=$version"
 cmake --build "$Work/consumer" --config $Configuration
 
 $bin = $IsWindows ? "$Work/consumer/$Configuration" : "$Work/consumer"
@@ -124,7 +124,7 @@ Copy-Item -Recurse "$Source/examples" "$Staged/examples"
 Copy-Item -Recurse "$Prefix/include/51degrees" "$Staged/src"
 cmake -S "$Source/test/install/examples" -B "$Work/examples" @platform `
     "-DCMAKE_BUILD_TYPE=$Configuration" "-DCMAKE_PREFIX_PATH=$Prefix" `
-    "-DEXAMPLES=$Staged/examples"
+    "-D_51DEGREES_EXAMPLES=$Staged/examples"
 cmake --build "$Work/examples" --config $Configuration `
     --parallel ([Environment]::ProcessorCount)
 

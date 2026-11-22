@@ -96,8 +96,8 @@ namespace FiftyoneDegrees {
 			public:
 				/**
 				 * @copydoc ExampleBase::ExampleBase(byte*, long, DeviceDetection::Hash::DeviceDetection::Hash::ConfigHash*)
-				 * @param userAgentFilePath path to the CSV file containing the
-				 * User-Agents to process
+				 * @param userAgentFilePath path to the YAML evidence file
+				 * containing the User-Agents to process
 				 */
 				ReloadFromMemory(
 					byte* data,

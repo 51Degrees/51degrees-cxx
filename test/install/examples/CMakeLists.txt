@@ -9,9 +9,9 @@ project(InstalledExamples LANGUAGES C CXX)
 
 find_package(51Degrees CONFIG REQUIRED)
 
-set(EXAMPLES "" CACHE PATH "The copy of the examples folder")
-if (NOT IS_DIRECTORY "${EXAMPLES}")
-	message(FATAL_ERROR "EXAMPLES is not a folder: '${EXAMPLES}'")
+set(_51DEGREES_EXAMPLES "" CACHE PATH "The copy of the examples folder")
+if (NOT IS_DIRECTORY "${_51DEGREES_EXAMPLES}")
+	message(FATAL_ERROR "_51DEGREES_EXAMPLES is not a folder: '${_51DEGREES_EXAMPLES}'")
 endif()
 
 # Adds a program for each example in a folder, named as the build of this
@@ -33,7 +33,7 @@ function(add_examples folder extension suffix library)
 endfunction()
 
 if (TARGET 51Degrees::hash-c)
-	set(DD ${EXAMPLES}/dd)
+	set(DD ${_51DEGREES_EXAMPLES}/dd)
 	add_examples(${DD}/C/Hash c HashC 51Degrees::hash-c
 		${DD}/C/Hash/ExampleBase.c)
 	add_examples(${DD}/CPP/Hash cpp HashCPP 51Degrees::hash-cxx
@@ -41,7 +41,7 @@ if (TARGET 51Degrees::hash-c)
 endif()
 
 if (TARGET 51Degrees::ip-intelligence-c)
-	set(IPI ${EXAMPLES}/ipi)
+	set(IPI ${_51DEGREES_EXAMPLES}/ipi)
 	add_examples(${IPI}/C/IpIntelligence c C 51Degrees::ip-intelligence-c
 		${IPI}/Base/ExampleBase.c)
 	add_examples(${IPI}/CPP/IpIntelligence cpp CPP

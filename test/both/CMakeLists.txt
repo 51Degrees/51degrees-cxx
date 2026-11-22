@@ -32,7 +32,7 @@ set_tests_properties(BothProducts PROPERTIES
 	LABELS ipi
 	SKIP_RETURN_CODE 77)
 
-if (FIFTYONE_CXX_BOTH_PRODUCTS)
+if (_51DEGREES_CXX_BOTH_PRODUCTS)
 	add_library(BothProductsCxxDd OBJECT ${CMAKE_CURRENT_LIST_DIR}/dd.cpp)
 	target_link_libraries(BothProductsCxxDd PRIVATE fiftyone-hash-cxx)
 

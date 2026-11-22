@@ -127,7 +127,7 @@ public:
 		const char *directory,
 		const char **fileNames,
 		int fileNamesLength,
-		const char *ipAddressesFileName);
+		const char *evidenceFileName);
 	~EngineIpIntelligenceTests() override;
 	void SetUp() override;
 	void TearDown() override;
@@ -229,7 +229,7 @@ public: \
 		_dataFolderName, \
 		_##e##FileNames, \
 		_##e##FileNamesLength, \
-		_ipAddressesFileName) {} \
+		_evidenceFileName) {} \
 	void SetUp() { SKIP_TEMP_FILE_TESTS_ON_CI(); ENGINE_CLASS_NAME_BASE(e,t)::SetUp(); } \
 	void TearDown() { ENGINE_CLASS_NAME_BASE(e,t)::TearDown(); } \
 }; \
@@ -262,7 +262,7 @@ public: \
 		_dataFolderName, \
 		_##e##FileNames, \
 		_##e##FileNamesLength, \
-		_ipAddressesFileName) {} \
+		_evidenceFileName) {} \
 	void SetUp() { SKIP_TEMP_FILE_TESTS_ON_CI(); ENGINE_CLASS_NAME_BASE(e,t)::SetUp(); } \
 	void TearDown() { ENGINE_CLASS_NAME_BASE(e,t)::TearDown(); } \
 }; \

@@ -37,7 +37,6 @@
 #endif
 
 #include "../../examples/ipi/Base/ExampleBase.h"
-#include "../../src/common/textfile.h"
 #include "../../src/ipi/ipi.h"
 #include "../../src/ipi/fiftyone.h"
 #include "ExampleIpIntelligenceTests.hpp"
@@ -92,7 +91,7 @@ static void runRequestsSingle(sharedState *state) {
 	sharedState *shared = (sharedState*)state;
 	threadState thread;
 	thread.manager = shared->manager;
-	TextFileIterateWithLimit(
+	fiftyoneDegreesEvidenceFileIterateWithLimit(
 		shared->ipAddressFilePath,
 		ipAddress,
 		sizeof(ipAddress),
@@ -297,7 +296,7 @@ public:	\
 \
 		memReloadRun(	\
 			dataFilePath.c_str(),	\
-			ipAddressFilePath.c_str(),	\
+			evidenceFilePath.c_str(),	\
 			requiredProperties,	\
 			config,	\
 			f);	\

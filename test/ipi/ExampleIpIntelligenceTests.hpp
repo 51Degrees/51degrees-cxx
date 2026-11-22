@@ -43,12 +43,10 @@ public:
     ExampleIpIntelligenceTest(
         const char * const *dataFileNames,
         int dataFileNamesLength,
-        const char *ipAddressFileName,
         const char *evidenceFileName);
 
 protected:
     string dataFilePath;
-    string ipAddressFilePath;
     string evidenceFilePath;
     const char *requiredProperties;
 

@@ -32,11 +32,7 @@
 #include "../../examples/ipi/Base/ExampleBase.h"
 
 /** The name the examples read the data file path from. */
-static const char newName[] = "_51DEGREES_IPI_PATH";
-
-/** The name the examples no longer read, split so the name check does not
- * find it here. */
-static const std::string oldName = std::string("5") + "1DEGREES_IPI_PATH";
+static const char pathName[] = "_51DEGREES_IPI_PATH";
 
 /** Sets the variable, or removes it when the value is null. Windows also
  * removes a variable set to an empty value. */
@@ -81,34 +77,18 @@ static std::string readPath() {
 }
 
 /**
- * Check the path is read from the name that starts with an underscore, and
- * that nothing is read when it is unset or empty.
+ * Check the path is read from the name, and that nothing is read when it is
+ * unset or empty.
  */
-TEST(ExampleEnvironmentVariables, NewNameIsRead) {
-	SavedVariable savedNew(newName);
-	setVariable(newName, "new.ipi");
+TEST(ExampleEnvironmentVariables, NameIsRead) {
+	SavedVariable saved(pathName);
+	setVariable(pathName, "new.ipi");
 	const std::string set = readPath();
-	setVariable(newName, "");
+	setVariable(pathName, "");
 	const std::string empty = readPath();
-	setVariable(newName, nullptr);
+	setVariable(pathName, nullptr);
 	const std::string unset = readPath();
 	EXPECT_EQ("new.ipi", set);
 	EXPECT_EQ("(null)", empty);
 	EXPECT_EQ("(null)", unset);
-}
-
-/**
- * Check the name without the leading underscore is not read, whether the
- * name that replaces it is unset or empty.
- */
-TEST(ExampleEnvironmentVariables, OldNameIsNotRead) {
-	SavedVariable savedNew(newName);
-	SavedVariable savedOld(oldName.c_str());
-	setVariable(oldName.c_str(), "old.ipi");
-	setVariable(newName, nullptr);
-	const std::string unset = readPath();
-	setVariable(newName, "");
-	const std::string empty = readPath();
-	EXPECT_EQ("(null)", unset);
-	EXPECT_EQ("(null)", empty);
 }

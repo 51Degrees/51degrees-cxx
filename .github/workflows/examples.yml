@@ -61,7 +61,6 @@ jobs:
           path: |
             data/device-detection/51Degrees-LiteV4.1.hash
             data/device-detection/20000 Evidence Records.yml
-            data/device-detection/20000 User Agents.csv
             data/ip-intelligence/51Degrees-LiteV41.ipi
             data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
           enableCrossOsArchive: true
@@ -73,7 +72,7 @@ jobs:
           $platform = $IsWindows ? @('-A', 'x64') : @()
           # CI builds only Device Detection on macOS (ci/options.json), so
           # the macOS run builds and runs the Device Detection examples.
-          if ($IsMacOS) { $platform += '-DFIFTYONE_BUILD_IP_INTELLIGENCE=OFF' }
+          if ($IsMacOS) { $platform += '-D_51DEGREES_BUILD_IP_INTELLIGENCE=OFF' }
           $configure = cmake .. @platform -DBUILD_TESTING=OFF 2>&1
           if ($LASTEXITCODE -ne 0) { $configure | Out-Host; throw "Configure failed" }
           $names = @($configure | ForEach-Object {
@@ -182,7 +181,6 @@ jobs:
           path: |
             data/device-detection/51Degrees-LiteV4.1.hash
             data/device-detection/20000 Evidence Records.yml
-            data/device-detection/20000 User Agents.csv
             data/ip-intelligence/51Degrees-LiteV41.ipi
             data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
           enableCrossOsArchive: true

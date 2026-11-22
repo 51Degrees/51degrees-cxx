@@ -54,13 +54,13 @@ with CMake or Visual Studio is described in the
 
 In memory only operation compiling without stream capabilities using the `FIFTYONE_DEGREES_MEMORY_ONLY` directive results in performance improvements. By removing the unnecessary jumps to methods which are only used in stream operation, the performance of in memory collections is improved.
 
-The option is enabled using the `FIFTYONE_DEGREES_MEMORY_ONLY` compile flag, which can also be set through CMake using the `-DMemoryOnly=YES` option, or through Visual Studio using the the `Debug-MemoryOnly` or `Release-MemoryOnly` build configurations.
+The option is enabled using the `FIFTYONE_DEGREES_MEMORY_ONLY` compile flag, which can also be set through CMake using the `-D_51DEGREES_MEMORY_ONLY=YES` option, or through Visual Studio using the the `Debug-MemoryOnly` or `Release-MemoryOnly` build configurations.
 
 ### NoThreading
 
 In single threaded operation compiling without threading using the `FIFTYONE_DEGREES_NO_THREADING` directive results in performance improvements. By removing logic needed to keep operations thread safe, the performance of many operations are improved.
 
-The option is enabled using the `FIFTYONE_DEGREES_NO_THREADING` compile flag, which can also be set through CMake using the `-DNoThreading=YES` option, or through Visual Studio using the `Debug-Single` or `Release-Single` build configurations.
+The option is enabled using the `FIFTYONE_DEGREES_NO_THREADING` compile flag, which can also be set through CMake using the `-D_51DEGREES_NO_THREADING=YES` option, or through Visual Studio using the `Debug-Single` or `Release-Single` build configurations.
 
 <p style="color:#FF6000">WARNING: This option should only be enabled in single threaded environments, as it means operations will not be thread safe.</P>
 
@@ -68,7 +68,7 @@ The option is enabled using the `FIFTYONE_DEGREES_NO_THREADING` compile flag, wh
 
 Exceptions are handled in the common library using the `fiftyoneDegreesException` structure. This logic can be disabled using the `FIFTYONE_DEGREES_EXCEPTIONS_DISABLED` directive, resulting in performance improvements.
 
-The options is enabled using the `FIFTYONE_DEGREES_EXCEPTIONS_DISABLED` compile flag, which can also be set through CMake using the `-DExceptionsDisabled=YES` option.
+The options is enabled using the `FIFTYONE_DEGREES_EXCEPTIONS_DISABLED` compile flag, which can also be set through CMake using the `-D_51DEGREES_EXCEPTIONS_DISABLED=YES` option.
 
 <p style="color:#FF6000">WARNING: When exception handling is disabled, using the functionality in this library incorrectly can result in a segmentation fault instead of an exception being set.<p>
 
@@ -76,8 +76,8 @@ The options is enabled using the `FIFTYONE_DEGREES_EXCEPTIONS_DISABLED` compile 
 
 Data files larger than 4 GB need 64 bit file offsets, which the
 `FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT` directive enables. In CMake the
-`-DLargeDataFileSupport=YES` option sets it for the copy of the library that
-Device Detection uses, and in Visual Studio the `LargeDataFiles`
+`-D_51DEGREES_LARGE_DATA_FILE_SUPPORT=YES` option sets it for the copy of the
+library that Device Detection uses, and in Visual Studio the `LargeDataFiles`
 configurations set it with the reduced file layout below. IP Intelligence
 always builds its copy with both.
 
@@ -88,7 +88,7 @@ A reduced size data file has the following differences:
 - `fiftyoneDegreesProfile->valueCount` is 2 bytes instead of 4,
 - `descriptionOffset` is removed from `fiftyoneDegreesValue`.
 
-Enabling this option makes the API compatible with a reduced size 51Degrees data file. A few methods 
+Enabling this option, in CMake with `-D_51DEGREES_REDUCED_FILE=YES`, makes the API compatible with a reduced size 51Degrees data file. A few methods 
 which use the removed fields cannot be implemented with this option, so an exception is set.
 
 # Threads
@@ -99,7 +99,7 @@ A set of results is used by one thread at a time, because reading a value writes
 
 The common tests are in [`test/common`](../../test/common). They run as
 `CommonTests`, and again as `CommonTestsIpi` against the copy of the library
-that IP Intelligence uses. Turn off `FIFTYONE_COMMON_CXX_BUILD_TESTING` to skip
+that IP Intelligence uses. Turn off `_51DEGREES_COMMON_CXX_BUILD_TESTING` to skip
 both. Running tests and code coverage are described in the
 [repository README](../../README.md#tests).
 

@@ -31,7 +31,6 @@
 #include "ExampleBase.h"
 #undef FORCE_MEMORY_TRACKING
 
-#include "../../../../src/common/textfile.h"
 
 /**
  * This example's source file, which every link it prints names as its
@@ -49,7 +48,10 @@ static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
-static const char *userAgentFileName = "20000 User Agents.csv";
+// This file contains the 20,000 most commonly seen combinations of header
+// values that are relevant to device detection. This example reads the
+// User-Agent of each record.
+static const char *userAgentFileName = "20000 Evidence Records.yml";
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -136,8 +138,8 @@ void reportProgress(memoryThreadState *state) {
 }
 
 /**
- * Runs the test for the User-Agent provided. Called from the text file 
- * iterator.
+ * Runs the test for the User-Agent provided. Called with the User-Agent of
+ * each record of the evidence file.
  * @param userAgent to be used for the test
  * @param state instance of performanceThreadState
  */
@@ -197,7 +199,7 @@ static void runMemoryThread(void* mainState) {
 	threadState.results = ResultsHashCreate(threadState.main->manager, 0);
 
 	// Execute the device detection test.
-	TextFileIterate(
+	fiftyoneDegreesExampleUserAgentsIterate(
 		threadState.main->userAgentFilePath,
 		userAgent,
 		sizeof(userAgent),
@@ -258,15 +260,15 @@ static void userAgentCount(const char *userAgent, void *state) {
 #endif
 
 /**
- * Iterate the User-Agent source file and count the number of lines it
+ * Iterate the evidence file and count the number of User-Agents it
  * contains. Used to determine progress during the test.
  * @param userAgentFilePath
- * @return number of lines the file contains
+ * @return number of User-Agents the file contains
  */
 static int getUserAgentsCount(const char *userAgentFilePath) {
 	int count = 0;
 	char userAgent[1000];
-	TextFileIterate(
+	fiftyoneDegreesExampleUserAgentsIterate(
 		userAgentFilePath,
 		userAgent,
 		sizeof(userAgent),
@@ -278,7 +280,7 @@ static int getUserAgentsCount(const char *userAgentFilePath) {
 /**
  * Sets the test state and then runs calibration, and device detection.
  * @param manager initialised manager to use for the tests
- * @param userAgentFilePath path to the User-Agents file to use for testing.
+ * @param userAgentFilePath path to the evidence file to use for testing.
  */
 void run(
 	fiftyoneDegreesResourceManager *manager,
@@ -432,7 +434,7 @@ int main(int argc, char* argv[]) {
 	printf("\t#                  the peak memory usage.                   #\n");
 	printf("\t#                                                           #\n");
 	printf("\t#    Command line arguments should be a Hash format data    #\n");
-	printf("\t#   file and a CSV file containing a list of User-Agents.   #\n");
+	printf("\t#   file and a YAML evidence file with the User-Agents.     #\n");
 	printf("\t#     When none are given, the Lite data file and a test    #\n");
 	printf("\t#    file of 20,000 are used, and downloaded if missing.    #\n");
 	printf("\t#                                                           #\n");

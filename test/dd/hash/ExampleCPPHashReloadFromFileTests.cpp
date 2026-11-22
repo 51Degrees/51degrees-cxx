@@ -34,7 +34,7 @@ public:
 		// when it goes out of scope, even if it throws.
 		DeviceDetection::Hash::ConfigHash* config =
 			new DeviceDetection::Hash::ConfigHash(&configHash);
-		ReloadFromFile reloadFromFile(dataFilePath, userAgentFilePath, config);
+		ReloadFromFile reloadFromFile(dataFilePath, evidenceFilePath, config);
 		reloadFromFile.run();
 
 		// Check the output

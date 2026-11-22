@@ -119,7 +119,7 @@ namespace FiftyoneDegrees {
 			public:
 				/**
 				 * @copydoc ExampleBase::ExampleBase(byte*, long, IpIntelligence::ConfigIpi*)
-				 * @param ipAddressFilePath path to the CSV file containing the
+				 * @param ipAddressFilePath path to the YAML evidence file containing the
 				 * IP Addresses to process
 				 */
 				ReloadFromMemory(

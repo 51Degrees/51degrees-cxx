@@ -18,7 +18,6 @@ not listed moved with its parent. Deleted: each repository's `ci/` and
 | `device-detection-cxx/docs/` | `docs/dd/` |
 | `device-detection-cxx/examples/C/Hash/` | `examples/dd/C/Hash/` |
 | `device-detection-cxx/examples/CPP/Hash/` | `examples/dd/CPP/Hash/` |
-| `device-detection-cxx/scripts/` | `scripts/` |
 | `device-detection-cxx/src/` | `src/dd/` |
 | `device-detection-cxx/test/` | `test/dd/` |
 | `ip-graph-cxx/` | `src/ipi/graph/` |
@@ -51,8 +50,8 @@ root.
 
 - A native build includes `cxx/CMakeLists.txt`. `src/dd/CMakeLists.txt` and
   `src/ipi/CMakeLists.txt` only work when the root includes them. To leave out
-  the product a package does not use, set `FIFTYONE_BUILD_DEVICE_DETECTION` or
-  `FIFTYONE_BUILD_IP_INTELLIGENCE` to `OFF`.
+  the product a package does not use, set `_51DEGREES_BUILD_DEVICE_DETECTION` or
+  `_51DEGREES_BUILD_IP_INTELLIGENCE` to `OFF`.
 - The SWIG interface files include `cxx/src/...`, so a generated wrapper needs
   the folder that holds `cxx/` on its include path. A wrapper already committed
   includes the old path, so it needs the same change or generating again.
