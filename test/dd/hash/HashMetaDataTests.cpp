@@ -836,9 +836,9 @@ protected:
 	 * order misses is checked, as are profiles spread across the rest, so
 	 * the check is quick on any data file and covers the values a data file
 	 * holds out of order. Each profile holding such a value is printed with
-	 * whether its value indexes are in ascending order, as the search among
-	 * them assumes, and a value not found says whether the search by name
-	 * order misses it.
+	 * whether its value indexes are in ascending order, because a profile can
+	 * hold one property's values out of index order, and a value not found
+	 * says whether the search by name order misses it.
 	 */
 	void checkProfileValuesByName(const string &path) {
 		const auto manager = openHashMetaData(path, nullptr);
