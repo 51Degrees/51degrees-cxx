@@ -215,7 +215,7 @@ static long searchByNameAndType(
 		storedValueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
 	const size_t requiredSize = strlen(valueName) + 3;
 	char * const buffer = isString ? NULL : Malloc(requiredSize);
-	StringBuilder tempBuilder = { buffer, requiredSize };
+	StringBuilder tempBuilder = { buffer, requiredSize, NULL, 0, 0, false };
 	search.tempBuilder = isString ? NULL : &tempBuilder;
 
 	const long index = CollectionBinarySearch(

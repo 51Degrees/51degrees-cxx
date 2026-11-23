@@ -59,18 +59,6 @@ static void parsePair(EvidenceKeyValuePair *pair) {
 	}
 }
 
-// If a string comparison of the pair field and the header indicates a match
-// then set the header to avoid a string comparison in future iterations.
-static void setPairHeader(EvidenceKeyValuePair* pair, Header* header) {
-	if (pair->item.keyLength == header->nameLength &&
-		StringCompareLength(
-			pair->item.key, 
-			header->name, 
-			header->nameLength) == 0) {
-		pair->header = header;
-	}
-}
-
 /**
  * Iterate through an evidence collection and perform callback on the evidence
  * whose prefix matches the input prefixes. Checks the linked list of evidence
@@ -407,7 +395,7 @@ bool fiftyoneDegreesEvidenceIterateForHeaders(
 	void* state,
 	fiftyoneDegreesEvidenceIterateMethod callback) {
 	Header* header;
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 
 	// For each of the headers process as either a standard header, or a pseudo
 	// header.

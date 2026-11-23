@@ -334,7 +334,7 @@ IpIntelligence::ResultsIpi::valuesAsWeightedStringListAt(
     stringstream stream;
     iterateWeightedValues(
         requiredPropertyIndex,
-        [this, &result](const fiftyoneDegreesResultsNoValueReason reason, const char * const reasonStr) {
+        [&result](const fiftyoneDegreesResultsNoValueReason reason, const char * const reasonStr) {
             result.setNoValueReason(reason, reasonStr);
         },
         [&values](const uint32_t count) {

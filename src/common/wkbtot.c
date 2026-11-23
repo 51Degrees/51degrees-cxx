@@ -60,11 +60,6 @@ static uint8_t readUByte(const byte ** const wkbBytes) {
     *wkbBytes += 1;
     return result;
 }
-static int8_t readSByte(const byte ** const wkbBytes) {
-    const int8_t result = *(int8_t *)(*wkbBytes);
-    *wkbBytes += 1;
-    return result;
-}
 static int16_t readShortMatchingByteOrder(const byte ** const wkbBytes) {
     const int16_t result = *(int16_t *)(*wkbBytes);
     *wkbBytes += 2;
@@ -632,7 +627,7 @@ fiftyoneDegreesWkbtotResult fiftyoneDegreesConvertWkbToWkt(
     DecimalPlacesType const decimalPlaces,
     Exception * const exception) {
 
-    StringBuilder stringBuilder = { buffer, length };
+    StringBuilder stringBuilder = { buffer, length, NULL, 0, 0, false };
     StringBuilderInit(&stringBuilder);
 
     handleWKBRoot(

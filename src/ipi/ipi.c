@@ -316,109 +316,6 @@ static void resultIpiReset(ResultIpi* result) {
 	result->keptProfile = NULL;
 }
 
-static int compareIpAddresses(
-	const byte* address1,
-	const byte* address2,
-	int length) {
-	for (int i = 0; i < length; i++) {
-		const int difference = (int)address1[i] - (int)address2[i];
-		if (difference != 0) return difference;
-	}
-	return 0;
-}
-
-static CollectionKeyType CollectionKeyType_Ipv4Range = {
-	FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_IPV4_RANGE,
-	sizeof(Ipv4Range),
-	NULL,
-};
-static CollectionKeyType CollectionKeyType_Ipv6Range = {
-	FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_IPV6_RANGE,
-	sizeof(Ipv6Range),
-	NULL,
-};
-
-static int compareToIpv4Range(
-	const void * const state,
-	const Item* item,
-	long curIndex,
-	Exception* exception) {
-	int result = 0;
-	const fiftyoneDegreesIpAddress target = *((const fiftyoneDegreesIpAddress *)state);
-	// We will terminate if IP address is within the range between the current item and the next item
-	const int tempResult = compareIpAddresses(((Ipv4Range*)item->data.ptr)->start, target.value, FIFTYONE_DEGREES_IPV4_LENGTH);
-	if (tempResult < 0) {
-		Item nextItem;
-		DataReset(&nextItem.data);
-		if ((uint32_t)curIndex + 1 < item->collection->count) {
-			const CollectionKey curKey = {
-				(uint32_t)++curIndex,
-				&CollectionKeyType_Ipv4Range,
-			};
-			if (item->collection->get(
-				item->collection,
-				&curKey,
-				&nextItem,
-				exception) != NULL && EXCEPTION_OKAY) {
-				if (compareIpAddresses(
-					((Ipv4Range*)nextItem.data.ptr)->start,
-					target.value,
-					FIFTYONE_DEGREES_IPV4_LENGTH) <= 0) {
-					result = -1;
-				}
-				COLLECTION_RELEASE(item->collection, &nextItem);
-			}
-		}
-	}
-	else if (tempResult > 0 && curIndex > 0) {
-		// The IP address is out of range
-		// NOTE: If the current index is 0
-		// There is no more item lower so return the current
-		result = 1;
-	}
-	return result;
-}
-
-static int compareToIpv6Range(
-	const void * const state,
-	const Item * const item,
-	long curIndex,
-	Exception* exception) {
-	int result = 0;
-	const fiftyoneDegreesIpAddress target = *((fiftyoneDegreesIpAddress*)state);
-	// We will terminate if IP address is within the range between the current item and the next item
-	const int tempResult = compareIpAddresses(((Ipv6Range*)item->data.ptr)->start, target.value, FIFTYONE_DEGREES_IPV6_LENGTH);
-	if (tempResult < 0) {
-		Item nextItem;
-		DataReset(&nextItem.data);
-		if ((uint32_t)curIndex + 1 < item->collection->count) {
-			const CollectionKey curKey = {
-				(uint32_t)++curIndex,
-				&CollectionKeyType_Ipv6Range,
-			};
-			if (item->collection->get(
-				item->collection,
-				&curKey,
-				&nextItem,
-				exception) != NULL && EXCEPTION_OKAY) {
-
-				if (compareIpAddresses(((Ipv6Range*)nextItem.data.ptr)->start, target.value, FIFTYONE_DEGREES_IPV6_LENGTH) <= 0) {
-					// The IP address is not within the range
-					result = -1;
-				}
-				COLLECTION_RELEASE(item->collection, &nextItem);
-			}
-		}
-	}
-	else if (tempResult > 0 && curIndex > 0) {
-		// The IP address is out of range
-		// NOTE: There is no more item lower
-		// so return the current
-		result = 1;
-	}
-	return result;
-}
-
 static void setResultFromIpAddress(
 	ResultIpi* const result,
 	const DataSetIpi* const dataSet,
@@ -593,44 +490,6 @@ static StatusCode initComponentsAvailable(
 	}
 
 	return SUCCESS;
-}
-
-static int findPropertyIndexByName(
-	Collection *properties,
-	Collection *strings,
-	char *name,
-	Exception *exception) {
-	int index;
-	bool found = false;
-	Property *property;
-	const String *propertyName;
-	Item propertyItem, nameItem;
-	const int count = CollectionGetCount(properties);
-	DataReset(&propertyItem.data);
-	DataReset(&nameItem.data);
-	for (index = 0; index < count && found == false; index++) {
-		property = PropertyGet(
-			properties,
-			index,
-			&propertyItem,
-			exception);
-		if (property != NULL &&
-			EXCEPTION_OKAY) {
-			propertyName = PropertyGetName(
-				strings,
-				property,
-				&nameItem,
-				exception);
-			if (propertyName != NULL && EXCEPTION_OKAY) {
-				if (StringCompare(name, &propertyName->value) == 0) {
-					found = true;
-				}
-				COLLECTION_RELEASE(strings, &nameItem);
-			}
-			COLLECTION_RELEASE(properties, &propertyItem);
-		}
-	}
-	return found ? index : -1;
 }
 
 static void initGetEvidencePropertyRelated(
@@ -2419,7 +2278,7 @@ size_t fiftyoneDegreesIpiGetEvidenceKeys(
 	Headers * const headers = dataSet->b.b.uniqueHeaders;
 	const uint32_t count = headers == NULL ? 0 : headers->count;
 	const size_t separatorLength = separator == NULL ? 0 : strlen(separator);
-	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	for (i = 0; i < count; i++) {
 		name = headers->items[i].name;
@@ -3814,7 +3673,7 @@ size_t fiftyoneDegreesResultsIpiGetValuesString(
 	const char* separator,
 	fiftyoneDegreesException* exception) {
 
-	StringBuilder builder = { buffer, bufferLength };
+	StringBuilder builder = { buffer, bufferLength, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 
 	fiftyoneDegreesResultsIpiAddValuesString(
@@ -3838,7 +3697,7 @@ size_t fiftyoneDegreesResultsIpiGetValuesStringByRequiredPropertyIndex(
 	fiftyoneDegreesException* exception) {
 
 	const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
-	StringBuilder builder = { buffer, bufferLength };
+	StringBuilder builder = { buffer, bufferLength, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 
 	fiftyoneDegreesResultsIpiGetValuesStringInternal(
@@ -4127,7 +3986,7 @@ size_t fiftyoneDegreesIpiGetIpAddressAsString(
 	const uint32_t bufferLength,
 	fiftyoneDegreesException * const exception) {
 
-	StringBuilder builder = { buffer, bufferLength };
+	StringBuilder builder = { buffer, bufferLength, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 
 	StringBuilderAddIpAddress(

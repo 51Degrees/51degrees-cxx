@@ -200,19 +200,6 @@ static void releaseFile(Item *item) {
 	}
 }
 
-/**
- * Calls the collection the item is assigned to's release method. The item may
- * be of any type and must have the collection reference set when it is 
- * initialised.
- * @param item to be released with it's collection reference set.
- */
-static void releasePartial(Item *item) {
-	if (item->handle != NULL &&
-		item->collection != NULL) {
-		COLLECTION_RELEASE(item->collection, item);
-	}
-}
-
 static void freeCollection(Collection *collection) {
 	Free(collection->state);
 	Free(collection);

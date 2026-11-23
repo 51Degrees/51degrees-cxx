@@ -65,9 +65,13 @@ static const Collection dummyCollection = {
 	collectionRelease, 
 	NULL, 
 	NULL,
-	0, 
-	0, 
 	0,
+	0,
+	0,
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+	0,
+#endif
+	NULL,
 };
 
 /**
@@ -448,7 +452,7 @@ void fiftyoneDegreesOverrideValuesReset(
 }
 
 static void extractProfileId(char *value, overrideProfileIdsState *state) {
-	if (*value >= 0 && isdigit(*value) != 0) {
+	if (isdigit((unsigned char)*value) != 0) {
 		int profileId = atoi(value);
 		if (profileId >= 0) {
 			state->callback(state->state, profileId);
@@ -459,7 +463,7 @@ static void extractProfileId(char *value, overrideProfileIdsState *state) {
 static void extractProfileIds(overrideProfileIdsState *state, char *value) {
 	char *current = value, *previous = value;
 	while (*current != '\0') {
-		if (*current < 0 || isdigit(*current) == 0) {
+		if (isdigit((unsigned char)*current) == 0) {
 			extractProfileId(previous, state);
 			previous = current + 1;
 		}

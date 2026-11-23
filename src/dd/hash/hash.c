@@ -388,7 +388,8 @@ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX, \
 0, \
 false, /* Performance graph */ \
 true,  /* Predictive graph */ \
-false /* Trace */
+false, /* Trace */ \
+false /* Load required properties only */
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashBalancedConfig = {
 	FIFTYONE_DEGREES_HASH_CONFIG_BALANCED
@@ -4771,7 +4772,9 @@ void fiftyoneDegreesResultsHashFromUserAgent(
 		dataSet->b.uniqueUserAgentHeaderIndex];
 	// Zero-initialise: EvidenceAddPair sets prefix, item, parsedValue and
 	// header but not parsedLength, which would otherwise be stack garbage.
-	EvidenceKeyValuePair pairStorage = { FIFTYONE_DEGREES_EVIDENCE_IGNORE };
+	EvidenceKeyValuePair pairStorage;
+	memset(&pairStorage, 0, sizeof(pairStorage));
+	pairStorage.prefix = FIFTYONE_DEGREES_EVIDENCE_IGNORE;
 	EvidenceKeyValuePairArray evidence;
 	evidence.count = 0;
 	evidence.capacity = 1;
@@ -5116,7 +5119,7 @@ size_t fiftyoneDegreesHashGetEvidenceKeys(
 	size_t added;
 	evidenceKey key, earlier;
 	const size_t separatorLength = separator == NULL ? 0 : strlen(separator);
-	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	for (i = 0; getEvidenceKey(dataSet, i, &key); i++) {
 		if (key.name == NULL) {
@@ -5465,7 +5468,7 @@ static size_t getValuesStringForAvailableIndex(
 	size_t const length,
 	char* const separator,
 	fiftyoneDegreesException *exception) {
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	getValuesStringByAvailableIndex(
 		results,
@@ -5503,7 +5506,7 @@ size_t fiftyoneDegreesResultsHashGetValuesStringAllProperties(
 	size_t const length,
 	char* const separator,
 	fiftyoneDegreesException* exception) {
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	size_t const separatorLen = strlen(separator);
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
@@ -5578,7 +5581,7 @@ size_t fiftyoneDegreesHashGetHardwareProfileScript(
 	char *buffer,
 	size_t length) {
 	size_t added;
-	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	StringBuilderAddChars(
 		&builder,
@@ -6641,7 +6644,7 @@ char* fiftyoneDegreesHashGetDeviceIdFromResult(
 	uint32_t i, profileOffset;
 	Item item;
 	Profile *profile;
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	DataReset(&item.data);
 	for (i = 0; i < dataSet->componentsList.count; i++) {
@@ -6682,7 +6685,7 @@ char* fiftyoneDegreesHashGetDeviceIdFromResult(
 
 char *getNullDeviceId(DataSetHash *dataSet, char *buffer, size_t length) {
 	uint32_t i;
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	for (i = 0; i < dataSet->componentsList.count; i++) {
 		if (i != 0) {
@@ -6704,7 +6707,7 @@ char* fiftyoneDegreesHashGetDeviceIdFromResults(
 	Profile *profile;
 	Item profileItem;
 	uint32_t profileOffset;
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	DataReset(&profileItem.data);
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
@@ -6927,12 +6930,14 @@ size_t fiftyoneDegreesResultsHashGetValuesJson(
 	DataReset(&propertyItem.data);
 
 	// Set the state used with the JSON methods.
-	Json s = { buffer, length };
-	s.exception = exception;
-	s.strings = dataSet->strings;
-	s.property = NULL;
-	s.values = NULL;
-	s.storedPropertyType = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING; // only strings in device-detection
+	Json s = {
+		{ buffer, length, NULL, 0, 0, false },
+		dataSet->strings,
+		NULL,
+		NULL,
+		exception,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING // only strings in device-detection
+	};
 
 	// Ensure any previous uses of the results to get values are released.
 	resultsHashRelease(results);

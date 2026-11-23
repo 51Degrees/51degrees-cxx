@@ -57,7 +57,7 @@ FIFTYONE_DEGREES_COMMON_CXX_BEGIN
 
         {
             char buffer[REASONABLE_WKT_STRING_LENGTH];
-            StringBuilder builder = { buffer, REASONABLE_WKT_STRING_LENGTH };
+            StringBuilder builder = { buffer, REASONABLE_WKT_STRING_LENGTH, NULL, 0, 0, false };
             StringBuilderInit(&builder);
             WriteWkbAsWktToStringBuilder(
                 wkbBytes,
@@ -80,7 +80,7 @@ FIFTYONE_DEGREES_COMMON_CXX_BEGIN
             EXCEPTION_CLEAR;
             const size_t requiredSize = toWktResult.written + 1;
             const std::unique_ptr<char[]> buffer = std::make_unique<char[]>(requiredSize);
-            StringBuilder builder = { buffer.get(), requiredSize };
+            StringBuilder builder = { buffer.get(), requiredSize, NULL, 0, 0, false };
             StringBuilderInit(&builder);
             WriteWkbAsWktToStringBuilder(
                 wkbBytes,

@@ -405,6 +405,10 @@ static void SaveString(
     StringBuilder builder = {
         (char *)state->tempData->ptr,
         state->tempData->allocated,
+        NULL,
+        0,
+        0,
+        false
     };
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(
@@ -422,6 +426,10 @@ static void SaveString(
         StringBuilder builder2 = {
             (char *)state->tempData->ptr,
             state->tempData->allocated,
+            NULL,
+            0,
+            0,
+            false
         };
         StringBuilderInit(&builder2);
         StringBuilderAddStringValue(

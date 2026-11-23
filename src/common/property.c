@@ -55,21 +55,6 @@ const fiftyoneDegreesString* fiftyoneDegreesPropertyGetName(
 		exception);
 }
 
-static int comparePropertyTypeRecordByName(
-	void *state,
-	Item *item,
-	const CollectionKey key,
-	Exception *exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(key);
-	UNREFERENCED_PARAMETER(exception);
-#	endif
-	const uint32_t searchNameOffset = *(uint32_t*)state;
-	const PropertyTypeRecord * const nextRecord = (PropertyTypeRecord*)item->data.ptr;
-	const long long result = (long long)nextRecord->nameOffset - (long long)searchNameOffset;
-	return !result ? 0 : (result < 0 ? -1 : 1);
-}
-
 PropertyValueType fiftyoneDegreesPropertyGetStoredType(
 	const fiftyoneDegreesCollection * const propertyTypesCollection,
 	const Property * const property,

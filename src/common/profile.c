@@ -64,6 +64,9 @@ static Profile* getProfileByOffset(
 		exception);
 }
 
+// A reduced size data file does not contain profile ids, so the searches by
+// profile id below are only built when the data file holds them.
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
 static int compareProfileId(
 	void * const profileId,
 	Item * const item,
@@ -73,22 +76,11 @@ static int compareProfileId(
 	UNREFERENCED_PARAMETER(key);
 	UNREFERENCED_PARAMETER(exception);
 #	endif
-#ifdef FIFTYONE_DEGREES_REDUCED_FILE
-	// A reduced size data file does not contain profile ids, so this method
-	// cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(profileId);
-	UNREFERENCED_PARAMETER(item);
-#endif
-	EXCEPTION_SET(NOT_IMPLEMENTED);
-	return -1;
-#else
 	const unsigned int a = ((ProfileOffset*)item->data.ptr)->profileId;
 	const unsigned int b = *(uint32_t*)profileId;
 	if (a < b) return -1;
 	if (a > b) return 1;
 	return 0;
-#endif
 }
 
 typedef struct {
@@ -104,19 +96,7 @@ static int compareProfileIdIndirect(
 	Exception * const exception) {
 #	ifdef _MSC_VER
 	UNREFERENCED_PARAMETER(key);
-	UNREFERENCED_PARAMETER(exception);
 #	endif
-#ifdef FIFTYONE_DEGREES_REDUCED_FILE
-	// A reduced size data file does not contain profile ids, so this method
-	// cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(searchState);
-	UNREFERENCED_PARAMETER(profileOffsetItem);
-	UNREFERENCED_PARAMETER(key);
-#endif
-	EXCEPTION_SET(NOT_IMPLEMENTED);
-	return -1;
-#else
 	const IndirectProfileSearch * const search = (IndirectProfileSearch*)searchState;
 	const uint32_t profileOffsetValue = *(uint32_t*)profileOffsetItem->data.ptr;
 	const CollectionKey profileKey = {
@@ -137,8 +117,8 @@ static int compareProfileIdIndirect(
 		COLLECTION_RELEASE(search->profiles, search->outProfileItem);
 	}
 	return result;
-#endif
 }
+#endif
 
 static int compareValueToProperty(const void *p, const void *v) {
 	Property *property = (Property*)p;

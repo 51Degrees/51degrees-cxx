@@ -148,6 +148,7 @@ typedef struct cursor_t {
 // left. High order bit is index 0.
 #define SET_BIT(b,i) (b[i / 8] |= 1 << (7 - (i % 8)))
 
+#ifdef FIFTYONE_DEGREES_IPI_GRAPH_TRACE
 // Outputs to the string builder the bits from left to right from the bytes
 // provided.
 static void bytesToBinary(
@@ -164,21 +165,7 @@ static void bytesToBinary(
 		}
 	}
 }
-
-// The IpType for the version byte.
-static IpType getIpTypeFromVersion(byte version) {
-	switch (version)
-	{
-	case 4: return IP_TYPE_IPV4;
-	case 6: return IP_TYPE_IPV6;
-	default: return IP_TYPE_INVALID;
-	}
-}
-
-// The IpType for the component graph.
-static IpType getIpTypeFromGraph(const IpiCgInfo* const info) {
-	return getIpTypeFromVersion(info->version);
-}
+#endif
 
 // Manipulates the source using the mask and shift parameters of the member.
 static uint32_t getMemberValue(IpiCgMember member, uint64_t source) {
@@ -225,6 +212,8 @@ static void traceNewLine(const Cursor* const cursor) {
 	StringBuilderAddChar(cursor->sb, '\n');
 }
 
+// The trace output below is only built when tracing is turned on.
+#ifdef FIFTYONE_DEGREES_IPI_GRAPH_TRACE
 static void traceLabel(const Cursor* const cursor, const char* label) {
 	StringBuilderAddChar(cursor->sb, '\t');
 	StringBuilderAddChars(cursor->sb, label, strlen(label));
@@ -322,18 +311,6 @@ static void traceCompare(const Cursor* const cursor) {
 	traceNewLine(cursor);
 }
 
-static void traceMove(Cursor* cursor, const char* method) {
-	StringBuilderAddChar(cursor->sb, '\t');
-	StringBuilderAddChars(cursor->sb, method, strlen(method));
-	StringBuilderAddChar(cursor->sb, ' ');
-	StringBuilderAddInteger(cursor->sb, cursor->index);
-	StringBuilderAddChar(cursor->sb, ' ');
-	StringBuilderAddInteger(cursor->sb, cursor->spanIndex);
-	StringBuilderAddChar(cursor->sb, ' ');
-	bytesToBinary(cursor, (byte*)&cursor->nodeBits, 64);
-	traceNewLine(cursor);
-}
-
 #define RESULT "result"
 #define RAWRESULT "raw result"
 #define ISGROUP "is group"
@@ -352,6 +329,7 @@ static void traceResult(const Cursor* const cursor, const fiftyoneDegreesIpiCgRe
 	StringBuilderAddInteger(cursor->sb, (int)result.isGroupOffset);
 	traceNewLine(cursor);
 }
+#endif
 
 // The index of the profile associated with the value if this is a leaf value.
 // getIsProfileIndex must be called before getting the profile index.
@@ -860,10 +838,11 @@ static Cursor cursorCreate(
 	IpAddress ip,
 	StringBuilder* sb,
 	Exception* exception) {
+	// The fields not named here are set below.
 	Cursor cursor = {
-		graph,
-		ip,
-		{ // nodeBytesKeyType
+		.graph = graph,
+		.ip = ip,
+		.nodeBytesKeyType = {
 			FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_GRAPH_DATA_NODE_BYTES,
 			0, // TBD
 			NULL,
@@ -1403,7 +1382,7 @@ fiftyoneDegreesIpiCgResult fiftyoneDegreesIpiGraphEvaluate(
 	fiftyoneDegreesException* const exception) {
 
 	// String builder is not needed for normal usage without tracing.
-	StringBuilder sb = { NULL, 0 };
+	StringBuilder sb = { NULL, 0, NULL, 0, 0, false };
 
 	return ipiGraphEvaluate(graphs, componentId, address, &sb, exception);
 }
@@ -1415,7 +1394,7 @@ fiftyoneDegreesIpiCgResult fiftyoneDegreesIpiGraphEvaluateTrace(
 	char* buffer,
 	int const length,
 	fiftyoneDegreesException* exception) {
-	StringBuilder sb = { buffer, length };
+	StringBuilder sb = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&sb);
 
 	// Add the bytes of the IP address to the trace.

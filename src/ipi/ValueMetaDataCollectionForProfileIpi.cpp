@@ -35,7 +35,7 @@ ValueMetaDataCollectionForProfileIpi::ValueMetaDataCollectionForProfileIpi(
 	// The key of an IP Intelligence profile is its offset in the profiles
 	// collection.
 	const CollectionKey profileKey = {
-		profile->getKey(),
+		{ profile->getKey() },
 		CollectionKeyType_Profile,
 	};
 	dataSet->profiles->get(
