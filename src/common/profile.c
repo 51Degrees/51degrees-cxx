@@ -244,6 +244,7 @@ uint32_t* fiftyoneDegreesProfileGetOffsetForProfileId(
 	UNREFERENCED_PARAMETER(profileId);
 	UNREFERENCED_PARAMETER(profileOffset);
 #endif
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return NULL;
 #else
@@ -301,6 +302,7 @@ Profile * fiftyoneDegreesProfileGetByProfileIdIndirect(
 	UNREFERENCED_PARAMETER(profileId);
 	UNREFERENCED_PARAMETER(outProfileItem);
 #endif
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return NULL;
 #else
@@ -361,6 +363,7 @@ fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByProfileId(
 	UNREFERENCED_PARAMETER(profileId);
 	UNREFERENCED_PARAMETER(item);
 #endif
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return NULL;
 #else
@@ -481,6 +484,7 @@ uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(
 	UNREFERENCED_PARAMETER(state);
 	UNREFERENCED_PARAMETER(callback);
 #endif
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return 0;
 #else

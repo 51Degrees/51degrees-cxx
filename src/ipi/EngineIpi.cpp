@@ -282,6 +282,7 @@ typedef std::unique_ptr<
 // them.
 static OwnedResults createResults(fiftyoneDegreesResourceManager *manager) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	OwnedResults results(
 		ResultsIpiCreate(manager),
 		fiftyoneDegreesResultsIpiFree);

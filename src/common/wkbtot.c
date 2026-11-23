@@ -299,6 +299,7 @@ static void withParenthesesIterate(
     const uint32_t count) {
 
     Exception * const exception = context->exception;
+    (void)exception; // Not used when exceptions are disabled.
 
     StringBuilderAddChar(context->output.stringBuilder, '(');
     context->output.isSeparated = true;
@@ -537,6 +538,7 @@ static void handleGeometry(
         sizeof(GEOMETRIES) / sizeof(GEOMETRIES[0]);
     if (coordType >= CoordModesCount || geometryCode >= GeometriesCount) {
         Exception * const exception = context->exception;
+        (void)exception; // Not used when exceptions are disabled.
         EXCEPTION_SET(UNKNOWN_GEOMETRY);
         return;
     }
@@ -554,6 +556,7 @@ static void handleGeometry(
         : parser->childParser);
     if (!visitor) {
         Exception * const exception = context->exception;
+        (void)exception; // Not used when exceptions are disabled.
         EXCEPTION_SET(RESERVED_GEOMETRY);
         return;
     }

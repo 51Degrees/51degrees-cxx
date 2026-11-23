@@ -562,7 +562,7 @@ static void setCluster(Cursor* cursor) {
 		0,
 		cursor->graph->clustersCount - 1,
 		cursor,
-		cursor->ex);
+		exception);
 
 	if (EXCEPTION_FAILED) {
 		return;
@@ -613,7 +613,7 @@ static void setSpanBytes(Cursor* cursor) {
 		cursor->graph->spanBytes,
 		&spanBytesKey,
 		&cursorItem,
-		cursor->ex);
+		exception);
 	if (EXCEPTION_FAILED) return;
 
 	// Copy the bits to the low and high bytes ready for comparison.
@@ -883,6 +883,7 @@ static void cursorReleaseData(Cursor* const cursor) {
 // return a result.
 static bool selectLow(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 
 	// Check if the current entry is the low entry.
 	if (isLowFlag(cursor)) {
@@ -913,6 +914,7 @@ static bool selectLow(Cursor* cursor) {
 // Returns true if a leaf is found, otherwise false.
 static bool cursorMoveBackLow(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 	TRACE_LABEL(cursor, "cursorMoveBack");
 	cursorMove(cursor, cursor->previousHighIndex);
 	if (EXCEPTION_FAILED) return true;
@@ -924,6 +926,7 @@ static bool cursorMoveBackLow(Cursor* cursor) {
 // return a result.
 static bool selectHigh(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 
 	// An additional check is needed for the data structure as the current
 	// entry might relate to the low entry. If this is the case then the next
@@ -953,6 +956,7 @@ static bool selectHigh(Cursor* cursor) {
 // until a leaf is found.
 static void selectCompleteHigh(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 	TRACE_LABEL(cursor, "selectCompleteHigh");
 	while (selectHigh(cursor) == false) {
 		if (EXCEPTION_FAILED) return;
@@ -963,6 +967,7 @@ static void selectCompleteHigh(Cursor* cursor) {
 // found.
 static void selectCompleteLowHigh(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 	TRACE_LABEL(cursor, "selectCompleteLowHigh");
 	if (selectLow(cursor) == false) {
 		while (selectHigh(cursor) == false) {
@@ -975,6 +980,7 @@ static void selectCompleteLowHigh(Cursor* cursor) {
 // until a leaf is found.
 static void selectCompleteLow(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 	TRACE_LABEL(cursor, "selectCompleteLow");
 	if (cursorMoveBackLow(cursor) == false) {
 		if (EXCEPTION_FAILED) return;
@@ -1032,6 +1038,7 @@ static void compareIpToSpan(Cursor* cursor) {
 static uint32_t evaluate(Cursor* cursor) {
 	Exception* exception = cursor->ex;
 	bool found = false;
+	(void)exception; // Not used when exceptions are disabled.
 	traceNewLine(cursor);
 
 	// Move the cursor to the entry for the graph.
@@ -1098,6 +1105,7 @@ static fiftyoneDegreesIpiCgResult toResult(
 		0,
 		false,
 	};
+	(void)exception; // Not used when exceptions are disabled.
 	if (profileIndex < graph->info.profileCount) {
 		result.offset = profileIndex + graph->info.firstProfileIndex;
 	}

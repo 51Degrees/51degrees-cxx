@@ -124,6 +124,7 @@ const String* fiftyoneDegreesValueGetDescription(
 	UNREFERENCED_PARAMETER(value);
 	UNREFERENCED_PARAMETER(item);
 #endif
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED)
 	return NULL;
 #else
@@ -310,6 +311,7 @@ static char* emptyText(
 	char * const text = buffer != NULL && bufferLength > 0
 		? buffer
 		: (char*)Malloc(1);
+	(void)exception; // Not used when exceptions are disabled.
 	if (text == NULL) {
 		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return NULL;

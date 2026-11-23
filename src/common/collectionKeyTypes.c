@@ -29,6 +29,7 @@ uint32_t fiftyoneDegreesThrowUnsupportedStoredValueType(
 #	ifdef _MSC_VER
     UNREFERENCED_PARAMETER(initial);
 #	endif
+    (void)exception; // Not used when exceptions are disabled.
     FIFTYONE_DEGREES_EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_UNSUPPORTED_STORED_VALUE_TYPE);
     return 0;
 }

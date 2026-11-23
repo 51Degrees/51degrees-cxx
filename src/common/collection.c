@@ -496,7 +496,6 @@ static Collection* createFromFileToMemory(
 	FILE *file,
 	CollectionHeader header
 	COLLECTION_SHIFT_PARAM) {
-	EXCEPTION_CREATE;
 	const size_t lengthInBytes = (size_t)COLLECTION_UNITS_TO_BYTES(
 		offsetShift,
 		header.length);

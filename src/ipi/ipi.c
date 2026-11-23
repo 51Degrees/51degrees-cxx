@@ -3044,6 +3044,7 @@ static const Profile* getResultProfile(
 }
 
 static void releaseResultProfile(const DataSetIpi* dataSet, Item* item) {
+	(void)dataSet; // Not used in a memory only build, where release does nothing.
 	if (item->collection != NULL) {
 		COLLECTION_RELEASE(dataSet->profiles, item);
 	}
@@ -3832,6 +3833,7 @@ static bool valueTextsReserve(
 	ValueTexts * const texts,
 	const size_t bytes,
 	Exception * const exception) {
+	(void)exception; // Not used when exceptions are disabled.
 	if (texts->length - texts->used >= bytes) {
 		return true;
 	}

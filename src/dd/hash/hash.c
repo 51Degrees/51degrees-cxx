@@ -606,7 +606,7 @@ static void setNextNode(detectionState *state, int32_t offset) {
 			state->dataSet->nodes,
 			(uint32_t)offset,
 			&state->node,
-			state->exception);
+			exception);
 
 		// Set the first and last indexes.
 		if (node != NULL && EXCEPTION_OKAY) {
@@ -1205,7 +1205,8 @@ static bool processRoot(
 	DataSetHash* dataSet,
 	uint32_t rootNodeOffset) {
 	Exception *exception = state->exception;
-	
+	(void)exception; // Not used when exceptions are disabled.
+
 	// Initial result without drift or difference being applied.
 	bool matched = processFromRoot(dataSet, rootNodeOffset, state);
 	if (matched) return true;
@@ -1266,6 +1267,7 @@ static bool processRoots(
 	HashRootNodes *rootNodes) {
 	Exception *exception = state->exception;
 	bool matched = false;
+	(void)exception; // Not used when exceptions are disabled.
 
 	// First try searching in the performance graph if it is enabled.
 	if (dataSet->config.usePerformanceGraph == true) {
@@ -1409,6 +1411,7 @@ static HashValueProfiles* valueProfilesCreateNames(
 	size_t length;
 	char *copy;
 	HashValueProfiles *index;
+	(void)exception; // Not used when exceptions are disabled.
 	for (i = 0; i < namesCount; i++) {
 		if (valueProfilesIsNewName(names, i)) {
 			chars += strlen(names[i]) + 1;
@@ -2563,8 +2566,6 @@ static StatusCode initInMemory(
 }
 
 static void initDataSet(DataSetHash *dataSet, ConfigHash **config) {
-	EXCEPTION_CREATE
-
 	// If no config has been provided then use the balanced configuration.
 	if (*config == NULL) {
 		*config = &HashBalancedConfig;
@@ -4300,6 +4301,7 @@ static void resultsHashFromEvidence_setSpecialHeaders(
 	detectionComponentState* state) {
 	Exception* exception = state->exception;
 	specialHeadersState special = { state, false };
+	(void)exception; // Not used when exceptions are disabled.
 	do {
 		EvidenceIterate(
 			state->evidence,
@@ -4527,6 +4529,7 @@ static void resultsHashFromEvidence_copyEvidence(
 	EvidenceKeyValuePairArray* array;
 	uint32_t pairs = 0, i;
 	size_t textBytes = 0;
+	(void)exception; // Not used when exceptions are disabled.
 	for (array = state->evidence; array != NULL; array = array->next) {
 		for (i = 0; i < array->count; i++) {
 			pairs++;
@@ -6562,6 +6565,7 @@ static bool hashMetaDataProfileComponentId(
 	const Component * const component = hashMetaDataComponent(
 		dataSet,
 		profile->componentIndex);
+	(void)exception; // Not used when exceptions are disabled.
 	if (component == NULL) {
 		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
 		return false;

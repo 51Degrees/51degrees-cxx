@@ -47,6 +47,7 @@ uint32_t fiftyoneDegreesComponentGetDefaultProfileId(
 	UNREFERENCED_PARAMETER(profiles);
 	UNREFERENCED_PARAMETER(component);
 #endif
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED)
 	return 0;
 #else
@@ -94,6 +95,8 @@ fiftyoneDegreesComponentGetKeyValuePair(
 		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
 		return NULL;
 	}
+#else
+	(void)exception; // The index is not checked when exceptions are disabled.
 #endif
 	return &(&component->firstKeyValuePair)[index];
 }

@@ -307,6 +307,7 @@ static OwnedResults createResults(
 	fiftyoneDegreesResourceManager *manager,
 	uint32_t overridesCapacity) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	OwnedResults results(
 		ResultsHashCreate(manager, overridesCapacity),
 		fiftyoneDegreesResultsHashFree);

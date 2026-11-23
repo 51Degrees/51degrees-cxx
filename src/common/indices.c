@@ -56,6 +56,7 @@ static void addProfileValuesMethod(
 	UNREFERENCED_PARAMETER(values);
 	UNREFERENCED_PARAMETER(profile);
 #endif
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 #else
 	uint32_t valueIndex;
@@ -171,6 +172,7 @@ static uint32_t getProfileId(
 	UNREFERENCED_PARAMETER(profileOffsets);
 	UNREFERENCED_PARAMETER(index);
 #endif
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return 0;
 #else
@@ -204,6 +206,7 @@ static map* createPropertyIndexes(
 	PropertiesAvailable* available,
 	Exception* exception) {
 	map* index = (map*)Malloc(sizeof(map) * available->count);
+	(void)exception; // Not used when exceptions are disabled.
 	if (index == NULL) {
 		EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY);
 		return NULL;

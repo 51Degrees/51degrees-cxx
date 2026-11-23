@@ -180,6 +180,7 @@ static bool setHeaderName(
 	Exception* exception) {
 	size_t size = length + 1;
 	char* name = (char*)Malloc(sizeof(char) * size);
+	(void)exception; // Not used when exceptions are disabled.
 	if (name == NULL) {
 		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return false;

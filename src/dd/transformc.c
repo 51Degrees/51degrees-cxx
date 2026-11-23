@@ -1222,6 +1222,7 @@ TransformIterateGhevFromJsonPrivate
   fiftyoneDegreesException* const exception) {
 	StatusCode status = NOT_SET;
 	uint32_t result = mainParsingBody(json, builder, &status, 0, callback, ctx);
+	(void)exception; // Not used when exceptions are disabled.
 	if (status != NOT_SET) {
 		EXCEPTION_SET(status);
 	}
@@ -1277,6 +1278,7 @@ fiftyoneDegreesTransformIterateSua
 	uint32_t iterations = mainParsingBody(json, &builder, &status, 1, callback, ctx);
 	StringBuilderComplete(&builder);
 	fiftyoneDegreesTransformIterateResult result = {iterations, builder.added, builder.added > builder.length};
+	(void)exception; // Not used when exceptions are disabled.
 	if (status != NOT_SET) {
 		EXCEPTION_SET(status);
 	}
