@@ -73,8 +73,8 @@ function Get-Cdb([string]$Arch) {
 #
 # GoogleTest makes abort end the program with exit code 3 and no exception, so
 # std::terminate, which an exception thrown on a worker thread reaches, would
-# leave no dump. A breakpoint on abort in the C runtime writes the dump before
-# abort ends the program, then lets abort go on.
+# leave no dump. A breakpoint on abort in the C runtime writes the dump, in
+# which the thread that threw is still at the throw, then lets abort go on.
 #
 # Two settings keep the program behaving as it does without a debugger.
 # Breakpoints are passed to the program rather than handled by the debugger
