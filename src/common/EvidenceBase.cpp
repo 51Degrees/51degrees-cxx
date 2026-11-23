@@ -61,16 +61,12 @@ fiftyoneDegreesEvidenceKeyValuePairArray* EvidenceBase::get() {
 	return evidence;
 }
 
-#ifdef _MSC_VER
-#pragma warning (disable:4100)  
-#endif
 bool EvidenceBase::isRelevant(
 	fiftyoneDegreesEvidencePrefix prefix) {
+	// The base class treats every prefix as relevant.
+	(void)prefix;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning (default:4100)  
-#endif
 
 void EvidenceBase::clear() {
 	map<string, string>::clear();

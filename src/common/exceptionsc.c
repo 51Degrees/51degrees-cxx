@@ -72,22 +72,14 @@ void fiftyoneDegreesExceptionCheckAndExit(
 
 #else
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4100) 
-#endif
-
 const char* fiftyoneDegreesExceptionGetMessage(
 	fiftyoneDegreesException *exception) {
+	(void)exception; // There is no message when exceptions are disabled.
 	return "";
 }
 void fiftyoneDegreesExceptionCheckAndExit(
 	fiftyoneDegreesException *exception) {
+	(void)exception; // There is nothing to check when exceptions are disabled.
 }
-
-#ifdef _MSC_VER
-#pragma warning (default: 4100) 
-#pragma warning (pop)
-#endif
 
 #endif

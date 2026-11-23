@@ -38,15 +38,10 @@ typedef struct add_state_t {
 								overridden properties */
 } addState;
 
-#ifdef _MSC_VER
-#pragma warning (disable:4100)  
-#endif
 static void collectionRelease(Item *item) {
 	// Do Nothing.
+	(void)item;
 }
-#ifdef _MSC_VER
-#pragma warning (default:4100)  
-#endif
 
 /* Prefix to use when comparing property names. */
 #define OVERRIDE_PREFIX "51D_"

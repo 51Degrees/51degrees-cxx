@@ -151,10 +151,6 @@ bool fiftyoneDegreesCollectionGetIsMemoryOnly() { return true; }
  * will simply free the memory it used.
  */
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4100) 
-#endif
 /**
  * Used by memory collection where there is nothing to be done when the release
  * occurs because the memory it uses is only freed when the collection is 
@@ -167,10 +163,6 @@ static void releaseMemory(Item *item) {
 	assert(item != NULL);
 	DataReset(&item->data);
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4100) 
-#pragma warning (pop)
-#endif
 
 /**
  * Releases an item held in a cache collection so that it is eligible for 
@@ -238,16 +230,13 @@ static void freeCacheCollection(Collection *collection) {
 
 #endif
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4100) 
-#endif
 static void* getMemoryVariable(
 	const Collection *collection,
 	const CollectionKey * const key,
 	Item *item,
 	Exception *exception) {
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
+	(void)exception; // Not used when exceptions are disabled.
 	if (key->indexOrOffset.offset < collection->size) {
 		item->data.ptr = memory->firstByte + (size_t)COLLECTION_UNITS_TO_BYTES(
 			COLLECTION_OFFSET_SHIFT(collection),
@@ -267,6 +256,7 @@ static void* getMemoryFixed(
 	Item *item,
 	Exception *exception) {
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
+	(void)exception; // Not used when exceptions are disabled.
 	if (key->indexOrOffset.index < collection->count) {
 		item->data.ptr = memory->firstByte + ((uint64_t)key->indexOrOffset.index * collection->elementSize);
 		assert(item->data.ptr < memory->lastByte);
@@ -277,10 +267,6 @@ static void* getMemoryFixed(
 	}
 	return item->data.ptr;
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4100) 
-#pragma warning (pop)
-#endif
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
@@ -1153,9 +1139,6 @@ static void* readFileVariable(
 
 #endif
 
-#if defined(_MSC_VER) && defined(FIFTYONE_DEGREES_MEMORY_ONLY)
-#pragma warning (disable: 4100)
-#endif
 void* fiftyoneDegreesCollectionReadFileVariable(
 	const fiftyoneDegreesCollectionFile *fileCollection,
 	fiftyoneDegreesData *data,
@@ -1203,13 +1186,19 @@ void* fiftyoneDegreesCollectionReadFileVariable(
 		EXCEPTION_SET(COLLECTION_OFFSET_OUT_OF_RANGE);
 	}
 
+#else
+
+	// There is no file to read from in a memory only build.
+	(void)fileCollection;
+	(void)data;
+	(void)key;
+	(void)initial;
+	(void)exception;
+
 #endif
 
 	return ptr;
 }
-#if defined(_MSC_VER) && defined(FIFTYONE_DEGREES_MEMORY_ONLY)
-#pragma warning (default: 4100)
-#endif
 
 int32_t fiftyoneDegreesCollectionGetInteger32(
 	const Collection * const collection,

@@ -55,13 +55,12 @@ typedef struct fileIteratorState_t {
 						 file */
 } fileIteratorState;
 
-#ifdef _MSC_VER
-#pragma warning (disable:4100)  
-#endif
-
 static void* createFileHandle(Pool *pool, void *state, Exception *exception) {
 	FILE *fileHandle;
-	StatusCode status = FileOpen(
+	StatusCode status;
+	(void)pool; // Required by the pool's resource method signature.
+	(void)exception; // Not used when exceptions are disabled.
+	status = FileOpen(
 		(const char*)state,
 		&fileHandle);
 	if (status != SUCCESS) {
@@ -72,12 +71,9 @@ static void* createFileHandle(Pool *pool, void *state, Exception *exception) {
 }
 
 static void freeFileHandle(Pool *pool, void *fileHandle) {
+	(void)pool; // Required by the pool's resource method signature.
 	fclose((FILE*)fileHandle);
 }
-
-#ifdef _MSC_VER
-#pragma warning (default:4100)  
-#endif
 
 /* Windows uses _fseeki64 and _ftelli64 with every compiler, because MinGW's
    fseeko and ftello take a 32 bit offset unless _FILE_OFFSET_BITS is 64. */
@@ -519,10 +515,6 @@ static bool iteratorFileMatch(const char *fileName, void *state) {
 	return true;
 }
 
-#ifdef _MSC_VER
-// For MSC version, the parameter is not required
-#pragma warning (disable: 4100)
-#endif
 #ifdef __linux__
 /**
  * Returns true if the file is in use. Note that this is only functional on
@@ -588,10 +580,6 @@ static bool isFileInUse(const char *pathName) {
 	}
 	return false;
 }
-#endif
-
-#ifdef _MSC_VER
-#pragma warning (default: 4100)
 #endif
 
 /**

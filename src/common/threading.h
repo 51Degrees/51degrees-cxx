@@ -452,8 +452,10 @@ typedef struct fiftyone_degrees_interlock_dw_type_t {
     LONG64 low;
     LONG64 high;
 } fiftyoneDegreesInterlockDoubleWidth;
+/* The comparand can be a volatile local, but the intrinsic only takes a
+non-volatile pointer for it, which it writes the current value to. */
 #define FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(d,e,c) \
-    InterlockedCompareExchange128(&d.low, e.high, e.low, &c.low)
+    InterlockedCompareExchange128(&d.low, e.high, e.low, (LONG64*)&c.low)
 #else // _WIN64
 typedef struct fiftyone_degrees_interlock_dw_type_t {
     LONG64 value;
