@@ -65,8 +65,9 @@ function Get-Cdb([string]$Arch) {
 # unhandled (gn), so the program still fails. The exit code is the exception
 # code, as without the debugger, except for a breakpoint, which an x86 program
 # under a debugger ends with as 0x4000001F rather than 0x80000003, and a C++
-# exception that leaves a thread, which ends the program with 0xE06D7363
-# rather than with exit code 3 from abort.
+# exception that leaves a thread not started with std::thread, such as one
+# started with CreateThread, which ends the program with 0xE06D7363 rather than
+# with exit code 3 from abort.
 #
 # GoogleTest makes abort end the program with exit code 3 and no exception, so
 # std::terminate, which an exception leaving a std::thread reaches, would leave
@@ -118,9 +119,9 @@ try {
     $DumpRoot = $env:RUNNER_TEMP ? $env:RUNNER_TEMP : [IO.Path]::GetTempPath()
     $DumpDir = (Join-Path $DumpRoot "crash-dumps/$Name") -replace '\\', '/'
     if (!$Cdb) {
-        Write-Output "No debugger for '$Arch' on this runner, so a crash leaves no dump"
+        Write-Output "No debugger for '$Arch' on this runner, so a crash prints no stacks"
     } elseif ($DumpDir -match '\s') {
-        Write-Output "The dump folder '$DumpDir' has a space, so a crash leaves no dump"
+        Write-Output "The dump folder '$DumpDir' has a space, so a crash prints no stacks"
         $Cdb = $null
     } else {
         New-Item -ItemType Directory -Path $DumpDir -Force | Out-Null
