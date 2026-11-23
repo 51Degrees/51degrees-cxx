@@ -350,12 +350,11 @@ tests, and build the IP Intelligence tests without running them.
 `ci/cxx/run-unit-tests.ps1` runs each Visual Studio test program under the
 console debugger, cdb. When one crashes or aborts, in any thread, the job log
 shows the stack of every thread after "Stacks of every thread", with the
-faulting thread marked `#`, and the full dump, the program and its PDB file go
-in `artifacts/crash-dumps`. common-ci's Upload Artifacts step uploads that
-folder as `artifacts-<pull request>-<entry>` when the step runs after a failed
-test step. Open the dump in Visual Studio or WinDbg with the PDB beside it.
-Windows Error Reporting cannot be used instead, because GoogleTest sets an
-error mode that stops it writing dumps.
+faulting thread marked `#`. The dump the stacks come from holds the whole of
+the program's memory, so it stays on the runner and is deleted. Windows Error
+Reporting cannot replace the debugger, because the programs run with
+`SEM_NOGPFAULTERRORBOX`, which the runner passes down and GoogleTest sets
+again, and with it set Windows Error Reporting writes no dump.
 
 ## Releases
 
