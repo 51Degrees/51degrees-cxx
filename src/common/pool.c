@@ -41,6 +41,17 @@
 #define POOL_READ(v) __atomic_load_n(&(v), __ATOMIC_SEQ_CST)
 #endif
 
+/*
+ * Reads the 64 bit head of the stack. A 32 bit Visual Studio build reads 64
+ * bits in two parts, so the head is read with a compare exchange that
+ * changes nothing, which reads it whole.
+ */
+#if defined(_MSC_VER) && !defined(_WIN64)
+#define POOL_READ_HEAD(v) INTERLOCK_EXCHANGE_64(v, 0, 0)
+#else
+#define POOL_READ_HEAD(v) POOL_READ(v)
+#endif
+
 static void poolWaitCreate(Pool *pool) {
 	pool->waiting = 0;
 	pool->waits = 0;
@@ -127,7 +138,7 @@ fiftyoneDegreesPool* fiftyoneDegreesPoolInit(
 			item->pool = pool;
 			item->resource = resourceCreate(pool, state, exception);
 			pool->count++;
-			item->next = pool->head.values.index;
+			item->next = (uint16_t)pool->head.values.index;
 			pool->head.values.index = i;
 			i++;
 		}
@@ -149,7 +160,7 @@ static PoolItem* poolPop(Pool *pool) {
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	PoolHead next;
 	do {
-		orig.exchange = POOL_READ(pool->head.exchange);
+		orig.exchange = POOL_READ_HEAD(pool->head.exchange);
 #else
 		orig = pool->head;
 #endif
@@ -162,7 +173,7 @@ static PoolItem* poolPop(Pool *pool) {
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 		next.values.aba = orig.values.aba + 1;
 		next.values.index = pool->stack[orig.values.index].next;
-	} while (INTERLOCK_EXCHANGE(
+	} while (INTERLOCK_EXCHANGE_64(
 		pool->head.exchange,
 		next.exchange,
 		orig.exchange) != orig.exchange);
@@ -204,11 +215,11 @@ void fiftyoneDegreesPoolItemRelease(fiftyoneDegreesPoolItem *item) {
 	PoolHead orig, next;
 	Pool *pool = item->pool;
 	do {
-		orig.exchange = POOL_READ(pool->head.exchange);
-		item->next = orig.values.index;
+		orig.exchange = POOL_READ_HEAD(pool->head.exchange);
+		item->next = (uint16_t)orig.values.index;
 		next.values.aba = orig.values.aba + 1;
 		next.values.index = (uint16_t)(item - pool->stack);
-	} while (INTERLOCK_EXCHANGE(
+	} while (INTERLOCK_EXCHANGE_64(
 		pool->head.exchange,
 		next.exchange,
 		orig.exchange) != orig.exchange);
@@ -216,7 +227,7 @@ void fiftyoneDegreesPoolItemRelease(fiftyoneDegreesPoolItem *item) {
 		poolWake(pool);
 	}
 #else
-	item->next = item->pool->head.values.index;
+	item->next = (uint16_t)item->pool->head.values.index;
 	item->pool->head.values.index =
 		(uint16_t)(item - item->pool->stack);
 #endif

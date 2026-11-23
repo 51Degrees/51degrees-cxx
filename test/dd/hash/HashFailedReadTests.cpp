@@ -25,16 +25,21 @@
  * @brief Cuts a copy of the data file short after a detection, then reads
  * every property with the calls the C++ results make. Each read of data the
  * file no longer holds must report the failure rather than use the data.
+ * Other tests cut the file part way through the values of a profile, so the
+ * profile's header can be read but the rest cannot, and check that the read
+ * leaves nothing allocated.
  */
 
 #include "../../common/pch.h"
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 #include "../Constants.hpp"
 #include "../../common/Base.hpp"
 #include "../../../src/dd/hash/hash.h"
+#include "../../../src/common/collectionKeyTypes.h"
 
 static const char failedReadUserAgent[] =
 	"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
@@ -164,6 +169,119 @@ protected:
 			"Reads of data the file no longer holds should report a failure.";
 		fiftyoneDegreesResultsHashFree(results);
 	}
+
+	// Gets the collection that reads the profiles from the file, which is
+	// the source of the cache when the profiles are cached.
+	static const fiftyoneDegreesCollectionFile* profilesFile(
+		const fiftyoneDegreesDataSetHash* dataSet,
+		const fiftyoneDegreesConfigHash& config) {
+		const fiftyoneDegreesCollection* profiles = dataSet->profiles;
+		if (config.profiles.capacity > 0) {
+			profiles = ((const fiftyoneDegreesCollectionCache*)
+				profiles->state)->source;
+		}
+		return (const fiftyoneDegreesCollectionFile*)profiles->state;
+	}
+
+	// Cuts the file part way through the values of a profile in the
+	// results, then reads that profile from the file, through the profiles
+	// collection, and through the values of every property.
+	void readAfterProfileCut(fiftyoneDegreesConfigHash config) {
+		init(config);
+		fiftyoneDegreesResultsHash* results = detect();
+		const fiftyoneDegreesDataSetHash* dataSet =
+			(const fiftyoneDegreesDataSetHash*)results->b.b.dataSet;
+		const fiftyoneDegreesCollectionFile* file =
+			profilesFile(dataSet, config);
+
+		// Walk the graph of every component, which sets the profile offsets
+		// in the results without reading the profiles.
+		{
+			FIFTYONE_DEGREES_EXCEPTION_CREATE;
+			fiftyoneDegreesResultsEvaluateAll(&results->b.b, exception);
+			ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+		}
+
+		// Find a profile in the results with at least two values. Its header
+		// is read with a stream of its own, so nothing the data set reads
+		// with next is already buffered.
+		uint32_t profileOffset = UINT32_MAX;
+		std::ifstream stream(copyPath, std::ios::binary);
+		for (uint32_t i = 0;
+			i < dataSet->componentsList.count &&
+			profileOffset == UINT32_MAX;
+			i++) {
+			const uint32_t offset = results->items[0].profileOffsets[i];
+			if (offset == UINT32_MAX) {
+				continue;
+			}
+			byte header[sizeof(fiftyoneDegreesProfile)];
+			stream.seekg((std::streamoff)(file->offset + offset));
+			stream.read((char*)header, sizeof(header));
+			ASSERT_TRUE(stream.good());
+			if (((const fiftyoneDegreesProfile*)header)->valueCount >= 2) {
+				profileOffset = offset;
+			}
+		}
+		stream.close();
+		ASSERT_NE(UINT32_MAX, profileOffset) <<
+			"No profile with two or more values was found.";
+
+		// Leave the profile's header and the first of its values.
+		std::filesystem::resize_file(
+			copyPath,
+			(uintmax_t)file->offset + profileOffset +
+			sizeof(fiftyoneDegreesProfile) + sizeof(uint32_t));
+		const fiftyoneDegreesCollectionKey key = {
+			{ profileOffset },
+			CollectionKeyType_Profile,
+		};
+
+		// Read the profile into data the test provides. After the failure
+		// the data must hold nothing, as the memory the read allocated has
+		// been freed.
+		{
+			FIFTYONE_DEGREES_EXCEPTION_CREATE;
+			fiftyoneDegreesData data;
+			fiftyoneDegreesDataReset(&data);
+			EXPECT_EQ(nullptr, file->read(file, &key, &data, exception)) <<
+				"A profile whose values could not be read was returned.";
+			EXPECT_EQ(
+				FIFTYONE_DEGREES_STATUS_COLLECTION_FILE_READ_FAIL,
+				exception->status);
+			EXPECT_EQ(nullptr, data.ptr) <<
+				"The data still points to the memory the failed read freed.";
+			EXPECT_EQ(0U, data.allocated) <<
+				"The data still counts the memory the failed read freed.";
+			EXPECT_EQ(0U, data.used);
+		}
+
+		// Get the profile from the collection the data set uses, which reads
+		// it from the file or loads it into the cache, and release it. The
+		// second get loads it again.
+		for (int i = 0; i < 2; i++) {
+			FIFTYONE_DEGREES_EXCEPTION_CREATE;
+			fiftyoneDegreesCollectionItem item;
+			fiftyoneDegreesDataReset(&item.data);
+			EXPECT_EQ(nullptr, dataSet->profiles->get(
+				dataSet->profiles,
+				&key,
+				&item,
+				exception)) <<
+				"A profile whose values could not be read was returned.";
+			EXPECT_EQ(
+				FIFTYONE_DEGREES_STATUS_COLLECTION_FILE_READ_FAIL,
+				exception->status);
+			EXPECT_EQ(nullptr, item.data.ptr);
+			EXPECT_EQ(0U, item.data.allocated);
+			FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->profiles, &item);
+		}
+
+		// Read the values of every property, as the results do.
+		EXPECT_GT(readEveryProperty(results), 0) <<
+			"Reads of the profile that was cut should report a failure.";
+		fiftyoneDegreesResultsHashFree(results);
+	}
 };
 
 TEST_F(HashFailedReadTests, LowMemory_FileCut_ReadsReportTheFailure) {
@@ -172,4 +290,14 @@ TEST_F(HashFailedReadTests, LowMemory_FileCut_ReadsReportTheFailure) {
 
 TEST_F(HashFailedReadTests, Balanced_FileCut_ReadsReportTheFailure) {
 	readAfterCut(fiftyoneDegreesHashBalancedConfig);
+}
+
+TEST_F(HashFailedReadTests, LowMemory_ProfileCut_ReadsReportTheFailure) {
+	readAfterProfileCut(fiftyoneDegreesHashLowMemoryConfig);
+}
+
+TEST_F(HashFailedReadTests, CachedProfiles_ProfileCut_ReadsReportTheFailure) {
+	fiftyoneDegreesConfigHash config = fiftyoneDegreesHashLowMemoryConfig;
+	config.profiles.capacity = 100;
+	readAfterProfileCut(config);
 }
