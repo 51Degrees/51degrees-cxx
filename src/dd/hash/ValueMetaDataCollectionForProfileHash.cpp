@@ -62,14 +62,16 @@ ValueMetaData* ValueMetaDataCollectionForProfileHash::getByKey(
 		return nullptr;
 	}
 	uint32_t firstValueIndex = 0, valueCount = 0;
-	HashGetPropertyValueIndexes(
+	if (HashGetPropertyValueIndexes(
 		dataSet,
 		(uint32_t)propertyIndex,
 		&firstValueIndex,
 		&valueCount,
 		nullptr,
-		exception);
-	EXCEPTION_THROW;
+		exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
 	// A profile holds each property's values together, with the properties
 	// in the order of their value indexes, but a data file can hold one
 	// property's values within a profile out of that order.
@@ -94,14 +96,13 @@ ValueMetaData* ValueMetaDataCollectionForProfileHash::getByKey(
 		key.getValueName().c_str(),
 		exception);
 	EXCEPTION_THROW;
-	if (valueIndex >= 0) {
-		return std::find(begin, end, (uint32_t)valueIndex) != end
-			? ValueMetaDataBuilderHash::build(dataSet, (uint32_t)valueIndex)
-			: nullptr;
+	if (valueIndex >= 0 &&
+		std::find(begin, end, (uint32_t)valueIndex) != end) {
+		return ValueMetaDataBuilderHash::build(dataSet, (uint32_t)valueIndex);
 	}
-	// The search by name misses a value that the data file holds out of the
-	// byte order of its property's value names, so the profile's values of
-	// the property are compared by name.
+	// The search by name can miss a value that the data file holds out of
+	// the byte order of its property's value names, so the profile's values
+	// of the property are compared by name.
 	for (const uint32_t *index = begin; index < end; index++) {
 		ValueMetaData * const value = ValueMetaDataBuilderHash::build(
 			dataSet,
