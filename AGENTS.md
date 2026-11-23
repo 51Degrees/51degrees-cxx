@@ -347,6 +347,15 @@ projects list theirs by name, so add a new test file to its `.vcxproj` and
 builds when one is missing. Those builds run the common and Device Detection
 tests, and build the IP Intelligence tests without running them.
 
+`ci/cxx/run-unit-tests.ps1` runs each Visual Studio test program under the
+console debugger, cdb. When one crashes or aborts in a way GoogleTest does not
+catch, in any thread, the job log shows the stack of every thread after "Stacks
+of every thread", with the faulting thread marked `#`. The dump the stacks come
+from holds the whole of the program's memory, so it stays on the runner and is
+deleted. Windows Error Reporting cannot replace the debugger, because the
+programs run with `SEM_NOGPFAULTERRORBOX`, which the runner passes down and
+GoogleTest sets again, and with it set Windows Error Reporting writes no dump.
+
 ## Releases
 
 Pull requests go to `rc`, not `main`, and stay drafts until they have been
