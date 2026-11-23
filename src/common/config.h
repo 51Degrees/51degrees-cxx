@@ -27,6 +27,8 @@
 #include "ipiSymbols.h"
 #endif
 
+#include <stdbool.h>
+
 /**
  * @ingroup FiftyOneDegreesCommon
  * @defgroup FiftyOneDegreesConfig Config

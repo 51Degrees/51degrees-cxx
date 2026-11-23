@@ -494,7 +494,7 @@ static uint32_t setClusterSearch(
 
 		// Get the item from the collection checking for NULL or an error.
 		const CollectionKey key = {
-			middle,
+			{ middle },
 			&keyType,
 		};
 		if (!collection->get(collection, &key, &item, exception)
@@ -606,7 +606,7 @@ static void setSpanBytes(Cursor* cursor) {
 		NULL,
 	};
 	const CollectionKey spanBytesKey = {
-		cursor->span.trail.offset,
+		{ cursor->span.trail.offset },
 		&keyType,
 	};
 	byte* bytes = cursor->graph->spanBytes->get(
@@ -690,7 +690,7 @@ static void setSpan(Cursor* cursor) {
 	Item cursorItem;
 	DataReset(&cursorItem.data);
 	const CollectionKey spanKey = {
-		spanIndex,
+		{ spanIndex },
 		&CollectionKeyType_Span,
 	};
 	Span * const span = (Span*)cursor->graph->spans->get(
@@ -791,7 +791,7 @@ static void cursorMove(Cursor* const cursor, const uint32_t index) {
 	CollectionKeyType * const nodeBytesKeyType = &cursor->nodeBytesKeyType;
 	nodeBytesKeyType->initialBytesCount = totalBytes;
 	const CollectionKey nodeBytesKey = {
-		(uint32_t)byteIndex,
+		{ (uint32_t)byteIndex },
 		nodeBytesKeyType,
 	};
 	const byte* const ptr = (byte*)cursor->graph->nodes->get(
@@ -1241,7 +1241,7 @@ static IpiCgArray* ipiGraphCreate(
 
 		// Get the information from the collection provided.
 		const CollectionKey infoKey = {
-			i,
+			{ i },
 			&CollectionKeyType_GraphInfo,
 		};
 		const IpiCgInfo* const info = (IpiCgInfo*)collection->get(

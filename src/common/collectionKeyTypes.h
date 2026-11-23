@@ -46,9 +46,7 @@
 static uint32_t fiftyoneDegreesGetFinalByteArraySize(
     const void *initial,
     fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
     return (uint32_t)(sizeof(uint16_t) + (*(uint16_t*)initial));
 }
 #else

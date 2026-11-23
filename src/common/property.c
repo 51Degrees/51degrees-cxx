@@ -70,7 +70,7 @@ PropertyValueType fiftyoneDegreesPropertyGetStoredType(
 		i++) {
 
 		const CollectionKey propertyRecordKey = {
-			i,
+			{ i },
 			CollectionKeyType_PropertyTypeRecord,
 		};
 		const PropertyTypeRecord * const record = (const PropertyTypeRecord*)(
@@ -102,7 +102,7 @@ PropertyValueType fiftyoneDegreesPropertyGetStoredTypeByIndex(
 	Item item;
 	DataReset(&item.data);
 	const CollectionKey recordKey = {
-		propertyOffset,
+		{ propertyOffset },
 		CollectionKeyType_PropertyTypeRecord,
 	};
 	const PropertyTypeRecord * const record = (PropertyTypeRecord*)propertyTypesCollection->get(
@@ -174,7 +174,7 @@ fiftyoneDegreesProperty* fiftyoneDegreesPropertyGet(
 	fiftyoneDegreesException *exception) {
 
 	const CollectionKey propertyKey = {
-		index,
+		{ index },
 		CollectionKeyType_Property,
 	};
 	return (fiftyoneDegreesProperty*)properties->get(
@@ -208,7 +208,7 @@ static const Property* findPropertyByName(
 		// Get the property for this index.
 		*index = i;
 		const CollectionKey propertyKey = {
-			i++,
+			{ i++ },
 			CollectionKeyType_Property,
 		};
 		property = (const Property*)properties->get(
@@ -458,7 +458,7 @@ byte fiftyoneDegreesPropertyGetValueType(
 	Property *property;
 	DataReset(&item.data);
 	const CollectionKey propertyKey = {
-		index,
+		{ index },
 		CollectionKeyType_Property,
 	};
 	property = (Property*)properties->get(

@@ -171,20 +171,22 @@ static double readFullDouble(
 }
 static const NumReader NUM_READER_STANDARD = {
     "Standard NumReader",
-    readFullInteger,
-    readFullInteger,
-    readFullDouble,
-    readFullDouble,
-    readFullDouble,
-    readFullDouble,
+    {
+        readFullInteger,
+        readFullInteger,
+    },
+    {
+        readFullDouble,
+        readFullDouble,
+        readFullDouble,
+        readFullDouble,
+    },
 };
 
 static uint32_t readSingleUByte(
     const RawValueReader * const rawReader,
     const byte **wkbBytes) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(rawReader);
-#	endif
+    (void)rawReader;
     return readUByte(wkbBytes);
 }
 static uint32_t readUShort(
@@ -204,12 +206,16 @@ static double readShortDeclination(
 }
 static const NumReader NUM_READER_REDUCED_SHORT = {
     "Short-Reduced NumReader",
-    readSingleUByte,
-    readUShort,
-    readShortAzimuth,
-    readShortDeclination,
-    readShortAzimuth,
-    readShortDeclination,
+    {
+        readSingleUByte,
+        readUShort,
+    },
+    {
+        readShortAzimuth,
+        readShortDeclination,
+        readShortAzimuth,
+        readShortDeclination,
+    },
 };
 
 static const NumReader *selectNumReader(const WkbtotReductionMode reductionMode) {

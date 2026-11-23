@@ -59,9 +59,7 @@ static int compareValueByName(
 	Item *item,
 	CollectionKey key,
 	Exception *exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(key);
-#	endif
+	(void)key;
 	int result = 0;
 	Item name;
 	const StoredBinaryValue *value;
@@ -119,11 +117,9 @@ const String* fiftyoneDegreesValueGetDescription(
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
 	// A reduced size data file does not contain value descriptions, so this
 	// method cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(strings);
-	UNREFERENCED_PARAMETER(value);
-	UNREFERENCED_PARAMETER(item);
-#endif
+	(void)strings;
+	(void)value;
+	(void)item;
 	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED)
 	return NULL;
@@ -166,7 +162,7 @@ const Value* fiftyoneDegreesValueGet(
 	CollectionItem *item,
 	Exception *exception) {
 	const CollectionKey valueKey = {
-		valueIndex,
+		{ valueIndex },
 		CollectionKeyType_Value,
 	};
 	return (const Value*)values->get(

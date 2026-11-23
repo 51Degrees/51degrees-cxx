@@ -219,7 +219,7 @@ static int iterateProperties(
 
     for(uint32_t i = 0; i < propertiesCount && EXCEPTION_OKAY; i++) {
         const CollectionKey propertyKey = {
-            i,
+            { i },
             CollectionKeyType_Property,
         };
         Property* property = (Property*)properties->get(

@@ -39,9 +39,7 @@ MAP_TYPE(Collection)
 uint32_t fiftyoneDegreesProfileGetFinalSize(
 	const void *initial,
     fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+	(void)exception;
 	Profile *profile = (Profile*)initial;
 	return sizeof(Profile) +
 		(profile->valueCount * sizeof(uint32_t));
@@ -54,7 +52,7 @@ static Profile* getProfileByOffset(
 	Item *item,
 	Exception *exception) {
 	const CollectionKey profileKey = {
-		offset,
+		{ offset },
 		CollectionKeyType_Profile,
 	};
 	return (Profile*)profilesCollection->get(
@@ -72,10 +70,8 @@ static int compareProfileId(
 	Item * const item,
 	const CollectionKey key,
 	Exception * const exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(key);
-	UNREFERENCED_PARAMETER(exception);
-#	endif
+	(void)key;
+	(void)exception;
 	const unsigned int a = ((ProfileOffset*)item->data.ptr)->profileId;
 	const unsigned int b = *(uint32_t*)profileId;
 	if (a < b) return -1;
@@ -94,13 +90,11 @@ static int compareProfileIdIndirect(
 	Item * const profileOffsetItem,
 	const CollectionKey key,
 	Exception * const exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(key);
-#	endif
+	(void)key;
 	const IndirectProfileSearch * const search = (IndirectProfileSearch*)searchState;
 	const uint32_t profileOffsetValue = *(uint32_t*)profileOffsetItem->data.ptr;
 	const CollectionKey profileKey = {
-		profileOffsetValue,
+		{ profileOffsetValue },
 		CollectionKeyType_Profile,
 	};
 	const Profile * const profile = (Profile*)search->profiles->get(
@@ -198,7 +192,7 @@ static uint32_t iterateValues(
 		// Get the value from the value index and call the callback. Do not 
 		// free the item as the calling function is responsible for this.
 		const CollectionKey valueKey = {
-			*valIndexPtr,
+			{ *valIndexPtr },
 			CollectionKeyType_Value,
 		};
 		if (values->get(
@@ -239,11 +233,9 @@ uint32_t* fiftyoneDegreesProfileGetOffsetForProfileId(
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
 	// A reduced size data file does not contain profile ids, so this method
 	// cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(profileOffsets);
-	UNREFERENCED_PARAMETER(profileId);
-	UNREFERENCED_PARAMETER(profileOffset);
-#endif
+	(void)profileOffsets;
+	(void)profileId;
+	(void)profileOffset;
 	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return NULL;
@@ -296,12 +288,10 @@ Profile * fiftyoneDegreesProfileGetByProfileIdIndirect(
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
 	// A reduced size data file does not contain profile ids, so this method
 	// cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(profileOffsets);
-	UNREFERENCED_PARAMETER(profiles);
-	UNREFERENCED_PARAMETER(profileId);
-	UNREFERENCED_PARAMETER(outProfileItem);
-#endif
+	(void)profileOffsets;
+	(void)profiles;
+	(void)profileId;
+	(void)outProfileItem;
 	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return NULL;
@@ -357,12 +347,10 @@ fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByProfileId(
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
 	// A reduced size data file does not contain profile ids, so this method
 	// cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(profileOffsets);
-	UNREFERENCED_PARAMETER(profiles);
-	UNREFERENCED_PARAMETER(profileId);
-	UNREFERENCED_PARAMETER(item);
-#endif
+	(void)profileOffsets;
+	(void)profiles;
+	(void)profileId;
+	(void)item;
 	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return NULL;
@@ -397,7 +385,7 @@ fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByIndex(
 	// Get the profile offset for the profile at the index provided using
 	// the offset collection item as the handle.
 	const CollectionKey profileOffsetKey = {
-		index,
+		{ index },
 		CollectionKeyType_ProfileOffset,
 	};
 	ProfileOffset *profileOffset = (ProfileOffset*)profileOffsets->get(
@@ -407,7 +395,7 @@ fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByIndex(
 		exception);
 	if (profileOffset != NULL && EXCEPTION_OKAY) {
 		const CollectionKey profileKey = {
-			profileOffset->offset,
+			{ profileOffset->offset },
 			CollectionKeyType_Profile,
 		};
 		profile = (fiftyoneDegreesProfile*)profiles->get(
@@ -475,15 +463,13 @@ uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
 	// A reduced size data file does not contain the indices property profile
 	// lookup, so this method cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(values);
-	UNREFERENCED_PARAMETER(index);
-	UNREFERENCED_PARAMETER(availablePropertyIndex);
-	UNREFERENCED_PARAMETER(profile);
-	UNREFERENCED_PARAMETER(property);
-	UNREFERENCED_PARAMETER(state);
-	UNREFERENCED_PARAMETER(callback);
-#endif
+	(void)values;
+	(void)index;
+	(void)availablePropertyIndex;
+	(void)profile;
+	(void)property;
+	(void)state;
+	(void)callback;
 	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return 0;
@@ -620,7 +606,7 @@ uint32_t fiftyoneDegreesProfileIterateProfilesForPropertyWithTypeAndValueAndOffs
 			uint32_t profileOffsetsCount = CollectionGetCount(profileOffsets);
 			for (i = 0; i < profileOffsetsCount; i++) {
 				const CollectionKey rawOffsetKey = {
-					i,
+					{ i },
 					CollectionKeyType_ProfileOffset,
 				};
 				const void * const rawProfileOffset = profileOffsets->get(
@@ -686,7 +672,7 @@ uint32_t fiftyoneDegreesProfileIterateValueIndexes(
 		// Get the value to check if it relates to a required property.
 		valueIndex = *(valueIndexes + i);
 		const CollectionKey valueKey = {
-			valueIndex,
+			{ valueIndex },
 			CollectionKeyType_Value,
 		};
 		value = values->get(

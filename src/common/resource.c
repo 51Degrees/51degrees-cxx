@@ -38,25 +38,12 @@ typedef struct counter_t {
 	int32_t inUse;
 	int32_t padding;
 } Counter;
-static InterlockDoubleWidth emptyCounter() {
-	InterlockDoubleWidth empty = { 0, 0 };
-	((Counter*)&empty)->handle = NULL;
-	((Counter*)&empty)->padding = 0;
-	((Counter*)&empty)->inUse = 0;
-	return empty;
-}
 #else
 #define ALIGN_SIZE 8
 typedef struct counter_t {
 	ResourceHandle* handle;
 	int32_t inUse;
 } Counter;
-static InterlockDoubleWidth emptyCounter() {
-	InterlockDoubleWidth empty = { 0 };
-	((Counter*)&empty)->handle = NULL;
-	((Counter*)&empty)->inUse = 0;
-	return empty;
-}
 #endif
 
 #ifdef _MSC_VER
@@ -81,14 +68,24 @@ typedef struct counter_t {
 	ResourceHandle* handle;
 	int32_t inUse;
 } Counter;
-static InterlockDoubleWidth emptyCounter() {
-	InterlockDoubleWidth empty;
-	((Counter*)&empty)->handle = NULL;
-	((Counter*)&empty)->inUse = 0;
-	return empty;
-}
 #define COUNTER InterlockDoubleWidth
 #endif
+
+/**
+ * Returns a counter with no handle and no users. The counter is built as a
+ * Counter and its bytes copied, so the double width value is not written
+ * through a pointer of another type.
+ */
+static InterlockDoubleWidth emptyCounter() {
+	InterlockDoubleWidth empty;
+	Counter counter;
+	memset(&counter, 0, sizeof(counter));
+	counter.handle = NULL;
+	counter.inUse = 0;
+	memset(&empty, 0, sizeof(empty));
+	memcpy(&empty, &counter, sizeof(counter));
+	return empty;
+}
 
 static void add(VOLATILE InterlockDoubleWidth* counter, int32_t value) {
 	((Counter*)counter)->inUse += value;

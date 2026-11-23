@@ -47,7 +47,7 @@ function Test-File([string]$Compiler, [string[]]$Options, [string]$File,
     if ($LASTEXITCODE -ne 0) {
         $script:failed += "$Name $As with $Compiler"
         Write-Output "$Name does not compile $As with $Compiler"
-        $output | Select-Object -First 12 | ForEach-Object { "  $_" }
+        $output | ForEach-Object { "  $_" }
     }
 }
 

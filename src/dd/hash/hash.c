@@ -314,7 +314,7 @@ typedef struct find_data_set_header_state_t {
 #undef FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY
 #define FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY true
 fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig = {
-	FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX,
+	{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX },
 	{false,0,0}, // Strings
 	{false,0,0}, // Components
 	{false,0,0}, // Maps
@@ -336,7 +336,7 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig = {
 FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY_DEFAULT
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig = {
-	FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX,
+	{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX },
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Strings
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Components
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Maps
@@ -355,7 +355,7 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig = {
 };
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
-	FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX,
+	{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX },
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Strings
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Components
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Maps
@@ -374,7 +374,7 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
 };
 
 #define FIFTYONE_DEGREES_HASH_CONFIG_BALANCED \
-FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX, \
+{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX }, \
 { false, 10000, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Strings */ \
 { true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Components */ \
 { true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Maps */ \

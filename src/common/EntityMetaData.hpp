@@ -81,7 +81,7 @@ namespace FiftyoneDegrees {
 			 * @param other the other instance to compare
 			 * @return true if they are equal
 			 */
-			const bool operator== (const EntityMetaData<K> other) const {
+			bool operator== (const EntityMetaData<K> other) const {
 				return other.key == key;
 			}
 
@@ -91,7 +91,7 @@ namespace FiftyoneDegrees {
 			 * @param other the other instance to compare
 			 * @return true if they are not equal
 			 */
-			const bool operator!= (const EntityMetaData<K> other) const {
+			bool operator!= (const EntityMetaData<K> other) const {
 				return !(other.key == key);
 			}
 

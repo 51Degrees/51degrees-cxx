@@ -553,11 +553,8 @@ IpIntelligence::ResultsIpi::valueAsUTF8StringAt(
         [&itemsCount, &stream, &byteVector](
             const StoredBinaryValue * const binaryValue,
             const PropertyValueType storedValueType,
-            const uint32_t rawWeighting,
+            const uint32_t /* rawWeighting */,
             Exception * const exception) {
-#       	ifdef _MSC_VER
-            UNREFERENCED_PARAMETER(rawWeighting);
-#       	endif
             if (itemsCount != 1) {
                 return;
             }

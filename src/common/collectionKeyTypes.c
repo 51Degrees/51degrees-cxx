@@ -26,9 +26,7 @@
 uint32_t fiftyoneDegreesThrowUnsupportedStoredValueType(
     const void * const initial,
     fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(initial);
-#	endif
+    (void)initial;
     (void)exception; // Not used when exceptions are disabled.
     FIFTYONE_DEGREES_EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_UNSUPPORTED_STORED_VALUE_TYPE);
     return 0;
@@ -38,9 +36,7 @@ uint32_t fiftyoneDegreesThrowUnsupportedStoredValueType(
 const fiftyoneDegreesCollectionKeyType *fiftyoneDegreesGetCollectionKeyTypeForStoredValueType(
     const fiftyoneDegreesPropertyValueType storedValueType,
     fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 
     switch (storedValueType) {
         case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING:

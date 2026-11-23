@@ -844,11 +844,9 @@ static fiftyoneDegreesCollection* collectionCreateFromFile(
 			COLLECTION_SHIFT_ARG(offsetShift));
 	}
 #else
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(reader);
-	UNREFERENCED_PARAMETER(config);
-	UNREFERENCED_PARAMETER(read);
-#	endif
+	(void)reader;
+	(void)config;
+	(void)read;
 #endif
 
 	return createFromFileToMemory(file, header COLLECTION_SHIFT_ARG(offsetShift));
@@ -1207,7 +1205,7 @@ int32_t fiftyoneDegreesCollectionGetInteger32(
 	int32_t value = 0;
 	DataReset(&item.data);
 	const CollectionKey itemKey = {
-		indexOrOffset,
+		{ indexOrOffset },
 		CollectionKeyType_Integer,
 	};
 	if (collection->get(
@@ -1241,7 +1239,7 @@ long fiftyoneDegreesCollectionBinarySearch(
 		middle = lower + (upper - lower) / 2;
 
 		const CollectionKey middleKey = {
-			middle,
+			{ middle },
 			keyType,
 		};
 

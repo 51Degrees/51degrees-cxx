@@ -431,7 +431,7 @@ static const String* initGetPropertyString(
 		item->collection = NULL;
 		item->handle = NULL;
 		const CollectionKey indexKey = {
-			index,
+			{ index },
 			CollectionKeyType_Property,
 		};
 		property = (Property*)dataSet->properties->get(
@@ -2890,7 +2890,7 @@ static uint32_t addValuesFromSingleProfile(
 	if (profileOffset != NULL_PROFILE_OFFSET) {
 		DataReset(&profileItem.data);
 		const CollectionKey profileKey = {
-			profileOffset,
+			{ profileOffset },
 			CollectionKeyType_Profile,
 		};
 		profile = (Profile*)dataSet->profiles->get(
@@ -2938,7 +2938,7 @@ static uint32_t addValuesFromProfileGroup(
 		(totalWeight < FULL_RAW_WEIGHTING) && EXCEPTION_OKAY;
 		++nextOffset) {
 		const CollectionKey profileGroupKey = {
-			nextOffset,
+			{ nextOffset },
 			&CollectionKeyType_OffsetPercentage,
 		};
 		const offsetPercentage* const nextWeightedProfileOffset = (const offsetPercentage*)profileGroups->get(
@@ -2973,7 +2973,7 @@ static uint32_t getProfileOffset(
 	Item item;
 	DataReset(&item.data);
 	const CollectionKey resultKey = {
-		offsetIndex,
+		{ offsetIndex },
 		CollectionKeyType_Integer,
 	};
 	const uint32_t * const resultRef = (uint32_t*)profileOffsets->get(
@@ -3014,7 +3014,7 @@ static const Profile* getResultProfile(
 	if (EXCEPTION_FAILED || offset == NULL_PROFILE_OFFSET) {
 		return NULL;
 	}
-	const CollectionKey key = { offset, CollectionKeyType_Profile };
+	const CollectionKey key = { { offset }, CollectionKeyType_Profile };
 	const Profile* const profile = (const Profile*)dataSet->profiles->get(
 		dataSet->profiles,
 		&key,
@@ -3068,7 +3068,7 @@ static WeightedItem* getDefaultValue(
 	// Get the value from the value index and call the callback. Do not 
 	// free the item as the calling function is responsible for this.
 	const CollectionKey valueKey = {
-		property->defaultValueIndex,
+		{ property->defaultValueIndex },
 		CollectionKeyType_Value,
 	};
 	if (dataSet->values->get(
@@ -3232,9 +3232,7 @@ const fiftyoneDegreesWeightedItem* fiftyoneDegreesResultsIpiGetValues(
 static bool visitProfilePropertyValue(
 	void *state,
 	fiftyoneDegreesCollectionItem *item) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(item);
-#	endif
+	(void)item;
 
 	*((bool *)state) = true; // found
 	return false; // break
@@ -3252,7 +3250,7 @@ static bool profileHasValidPropertyValue(
 	if (profileOffset != NULL_PROFILE_OFFSET) {
 		DataReset(&profileItem.data);
 		const CollectionKey profileKey = {
-			profileOffset,
+			{ profileOffset },
 			CollectionKeyType_Profile,
 		};
 		profile = (Profile*)dataSet->profiles->get(
@@ -3312,7 +3310,7 @@ static bool resultHasValidPropertyValueOffset(
 				(!hasValidOffset) && (totalWeight < FULL_RAW_WEIGHTING) && EXCEPTION_OKAY;
 				++nextOffset) {
 				const CollectionKey profileGroupKey = {
-					nextOffset,
+					{ nextOffset },
 					&CollectionKeyType_OffsetPercentage,
 				};
 				const offsetPercentage* const nextWeightedProfileOffset = (const offsetPercentage*)profileGroups->get(
@@ -3615,7 +3613,7 @@ static void fiftyoneDegreesResultsIpiGetValuesStringInternal(
 		}
 		DataReset(&propertyItem.data);
 		const CollectionKey propertyKey = {
-			propertyIndex,
+			{ propertyIndex },
 			CollectionKeyType_Property,
 		};
 		property = (Property*)dataSet->properties->get(
