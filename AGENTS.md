@@ -347,6 +347,16 @@ projects list theirs by name, so add a new test file to its `.vcxproj` and
 builds when one is missing. Those builds run the common and Device Detection
 tests, and build the IP Intelligence tests without running them.
 
+`ci/cxx/run-unit-tests.ps1` runs each Visual Studio test program under the
+console debugger, cdb. When one crashes, in any thread, the job log shows the
+stack of every thread after "Stacks of every thread", with the faulting thread
+marked `#`, and the full dump, the program and its PDB file go in
+`artifacts/crash-dumps`. common-ci's Upload Artifacts step uploads that folder
+as `artifacts-<pull request>-<entry>` when the step runs after a failed test
+step. Open the dump in Visual Studio or WinDbg with the PDB beside it.
+Windows Error Reporting cannot be used instead, because GoogleTest sets an
+error mode that stops it writing dumps.
+
 ## Releases
 
 Pull requests go to `rc`, not `main`, and stay drafts until they have been

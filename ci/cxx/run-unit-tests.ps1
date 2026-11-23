@@ -14,8 +14,9 @@ program crashes in any thread, the debugger writes a full memory dump, the log
 shows the stack of every thread, and the dump, the program and its PDB file
 are put in artifacts/crash-dumps in the repository. Windows Error Reporting
 writes no dumps on the hosted runners, which is why a debugger is used. The
-debugger lets the crash go on once the dump is written, so the program's exit
-code is the same as it is without the debugger.
+debugger lets the crash go on once the dump is written, so the program fails
+as it does without the debugger, with the same exit code apart from a
+breakpoint.
 
 .PARAMETER ProjectDir
 The folder of the solution, relative to the repository.
@@ -67,12 +68,20 @@ function Get-Cdb([string]$Arch) {
 # handle, so the exceptions GoogleTest catches pass through as they do without
 # it. On such an exception it writes the dump, then lets the exception go on
 # unhandled (gn), so the program ends with the exception code as it would on
-# its own. The debug heap is turned off (-hd) so the heap behaves as it does
-# without the debugger.
+# its own. A breakpoint is the one exception whose code changes, because an x86
+# program under a debugger ends with 0x4000001F rather than 0x80000003.
+#
+# Two settings keep the program behaving as it does without a debugger.
+# Breakpoints are passed to the program rather than handled by the debugger
+# (sxd bpec), so they end it as they would on their own. Closing a handle that
+# is not valid raises an exception only under a debugger, so that exception is
+# ignored and marked handled (sxi ch, sxe hc), and CloseHandle just fails. The
+# debug heap is turned off (-hd) so the heap behaves as it does without the
+# debugger.
 function Invoke-UnderDebugger([string]$Cdb, [string]$Program,
     [string[]]$Arguments, [string]$DumpFile) {
     $onCrash = ".dump /ma /u $DumpFile; gn"
-    $commands = @('sxi eh', 'sxi ld') +
+    $commands = @('sxi eh', 'sxi ld', 'sxd bpec', 'sxi ch', 'sxe hc') +
         ($CrashEvents | ForEach-Object { "sxd -c2 `"$onCrash`" $_" }) + 'g'
     $PSNativeCommandUseErrorActionPreference = $false
     & $Cdb -G -hd -y $BuildFolder -c ($commands -join '; ') $Program @Arguments
@@ -125,7 +134,7 @@ try {
                 -Arguments $arguments -DumpFile "$DumpDir/$($TestBinary.BaseName).dmp"
             $code = $LASTEXITCODE
             if ($code -ne 0) {
-                $dumps = @(Get-ChildItem $DumpDir -Filter "$($TestBinary.BaseName)*.dmp")
+                $dumps = @(Get-ChildItem $DumpDir -Filter "$($TestBinary.BaseName)_*.dmp")
                 foreach ($dump in $dumps) {
                     Show-CrashDump -Cdb $Cdb -Dump $dump.FullName
                 }
