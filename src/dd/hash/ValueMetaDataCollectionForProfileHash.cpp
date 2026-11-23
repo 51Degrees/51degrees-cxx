@@ -90,6 +90,9 @@ ValueMetaData* ValueMetaDataCollectionForProfileHash::getByKey(
 		[firstValueIndex, valueCount](uint32_t index) {
 			return index - firstValueIndex < valueCount;
 		});
+	if (begin == end) {
+		return nullptr;
+	}
 	const long valueIndex = HashGetValueIndex(
 		dataSet,
 		(uint32_t)propertyIndex,
@@ -100,9 +103,10 @@ ValueMetaData* ValueMetaDataCollectionForProfileHash::getByKey(
 		std::find(begin, end, (uint32_t)valueIndex) != end) {
 		return ValueMetaDataBuilderHash::build(dataSet, (uint32_t)valueIndex);
 	}
-	// The search by name can miss a value that the data file holds out of
-	// the byte order of its property's value names, so the profile's values
-	// of the property are compared by name.
+	// When the profile does not hold the index found, the names in its block
+	// are compared, because the search by name can miss a value that the
+	// data file holds out of the byte order of its property's value names,
+	// or find another value of the same name.
 	for (const uint32_t *index = begin; index < end; index++) {
 		ValueMetaData * const value = ValueMetaDataBuilderHash::build(
 			dataSet,
