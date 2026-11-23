@@ -75,66 +75,6 @@ static const uint32_t hashMetaDataSampledProfiles = 2000;
  */
 static const uint32_t hashMetaDataSampledProfileValues = 500;
 
-/**
- * The values the TAC data file holds out of the byte order of their names,
- * which the search of a property's values by name misses, as a CI run
- * against that file found. A value is skipped only in the TAC data file, only
- * when its property and its exact name are listed, and only when the test's
- * own search of the property's values by name misses that value. So a listed
- * name the search finds, and any value a profile does not find for another
- * reason, is still checked. The list comes out once a corrected TAC data file
- * is published.
- */
-static const char *hashMetaDataKnownMisorderedFile = "TAC-HashV41.hash";
-static const char *hashMetaDataKnownMisorderedProperty = "NativeName";
-static const char *hashMetaDataKnownMisorderedValues[] = {
-	"T1001",          // profile 107383
-	"A",              // profile 117005
-	"L8",             // profile 117005
-	"L8_A01",         // profile 117005
-	"L8_A01_EEA",     // profile 117005
-	"0044018",        // profile 131441
-	"100044018",      // profile 131441
-	"003R",           // profile 135178
-	"RC10RL1T-RW",    // profile 135178
-	"T1003R",         // profile 135178
-	"EX 3",           // profile 143985
-	"FLEX 3",         // profile 143985
-	"USA",            // from issue 142
-};
-
-/** Why the values in the list above are skipped. */
-static const char *hashMetaDataKnownMisorderedReason =
-	"Skipping the NativeName values the TAC data file holds out of name "
-	"order, which the search by name misses, as "
-	"https://github.com/51Degrees/51degrees-cxx/issues/142 describes. The "
-	"list comes out once a corrected TAC data file, holding each property's "
-	"values in the byte order of their names, is published.";
-
-/** True when the path is that of the TAC data file. */
-static bool isKnownMisorderedFile(const string &path) {
-	const string name(hashMetaDataKnownMisorderedFile);
-	return path.size() >= name.size() &&
-		path.compare(path.size() - name.size(), name.size(), name) == 0;
-}
-
-/**
- * True when the value is one the TAC data file holds out of name order.
- */
-static bool isKnownMisorderedValue(
-	const string &propertyName,
-	const string &valueName) {
-	if (propertyName != hashMetaDataKnownMisorderedProperty) {
-		return false;
-	}
-	for (const char *name : hashMetaDataKnownMisorderedValues) {
-		if (valueName == name) {
-			return true;
-		}
-	}
-	return false;
-}
-
 /** A name no property or value has. */
 static const char *hashMetaDataNoName = "NoSuchName51Degrees";
 
@@ -896,9 +836,9 @@ protected:
 	 * order misses is checked, as are profiles spread across the rest, so
 	 * the check is quick on any data file and covers the values a data file
 	 * holds out of order. Each profile holding such a value is printed with
-	 * whether its value indexes are in ascending order, as the search among
-	 * them assumes, and a value not found says whether the search by name
-	 * order misses it.
+	 * whether its value indexes are in ascending order, because a profile can
+	 * hold one property's values out of index order, and a value not found
+	 * says whether the search by name order misses it.
 	 */
 	void checkProfileValuesByName(const string &path) {
 		const auto manager = openHashMetaData(path, nullptr);
@@ -914,9 +854,7 @@ protected:
 			fiftyoneDegreesHashGetProfileCount(dataSet);
 		const uint32_t step =
 			profileCount / hashMetaDataSampledProfileValues + 1;
-		uint32_t checkedProfiles = 0, holdingMissed = 0, checkedValues = 0,
-			skippedValues = 0;
-		const bool knownMisorderedFile = isKnownMisorderedFile(path);
+		uint32_t checkedProfiles = 0, holdingMissed = 0, checkedValues = 0;
 		for (uint32_t p = 0; p < profileCount; p++) {
 			if (missedCount == 0 && p % step != 0) {
 				continue;
@@ -959,21 +897,6 @@ protected:
 				const uint32_t valueIndex = valueIndexes[v];
 				const bool missedByName =
 					valueIndex < missed.size() && missed[valueIndex];
-				if (knownMisorderedFile &&
-					missedByName &&
-					isKnownMisorderedValue(propertyName, value->getName())) {
-					if (skippedValues == 0) {
-						printf("%s\n", hashMetaDataKnownMisorderedReason);
-					}
-					skippedValues++;
-					printf("Skipped profile %u %s value '%s' at index %u, "
-						"which a search by name order misses\n",
-						profileId,
-						propertyName.c_str(),
-						value->getName().c_str(),
-						valueIndex);
-					continue;
-				}
 				unique_ptr<Common::ValueMetaData> byKey(
 					values->getByKey(value->getKey()));
 				checkedValues++;
@@ -998,10 +921,7 @@ protected:
 			checkedProfiles,
 			holdingMissed,
 			checkedValues);
-		printf("%s: %u values checked, %u values skipped\n",
-			path.c_str(),
-			checkedValues,
-			skippedValues);
+		printf("%s: %u values checked\n", path.c_str(), checkedValues);
 		EXPECT_GT(checkedProfiles, 0u);
 	}
 };
@@ -1023,10 +943,7 @@ TEST_F(HashMetaDataTests, ComponentsAndProfilesOfEachDataFile) {
 /**
  * Each value a profile holds is found by its name among the profile's
  * values, including where the data file does not hold a property's values in
- * the byte order of their names. A value the TAC data file is known to hold
- * out of that order is skipped, and printed with its profile, only where the
- * test's own search by name order misses it, until a corrected TAC data file
- * is published. So any other value missed fails, whatever the cause.
+ * the byte order of their names, so every value checked that is missed fails.
  */
 TEST_F(HashMetaDataTests, ProfileValuesByNameOfEachDataFile) {
 	eachDataFile([this](const string &path) {

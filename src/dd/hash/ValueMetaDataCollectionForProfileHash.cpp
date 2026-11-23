@@ -61,22 +61,63 @@ ValueMetaData* ValueMetaDataCollectionForProfileHash::getByKey(
 	if (propertyIndex < 0) {
 		return nullptr;
 	}
+	uint32_t firstValueIndex = 0, valueCount = 0;
+	if (HashGetPropertyValueIndexes(
+		dataSet,
+		(uint32_t)propertyIndex,
+		&firstValueIndex,
+		&valueCount,
+		nullptr,
+		exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
+	// A profile holds each property's values together, with the properties
+	// in the order of their value indexes, but a data file can hold one
+	// property's values within a profile out of that order.
+	const Profile * const profile = getProfile();
+	const uint32_t * const values = (const uint32_t*)(profile + 1);
+	const uint32_t * const last = values + profile->valueCount;
+	const uint32_t * const begin = std::partition_point(
+		values,
+		last,
+		[firstValueIndex](uint32_t index) {
+			return index < firstValueIndex;
+		});
+	const uint32_t * const end = std::partition_point(
+		begin,
+		last,
+		[firstValueIndex, valueCount](uint32_t index) {
+			return index - firstValueIndex < valueCount;
+		});
+	if (begin == end) {
+		return nullptr;
+	}
 	const long valueIndex = HashGetValueIndex(
 		dataSet,
 		(uint32_t)propertyIndex,
 		key.getValueName().c_str(),
 		exception);
 	EXCEPTION_THROW;
-	if (valueIndex < 0) {
-		return nullptr;
+	if (valueIndex >= 0 &&
+		std::find(begin, end, (uint32_t)valueIndex) != end) {
+		return ValueMetaDataBuilderHash::build(dataSet, (uint32_t)valueIndex);
 	}
-	// A profile's value indexes are in ascending order.
-	const Profile * const profile = getProfile();
-	const uint32_t * const first = (const uint32_t*)(profile + 1);
-	const uint32_t * const last = first + profile->valueCount;
-	return std::binary_search(first, last, (uint32_t)valueIndex)
-		? ValueMetaDataBuilderHash::build(dataSet, (uint32_t)valueIndex)
-		: nullptr;
+	// When the profile does not hold the index found, the names in its block
+	// are compared, because the search by name can miss a value that the
+	// data file holds out of the byte order of its property's value names,
+	// or find another value of the same name.
+	for (const uint32_t *index = begin; index < end; index++) {
+		ValueMetaData * const value = ValueMetaDataBuilderHash::build(
+			dataSet,
+			*index,
+			key.getPropertyName());
+		if (value != nullptr && value->getName() == key.getValueName()) {
+			return value;
+		}
+		delete value;
+	}
+	return nullptr;
 }
 
 uint32_t ValueMetaDataCollectionForProfileHash::getSize() const {
