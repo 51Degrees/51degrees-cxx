@@ -1166,7 +1166,7 @@ static bool processFromRoot(
 		state->iterations++;
 		state->currentDepth++;
 	} while (state->complete == false && EXCEPTION_OKAY);
-	if (EXCEPTION_OKAY == false) {
+	if (EXCEPTION_FAILED) {
 		return false;
 	}
 	return state->matchedNodes > previouslyMatchedNodes;
@@ -2378,7 +2378,7 @@ static void initGetHighEntropyValues(
 		exception);
 
 	// Clean up if an exception occurred, such as a failed allocation.
-	if (!EXCEPTION_OKAY) {
+	if (EXCEPTION_FAILED) {
 		if (dataSet->b.ghevHeaders != NULL) {
 			Free(dataSet->b.ghevHeaders);
 		}
@@ -3830,7 +3830,8 @@ static bool setSpecialHeadersCallback(void *state, KeyValuePair header) {
 	detectionComponentState* componentState = (detectionComponentState*)state;
 
 	// Get the existing pair for the header with the same prefix.
-	setSpecialHeadersFindState findState = { &header, NULL };
+	setSpecialHeadersFindState findState = { NULL, NULL };
+	findState.header = &header;
 	EvidenceIterate(
 		componentState->evidence,
 		componentState->specialPrefix,

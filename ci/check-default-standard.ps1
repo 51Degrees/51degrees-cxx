@@ -10,7 +10,7 @@ options, such as -Wall -Wextra in node-gyp. The CMake build sets C11 and
 C++17, so it cannot show a warning that only a newer default standard gives.
 Each file is compiled as Device Detection builds it and, for common and IP
 Intelligence, as IP Intelligence builds it, with -Wall -Wextra -Werror and
-the optimisation a release build uses, as some warnings need it. Each header
+the optimization a release build uses, as some warnings need it. Each header
 is then compiled on its own, because a file that includes a header first has
 nothing before it to bring in what the header left out. Runs on Linux with
 gcc and g++, then with clang and clang++, as each gives warnings the other
@@ -62,6 +62,9 @@ $headers = @(Get-ChildItem -Recurse -File "$RepoPath/src" |
     Where-Object { $_.Extension -in '.h', '.hpp' } |
     Sort-Object FullName)
 $build = '-O2', '-c', '-o', '/dev/null'
+$temp = [IO.Path]::GetTempPath()
+$includeC = Join-Path $temp 'check-default-standard-header.c'
+$includeCxx = Join-Path $temp 'check-default-standard-header.cpp'
 
 foreach ($toolchain in $toolchains) {
     & $toolchain.C --version | Select-Object -First 1
@@ -80,15 +83,24 @@ foreach ($toolchain in $toolchains) {
         }
     }
 
+    # Each header is compiled through a generated source file that has only
+    # the one line that includes it. Nothing comes before the header, so this
+    # still shows that it compiles on its own. Compiling the header itself
+    # would make it the main file, and clang then reports each static inline
+    # function and static constant the header declares for its includers as
+    # unused, which it never does for an included header.
     foreach ($file in $headers) {
         $name = Get-Name $file
         $c = $file.Extension -eq '.h'
-        $options = '-x', ($c ? 'c' : 'c++'), '-fsyntax-only'
+        $path = $file.FullName.Replace('\', '/')
+        Set-Content -Path ($c ? $includeC : $includeCxx) `
+            -Value "#include `"$path`""
         $definitions = $name -match '^src/ipi/' ? $ipi : @()
-        Test-File ($c ? $toolchain.C : $toolchain.Cxx) $options `
-            $file.FullName $name $definitions 'on its own'
+        Test-File ($c ? $toolchain.C : $toolchain.Cxx) '-fsyntax-only' `
+            ($c ? $includeC : $includeCxx) $name $definitions 'on its own'
     }
 }
+Remove-Item $includeC, $includeCxx -ErrorAction SilentlyContinue
 
 if ($script:failed) {
     Write-Output ("$($script:failed.Count) compilations of " +

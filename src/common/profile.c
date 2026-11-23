@@ -246,6 +246,8 @@ uint32_t* fiftyoneDegreesProfileGetOffsetForProfileId(
 
 	if (profileId == 0) {
 		EXCEPTION_SET(PROFILE_EMPTY);
+		// No offset is written, so return NULL in every build.
+		profileOffset = NULL;
 	}
 	else {
 
@@ -355,7 +357,7 @@ fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByProfileId(
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return NULL;
 #else
-	uint32_t profileOffset;
+	uint32_t profileOffset = 0;
 	Profile* profile = NULL;
 	if (fiftyoneDegreesProfileGetOffsetForProfileId(
 			profileOffsets,

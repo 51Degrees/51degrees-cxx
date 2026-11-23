@@ -1245,14 +1245,14 @@ long fiftyoneDegreesCollectionBinarySearch(
 
 		// Get the item from the collection checking for NULL or an error.
 		if (collection->get(collection, &middleKey, item, exception) == NULL ||
-			EXCEPTION_OKAY == false) {
+			EXCEPTION_FAILED) {
 			return 0;
 		}
 		
 		// Perform the binary search using the comparer provided with the item
 		// just returned.
 		comparisonResult = comparer(state, item, middleKey, exception);
-		if (EXCEPTION_OKAY == false) {
+		if (EXCEPTION_FAILED) {
 			return 0;
 		}
 

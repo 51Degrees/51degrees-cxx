@@ -447,7 +447,7 @@ void fiftyoneDegreesOverrideValuesReset(
 }
 
 static void extractProfileId(char *value, overrideProfileIdsState *state) {
-	if (isdigit((unsigned char)*value) != 0) {
+	if (*value >= '0' && *value <= '9') {
 		int profileId = atoi(value);
 		if (profileId >= 0) {
 			state->callback(state->state, profileId);
@@ -458,7 +458,7 @@ static void extractProfileId(char *value, overrideProfileIdsState *state) {
 static void extractProfileIds(overrideProfileIdsState *state, char *value) {
 	char *current = value, *previous = value;
 	while (*current != '\0') {
-		if (isdigit((unsigned char)*current) == 0) {
+		if (*current < '0' || *current > '9') {
 			extractProfileId(previous, state);
 			previous = current + 1;
 		}

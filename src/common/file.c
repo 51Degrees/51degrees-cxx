@@ -412,7 +412,7 @@ static bool iterateFiles(
 
 #ifdef _MSC_VER
 	wchar_t wString[FIFTYONE_DEGREES_FILE_MAX_PATH];
-	WIN32_FIND_DATA file;
+	WIN32_FIND_DATAW file;
 	HANDLE searchHandle;
 	if (nameStart + 1 > FIFTYONE_DEGREES_FILE_MAX_PATH) {
 		return false;
@@ -430,8 +430,9 @@ static bool iterateFiles(
 		FIFTYONE_DEGREES_FILE_MAX_PATH) == 0) {
 		return false;
 	}
-	// Iterate over all files.
-	if ((searchHandle = FindFirstFile(wString, &file))
+	// Iterate over all files. The wide versions are named, as the path and
+	// the names are wide whether or not UNICODE is defined.
+	if ((searchHandle = FindFirstFileW(wString, &file))
 		!= INVALID_HANDLE_VALUE) {
 		do {
 			// Append the name to the path.
@@ -455,7 +456,7 @@ static bool iterateFiles(
 					return true;
 				}
 			}
-		} while (FindNextFile(searchHandle, &file) != 0);
+		} while (FindNextFileW(searchHandle, &file) != 0);
 		FindClose(searchHandle);
 	}
 #else

@@ -86,14 +86,11 @@ fiftyoneDegreesComponentGetKeyValuePair(
 	fiftyoneDegreesComponent *component,
 	uint16_t index,
 	fiftyoneDegreesException *exception) {
-#ifndef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
-	if (index > component->keyValuesCount) {
+	(void)exception; // Not used when exceptions are disabled.
+	if (index >= component->keyValuesCount) {
 		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
 		return NULL;
 	}
-#else
-	(void)exception; // The index is not checked when exceptions are disabled.
-#endif
 	return &(&component->firstKeyValuePair)[index];
 }
 
@@ -134,10 +131,11 @@ void fiftyoneDegreesComponentInitList(
 			// Get the component and add it to the list.
 			DataReset(&item.data);
 			keyType.initialBytesCount = sizeof(Component) - sizeof(fiftyoneDegreesComponentKeyValuePair);
-			const CollectionKey componentKey = {
+			CollectionKey componentKey = {
 				{ offset },
-				&keyType,
+				NULL,
 			};
+			componentKey.keyType = &keyType;
 			component = (Component*)components->get(
 				components,
 				&componentKey,

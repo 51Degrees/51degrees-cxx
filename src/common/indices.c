@@ -243,7 +243,7 @@ fiftyoneDegreesIndicesPropertyProfileCreate(
 	index->filled = 0;
 	index->profileCount = CollectionGetCount(profileOffsets);
 	index->minProfileId = getProfileId(profileOffsets, 0, exception);
-	if (!EXCEPTION_OKAY) {
+	if (EXCEPTION_FAILED) {
 		Free(index);
 		Free(propertyIndexes);
 		return NULL;
@@ -252,7 +252,7 @@ fiftyoneDegreesIndicesPropertyProfileCreate(
 		profileOffsets,
 		index->profileCount - 1,
 		exception);
-	if (!EXCEPTION_OKAY) {
+	if (EXCEPTION_FAILED) {
 		Free(index);
 		Free(propertyIndexes);
 		return NULL;

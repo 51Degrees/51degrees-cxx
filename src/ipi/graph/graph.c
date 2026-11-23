@@ -120,13 +120,11 @@ typedef struct cursor_t {
 
 #ifdef FIFTYONE_DEGREES_IPI_GRAPH_TRACE
 #define TRACE_BOOL(c,m,v) traceBool(c,m,v);
-#define TRACE_INT(c,m,v) traceInt(c,m,v);
 #define TRACE_COMPARE(c) traceCompare(c);
 #define TRACE_LABEL(c,m) traceLabel(c,m);
 #define TRACE_RESULT(c,r) traceResult(c,r);
 #else
 #define TRACE_BOOL(c,m,v)
-#define TRACE_INT(c,m,v)
 #define TRACE_COMPARE(c)
 #define TRACE_LABEL(c,m)
 #define TRACE_RESULT(c,r)
@@ -238,17 +236,6 @@ static void traceBool(
 			TRACE_FALSE,
 			sizeof(TRACE_FALSE) - 1);
 	}
-	traceNewLine(cursor);
-}
-
-static void traceInt(
-	const Cursor* const cursor,
-	const char* const method,
-	const int64_t value) {
-	StringBuilderAddChar(cursor->sb, '\t');
-	StringBuilderAddChars(cursor->sb, method, strlen(method));
-	StringBuilderAddChar(cursor->sb, '=');
-	StringBuilderAddInteger(cursor->sb, value);
 	traceNewLine(cursor);
 }
 
@@ -493,10 +480,11 @@ static uint32_t setClusterSearch(
 		middle = lower + (upper - lower) / 2;
 
 		// Get the item from the collection checking for NULL or an error.
-		const CollectionKey key = {
+		CollectionKey key = {
 			{ middle },
-			&keyType,
+			NULL,
 		};
+		key.keyType = &keyType;
 		if (!collection->get(collection, &key, &item, exception)
 			|| EXCEPTION_FAILED) {
 			return 0;
@@ -605,10 +593,11 @@ static void setSpanBytes(Cursor* cursor) {
 		totalBytes,
 		NULL,
 	};
-	const CollectionKey spanBytesKey = {
+	CollectionKey spanBytesKey = {
 		{ cursor->span.trail.offset },
-		&keyType,
+		NULL,
 	};
+	spanBytesKey.keyType = &keyType;
 	byte* bytes = cursor->graph->spanBytes->get(
 		cursor->graph->spanBytes,
 		&spanBytesKey,
