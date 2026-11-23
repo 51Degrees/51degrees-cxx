@@ -12,8 +12,9 @@ Each program runs under the console debugger, cdb, from the Debugging Tools
 for Windows, when the runner has the one for the build's architecture. When a
 program crashes or aborts in a way GoogleTest does not catch, in any thread,
 the debugger writes a dump to the runner's temporary folder, the log shows the
-stack of every thread from it, and the dump is then deleted. The debugger lets the crash go on once the dump
-is written, so the program fails as it does without the debugger.
+stack of every thread from it, and the dump is then deleted. The debugger lets
+the crash go on once the dump is written, so the program fails as it does
+without the debugger.
 
 .PARAMETER ProjectDir
 The folder of the solution, relative to the repository.
