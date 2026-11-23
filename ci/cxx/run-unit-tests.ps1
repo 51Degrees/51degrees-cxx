@@ -10,13 +10,13 @@ test-results/unit in the repository.
 
 Each program runs under the console debugger, cdb, from the Debugging Tools
 for Windows, when the runner has the one for the build's architecture. When a
-program crashes in any thread, the debugger writes a full memory dump, the log
-shows the stack of every thread, and the dump, the program and its PDB file
-are put in artifacts/crash-dumps in the repository. Windows Error Reporting
-writes no dumps on the hosted runners, which is why a debugger is used. The
-debugger lets the crash go on once the dump is written, so the program fails
-as it does without the debugger, with the same exit code apart from a
-breakpoint.
+program crashes or aborts in any thread, the debugger writes a full memory
+dump, the log shows the stack of every thread, and the dump, the program and
+its PDB file are put in artifacts/crash-dumps in the repository. Windows Error
+Reporting writes no dumps of these programs, because GoogleTest sets an error
+mode that stops it, which is why a debugger is used. The debugger lets the
+crash go on once the dump is written, so the program fails as it does without
+the debugger, with the same exit code apart from a breakpoint.
 
 .PARAMETER ProjectDir
 The folder of the solution, relative to the repository.
@@ -71,6 +71,11 @@ function Get-Cdb([string]$Arch) {
 # its own. A breakpoint is the one exception whose code changes, because an x86
 # program under a debugger ends with 0x4000001F rather than 0x80000003.
 #
+# GoogleTest makes abort end the program with exit code 3 and no exception, so
+# std::terminate, which an exception thrown on a worker thread reaches, would
+# leave no dump. A breakpoint on abort in the C runtime writes the dump before
+# abort ends the program, then lets abort go on.
+#
 # Two settings keep the program behaving as it does without a debugger.
 # Breakpoints are passed to the program rather than handled by the debugger
 # (sxd bpec), so they end it as they would on their own. Closing a handle that
@@ -81,7 +86,9 @@ function Get-Cdb([string]$Arch) {
 function Invoke-UnderDebugger([string]$Cdb, [string]$Program,
     [string[]]$Arguments, [string]$DumpFile) {
     $onCrash = ".dump /ma /u $DumpFile; gn"
-    $commands = @('sxi eh', 'sxi ld', 'sxd bpec', 'sxi ch', 'sxe hc') +
+    $onAbort = ".dump /ma /u $DumpFile; g"
+    $commands = @('sxi eh', 'sxi ld', 'sxd bpec', 'sxi ch', 'sxe hc',
+        "bu ucrtbase!abort `"$onAbort`"") +
         ($CrashEvents | ForEach-Object { "sxd -c2 `"$onCrash`" $_" }) + 'g'
     $PSNativeCommandUseErrorActionPreference = $false
     & $Cdb -G -hd -y $BuildFolder -c ($commands -join '; ') $Program @Arguments
