@@ -38,12 +38,25 @@ typedef struct counter_t {
 	int32_t inUse;
 	int32_t padding;
 } Counter;
+static InterlockDoubleWidth emptyCounter() {
+	InterlockDoubleWidth empty = { 0, 0 };
+	((Counter*)&empty)->handle = NULL;
+	((Counter*)&empty)->padding = 0;
+	((Counter*)&empty)->inUse = 0;
+	return empty;
+}
 #else
 #define ALIGN_SIZE 8
 typedef struct counter_t {
 	ResourceHandle* handle;
 	int32_t inUse;
 } Counter;
+static InterlockDoubleWidth emptyCounter() {
+	InterlockDoubleWidth empty = { 0 };
+	((Counter*)&empty)->handle = NULL;
+	((Counter*)&empty)->inUse = 0;
+	return empty;
+}
 #endif
 
 #ifdef _MSC_VER
@@ -57,10 +70,16 @@ typedef struct counter_t {
 // optimization should be switch off on the involved variables. To do so
 // variables of these types should always be marked with 'volatile' qualifier.
 #define COUNTER __declspec(align(ALIGN_SIZE)) volatile InterlockDoubleWidth
+#define FIFTYONE_DEGREES_RESOURCE_HANDLE \
+	__declspec(align(ALIGN_SIZE)) volatile ResourceHandle
 #else
 typedef InterlockDoubleWidth AlignedInterlockDoubleWidth
 	__attribute__ ((aligned (ALIGN_SIZE)));
 #define COUNTER AlignedInterlockDoubleWidth
+
+typedef ResourceHandle AlignedResourceHandle
+	__attribute__ ((aligned (ALIGN_SIZE)));
+#define FIFTYONE_DEGREES_RESOURCE_HANDLE AlignedResourceHandle
 #endif
 #else
 #define VOLATILE
@@ -68,24 +87,15 @@ typedef struct counter_t {
 	ResourceHandle* handle;
 	int32_t inUse;
 } Counter;
-#define COUNTER InterlockDoubleWidth
-#endif
-
-/**
- * Returns a counter with no handle and no users. The counter is built as a
- * Counter and its bytes copied, so the double width value is not written
- * through a pointer of another type.
- */
 static InterlockDoubleWidth emptyCounter() {
 	InterlockDoubleWidth empty;
-	Counter counter;
-	memset(&counter, 0, sizeof(counter));
-	counter.handle = NULL;
-	counter.inUse = 0;
-	memset(&empty, 0, sizeof(empty));
-	memcpy(&empty, &counter, sizeof(counter));
+	((Counter*)&empty)->handle = NULL;
+	((Counter*)&empty)->inUse = 0;
 	return empty;
 }
+#define COUNTER InterlockDoubleWidth
+#define FIFTYONE_DEGREES_RESOURCE_HANDLE ResourceHandle
+#endif
 
 static void add(VOLATILE InterlockDoubleWidth* counter, int32_t value) {
 	((Counter*)counter)->inUse += value;
@@ -253,10 +263,19 @@ void fiftyoneDegreesResourceHandleDecUse(
 		assert((uintptr_t)&handle->counter % ALIGN_SIZE == 0);
 		assert((uintptr_t)&decremented % ALIGN_SIZE == 0);
 		assert((uintptr_t)&compare % ALIGN_SIZE == 0);
+#ifdef _MSC_VER
+// Disable warning against the difference in the use of 'volatile' qualifier.
+// Casting won't resolve the issue which is described above with the definitions 
+// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
+#pragma warning (disable: 4090)
+#endif
 	} while (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
-		handle->counter,
+		handle->counter, 
 		decremented,
 		compare) == false);
+#ifdef _MSC_VER
+#pragma warning (default: 4090)
+#endif
 #else
 	add(&handle->counter, -1);
 	decremented = handle->counter;
@@ -278,10 +297,19 @@ void fiftyoneDegreesResourceHandleDecUse(
 		assert((uintptr_t)&getHandle(&decremented)->counter % ALIGN_SIZE == 0);
 		assert((uintptr_t)&empty % ALIGN_SIZE == 0);
 		assert((uintptr_t)&decremented % ALIGN_SIZE == 0);
+#ifdef _MSC_VER
+// Disable warning against the difference in the use of 'volatile' qualifier.
+// Casting won't resolve the issue which is described above with the definitions 
+// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
+#pragma warning (disable: 4090)
+#endif
 		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
 			getHandle(&decremented)->counter,
 			empty,
 			decremented)) {
+#ifdef _MSC_VER
+#pragma warning (default: 4090)
+#endif
 			assert(handle != handle->manager->active);
 			freeHandle(getHandle(&decremented));
 		}
@@ -309,6 +337,12 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 		assert((uintptr_t)&active->counter % ALIGN_SIZE == 0);
 		assert((uintptr_t)&incremented % ALIGN_SIZE == 0);
 		assert((uintptr_t)&compare % ALIGN_SIZE == 0);
+#ifdef _MSC_VER
+// Disable warning against the difference in the use of 'volatile' qualifier.
+// Casting won't resolve the issue which is described above with the definitions 
+// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
+#pragma warning (disable: 4090)
+#endif
 		// A null self pointer means the handle was replaced and its resource
 		// freed before it was read, so start again from the manager.
 	} while (getHandle(&compare) == NULL ||
@@ -316,6 +350,9 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 			active->counter,
 			incremented,
 			compare) == false);
+#ifdef _MSC_VER
+#pragma warning (default: 4090)
+#endif
 #else
 	add(&manager->active->counter, 1);
 	incremented = manager->active->counter;
@@ -334,13 +371,17 @@ int32_t fiftyoneDegreesResourceHandleGetUse(
 	}
 }
 
+#ifdef _MSC_VER
+// Disable warning against the difference in the use of 'volatile' qualifier.
+// Casting won't resolve the issue which is described above with the definitions 
+// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
+#pragma warning (disable: 4090)
+#endif
 void fiftyoneDegreesResourceReplace(
 	fiftyoneDegreesResourceManager *manager,
 	void *newResource,
 	fiftyoneDegreesResourceHandle **newResourceHandle) {
-	// Nothing is read through this pointer here, it is only compared and
-	// passed on, so it has the same type as the functions it is passed to.
-	ResourceHandle* oldHandle = NULL;
+	FIFTYONE_DEGREES_RESOURCE_HANDLE* oldHandle = NULL;
 	
 	// Add the new resource to the manager replacing the existing one.
 	setupResource(
@@ -374,3 +415,6 @@ void fiftyoneDegreesResourceReplace(
 	// nothing else holds it.
 	ResourceHandleDecUse(oldHandle);
 }
+#ifdef _MSC_VER
+#pragma warning (default: 4090)
+#endif
