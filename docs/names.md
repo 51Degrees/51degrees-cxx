@@ -14,10 +14,11 @@ Add a name here in the same change that first reads it.
 
 | Name | Read by | What it holds |
 | --- | --- | --- |
-| `_51DEGREES_IPI_PATH` | The IP Intelligence examples, in `examples/ipi/Base/ExampleBase.c` | The path of the IP Intelligence data file to use in place of the one in `data/ip-intelligence` |
+| `_51DEGREES_DD_PATH` | The Device Detection examples, in `examples/dd/C/Hash/ExampleBase.c`, and set by `ci/fetch-assets.ps1` | The path of the Device Detection data file to use in place of the one in `data/device-detection` |
+| `_51DEGREES_IPI_PATH` | The IP Intelligence examples, in `examples/ipi/Base/ExampleBase.c`, and set by `ci/fetch-assets.ps1` | The path of the IP Intelligence data file to use in place of the one in `data/ip-intelligence` |
 
-The Device Detection examples take the path of the data file as their first
-argument and read no environment variable.
+A data file path given as a Device Detection example's first argument comes
+before `_51DEGREES_DD_PATH`.
 
 ## Secrets
 
@@ -68,6 +69,7 @@ requires.
 | --- | --- | --- |
 | `CI` | GitHub Actions | The IP Intelligence tests, which skip the temporary file tests there |
 | `GITHUB_ACTIONS` | GitHub Actions | The examples, which leave the source out of a data file download there |
+| `GITHUB_ENV` | GitHub Actions | `ci/fetch-assets.ps1`, which adds the data file paths to it for the steps after it |
 | `HOME` | The operating system | `cmake/FindGccAtomic.cmake`, to find a locally installed `libatomic` |
 | `LC_ALL` | The operating system | Set, not read, by the single file build workflow |
 | `ProgramFiles(x86)` | The operating system | `ci/cxx/run-unit-tests.ps1` and `ci/check-common-symbols.ps1`, to find the debugger and Visual Studio on Windows |
