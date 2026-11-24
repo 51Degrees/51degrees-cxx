@@ -29,15 +29,15 @@
 
 #define THREAD_COUNT 4
 
-static const char *dataDir = "data/ip-intelligence";
+static const char * const dataDir = "data/ip-intelligence";
 
-static const char *dataFileName = "51Degrees-LiteV41.ipi";
+static const char * const dataFileName = "51Degrees-LiteV41.ipi";
 
 // The free ASN data file, far smaller than the Lite file, for the examples
 // that any data file will do for.
-static const char *asnDataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
+static const char * const asnDataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
-static const char *ipAddressFileName = "evidence.yml";
+static const char * const ipAddressFileName = "evidence.yml";
 
 using std::thread;
 using namespace FiftyoneDegrees::Common;
@@ -136,6 +136,21 @@ namespace FiftyoneDegrees {
 				 * empty
 				 */
 				static const char *getDataFilePathFromEnvironment();
+
+				/**
+				 * Copies a path, such as a command line argument, to the
+				 * destination. A path too long for the destination is not
+				 * copied, and a message saying so is written to standard
+				 * error.
+				 * @param source path to copy
+				 * @param destination memory to copy the path to
+				 * @param size of the destination in bytes
+				 * @return the status of the copy
+				 */
+				static fiftyoneDegreesStatusCode copyPath(
+					const char *source,
+					char *destination,
+					size_t size);
 
 				/**
 				 * Prints the "Find out more" section that every example

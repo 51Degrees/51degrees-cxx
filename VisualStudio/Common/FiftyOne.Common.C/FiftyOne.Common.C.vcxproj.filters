@@ -132,6 +132,9 @@
     <ClInclude Include="..\..\..\src\common\wkbtot.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\common\unaligned.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\src\common\constants.h">
       <Filter>Header Files</Filter>
     </ClInclude>

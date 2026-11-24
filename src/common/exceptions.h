@@ -203,10 +203,15 @@ fiftyoneDegreesException *exception = &exceptionValue; \
 FIFTYONE_DEGREES_EXCEPTION_CLEAR
 
 /**
- * Macro to test if the exception has been set and is failed.
+ * Macro to test if the exception has been set and is failed. Where exceptions
+ * are disabled nothing can fail, so it is plain false.
  */
+#ifndef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
 #define FIFTYONE_DEGREES_EXCEPTION_FAILED \
 (FIFTYONE_DEGREES_EXCEPTION_OKAY == false)
+#else
+#define FIFTYONE_DEGREES_EXCEPTION_FAILED false
+#endif
 
 /**
  * Returns an English error message for the exception. The caller must free the

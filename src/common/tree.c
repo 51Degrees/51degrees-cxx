@@ -232,15 +232,10 @@ static void deleteRepair(Node *node) {
 	node->colour = COLOUR_BLACK;
 }
 
-#ifdef _MSC_VER
-#pragma warning (disable: 4100) 
-#endif
 static void increaseCount(void *state, Node *node) {
+	(void)node; // Only the count is needed here.
 	(*(uint32_t*)state)++;
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4100) 
-#endif
 
 static void iterate(Node *node, void *state, IterateMethod callback) {
 	if (node != TREE_EMPTY(node)) {

@@ -23,7 +23,7 @@
 #include "ExampleDeviceDetectionTests.hpp"
 
 ExampleDeviceDetectionTest::ExampleDeviceDetectionTest(
-	const char **dataFileNames,
+	const char * const *dataFileNames,
     int dataFileNamesLength,
     const char *evidenceFileName) : ExampleTests() {
     dataFilePath = "";

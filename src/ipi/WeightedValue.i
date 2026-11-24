@@ -49,7 +49,8 @@ public:
     }
 }
 
-%template(UTF8StringSwig) std::vector<uint8_t>;
+// UTF8StringSwig, the std::vector<uint8_t> template, is declared once in
+// ../common/ValueMetaData.i, which ipi.i includes first.
 
 %template(WeightedValueStringSwig) WeightedValue<std::string>;
 %template(WeightedValueUTF8StringSwig) WeightedValue<std::vector<uint8_t>>;

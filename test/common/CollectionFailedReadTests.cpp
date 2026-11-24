@@ -48,9 +48,7 @@ static const uint32_t failedReadCutOffset = 5 * sizeof(uint32_t);
 static uint32_t getFailedReadItemSize(
 	const void *initial,
 	fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(exception);
-#	endif
+	(void)exception;
 	return (uint32_t)(sizeof(uint32_t) * ((*(uint32_t*)initial) + 1));
 }
 

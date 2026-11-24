@@ -45,9 +45,7 @@ static const uint32_t reuseFixedItems = 16;
 static uint32_t getReuseItemSize(
 	const void *initial,
 	fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(exception);
-#	endif
+	(void)exception;
 	return (uint32_t)(sizeof(uint32_t) * ((*(uint32_t*)initial) + 1));
 }
 

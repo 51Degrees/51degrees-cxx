@@ -427,12 +427,18 @@ TEST_F(ProfileTests, DefaultValues) {
 void compareProfiles(ProfileContainer* expected, Profile* actual) {
     EXPECT_EQ(expected->profile.componentIndex, actual->componentIndex);
 #ifndef FIFTYONE_DEGREES_REDUCED_FILE
-    EXPECT_EQ(expected->profile.profileId, actual->profileId);
+    EXPECT_EQ(
+        (uint32_t)expected->profile.profileId,
+        (uint32_t)actual->profileId);
 #endif
-    EXPECT_EQ(N_PROPERTIES, actual->valueCount);
-    const uint32_t* actualValues = (const uint32_t*)(actual + 1);
+    EXPECT_EQ((fiftyoneDegreesProfileValuesCountType)N_PROPERTIES,
+        (fiftyoneDegreesProfileValuesCountType)actual->valueCount);
+    const byte* actualValues = (const byte*)(actual + 1);
     for (int i=0; i<N_PROPERTIES; i++) {
-		EXPECT_EQ(expected->valueIndices[i], actualValues[i]);
+		EXPECT_EQ(
+			(uint32_t)expected->valueIndices[i],
+			fiftyoneDegreesUnalignedReadUint32(
+				actualValues + i * sizeof(uint32_t)));
 	}
 }
 
@@ -744,12 +750,16 @@ void ProfileTests::indicesLookup(std::vector<std::string> &propertyNames) {
             //lookup property value Index within the profile with profileId for the available property indexed at j in the array of availableProperties
             uint32_t valueIdxIdxWithinProfile = fiftyoneDegreesIndicesPropertyProfileLookup(index, profileId, j);
             //convert valueIdxIdxWithinProfile to the valueIndex in the actual values collection by looking it up with the profile collection
-            uint32_t *first = (uint32_t*)(profile + 1);
-            uint32_t valueIdx = *(first + valueIdxIdxWithinProfile);
+            const byte *first = (const byte*)(profile + 1);
+            uint32_t valueIdx = fiftyoneDegreesUnalignedReadUint32(
+                first + valueIdxIdxWithinProfile * sizeof(uint32_t));
             //now retrieve value and check that it belongs to the property above
             const fiftyoneDegreesValue *value = fiftyoneDegreesValueGet(valuesCollection, valueIdx, &item, exception);
+            ASSERT_GE(value->propertyIndex, 0);
+            EXPECT_EQ(
+                (uint32_t)value->propertyIndex,
+                property.propertyIndex);
             COLLECTION_RELEASE(item.collection, &item);
-            EXPECT_EQ(value->propertyIndex, property.propertyIndex);
         }
     }
 
@@ -790,11 +800,12 @@ void ProfileTests::iterateValueIndicesForEachAvailableProperty(std::vector<std::
             
             std::vector<fiftyoneDegreesValue *> values;
             fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(valuesCollection, index, (uint32_t) j, profile, property, &values, collectValues, exception);
-            EXPECT_EQ(values.size(), 1);
+            EXPECT_EQ(values.size(), 1u);
             const fiftyoneDegreesValue *expectedValue = NULL;
-            const uint32_t *first = (uint32_t *) (profile + 1);
+            const byte *first = (const byte *) (profile + 1);
             for (uint32_t k=0;k<profile->valueCount;++k) {
-                uint32_t valueIdx = *(first + k);
+                uint32_t valueIdx = fiftyoneDegreesUnalignedReadUint32(
+                    first + k * sizeof(uint32_t));
                 const fiftyoneDegreesValue *candidate = fiftyoneDegreesValueGet(valuesCollection, valueIdx, &item, exception);
                 COLLECTION_RELEASE(item.collection, &item);
                 if ((uint32_t) candidate->propertyIndex == availableProperties->items[j].propertyIndex) {
@@ -824,6 +835,19 @@ TEST_F(ProfileTests, unhappyPaths) {
     uint32_t profileOffset;
     EXCEPTION_CREATE
     uint32_t *profileOffsetPtr = fiftyoneDegreesProfileGetOffsetForProfileId(profileOffsetsCollection, 0, &profileOffset, exception);
+    EXPECT_FALSE(EXCEPTION_OKAY);
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+    EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_NOT_IMPLEMENTED));
+#else
+    EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_PROFILE_EMPTY));
+#endif
+    // No offset is written for profile id 0, so no pointer to it is returned.
+    EXPECT_EQ(profileOffsetPtr, (uint32_t *) NULL);
+
+    // NULL profileId through the profile lookup
+    EXCEPTION_CLEAR
+    fiftyoneDegreesProfile *profile = fiftyoneDegreesProfileGetByProfileId(profileOffsetsCollection, profilesCollection, 0, &item, exception);
+    EXPECT_EQ(profile, (fiftyoneDegreesProfile *) NULL);
     EXPECT_FALSE(EXCEPTION_OKAY);
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
     EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_NOT_IMPLEMENTED));

@@ -30,6 +30,7 @@
 #include <cstdlib>
 #include <string>
 #include "../../examples/ipi/Base/ExampleBase.h"
+#include "../common/EnvironmentVariable.hpp"
 
 /** The name the examples read the data file path from. */
 static const char pathName[] = "_51DEGREES_IPI_PATH";
@@ -54,11 +55,7 @@ class SavedVariable {
 public:
 	explicit SavedVariable(const char *variableName)
 		: name(variableName) {
-		const char *current = std::getenv(variableName);
-		wasSet = current != nullptr;
-		if (wasSet) {
-			value = current;
-		}
+		wasSet = readEnvironmentVariable(variableName, value);
 	}
 	~SavedVariable() {
 		setVariable(name.c_str(), wasSet ? value.c_str() : nullptr);

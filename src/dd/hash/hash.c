@@ -314,7 +314,7 @@ typedef struct find_data_set_header_state_t {
 #undef FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY
 #define FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY true
 fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig = {
-	FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX,
+	{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX },
 	{false,0,0}, // Strings
 	{false,0,0}, // Components
 	{false,0,0}, // Maps
@@ -336,7 +336,7 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig = {
 FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY_DEFAULT
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig = {
-	FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX,
+	{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX },
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Strings
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Components
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Maps
@@ -355,7 +355,7 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig = {
 };
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
-	FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX,
+	{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX },
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Strings
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Components
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Maps
@@ -374,7 +374,7 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
 };
 
 #define FIFTYONE_DEGREES_HASH_CONFIG_BALANCED \
-FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX, \
+{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX }, \
 { false, 10000, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Strings */ \
 { true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Components */ \
 { true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Maps */ \
@@ -388,7 +388,8 @@ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX, \
 0, \
 false, /* Performance graph */ \
 true,  /* Predictive graph */ \
-false /* Trace */
+false, /* Trace */ \
+false /* Load required properties only */
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashBalancedConfig = {
 	FIFTYONE_DEGREES_HASH_CONFIG_BALANCED
@@ -605,7 +606,7 @@ static void setNextNode(detectionState *state, int32_t offset) {
 			state->dataSet->nodes,
 			(uint32_t)offset,
 			&state->node,
-			state->exception);
+			exception);
 
 		// Set the first and last indexes.
 		if (node != NULL && EXCEPTION_OKAY) {
@@ -1165,7 +1166,7 @@ static bool processFromRoot(
 		state->iterations++;
 		state->currentDepth++;
 	} while (state->complete == false && EXCEPTION_OKAY);
-	if (EXCEPTION_OKAY == false) {
+	if (EXCEPTION_FAILED) {
 		return false;
 	}
 	return state->matchedNodes > previouslyMatchedNodes;
@@ -1204,7 +1205,8 @@ static bool processRoot(
 	DataSetHash* dataSet,
 	uint32_t rootNodeOffset) {
 	Exception *exception = state->exception;
-	
+	(void)exception; // Not used when exceptions are disabled.
+
 	// Initial result without drift or difference being applied.
 	bool matched = processFromRoot(dataSet, rootNodeOffset, state);
 	if (matched) return true;
@@ -1265,6 +1267,7 @@ static bool processRoots(
 	HashRootNodes *rootNodes) {
 	Exception *exception = state->exception;
 	bool matched = false;
+	(void)exception; // Not used when exceptions are disabled.
 
 	// First try searching in the performance graph if it is enabled.
 	if (dataSet->config.usePerformanceGraph == true) {
@@ -1408,6 +1411,7 @@ static HashValueProfiles* valueProfilesCreateNames(
 	size_t length;
 	char *copy;
 	HashValueProfiles *index;
+	(void)exception; // Not used when exceptions are disabled.
 	for (i = 0; i < namesCount; i++) {
 		if (valueProfilesIsNewName(names, i)) {
 			chars += strlen(names[i]) + 1;
@@ -1550,8 +1554,8 @@ static StatusCode valueProfilesRead(
 	Exception *exception) {
 	Item item;
 	Profile *profile;
-	const uint32_t *values;
-	uint32_t i, position, key, r, v;
+	const byte *values;
+	uint32_t i, position, key, r, v, value;
 	const uint32_t count = CollectionGetCount(dataSet->profileOffsets);
 	DataReset(&item.data);
 	for (i = 0; i < count; i++) {
@@ -1571,20 +1575,23 @@ static StatusCode valueProfilesRead(
 
 		// The values of a profile and the ranges are both in ascending order
 		// of value index, so one walk along both finds each value with a key.
-		values = (const uint32_t*)(profile + 1);
+		// The value indexes follow the packed profile, so they can start at
+		// any byte.
+		values = (const byte*)(profile + 1);
 		r = 0;
 		v = 0;
 		while (v < profile->valueCount && r < rangesCount) {
-			if (values[v] < ranges[r].firstValueIndex) {
+			value = UnalignedReadUint32(values + (size_t)v * sizeof(uint32_t));
+			if (value < ranges[r].firstValueIndex) {
 				v++;
 			}
-			else if (values[v] - ranges[r].firstValueIndex >=
+			else if (value - ranges[r].firstValueIndex >=
 				ranges[r].valuesCount) {
 				r++;
 			}
 			else {
 				key = ranges[r].firstKey +
-					(values[v] - ranges[r].firstValueIndex);
+					(value - ranges[r].firstValueIndex);
 				if (fill == false) {
 					index->starts[key]++;
 				}
@@ -2374,7 +2381,7 @@ static void initGetHighEntropyValues(
 		exception);
 
 	// Clean up if an exception occurred, such as a failed allocation.
-	if (!EXCEPTION_OKAY) {
+	if (EXCEPTION_FAILED) {
 		if (dataSet->b.ghevHeaders != NULL) {
 			Free(dataSet->b.ghevHeaders);
 		}
@@ -2505,31 +2512,33 @@ static StatusCode initWithMemory(
 
 	// Create each of the collections.
 	uint32_t stringsCount = dataSet->header.strings.count;
-	*(uint32_t*)(&dataSet->header.strings.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, 0);
 	COLLECTION_CREATE_MEMORY(strings)
-	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, stringsCount);
 
 	// Override the header count so that the variable collection can work.
 	uint32_t componentCount = dataSet->header.components.count;
-	*(uint32_t*)(&dataSet->header.components.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.components.count, 0);
 	COLLECTION_CREATE_MEMORY(components)
-	*(uint32_t*)(&dataSet->header.components.count) = componentCount;
+	UnalignedWriteUint32(
+		(void*)&dataSet->header.components.count,
+		componentCount);
 
 	COLLECTION_CREATE_MEMORY(maps)
 	COLLECTION_CREATE_MEMORY(properties)
 	COLLECTION_CREATE_MEMORY(values)
 		
 	uint32_t profileCount = dataSet->header.profiles.count;
-	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, 0);
 	COLLECTION_CREATE_MEMORY(profiles)
-	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, profileCount);
 		
 	COLLECTION_CREATE_MEMORY(rootNodes);
 
 	uint32_t nodesCount = dataSet->header.nodes.count;
-	*(uint32_t*)(&dataSet->header.nodes.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, 0);
 	COLLECTION_CREATE_MEMORY(nodes)
-	*(uint32_t*)(&dataSet->header.nodes.count) = nodesCount;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, nodesCount);
 
 	COLLECTION_CREATE_MEMORY(profileOffsets)
 
@@ -2562,8 +2571,6 @@ static StatusCode initInMemory(
 }
 
 static void initDataSet(DataSetHash *dataSet, ConfigHash **config) {
-	EXCEPTION_CREATE
-
 	// If no config has been provided then use the balanced configuration.
 	if (*config == NULL) {
 		*config = &HashBalancedConfig;
@@ -2932,18 +2939,20 @@ static StatusCode readDataSetFromFile(
 		}
 	}
 	uint32_t stringsCount = dataSet->header.strings.count;
-	*(uint32_t*)(&dataSet->header.strings.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, 0);
 	COLLECTION_CREATE_FILE_WITH_CONFIG(
 		strings,
 		fiftyoneDegreesStringRead,
 		heldConfig(&dataSet->config.strings, *hold));
-	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, stringsCount);
 
 	// Override the header count so that the variable collection can work.
 	uint32_t componentCount = dataSet->header.components.count;
-	*(uint32_t*)(&dataSet->header.components.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.components.count, 0);
 	COLLECTION_CREATE_FILE(components, fiftyoneDegreesComponentReadFromFile);
-	*(uint32_t*)(&dataSet->header.components.count) = componentCount;
+	UnalignedWriteUint32(
+		(void*)&dataSet->header.components.count,
+		componentCount);
 	dataSet->components->count = componentCount;
 
 	COLLECTION_CREATE_FILE(maps, CollectionReadFileFixed);
@@ -2952,17 +2961,17 @@ static StatusCode readDataSetFromFile(
 
 	// Override the header count so that the variable collection can work.
 	uint32_t profileCount = dataSet->header.profiles.count;
-	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, 0);
 	COLLECTION_CREATE_FILE(profiles, fiftyoneDegreesProfileReadFromFile);
-	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, profileCount);
 	dataSet->profiles->count = profileCount;
 
 	COLLECTION_CREATE_FILE(rootNodes, CollectionReadFileFixed);
 
 	uint32_t nodesCount = dataSet->header.nodes.count;
-	*(uint32_t*)(&dataSet->header.nodes.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, 0);
 	COLLECTION_CREATE_FILE(nodes, fiftyoneDegreesGraphNodeReadFromFile);
-	*(uint32_t*)(&dataSet->header.nodes.count) = nodesCount;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, nodesCount);
 
 	COLLECTION_CREATE_FILE(profileOffsets, CollectionReadFileFixed);
 
@@ -2970,6 +2979,8 @@ static StatusCode readDataSetFromFile(
 }
 
 #endif
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
 /**
  * Calculates the highest concurrency value to ensure sufficient file reader
@@ -2991,8 +3002,6 @@ static uint16_t getMaxConcurrency(const ConfigHash *config) {
 	MAX_CONCURRENCY(profileOffsets);
 	return concurrency;
 }
-
-#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
 static StatusCode initWithFile(
 	DataSetHash *dataSet,
@@ -3828,7 +3837,8 @@ static bool setSpecialHeadersCallback(void *state, KeyValuePair header) {
 	detectionComponentState* componentState = (detectionComponentState*)state;
 
 	// Get the existing pair for the header with the same prefix.
-	setSpecialHeadersFindState findState = { &header, NULL };
+	setSpecialHeadersFindState findState = { NULL, NULL };
+	findState.header = &header;
 	EvidenceIterate(
 		componentState->evidence,
 		componentState->specialPrefix,
@@ -4299,6 +4309,7 @@ static void resultsHashFromEvidence_setSpecialHeaders(
 	detectionComponentState* state) {
 	Exception* exception = state->exception;
 	specialHeadersState special = { state, false };
+	(void)exception; // Not used when exceptions are disabled.
 	do {
 		EvidenceIterate(
 			state->evidence,
@@ -4526,6 +4537,7 @@ static void resultsHashFromEvidence_copyEvidence(
 	EvidenceKeyValuePairArray* array;
 	uint32_t pairs = 0, i;
 	size_t textBytes = 0;
+	(void)exception; // Not used when exceptions are disabled.
 	for (array = state->evidence; array != NULL; array = array->next) {
 		for (i = 0; i < array->count; i++) {
 			pairs++;
@@ -4771,7 +4783,9 @@ void fiftyoneDegreesResultsHashFromUserAgent(
 		dataSet->b.uniqueUserAgentHeaderIndex];
 	// Zero-initialise: EvidenceAddPair sets prefix, item, parsedValue and
 	// header but not parsedLength, which would otherwise be stack garbage.
-	EvidenceKeyValuePair pairStorage = { FIFTYONE_DEGREES_EVIDENCE_IGNORE };
+	EvidenceKeyValuePair pairStorage;
+	memset(&pairStorage, 0, sizeof(pairStorage));
+	pairStorage.prefix = FIFTYONE_DEGREES_EVIDENCE_IGNORE;
 	EvidenceKeyValuePairArray evidence;
 	evidence.count = 0;
 	evidence.capacity = 1;
@@ -5116,7 +5130,7 @@ size_t fiftyoneDegreesHashGetEvidenceKeys(
 	size_t added;
 	evidenceKey key, earlier;
 	const size_t separatorLength = separator == NULL ? 0 : strlen(separator);
-	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	for (i = 0; getEvidenceKey(dataSet, i, &key); i++) {
 		if (key.name == NULL) {
@@ -5465,7 +5479,7 @@ static size_t getValuesStringForAvailableIndex(
 	size_t const length,
 	char* const separator,
 	fiftyoneDegreesException *exception) {
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	getValuesStringByAvailableIndex(
 		results,
@@ -5503,7 +5517,7 @@ size_t fiftyoneDegreesResultsHashGetValuesStringAllProperties(
 	size_t const length,
 	char* const separator,
 	fiftyoneDegreesException* exception) {
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	size_t const separatorLen = strlen(separator);
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
@@ -5578,7 +5592,7 @@ size_t fiftyoneDegreesHashGetHardwareProfileScript(
 	char *buffer,
 	size_t length) {
 	size_t added;
-	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	StringBuilderAddChars(
 		&builder,
@@ -6559,6 +6573,7 @@ static bool hashMetaDataProfileComponentId(
 	const Component * const component = hashMetaDataComponent(
 		dataSet,
 		profile->componentIndex);
+	(void)exception; // Not used when exceptions are disabled.
 	if (component == NULL) {
 		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
 		return false;
@@ -6641,7 +6656,7 @@ char* fiftyoneDegreesHashGetDeviceIdFromResult(
 	uint32_t i, profileOffset;
 	Item item;
 	Profile *profile;
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	DataReset(&item.data);
 	for (i = 0; i < dataSet->componentsList.count; i++) {
@@ -6682,7 +6697,7 @@ char* fiftyoneDegreesHashGetDeviceIdFromResult(
 
 char *getNullDeviceId(DataSetHash *dataSet, char *buffer, size_t length) {
 	uint32_t i;
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	for (i = 0; i < dataSet->componentsList.count; i++) {
 		if (i != 0) {
@@ -6704,7 +6719,7 @@ char* fiftyoneDegreesHashGetDeviceIdFromResults(
 	Profile *profile;
 	Item profileItem;
 	uint32_t profileOffset;
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	DataReset(&profileItem.data);
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
@@ -6927,12 +6942,14 @@ size_t fiftyoneDegreesResultsHashGetValuesJson(
 	DataReset(&propertyItem.data);
 
 	// Set the state used with the JSON methods.
-	Json s = { buffer, length };
-	s.exception = exception;
-	s.strings = dataSet->strings;
-	s.property = NULL;
-	s.values = NULL;
-	s.storedPropertyType = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING; // only strings in device-detection
+	Json s = {
+		{ buffer, length, NULL, 0, 0, false },
+		dataSet->strings,
+		NULL,
+		NULL,
+		exception,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING // only strings in device-detection
+	};
 
 	// Ensure any previous uses of the results to get values are released.
 	resultsHashRelease(results);

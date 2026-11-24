@@ -23,6 +23,7 @@
 #ifndef FIFTYONE_DEGREES_FILE_TESTS_BASE_INCLUDED
 #define FIFTYONE_DEGREES_FILE_TESTS_BASE_INCLUDED
 
+#include <string>
 #include "../../src/common/file.h"
 
 /**
@@ -43,7 +44,7 @@ public:
 	fiftyoneDegreesFilePool* getFilePool();
 
 private:
-	const char *_fileName;
+	std::string _fileName;
 	FILE *_file;
 	fiftyoneDegreesFilePool _filePool;
 	bool _filePoolReady;

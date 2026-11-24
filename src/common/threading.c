@@ -45,29 +45,17 @@ void SignalClose(Signal *signal) {
 	}
 }
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4189) 
-#endif
 void SignalSet(Signal *signal) {
 	BOOL result = SetEvent(signal);
 	assert(result != 0);
+	(void)result; // Only checked in debug builds.
 }
-#ifdef _MSC_VER
-#pragma warning (pop)
-#endif
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4189) 
-#endif
 void SignalWait(Signal *signal) {
 	DWORD result = WaitForSingleObject(signal, INFINITE);
 	assert(result == WAIT_OBJECT_0);
+	(void)result; // Only checked in debug builds.
 }
-#ifdef _MSC_VER
-#pragma warning (pop)
-#endif
 
 #else
 

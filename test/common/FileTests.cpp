@@ -40,9 +40,12 @@
 #define _rmdir rmdir
 #endif
 
-static const char *tempPath1 = "tmp1";
-static const char* tempPath2 = "tmp2";
-static const char *fileName = "tempfile";
+static const std::string tempPath1Name = testProcessName("tmp1");
+static const std::string tempPath2Name = testProcessName("tmp2");
+static const std::string fileNameValue = testProcessName("tempfile");
+static const char *tempPath1 = tempPath1Name.c_str();
+static const char *tempPath2 = tempPath2Name.c_str();
+static const char *fileName = fileNameValue.c_str();
 static const char someData[] = "some data";
 
 /**
@@ -112,7 +115,9 @@ protected:
 	 * @param file path to check
 	 */
 	static bool fileExists(const char* file) {
-		if (FILE* f = fopen(file, "r")) {
+		FILE* f = NULL;
+		if (fiftyoneDegreesFileOpen(file, &f) ==
+			FIFTYONE_DEGREES_STATUS_SUCCESS) {
 			fclose(f);
 			return true;
 		}
@@ -223,6 +228,22 @@ TEST_F(File, TempCreateFileNameWithExtension) {
 	EXPECT_EQ(0, strncmp("-", tempFileName + lenWithoutExtension, 1));
 }
 
+/**
+ * Check that a dot in a directory name is not taken as the start of the
+ * extension.
+ */
+TEST_F(File, TempCreateFileNameWithDotInDirectory) {
+	char tempFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileAddTempFileName(
+			"dir.ext/tempfile",
+			tempFileName,
+			0,
+			FIFTYONE_DEGREES_FILE_MAX_PATH)) <<
+		"Failed to create and add a temporary file name to a buffer.";
+	checkTempFileName("tempfile", tempFileName);
+}
+
 TEST_F(File, TempCreateFilenameSmallBuffer) {
 	char tempFileName[1];
 
@@ -230,6 +251,18 @@ TEST_F(File, TempCreateFilenameSmallBuffer) {
 		fiftyoneDegreesFileAddTempFileName(fileName, tempFileName, 0, 1)) <<
 		"Failed to create and add a temporary file name to a buffer.";
 	EXPECT_EQ('\0', tempFileName[0]);
+}
+
+/**
+ * Check a null destination is too small for the name, whatever length is
+ * given with it.
+ */
+TEST_F(File, TempCreateFileNameNullDestination) {
+	for (size_t length : { (size_t)0, (size_t)FIFTYONE_DEGREES_FILE_MAX_PATH }) {
+		EXPECT_EQ(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY,
+			fiftyoneDegreesFileAddTempFileName(fileName, NULL, 0, length)) <<
+			"Length " << length;
+	}
 }
 
 /**
@@ -963,7 +996,7 @@ TEST_F(File, TempExists_ComparePortion) {
 	const char *paths[] = { tempPath1 };
 	long bytesToCompare = 4;
 	char alteredData[sizeof(someData)];
-	strcpy(alteredData, someData);
+	memcpy(alteredData, someData, sizeof(someData));
 
 	// Modify some of the data in altered data to make the temp file different
 	// for the purposes of this test.
@@ -1061,6 +1094,75 @@ TEST_F(File, TempDoesNotMatchSelf) {
 
 	removeFile(tempFileName);
 	removeDir(tempPath1);
+}
+
+/**
+ * Check that a path longer than FIFTYONE_DEGREES_FILE_MAX_PATH is rejected
+ * by the methods which search a path for temp files, and that nothing is
+ * written to the destination.
+ */
+TEST_F(File, TempPathTooLong) {
+	std::string longPath(FIFTYONE_DEGREES_FILE_MAX_PATH + 10, 'a');
+	const char *paths[] = { longPath.c_str() };
+	char foundFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	foundFileName[0] = '\0';
+	EXPECT_FALSE(fiftyoneDegreesFileGetExistingTempFile(
+		fileName,
+		paths,
+		1,
+		-1,
+		foundFileName)) <<
+		"A path longer than the maximum should not be searched.";
+	EXPECT_STREQ("", foundFileName) <<
+		"Nothing should be written to the destination.";
+	EXPECT_EQ(0, fiftyoneDegreesFileDeleteUnusedTempFiles(
+		fileName,
+		paths,
+		1,
+		-1)) <<
+		"A path longer than the maximum should not be searched.";
+}
+
+/**
+ * Check that a path which fills FIFTYONE_DEGREES_FILE_MAX_PATH, leaving no
+ * room for the slash and null terminator, is also rejected.
+ */
+TEST_F(File, TempPathFillingTheBuffer) {
+	std::string longPath(FIFTYONE_DEGREES_FILE_MAX_PATH - 1, 'a');
+	const char *paths[] = { longPath.c_str() };
+	char foundFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	foundFileName[0] = '\0';
+	EXPECT_FALSE(fiftyoneDegreesFileGetExistingTempFile(
+		fileName,
+		paths,
+		1,
+		-1,
+		foundFileName)) <<
+		"A path with no room for a slash should not be searched.";
+	EXPECT_STREQ("", foundFileName) <<
+		"Nothing should be written to the destination.";
+}
+
+/**
+ * Check that a path two characters shorter than the buffer, with no trailing
+ * slash, is handled. A slash is added, which leaves no room for the search
+ * pattern's * and terminator on Windows, so nothing is searched.
+ */
+TEST_F(File, TempPathTwoShortOfTheBuffer) {
+	std::string longPath(FIFTYONE_DEGREES_FILE_MAX_PATH - 2, 'a');
+	const char *paths[] = { longPath.c_str() };
+	char foundFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	foundFileName[0] = '\0';
+	EXPECT_FALSE(fiftyoneDegreesFileGetExistingTempFile(
+		fileName,
+		paths,
+		1,
+		-1,
+		foundFileName)) <<
+		"A path that leaves no room for the search pattern should not be "
+		"searched.";
+	EXPECT_STREQ("", foundFileName) <<
+		"Nothing should be written to the destination.";
 }
 
 /**

@@ -57,7 +57,14 @@ public:
         }
 
         // Associate the file of Ip Addresses with stdin.
-        freopen(ipAddressesPath.c_str(), "r", stdin);
+#ifdef _MSC_VER
+        FILE *input = nullptr;
+        ASSERT_EQ(0, freopen_s(&input, ipAddressesPath.c_str(), "r", stdin))
+            << ipAddressesPath;
+#else
+        ASSERT_NE(nullptr, freopen(ipAddressesPath.c_str(), "r", stdin))
+            << ipAddressesPath;
+#endif
 
         // Capture stdout for the test.
         testing::internal::CaptureStdout();

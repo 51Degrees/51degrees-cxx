@@ -115,6 +115,8 @@ namespace FiftyoneDegrees {
 						fiftyoneDegreesFree(text);
 					}
 				}
+				// Not used when exceptions are disabled.
+				(void)exception;
 				FIFTYONE_DEGREES_EXCEPTION_THROW;
 				return result;
 			}

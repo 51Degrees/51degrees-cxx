@@ -134,7 +134,7 @@ inline std::string doubleText(
 	const double value,
 	const uint8_t decimalPlaces) {
 	char buffer[64];
-	fiftyoneDegreesStringBuilder builder = { buffer, sizeof(buffer) };
+	fiftyoneDegreesStringBuilder builder = { buffer, sizeof(buffer), nullptr, 0, 0, false };
 	fiftyoneDegreesStringBuilderInit(&builder);
 	fiftyoneDegreesStringBuilderAddDouble(&builder, value, decimalPlaces);
 	fiftyoneDegreesStringBuilderComplete(&builder);
@@ -148,7 +148,7 @@ inline std::string doubleTextByPlace(
 	const double value,
 	const uint8_t decimalPlaces) {
 	char buffer[64];
-	fiftyoneDegreesStringBuilder builder = { buffer, sizeof(buffer) };
+	fiftyoneDegreesStringBuilder builder = { buffer, sizeof(buffer), nullptr, 0, 0, false };
 	fiftyoneDegreesStringBuilderInit(&builder);
 	doubleTextByPlaceAdd(&builder, value, decimalPlaces);
 	fiftyoneDegreesStringBuilderComplete(&builder);

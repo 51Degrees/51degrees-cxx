@@ -307,6 +307,7 @@ static OwnedResults createResults(
 	fiftyoneDegreesResourceManager *manager,
 	uint32_t overridesCapacity) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	OwnedResults results(
 		ResultsHashCreate(manager, overridesCapacity),
 		fiftyoneDegreesResultsHashFree);
@@ -398,8 +399,10 @@ namespace {
 static bool addProfileId(void *state, fiftyoneDegreesCollectionItem *item) {
 	ProfileIdsState *profileIds = (ProfileIdsState*)state;
 	try {
-		profileIds->ids.push_back(
-			((fiftyoneDegreesProfile*)item->data.ptr)->profileId);
+		// The profile is packed, so its id is copied rather than referenced.
+		const uint32_t profileId =
+			((fiftyoneDegreesProfile*)item->data.ptr)->profileId;
+		profileIds->ids.push_back(profileId);
 	}
 	catch (...) {
 		profileIds->failed = true;

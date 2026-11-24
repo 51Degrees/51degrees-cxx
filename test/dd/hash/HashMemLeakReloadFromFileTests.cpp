@@ -92,10 +92,11 @@ static void runRequestsSingle(sharedState *state) {
 		executeTest);
 }
 
-static void runRequestsMulti(void *state) {
+static EXAMPLE_THREAD_RESULT runRequestsMulti(void *state) {
 	sharedState *shared = (sharedState*)state;
 	runRequestsSingle(shared);
 	INTERLOCK_INC(&shared->threadsFinished);
+	return EXAMPLE_THREAD_DONE;
 }
 
 /*
@@ -107,7 +108,7 @@ static void startThreads(sharedState *state) {
 	for (thread = 0; thread < THREAD_COUNT; thread++) {
 		THREAD_CREATE(
 			state->threads[thread],
-			(THREAD_ROUTINE)&runRequestsMulti,
+			runRequestsMulti,
 			state);
 	}
 }
@@ -159,7 +160,6 @@ static void run(
 	MemoryReader *reader,
 	bool fromFile) {
 	StatusCode status;
-	int numberOfReloads = 0;
 	int numberOfReloadFails = 0;
 	sharedState state;
 	state.manager = manager;
@@ -171,10 +171,7 @@ static void run(
 		startThreads(&state);
 		while (state.threadsFinished < THREAD_COUNT) {
 			status = reload(manager, reader, fromFile, exception);
-			if (status == SUCCESS) {
-				numberOfReloads++;
-			}
-			else {
+			if (status != SUCCESS) {
 				numberOfReloadFails++;
 			}
 #ifdef _MSC_VER
@@ -188,14 +185,13 @@ static void run(
 	else {
 		runRequestsSingle(&state);
 		status = reload(manager, reader, fromFile, exception);
-		if (status == SUCCESS) {
-			numberOfReloads++;
-		}
-		else {
+		if (status != SUCCESS) {
 			numberOfReloadFails++;
 		}
 		runRequestsSingle(&state);
 	}
+	EXPECT_EQ(0, numberOfReloadFails) <<
+		"Every reload of the data should succeed.";
 }
 
 void hashMemReloadRun(

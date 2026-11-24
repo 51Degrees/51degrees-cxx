@@ -69,11 +69,7 @@
 
 #include <stdint.h>
 #ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 5105) 
 #include <windows.h>
-#pragma warning (default: 5105) 
-#pragma warning (pop)
 #endif
 #include "data.h"
 #include "exceptions.h"
@@ -117,9 +113,10 @@ typedef struct fiftyoneDegrees_profile_t {
  * Structure containing the unique id of the profile, and the offset needed to
  * retrieve the actual profile structure from a profiles collection. This takes
  * up less space than the full profile and are of a fixed size, so can be
- * passed around and iterated over more easily.
+ * passed around and iterated over more easily. The profile offsets collection
+ * holds them packed, so one can start at any byte.
  */
-#pragma pack(push, 4)
+#pragma pack(push, 1)
 typedef struct fiftyoneDegrees_profile_offset_t {
 #ifndef FIFTYONE_DEGREES_REDUCED_FILE
 	const uint32_t profileId; /**< The unique Id of the profile */

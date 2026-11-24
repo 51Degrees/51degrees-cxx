@@ -461,7 +461,8 @@ protected:
 
 	/** Reads the data file into good. */
 	void readDataFile() {
-		FILE* file = fopen(dataFilePath.c_str(), "rb");
+		FILE* file = nullptr;
+		fiftyoneDegreesFileOpen(dataFilePath.c_str(), &file);
 		ASSERT_NE(nullptr, file) << "Could not open '" << dataFilePath << "'.";
 		fseek(file, 0, SEEK_END);
 		good.resize((size_t)ftell(file));

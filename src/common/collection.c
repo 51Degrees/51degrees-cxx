@@ -37,6 +37,9 @@ MAP_TYPE(Collection)
 MAP_TYPE(CollectionConfig)
 #endif
 
+const fiftyoneDegreesCollectionIndexOrOffset
+	fiftyoneDegreesCollectionIndexOrOffset_Zero = { 0 };
+
 /**
  * Converts a stored offset, or the stored size, of a collection to bytes.
  * Only variable length collections created with an offset shift store these
@@ -151,10 +154,6 @@ bool fiftyoneDegreesCollectionGetIsMemoryOnly() { return true; }
  * will simply free the memory it used.
  */
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4100) 
-#endif
 /**
  * Used by memory collection where there is nothing to be done when the release
  * occurs because the memory it uses is only freed when the collection is 
@@ -167,13 +166,11 @@ static void releaseMemory(Item *item) {
 	assert(item != NULL);
 	DataReset(&item->data);
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4100) 
-#pragma warning (pop)
-#endif
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
 /**
- * Releases an item held in a cache collection so that it is eligible for 
+ * Releases an item held in a cache collection so that it is eligible for
  * eviction from the cache.
  * @param item to be released and eligible for eviction from the cache. The 
  * handle must reference a cache node.
@@ -200,18 +197,7 @@ static void releaseFile(Item *item) {
 	}
 }
 
-/**
- * Calls the collection the item is assigned to's release method. The item may
- * be of any type and must have the collection reference set when it is 
- * initialised.
- * @param item to be released with it's collection reference set.
- */
-static void releasePartial(Item *item) {
-	if (item->handle != NULL &&
-		item->collection != NULL) {
-		COLLECTION_RELEASE(item->collection, item);
-	}
-}
+#endif
 
 static void freeCollection(Collection *collection) {
 	Free(collection->state);
@@ -251,16 +237,13 @@ static void freeCacheCollection(Collection *collection) {
 
 #endif
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4100) 
-#endif
 static void* getMemoryVariable(
 	const Collection *collection,
 	const CollectionKey * const key,
 	Item *item,
 	Exception *exception) {
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
+	(void)exception; // Not used when exceptions are disabled.
 	if (key->indexOrOffset.offset < collection->size) {
 		item->data.ptr = memory->firstByte + (size_t)COLLECTION_UNITS_TO_BYTES(
 			COLLECTION_OFFSET_SHIFT(collection),
@@ -280,6 +263,7 @@ static void* getMemoryFixed(
 	Item *item,
 	Exception *exception) {
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
+	(void)exception; // Not used when exceptions are disabled.
 	if (key->indexOrOffset.index < collection->count) {
 		item->data.ptr = memory->firstByte + ((uint64_t)key->indexOrOffset.index * collection->elementSize);
 		assert(item->data.ptr < memory->lastByte);
@@ -290,10 +274,6 @@ static void* getMemoryFixed(
 	}
 	return item->data.ptr;
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4100) 
-#pragma warning (pop)
-#endif
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
@@ -523,7 +503,6 @@ static Collection* createFromFileToMemory(
 	FILE *file,
 	CollectionHeader header
 	COLLECTION_SHIFT_PARAM) {
-	EXCEPTION_CREATE;
 	const size_t lengthInBytes = (size_t)COLLECTION_UNITS_TO_BYTES(
 		offsetShift,
 		header.length);
@@ -690,12 +669,12 @@ fiftyoneDegreesCollectionHeader fiftyoneDegreesCollectionHeaderFromMemory(
 	}
 	if (isCount) {
 		// The next integer is the count of items in the data structure.
-		header.count = *(uint32_t*)reader->current;
+		header.count = UnalignedReadUint32(reader->current);
 		header.length = header.count * elementSize;
 	}
 	else {
 		// The next integer is the size of the data structure.
-		header.length = *(const uint32_t*)reader->current;
+		header.length = UnalignedReadUint32(reader->current);
 		header.count = elementSize > 0 ? header.length / elementSize : 0;
 	}
 
@@ -872,11 +851,9 @@ static fiftyoneDegreesCollection* collectionCreateFromFile(
 			COLLECTION_SHIFT_ARG(offsetShift));
 	}
 #else
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(reader);
-	UNREFERENCED_PARAMETER(config);
-	UNREFERENCED_PARAMETER(read);
-#	endif
+	(void)reader;
+	(void)config;
+	(void)read;
 #endif
 
 	return createFromFileToMemory(file, header COLLECTION_SHIFT_ARG(offsetShift));
@@ -1182,9 +1159,6 @@ static void* readFileVariable(
 
 #endif
 
-#if defined(_MSC_VER) && defined(FIFTYONE_DEGREES_MEMORY_ONLY)
-#pragma warning (disable: 4100)
-#endif
 void* fiftyoneDegreesCollectionReadFileVariable(
 	const fiftyoneDegreesCollectionFile *fileCollection,
 	fiftyoneDegreesData *data,
@@ -1232,13 +1206,19 @@ void* fiftyoneDegreesCollectionReadFileVariable(
 		EXCEPTION_SET(COLLECTION_OFFSET_OUT_OF_RANGE);
 	}
 
+#else
+
+	// There is no file to read from in a memory only build.
+	(void)fileCollection;
+	(void)data;
+	(void)key;
+	(void)initial;
+	(void)exception;
+
 #endif
 
 	return ptr;
 }
-#if defined(_MSC_VER) && defined(FIFTYONE_DEGREES_MEMORY_ONLY)
-#pragma warning (default: 4100)
-#endif
 
 int32_t fiftyoneDegreesCollectionGetInteger32(
 	const Collection * const collection,
@@ -1248,7 +1228,7 @@ int32_t fiftyoneDegreesCollectionGetInteger32(
 	int32_t value = 0;
 	DataReset(&item.data);
 	const CollectionKey itemKey = {
-		indexOrOffset,
+		{ indexOrOffset },
 		CollectionKeyType_Integer,
 	};
 	if (collection->get(
@@ -1256,7 +1236,7 @@ int32_t fiftyoneDegreesCollectionGetInteger32(
 		&itemKey,
 		&item,
 		exception) != NULL) {
-		value = *((int32_t*)item.data.ptr);
+		value = UnalignedReadInt32(item.data.ptr);
 		COLLECTION_RELEASE(collection, &item);
 	}
 	return value;
@@ -1282,20 +1262,20 @@ long fiftyoneDegreesCollectionBinarySearch(
 		middle = lower + (upper - lower) / 2;
 
 		const CollectionKey middleKey = {
-			middle,
+			{ middle },
 			keyType,
 		};
 
 		// Get the item from the collection checking for NULL or an error.
 		if (collection->get(collection, &middleKey, item, exception) == NULL ||
-			EXCEPTION_OKAY == false) {
+			EXCEPTION_FAILED) {
 			return 0;
 		}
 		
 		// Perform the binary search using the comparer provided with the item
 		// just returned.
 		comparisonResult = comparer(state, item, middleKey, exception);
-		if (EXCEPTION_OKAY == false) {
+		if (EXCEPTION_FAILED) {
 			return 0;
 		}
 

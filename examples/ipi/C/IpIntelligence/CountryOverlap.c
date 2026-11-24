@@ -1071,7 +1071,7 @@ static bool spotCheck(ThreadState* state, uint32_t address) {
 }
 
 /** Worker thread claiming chunks until none remain. */
-static void sweepThread(void* statePointer) {
+static EXAMPLE_THREAD_RESULT sweepThread(void* statePointer) {
 	ThreadState* state = (ThreadState*)statePointer;
 	SharedState* shared = state->shared;
 	for (;;) {
@@ -1086,6 +1086,7 @@ static void sweepThread(void* statePointer) {
 		sweepChunk(state, (uint32_t)chunk);
 	}
 	FIFTYONE_DEGREES_INTERLOCK_INC(&shared->threadsDone);
+	return EXAMPLE_THREAD_DONE;
 }
 
 /**
@@ -1098,13 +1099,13 @@ static bool threadStart(FIFTYONE_DEGREES_THREAD* thread, ThreadState* state) {
 #ifdef _MSC_VER
 	FIFTYONE_DEGREES_THREAD_CREATE(
 		*thread,
-		(FIFTYONE_DEGREES_THREAD_ROUTINE)&sweepThread,
+		sweepThread,
 		state);
 	return *thread != NULL;
 #else
 	return FIFTYONE_DEGREES_THREAD_CREATE(
 		*thread,
-		(FIFTYONE_DEGREES_THREAD_ROUTINE)&sweepThread,
+		sweepThread,
 		state) == 0;
 #endif
 }
@@ -1817,7 +1818,7 @@ int fiftyoneDegreesIpiCountryOverlap(
 
 	// Open the output before the sweep so that a path that cannot be
 	// written fails at once rather than after an hour of work.
-	FILE* file = fopen(outputPath, "w");
+	FILE* file = fiftyoneDegreesExampleFileOpenWrite(outputPath);
 	if (file == NULL) {
 		printf("Could not open '%s' for writing.\n", outputPath);
 		DataSetIpiRelease(dataSet);

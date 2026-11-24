@@ -103,7 +103,7 @@ namespace FiftyoneDegrees {
 			 * @param other the other key to compare
 			 * @return true if this key comes before the other key
 			 */
-			const bool operator< (ValueMetaDataKey other) const;
+			bool operator< (ValueMetaDataKey other) const;
 
 			/**
 			 * Override the equality operator so the unique key can be found in
@@ -111,7 +111,7 @@ namespace FiftyoneDegrees {
 			 * @param other the other key to compare
 			 * @return true if both keys are equal
 			 */
-			const bool operator== (ValueMetaDataKey other) const;
+			bool operator== (ValueMetaDataKey other) const;
 
 			/**
 			 * @}

@@ -32,7 +32,7 @@ using std::thread;
 EngineTests::EngineTests(
 	RequiredPropertiesConfig *requiredProperties,
 	const char *directory,
-	const char **fileNames,
+	const char * const *fileNames,
 	int fileNamesLength) : Base() {
 	this->requiredProperties = requiredProperties;
 	this->directory = directory;

@@ -22,6 +22,7 @@
 
 #include "pch.h"
 #include <cstdio>
+#include <fstream>
 #include <string>
 #include <sstream>
 #include "../../src/common/textfile.h"
@@ -62,27 +63,24 @@ static string* getFileWithPath(string fileName) {
  */
 static void createTestFile(string fileNamePath, string* testRecords, uint16_t size, bool withEOFNewLine)
 {
-	// Create a new file
-	FILE* fp = fopen(fileNamePath.c_str(), "w+");
+	// Create a new file, in text mode as before
+	ofstream file(fileNamePath);
 
-	if (fp != NULL) {
+	if (file.is_open()) {
 		for (int i = 0; i < size; i++) {
 			if (i != 0) {
 				// Write a new line if not first
 				// The end result will always be
 				// a file without EOF newline
-				fwrite("\n", 1, 1, fp);
+				file << "\n";
 			}
-			fwrite(testRecords[i].c_str(), testRecords[i].size(), 1, fp);
+			file << testRecords[i];
+		}
+
+		if (withEOFNewLine) {
+			file << "\n";
 		}
 	}
-
-	if (withEOFNewLine) {
-		fwrite("\n", 1, 1, fp);
-	}
-
-	// Create a new file
-	fclose(fp);
 }
 
 /*
@@ -94,12 +92,9 @@ static void deleteTestFile(string fileName)
 	remove(fileName.c_str());
 }
 
-#ifdef _MSC_VER
 // This is a mock definition of the callback function
 // required for #fiftyoneDegreesTextFileIterate
-// so not all paramters are used
-#pragma warning (disable: 4100)
-#endif
+// so not all parameters are used
 /*
  * Callback function to count the number of records
  * being read from the file
@@ -107,12 +102,9 @@ static void deleteTestFile(string fileName)
  * @param state the test state that hold the current
  * progress of the iteration
  */
-static void testCallBack(const char* testRecord, void* state) {
+static void testCallBack(const char* /*testRecord*/, void* state) {
 	((testState *)state)->count++;
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4100)
-#endif
 
 TEST(TextFileIteratorTests, NoLimitWithoutEOFNewLine) {
 	string* filePath = getFileWithPath(string("testfile"));
@@ -129,7 +121,7 @@ TEST(TextFileIteratorTests, NoLimitWithoutEOFNewLine) {
 	deleteTestFile(*filePath);
 	delete filePath;
 
-	ASSERT_EQ(1, state.count) << "Only one record should have been read.";
+	ASSERT_EQ(1u, state.count) << "Only one record should have been read.";
 }
 
 TEST(TextFileIteratorTests, NoLimitWithEOFNewLine) {
@@ -147,7 +139,7 @@ TEST(TextFileIteratorTests, NoLimitWithEOFNewLine) {
 	deleteTestFile(*filePath);
 	delete filePath;
 
-	ASSERT_EQ(1, state.count) << "Only one record should have been read.";
+	ASSERT_EQ(1u, state.count) << "Only one record should have been read.";
 }
 
 TEST(TextFileIteratorTests, Limit) {
@@ -165,5 +157,5 @@ TEST(TextFileIteratorTests, Limit) {
 	deleteTestFile(*filePath);
 	delete filePath;
 
-	ASSERT_EQ(2, state.count) << "Only 2 records should have been read.";
+	ASSERT_EQ(2u, state.count) << "Only 2 records should have been read.";
 }

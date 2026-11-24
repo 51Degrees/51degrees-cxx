@@ -233,7 +233,10 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesStatusCode status = FIFTYONE_DEGREES_STATUS_SUCCESS;
 	char dataFilePath[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = ExampleBase::getFilePath(

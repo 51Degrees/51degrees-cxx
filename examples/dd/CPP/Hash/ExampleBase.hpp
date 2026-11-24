@@ -34,14 +34,14 @@
 
 #define THREAD_COUNT 4
 
-static const char *dataDir = "data/device-detection";
+static const char * const dataDir = "data/device-detection";
 
-static const char *dataFileName = "51Degrees-LiteV4.1.hash";
+static const char * const dataFileName = "51Degrees-LiteV4.1.hash";
 
 // This file contains the 20,000 most commonly seen combinations of header
 // values that are relevant to device detection. This example reads the
 // User-Agent of each record.
-static const char *userAgentFileName = "20000 Evidence Records.yml";
+static const char * const userAgentFileName = "20000 Evidence Records.yml";
 
 using std::cout;
 using std::thread;

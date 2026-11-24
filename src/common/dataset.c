@@ -232,22 +232,13 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetInitFromFile(
 		return FILE_PATH_TOO_LONG;
 	}
 
-#if defined(__linux__) && __GNUC__ >= 7
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-// strncpy is called using the length computed on the string length
-// adding 1 for null terminator. This is valid and should not cause
-// overflow as we have properly checked the buffer size above. Thus
-// suppress the warning here.
-#endif
 	// Use the file name provided as the master data file for the data set.
-	copiedString = strncpy(
+	// The length, including the null terminator, was checked against the
+	// size of the buffer above, so copy exactly that many bytes.
+	copiedString = (char*)memcpy(
 		(char*)dataSet->masterFileName,
 		fileName,
-		sizeof(dataSet->masterFileName));
-#if defined(__linux__) && __GNUC__ >= 7
-#pragma GCC diagnostic pop
-#endif
+		fileNameLength);
 	if (strncmp(fileName, copiedString, fileNameLength) != 0) {
 		return CORRUPT_DATA;
 	}
@@ -260,8 +251,9 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetInitFromFile(
 	}
 
 	// Temporary files are not requested so use the master file name
-	// as the working file name.
-	copiedString = strncpy(
+	// as the working file name. The length was checked against the size of
+	// the buffer above.
+	copiedString = (char*)memcpy(
 		(char*)dataSet->fileName,
 		dataSet->masterFileName,
 		fileNameLength);

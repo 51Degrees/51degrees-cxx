@@ -38,15 +38,10 @@ typedef struct add_state_t {
 								overridden properties */
 } addState;
 
-#ifdef _MSC_VER
-#pragma warning (disable:4100)  
-#endif
 static void collectionRelease(Item *item) {
 	// Do Nothing.
+	(void)item;
 }
-#ifdef _MSC_VER
-#pragma warning (default:4100)  
-#endif
 
 /* Prefix to use when comparing property names. */
 #define OVERRIDE_PREFIX "51D_"
@@ -65,9 +60,13 @@ static const Collection dummyCollection = {
 	collectionRelease, 
 	NULL, 
 	NULL,
-	0, 
-	0, 
 	0,
+	0,
+	0,
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+	0,
+#endif
+	NULL,
 };
 
 /**
@@ -448,7 +447,7 @@ void fiftyoneDegreesOverrideValuesReset(
 }
 
 static void extractProfileId(char *value, overrideProfileIdsState *state) {
-	if (*value >= 0 && isdigit(*value) != 0) {
+	if (*value >= '0' && *value <= '9') {
 		int profileId = atoi(value);
 		if (profileId >= 0) {
 			state->callback(state->state, profileId);
@@ -459,7 +458,7 @@ static void extractProfileId(char *value, overrideProfileIdsState *state) {
 static void extractProfileIds(overrideProfileIdsState *state, char *value) {
 	char *current = value, *previous = value;
 	while (*current != '\0') {
-		if (*current < 0 || isdigit(*current) == 0) {
+		if (*current < '0' || *current > '9') {
 			extractProfileId(previous, state);
 			previous = current + 1;
 		}
