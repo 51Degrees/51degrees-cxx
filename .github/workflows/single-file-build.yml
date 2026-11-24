@@ -2,8 +2,13 @@ name: Single file build
 
 # The Go engines compile the C sources as one file, in the order of
 # ci/update-amalgamation.ps1 in 51degrees-go, with MinGW on Windows and gcc
-# elsewhere. A macro or include that is harmless file by file can break that
-# build, and the other workflows never compile this way.
+# elsewhere. That script pastes each source, and each header it includes the
+# first time, into the one file, with ci/amalgamate.awk in the same
+# repository, which is copied below. A macro or include that is harmless file
+# by file can break that build, and the other workflows never compile this
+# way. With the headers pasted, gcc and clang treat them as part of the main
+# file, so a static variable or inline function a product doesn't use is
+# reported here, where a build that includes the headers says nothing.
 
 on:
   pull_request:
@@ -38,19 +43,65 @@ jobs:
           msystem: MINGW64
           install: mingw-w64-x86_64-gcc
 
-      - name: Compile the sources as one file
+      - name: Paste the sources into one file
         run: |
-          gcc --version | head -1
+          set -e
+          cat > amalgamate.awk <<'EOF'
+          BEGIN {
+              for (i=1; i<ARGC; ++i)
+                  process_file(ARGV[i])
+          }
+
+          function process_file(file,   line, header) {
+              if (file in included) return
+              included[file] = 1
+
+              while ((getline line <file) > 0) {
+                  if (line !~ /#include "/) {
+                      print line
+                      continue
+                  }
+                  match(line, /"(\\.|[^"])+"/)
+                  header = normalize_header(substr(line, RSTART+1, RLENGTH-2), file)
+
+                  if (header in included) continue
+                  else process_file(header)
+              }
+              close(file)
+          }
+
+          function normalize_header(header, file) {
+              sub(/[^\/]*$/, "", file)
+
+              while (match(header, /^\.\.\//)) {
+                  sub(/^\.\.\//, "", header)
+                  sub(/[^\/]+\/$/, "", file)
+              }
+              return file header
+          }
+          EOF
           export LC_ALL=C
           common="$(ls src/common/*.c | sort)"
           if [ "${{ matrix.product }}" = dd ]; then
             files="$common $(ls src/dd/*.c | sort) $(ls src/dd/hash/*.c | sort)"
-            defs=""
           else
             files="$common $(ls src/ipi/graph/*.c | sort) $(ls src/ipi/*.c | sort)"
-            defs="-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -D_FILE_OFFSET_BITS=64 -DFIFTYONE_DEGREES_REDUCED_FILE -DFIFTYONE_DEGREES_IPI_SYMBOLS"
           fi
-          for f in $files; do echo "#include \"$f\""; done > single-file.c
-          cat single-file.c
-          # Warnings show in the log and do not fail the job, as in cgo.
-          gcc -c -fcommon $defs -I. -o single-file.o single-file.c
+          echo $files
+          awk -f amalgamate.awk $files > single-file.c
+          wc -l single-file.c
+
+      - name: Compile with gcc
+        run: |
+          gcc --version | head -1
+          gcc -c -fcommon -Wall -Wextra -Werror \
+            ${{ matrix.product == 'ipi' && '-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -D_FILE_OFFSET_BITS=64 -DFIFTYONE_DEGREES_REDUCED_FILE -DFIFTYONE_DEGREES_IPI_SYMBOLS' || '' }} \
+            -I. -o single-file.o single-file.c
+
+      - name: Compile with clang
+        if: matrix.os == 'ubuntu-latest' && !cancelled()
+        run: |
+          clang --version | head -1
+          clang -c -fcommon -Wall -Wextra -Werror \
+            ${{ matrix.product == 'ipi' && '-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -D_FILE_OFFSET_BITS=64 -DFIFTYONE_DEGREES_REDUCED_FILE -DFIFTYONE_DEGREES_IPI_SYMBOLS' || '' }} \
+            -I. -o single-file-clang.o single-file.c

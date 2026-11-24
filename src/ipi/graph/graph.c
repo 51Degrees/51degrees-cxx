@@ -120,13 +120,11 @@ typedef struct cursor_t {
 
 #ifdef FIFTYONE_DEGREES_IPI_GRAPH_TRACE
 #define TRACE_BOOL(c,m,v) traceBool(c,m,v);
-#define TRACE_INT(c,m,v) traceInt(c,m,v);
 #define TRACE_COMPARE(c) traceCompare(c);
 #define TRACE_LABEL(c,m) traceLabel(c,m);
 #define TRACE_RESULT(c,r) traceResult(c,r);
 #else
 #define TRACE_BOOL(c,m,v)
-#define TRACE_INT(c,m,v)
 #define TRACE_COMPARE(c)
 #define TRACE_LABEL(c,m)
 #define TRACE_RESULT(c,r)
@@ -148,6 +146,7 @@ typedef struct cursor_t {
 // left. High order bit is index 0.
 #define SET_BIT(b,i) (b[i / 8] |= 1 << (7 - (i % 8)))
 
+#ifdef FIFTYONE_DEGREES_IPI_GRAPH_TRACE
 // Outputs to the string builder the bits from left to right from the bytes
 // provided.
 static void bytesToBinary(
@@ -164,21 +163,7 @@ static void bytesToBinary(
 		}
 	}
 }
-
-// The IpType for the version byte.
-static IpType getIpTypeFromVersion(byte version) {
-	switch (version)
-	{
-	case 4: return IP_TYPE_IPV4;
-	case 6: return IP_TYPE_IPV6;
-	default: return IP_TYPE_INVALID;
-	}
-}
-
-// The IpType for the component graph.
-static IpType getIpTypeFromGraph(const IpiCgInfo* const info) {
-	return getIpTypeFromVersion(info->version);
-}
+#endif
 
 // Manipulates the source using the mask and shift parameters of the member.
 static uint32_t getMemberValue(IpiCgMember member, uint64_t source) {
@@ -225,6 +210,8 @@ static void traceNewLine(const Cursor* const cursor) {
 	StringBuilderAddChar(cursor->sb, '\n');
 }
 
+// The trace output below is only built when tracing is turned on.
+#ifdef FIFTYONE_DEGREES_IPI_GRAPH_TRACE
 static void traceLabel(const Cursor* const cursor, const char* label) {
 	StringBuilderAddChar(cursor->sb, '\t');
 	StringBuilderAddChars(cursor->sb, label, strlen(label));
@@ -249,17 +236,6 @@ static void traceBool(
 			TRACE_FALSE,
 			sizeof(TRACE_FALSE) - 1);
 	}
-	traceNewLine(cursor);
-}
-
-static void traceInt(
-	const Cursor* const cursor,
-	const char* const method,
-	const int64_t value) {
-	StringBuilderAddChar(cursor->sb, '\t');
-	StringBuilderAddChars(cursor->sb, method, strlen(method));
-	StringBuilderAddChar(cursor->sb, '=');
-	StringBuilderAddInteger(cursor->sb, value);
 	traceNewLine(cursor);
 }
 
@@ -322,18 +298,6 @@ static void traceCompare(const Cursor* const cursor) {
 	traceNewLine(cursor);
 }
 
-static void traceMove(Cursor* cursor, const char* method) {
-	StringBuilderAddChar(cursor->sb, '\t');
-	StringBuilderAddChars(cursor->sb, method, strlen(method));
-	StringBuilderAddChar(cursor->sb, ' ');
-	StringBuilderAddInteger(cursor->sb, cursor->index);
-	StringBuilderAddChar(cursor->sb, ' ');
-	StringBuilderAddInteger(cursor->sb, cursor->spanIndex);
-	StringBuilderAddChar(cursor->sb, ' ');
-	bytesToBinary(cursor, (byte*)&cursor->nodeBits, 64);
-	traceNewLine(cursor);
-}
-
 #define RESULT "result"
 #define RAWRESULT "raw result"
 #define ISGROUP "is group"
@@ -352,6 +316,7 @@ static void traceResult(const Cursor* const cursor, const fiftyoneDegreesIpiCgRe
 	StringBuilderAddInteger(cursor->sb, (int)result.isGroupOffset);
 	traceNewLine(cursor);
 }
+#endif
 
 // The index of the profile associated with the value if this is a leaf value.
 // getIsProfileIndex must be called before getting the profile index.
@@ -515,10 +480,11 @@ static uint32_t setClusterSearch(
 		middle = lower + (upper - lower) / 2;
 
 		// Get the item from the collection checking for NULL or an error.
-		const CollectionKey key = {
-			middle,
-			&keyType,
+		CollectionKey key = {
+			{ middle },
+			NULL,
 		};
+		key.keyType = &keyType;
 		if (!collection->get(collection, &key, &item, exception)
 			|| EXCEPTION_FAILED) {
 			return 0;
@@ -584,7 +550,7 @@ static void setCluster(Cursor* cursor) {
 		0,
 		cursor->graph->clustersCount - 1,
 		cursor,
-		cursor->ex);
+		exception);
 
 	if (EXCEPTION_FAILED) {
 		return;
@@ -627,15 +593,16 @@ static void setSpanBytes(Cursor* cursor) {
 		totalBytes,
 		NULL,
 	};
-	const CollectionKey spanBytesKey = {
-		cursor->span.trail.offset,
-		&keyType,
+	CollectionKey spanBytesKey = {
+		{ cursor->span.trail.offset },
+		NULL,
 	};
+	spanBytesKey.keyType = &keyType;
 	byte* bytes = cursor->graph->spanBytes->get(
 		cursor->graph->spanBytes,
 		&spanBytesKey,
 		&cursorItem,
-		cursor->ex);
+		exception);
 	if (EXCEPTION_FAILED) return;
 
 	// Copy the bits to the low and high bytes ready for comparison.
@@ -712,7 +679,7 @@ static void setSpan(Cursor* cursor) {
 	Item cursorItem;
 	DataReset(&cursorItem.data);
 	const CollectionKey spanKey = {
-		spanIndex,
+		{ spanIndex },
 		&CollectionKeyType_Span,
 	};
 	Span * const span = (Span*)cursor->graph->spans->get(
@@ -813,7 +780,7 @@ static void cursorMove(Cursor* const cursor, const uint32_t index) {
 	CollectionKeyType * const nodeBytesKeyType = &cursor->nodeBytesKeyType;
 	nodeBytesKeyType->initialBytesCount = totalBytes;
 	const CollectionKey nodeBytesKey = {
-		(uint32_t)byteIndex,
+		{ (uint32_t)byteIndex },
 		nodeBytesKeyType,
 	};
 	const byte* const ptr = (byte*)cursor->graph->nodes->get(
@@ -860,10 +827,11 @@ static Cursor cursorCreate(
 	IpAddress ip,
 	StringBuilder* sb,
 	Exception* exception) {
+	// The fields not named here are set below.
 	Cursor cursor = {
-		graph,
-		ip,
-		{ // nodeBytesKeyType
+		.graph = graph,
+		.ip = ip,
+		.nodeBytesKeyType = {
 			FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_GRAPH_DATA_NODE_BYTES,
 			0, // TBD
 			NULL,
@@ -904,6 +872,7 @@ static void cursorReleaseData(Cursor* const cursor) {
 // return a result.
 static bool selectLow(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 
 	// Check if the current entry is the low entry.
 	if (isLowFlag(cursor)) {
@@ -934,6 +903,7 @@ static bool selectLow(Cursor* cursor) {
 // Returns true if a leaf is found, otherwise false.
 static bool cursorMoveBackLow(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 	TRACE_LABEL(cursor, "cursorMoveBack");
 	cursorMove(cursor, cursor->previousHighIndex);
 	if (EXCEPTION_FAILED) return true;
@@ -945,6 +915,7 @@ static bool cursorMoveBackLow(Cursor* cursor) {
 // return a result.
 static bool selectHigh(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 
 	// An additional check is needed for the data structure as the current
 	// entry might relate to the low entry. If this is the case then the next
@@ -974,6 +945,7 @@ static bool selectHigh(Cursor* cursor) {
 // until a leaf is found.
 static void selectCompleteHigh(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 	TRACE_LABEL(cursor, "selectCompleteHigh");
 	while (selectHigh(cursor) == false) {
 		if (EXCEPTION_FAILED) return;
@@ -984,6 +956,7 @@ static void selectCompleteHigh(Cursor* cursor) {
 // found.
 static void selectCompleteLowHigh(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 	TRACE_LABEL(cursor, "selectCompleteLowHigh");
 	if (selectLow(cursor) == false) {
 		while (selectHigh(cursor) == false) {
@@ -996,6 +969,7 @@ static void selectCompleteLowHigh(Cursor* cursor) {
 // until a leaf is found.
 static void selectCompleteLow(Cursor* cursor) {
 	Exception* exception = cursor->ex;
+	(void)exception; // Not used when exceptions are disabled.
 	TRACE_LABEL(cursor, "selectCompleteLow");
 	if (cursorMoveBackLow(cursor) == false) {
 		if (EXCEPTION_FAILED) return;
@@ -1053,6 +1027,7 @@ static void compareIpToSpan(Cursor* cursor) {
 static uint32_t evaluate(Cursor* cursor) {
 	Exception* exception = cursor->ex;
 	bool found = false;
+	(void)exception; // Not used when exceptions are disabled.
 	traceNewLine(cursor);
 
 	// Move the cursor to the entry for the graph.
@@ -1119,6 +1094,7 @@ static fiftyoneDegreesIpiCgResult toResult(
 		0,
 		false,
 	};
+	(void)exception; // Not used when exceptions are disabled.
 	if (profileIndex < graph->info.profileCount) {
 		result.offset = profileIndex + graph->info.firstProfileIndex;
 	}
@@ -1254,7 +1230,7 @@ static IpiCgArray* ipiGraphCreate(
 
 		// Get the information from the collection provided.
 		const CollectionKey infoKey = {
-			i,
+			{ i },
 			&CollectionKeyType_GraphInfo,
 		};
 		const IpiCgInfo* const info = (IpiCgInfo*)collection->get(
@@ -1403,7 +1379,7 @@ fiftyoneDegreesIpiCgResult fiftyoneDegreesIpiGraphEvaluate(
 	fiftyoneDegreesException* const exception) {
 
 	// String builder is not needed for normal usage without tracing.
-	StringBuilder sb = { NULL, 0 };
+	StringBuilder sb = { NULL, 0, NULL, 0, 0, false };
 
 	return ipiGraphEvaluate(graphs, componentId, address, &sb, exception);
 }
@@ -1415,7 +1391,7 @@ fiftyoneDegreesIpiCgResult fiftyoneDegreesIpiGraphEvaluateTrace(
 	char* buffer,
 	int const length,
 	fiftyoneDegreesException* exception) {
-	StringBuilder sb = { buffer, length };
+	StringBuilder sb = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&sb);
 
 	// Add the bytes of the IP address to the trace.

@@ -55,21 +55,6 @@ const fiftyoneDegreesString* fiftyoneDegreesPropertyGetName(
 		exception);
 }
 
-static int comparePropertyTypeRecordByName(
-	void *state,
-	Item *item,
-	const CollectionKey key,
-	Exception *exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(key);
-	UNREFERENCED_PARAMETER(exception);
-#	endif
-	const uint32_t searchNameOffset = *(uint32_t*)state;
-	const PropertyTypeRecord * const nextRecord = (PropertyTypeRecord*)item->data.ptr;
-	const long long result = (long long)nextRecord->nameOffset - (long long)searchNameOffset;
-	return !result ? 0 : (result < 0 ? -1 : 1);
-}
-
 PropertyValueType fiftyoneDegreesPropertyGetStoredType(
 	const fiftyoneDegreesCollection * const propertyTypesCollection,
 	const Property * const property,
@@ -85,7 +70,7 @@ PropertyValueType fiftyoneDegreesPropertyGetStoredType(
 		i++) {
 
 		const CollectionKey propertyRecordKey = {
-			i,
+			{ i },
 			CollectionKeyType_PropertyTypeRecord,
 		};
 		const PropertyTypeRecord * const record = (const PropertyTypeRecord*)(
@@ -117,7 +102,7 @@ PropertyValueType fiftyoneDegreesPropertyGetStoredTypeByIndex(
 	Item item;
 	DataReset(&item.data);
 	const CollectionKey recordKey = {
-		propertyOffset,
+		{ propertyOffset },
 		CollectionKeyType_PropertyTypeRecord,
 	};
 	const PropertyTypeRecord * const record = (PropertyTypeRecord*)propertyTypesCollection->get(
@@ -189,7 +174,7 @@ fiftyoneDegreesProperty* fiftyoneDegreesPropertyGet(
 	fiftyoneDegreesException *exception) {
 
 	const CollectionKey propertyKey = {
-		index,
+		{ index },
 		CollectionKeyType_Property,
 	};
 	return (fiftyoneDegreesProperty*)properties->get(
@@ -223,7 +208,7 @@ static const Property* findPropertyByName(
 		// Get the property for this index.
 		*index = i;
 		const CollectionKey propertyKey = {
-			i++,
+			{ i++ },
 			CollectionKeyType_Property,
 		};
 		property = (const Property*)properties->get(
@@ -473,7 +458,7 @@ byte fiftyoneDegreesPropertyGetValueType(
 	Property *property;
 	DataReset(&item.data);
 	const CollectionKey propertyKey = {
-		index,
+		{ index },
 		CollectionKeyType_Property,
 	};
 	property = (Property*)properties->get(

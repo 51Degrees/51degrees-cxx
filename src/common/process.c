@@ -23,11 +23,7 @@
 #include <inttypes.h>
 
 #ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 5105)
 #include <windows.h>
-#pragma warning (default: 5105)
-#pragma warning (pop)
 #else
 #include <unistd.h>
 #endif

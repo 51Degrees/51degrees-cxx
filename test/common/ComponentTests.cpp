@@ -142,3 +142,31 @@ TEST_F(ComponentTests, InitList_FewerComponents_NoException_Returns) {
 	EXPECT_EQ(componentCount, list.count);
 	fiftyoneDegreesListFree(&list);
 }
+
+/**
+ * Test that the last key value pair of a component is returned, and that the
+ * index equal to the count, one past the last pair, returns null and sets the
+ * exception.
+ */
+TEST_F(ComponentTests, GetKeyValuePair_IndexEqualToCount_ReturnsNull) {
+	fiftyoneDegreesComponent component = { 0, 0, 0, 1, { 7, 9 } };
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	const fiftyoneDegreesComponentKeyValuePair *pair =
+		fiftyoneDegreesComponentGetKeyValuePair(&component, 0, exception);
+	ASSERT_NE(nullptr, pair);
+	// The component is packed, so the pair can be at any byte, and is
+	// copied out before its fields are read.
+	fiftyoneDegreesComponentKeyValuePair copy;
+	memcpy(&copy, pair, sizeof(copy));
+	EXPECT_EQ((uint32_t)7, copy.key);
+	EXPECT_EQ((uint32_t)9, copy.value);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, exception->status);
+	pair = fiftyoneDegreesComponentGetKeyValuePair(
+		&component,
+		component.keyValuesCount,
+		exception);
+	EXPECT_EQ(nullptr, pair);
+	EXPECT_EQ(
+		FIFTYONE_DEGREES_STATUS_COLLECTION_INDEX_OUT_OF_RANGE,
+		exception->status);
+}

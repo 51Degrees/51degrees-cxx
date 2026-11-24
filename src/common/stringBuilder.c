@@ -72,6 +72,7 @@ void fiftyoneDegreesStringBuilderAddIpAddress(
 		FIFTYONE_DEGREES_IPV6_LENGTH;
 	// Get the actual length of the byte array
 	int32_t actualLength = ipAddress->size;
+	(void)exception; // Not used when exceptions are disabled.
 
 	// Make sure the ipAddress item and everything is in correct
 	// format

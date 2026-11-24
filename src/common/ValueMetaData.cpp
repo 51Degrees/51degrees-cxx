@@ -68,7 +68,7 @@ const string ValueMetaDataKey::getValueName() const {
  * @param other key to compare
  * @return true if the other key comes before this one
  */
-const bool ValueMetaDataKey::operator< (ValueMetaDataKey other) const {
+bool ValueMetaDataKey::operator< (ValueMetaDataKey other) const {
 	if (other.getPropertyName() == getPropertyName()) {
 		// Keys are the same property, so compare the secondary key (value)
 		return other.getValueName() < getValueName();
@@ -82,7 +82,7 @@ const bool ValueMetaDataKey::operator< (ValueMetaDataKey other) const {
  * @param other key to compare
  * @return true if equal
  */
-const bool ValueMetaDataKey::operator== (ValueMetaDataKey other) const {
+bool ValueMetaDataKey::operator== (ValueMetaDataKey other) const {
 	return (other.getPropertyName() == getPropertyName()) &&
 		(other.getValueName() == getValueName());
 }

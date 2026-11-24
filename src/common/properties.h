@@ -364,7 +364,10 @@ EXTERNAL fiftyoneDegreesString*
 		int requiredPropertyIndex);
 
 /**
- * The functions below are inline, so they add no name to the library.
+ * The functions below are inline, so they add no name to the library. Both
+ * Device Detection and IP Intelligence call each of them, so neither product
+ * has one it doesn't use when its sources and these headers are pasted into
+ * one file. A function only one product calls belongs in properties.c.
  */
 #if defined(_MSC_VER)
 #define FIFTYONE_DEGREES_PROPERTIES_INLINE static __inline

@@ -186,7 +186,10 @@ EXTERNAL fiftyoneDegreesResultsBase* fiftyoneDegreesResultsInit(
 
 /**
  * Marks a function defined in this header, so that it adds no name to the
- * libraries.
+ * libraries. Only functions that both Device Detection and IP Intelligence
+ * call are defined here, so that neither product has one it doesn't use when
+ * its sources and these headers are pasted into one file. The others are in
+ * results.c.
  */
 #if defined(_MSC_VER)
 #define FIFTYONE_DEGREES_RESULTS_INLINE static __inline
@@ -267,26 +270,9 @@ FIFTYONE_DEGREES_RESULTS_INLINE void fiftyoneDegreesResultsEvaluate(
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  */
-FIFTYONE_DEGREES_RESULTS_INLINE void fiftyoneDegreesResultsEvaluateAll(
+EXTERNAL void fiftyoneDegreesResultsEvaluateAll(
 	fiftyoneDegreesResultsBase *results,
-	fiftyoneDegreesException *exception) {
-	uint32_t word, bit;
-	for (word = 0; word < FIFTYONE_DEGREES_RESULTS_PENDING_WORDS; word++) {
-		while (results->pending[word] != 0) {
-			bit = 0;
-			while ((results->pending[word] & ((uint32_t)1 << bit)) == 0) {
-				bit++;
-			}
-			fiftyoneDegreesResultsEvaluate(
-				results,
-				(byte)(word * 32 + bit),
-				exception);
-			if (FIFTYONE_DEGREES_EXCEPTION_FAILED) {
-				return;
-			}
-		}
-	}
-}
+	fiftyoneDegreesException *exception);
 
 /**
  * Returns true if the results hold an override value for the property, so
@@ -295,14 +281,9 @@ FIFTYONE_DEGREES_RESULTS_INLINE void fiftyoneDegreesResultsEvaluateAll(
  * @param availableIndex index of the property in the available properties
  * @return true if there is an override value for the property
  */
-FIFTYONE_DEGREES_RESULTS_INLINE bool fiftyoneDegreesResultsHasOverrideValue(
+EXTERNAL bool fiftyoneDegreesResultsHasOverrideValue(
 	fiftyoneDegreesResultsBase *results,
-	uint32_t availableIndex) {
-	return results->overrides != NULL &&
-		fiftyoneDegreesOverrideHasValueForRequiredPropertyIndex(
-			results->overrides,
-			availableIndex);
-}
+	uint32_t availableIndex);
 
 /**
  * Adds the override values the results hold for the property to the list.
@@ -314,16 +295,10 @@ FIFTYONE_DEGREES_RESULTS_INLINE bool fiftyoneDegreesResultsHasOverrideValue(
  * @return the number of values added, which is zero if there is no override
  * value for the property
  */
-FIFTYONE_DEGREES_RESULTS_INLINE uint32_t fiftyoneDegreesResultsGetOverrideValues(
+EXTERNAL uint32_t fiftyoneDegreesResultsGetOverrideValues(
 	fiftyoneDegreesResultsBase *results,
 	uint32_t availableIndex,
-	fiftyoneDegreesList *values) {
-	return results->overrides == NULL ? 0 :
-		fiftyoneDegreesOverrideValuesAdd(
-			results->overrides,
-			availableIndex,
-			values);
-}
+	fiftyoneDegreesList *values);
 
 /**
  * @}

@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include "pch.h"
+#include <vector>
 #include "../../src/common/overrides.h"
 #include "../../src/common/memory.h"
 #include "../../src/common/string.h"
@@ -72,6 +73,33 @@ TEST(OverrideProfileIdsTests, CaseSensitivity) {
 		"Case insentivity should be honoured for ProfileIds with lower case.";
     
     fiftyoneDegreesEvidenceFree(evidence);
+}
+
+static void collectProfileId(void *state, uint32_t profileId) {
+	((std::vector<uint32_t>*)state)->push_back(profileId);
+}
+
+// Only the ASCII digits 0 to 9 are read as part of a profile id. A byte above
+// 127 separates ids like any other character that is not a digit, whatever
+// the locale and whether char is signed or not, so it never gives an id.
+TEST(OverrideProfileIdsTests, ByteAbove127IsNotADigit) {
+	fiftyoneDegreesEvidenceKeyValuePairArray* evidence =
+		fiftyoneDegreesEvidenceCreate(1);
+	fiftyoneDegreesEvidenceAddString(
+		evidence,
+		FIFTYONE_DEGREES_EVIDENCE_QUERY,
+		"51D_ProfileIds",
+		"\xB2" "12-34\xB9" "-\xB3");
+
+	std::vector<uint32_t> ids;
+	fiftyoneDegreesOverrideProfileIds(evidence, &ids, collectProfileId);
+
+	ASSERT_EQ(2u, ids.size()) <<
+		"Only the two runs of ASCII digits should give profile ids.";
+	EXPECT_EQ(12u, ids[0]);
+	EXPECT_EQ(34u, ids[1]);
+
+	fiftyoneDegreesEvidenceFree(evidence);
 }
 
 // Check if overrides are set correctly

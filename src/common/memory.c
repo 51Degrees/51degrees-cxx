@@ -91,15 +91,10 @@ void* fiftyoneDegreesMemoryStandardMallocAligned(int alignment, size_t size) {
 }
 
 static int getShardFromPointer(void *pointer) {
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
-#endif
-	return (((uint64_t)pointer) / shardDivider) %
+	// Cast through uintptr_t, which is the size of a pointer on every
+	// platform, before widening to 64 bits.
+	return (((uint64_t)(uintptr_t)pointer) / shardDivider) %
 		FIFTYONE_DEGREES_MEMORY_TRACKER_SHARDS;
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
 }
 
 static void tryInit() {
@@ -134,14 +129,7 @@ static void trackAllocation(void* pointer, size_t size) {
 	assert(record != NULL);
 	assert(shard < FIFTYONE_DEGREES_MEMORY_TRACKER_SHARDS);
 	fiftyoneDegreesTreeNodeInit(&record->tree, &state.roots[shard]);
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
-#endif
-	record->tree.key = (int64_t)pointer;
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
+	record->tree.key = (int64_t)(intptr_t)pointer;
 	record->size = size;
 
 	// Update the tracking tree with the new allocation.
@@ -183,16 +171,9 @@ static void untrackAllocation(void *pointer) {
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	FIFTYONE_DEGREES_MUTEX_LOCK(&state.locks[shard]);
 #endif
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
-#endif
 	allocation* record = (allocation*)fiftyoneDegreesTreeFind(
 		&state.roots[shard],
-		(int64_t)pointer);
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
+		(int64_t)(intptr_t)pointer);
 	// Memory the tracker did not allocate has no record, as when another
 	// thread frees memory it allocated before the size functions pointed the
 	// allocation functions here. It is freed without being counted.

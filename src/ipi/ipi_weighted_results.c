@@ -185,9 +185,7 @@ static void SaveInt(
     const PropertyValueType propertyValueType,
     void * const converterState,
     Exception * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 
     ((WeightedInt*)header)->value = StoredBinaryValueToIntOrDefault(
         storedBinaryValue, propertyValueType, *(int*)converterState);
@@ -223,9 +221,7 @@ static void SaveBool(
     const PropertyValueType propertyValueType,
     void * const converterState,
     Exception * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 
     ((WeightedBool*)header)->value = StoredBinaryValueToBoolOrDefault(
         storedBinaryValue, propertyValueType, *(bool*)converterState);
@@ -263,9 +259,7 @@ static void SaveDouble(
     const PropertyValueType propertyValueType,
     void * const converterState,
     Exception * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 
     ((WeightedDouble*)header)->value =
         StoredBinaryValueToRoundedDoubleOrDefault(
@@ -305,9 +299,7 @@ static void SaveByte(
     const PropertyValueType propertyValueType,
     void * const converterState,
     Exception * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 
     ((WeightedByte*)header)->value = (byte)StoredBinaryValueToIntOrDefault(
         storedBinaryValue, propertyValueType, *(uint8_t*)converterState);
@@ -324,9 +316,7 @@ static void SaveByte(
 static void InitString(
     WeightedValueHeader * const header,
     void * const converterState) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(converterState);
-#	endif
+    (void)converterState;
     WeightedString * const wString = (WeightedString*)header;
     DataReset(&wString->stringData);
     wString->value = NULL;
@@ -405,6 +395,10 @@ static void SaveString(
     StringBuilder builder = {
         (char *)state->tempData->ptr,
         state->tempData->allocated,
+        NULL,
+        0,
+        0,
+        false
     };
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(
@@ -422,6 +416,10 @@ static void SaveString(
         StringBuilder builder2 = {
             (char *)state->tempData->ptr,
             state->tempData->allocated,
+            NULL,
+            0,
+            0,
+            false
         };
         StringBuilderInit(&builder2);
         StringBuilderAddStringValue(

@@ -830,6 +830,19 @@ TEST_F(ProfileTests, unhappyPaths) {
 #else
     EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_PROFILE_EMPTY));
 #endif
+    // No offset is written for profile id 0, so no pointer to it is returned.
+    EXPECT_EQ(profileOffsetPtr, (uint32_t *) NULL);
+
+    // NULL profileId through the profile lookup
+    EXCEPTION_CLEAR
+    fiftyoneDegreesProfile *profile = fiftyoneDegreesProfileGetByProfileId(profileOffsetsCollection, profilesCollection, 0, &item, exception);
+    EXPECT_EQ(profile, (fiftyoneDegreesProfile *) NULL);
+    EXPECT_FALSE(EXCEPTION_OKAY);
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+    EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_NOT_IMPLEMENTED));
+#else
+    EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_PROFILE_EMPTY));
+#endif
 
     // non-existent profileId
     EXCEPTION_CLEAR

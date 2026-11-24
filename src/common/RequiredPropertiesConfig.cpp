@@ -34,6 +34,25 @@ using namespace FiftyoneDegrees::Common;
 #define _strnicmp strncasecmp
 #endif
 
+/**
+ * Finds the next property in a comma separated list without changing the
+ * list. Empty items are skipped.
+ * @param current position in the list to start from
+ * @param length set to the number of characters in the property found
+ * @return the start of the property, or nullptr if there are no more
+ */
+static const char* nextProperty(const char *current, size_t *length) {
+	while (*current == ',') {
+		current++;
+	}
+	if (*current == '\0') {
+		return nullptr;
+	}
+	const char *end = strchr(current, ',');
+	*length = end == nullptr ? strlen(current) : (size_t)(end - current);
+	return current;
+}
+
 RequiredPropertiesConfig::RequiredPropertiesConfig() {
 	conf.count = 0;
 	conf.array = nullptr;
@@ -48,8 +67,9 @@ RequiredPropertiesConfig::RequiredPropertiesConfig(
 		conf.array = (const char**)Malloc(
 			conf.count * sizeof(const char*));
 		for (int i = 0; i < conf.count; i++) {
-			conf.array[i] = (char*)Malloc((*properties)[i].size() + 1);
-			strcpy((char*)conf.array[i], (*properties)[i].c_str());
+			size_t size = (*properties)[i].size() + 1;
+			conf.array[i] = (char*)Malloc(size);
+			memcpy((char*)conf.array[i], (*properties)[i].c_str(), size);
 		}
 	}
 }
@@ -62,8 +82,9 @@ RequiredPropertiesConfig::RequiredPropertiesConfig(
 RequiredPropertiesConfig::RequiredPropertiesConfig(
 	const char *properties) : RequiredPropertiesConfig() {
 	if (properties != nullptr) {
-		conf.string = (const char*)Malloc(strlen(properties) + 1);
-		strcpy((char*)conf.string, properties);
+		size_t size = strlen(properties) + 1;
+		conf.string = (const char*)Malloc(size);
+		memcpy((char*)conf.string, properties, size);
 	}
 }
 
@@ -90,7 +111,8 @@ RequiredPropertiesConfig::~RequiredPropertiesConfig() {
 
 vector<string> RequiredPropertiesConfig::getProperties() const {
 	int i;
-	char *current;
+	const char *current;
+	size_t length = 0;
 	vector<string> result;
 	if (conf.array != nullptr) {
 		for (i = 0; i < conf.count; i++) {
@@ -98,10 +120,10 @@ vector<string> RequiredPropertiesConfig::getProperties() const {
 		}
 	}
 	else if (conf.string != nullptr) {
-		current = strtok((char*)conf.string, ",");
-		while (current != NULL) {
-			result.insert(result.end(), current);
-			current = strtok(NULL, ",");
+		current = nextProperty(conf.string, &length);
+		while (current != nullptr) {
+			result.insert(result.end(), string(current, length));
+			current = nextProperty(current + length, &length);
 		}
 	}
 	return result;
@@ -110,7 +132,8 @@ vector<string> RequiredPropertiesConfig::getProperties() const {
 bool RequiredPropertiesConfig::containsProperty(
 	const char *property) const {
 	int i;
-	char *current;
+	const char *current;
+	size_t length = 0;
 	if (conf.array != nullptr) {
 		for (i = 0; i < conf.count; i++) {
 			if (_stricmp(property, conf.array[i]) == 0) {
@@ -119,12 +142,14 @@ bool RequiredPropertiesConfig::containsProperty(
 		}
 	}
 	else if (conf.string != nullptr) {
-		current = strtok((char*)conf.string, ",");
-		while (current != NULL) {
-			if (_stricmp(property, current) == 0) {
+		current = nextProperty(conf.string, &length);
+		while (current != nullptr) {
+			// Compare the whole property, ignoring case.
+			if (_strnicmp(property, current, length) == 0 &&
+				property[length] == '\0') {
 				return true;
 			}
-			current = strtok(NULL, ",");
+			current = nextProperty(current + length, &length);
 		}
 	}
 	return false;
