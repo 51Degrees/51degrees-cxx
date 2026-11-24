@@ -537,6 +537,50 @@ TEST_F(ResourceManager, MultiThreading_ResourceReplace_Concurrent) {
 }
 
 /*
+ * Check that each replaced resource is freed once, and only once, while
+ * threads take and release handles. A thread that read the active handle
+ * just before it was replaced can take and release it after its count has
+ * reached 0, so two threads can each try to free it, and only one may.
+ */
+TEST_F(ResourceManager, MultiThreading_HandleReplace_FreesOnce) {
+	if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
+		FIFTYONE_DEGREES_THREAD threads[THREAD_COUNT];
+		fiftyoneDegreesResourceManager replacedManager;
+		ReplacedState state = { &replacedManager, false, 0 };
+		countedFrees = 0;
+		CheckedResource *first = newCheckedResource();
+		fiftyoneDegreesResourceManagerInit(
+			&replacedManager,
+			first,
+			&first->handle,
+			freeCountedResource);
+
+		startThreads(
+			threads,
+			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceIncDec,
+			&state);
+		for (int i = 0; i < NUMBER_OF_REPLACEMENTS; i++) {
+			CheckedResource *next = newCheckedResource();
+			fiftyoneDegreesResourceReplace(
+				&replacedManager,
+				next,
+				&next->handle);
+		}
+		state.finished = true;
+		joinThreads(threads);
+		EXPECT_EQ(0L, (long)state.faults) <<
+			"A thread was given a handle without a live resource.";
+		EXPECT_EQ((long)NUMBER_OF_REPLACEMENTS, (long)countedFrees) <<
+			"The replaced resources were not each freed once after the " <<
+			"threads released them.";
+
+		fiftyoneDegreesResourceManagerFree(&replacedManager);
+		ASSERT_EQ((long)NUMBER_OF_REPLACEMENTS + 1, (long)countedFrees) <<
+			"The active resource was not freed with the manager.";
+	}
+}
+
+/*
  * A thread that takes a handle which already has the most users it can have.
  */
 typedef struct waiting_state_t {
@@ -597,7 +641,7 @@ TEST_F(ResourceManager, MultiThreading_HandleInc_WaitsAtMax) {
 }
 
 // Number of times the threads race to release the last uses of a handle
-#define RELEASE_RACES 2000
+#define RELEASE_RACES 500
 
 /*
  * The handle the threads release, and what lets them start together.

@@ -30,8 +30,11 @@
 /*
  * Reads a handle's counter as one atomic load, as other threads change it
  * with compare and exchange at the same time. Visual Studio reads an aligned
- * volatile long in one access, and orders it after the interlocked
- * operations, which are full barriers, so a plain read is atomic there.
+ * volatile long in one access, so a plain read is atomic there. On x86 and
+ * x64 it is also ordered after the interlocked operations, but on ARM64,
+ * where /volatile:iso is the default, it isn't. The loops below don't depend
+ * on that order: each value they read is checked by the compare and exchange
+ * that follows, which fails and tries again if the value is stale.
  */
 #ifdef _MSC_VER
 #define COUNTER_READ(v) (v)
