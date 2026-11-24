@@ -30,7 +30,9 @@
  * The tests hold a copy of the ASN data file in memory, change its dates where
  * a test needs other dates, and load the copy. CI downloads the ASN file and
  * never stands another file in for it. Nothing else in the data set reads the
- * dates, so any date loads.
+ * dates, so any date loads. The test that compares the engine with each IP
+ * Intelligence data file found needs only that file, so it runs without the
+ * ASN file.
  */
 
 #include "../common/Base.hpp"
@@ -51,6 +53,18 @@ static const size_t publishedPosition =
 
 static const size_t nextUpdatePosition =
 	offsetof(fiftyoneDegreesDataSetIpiHeader, nextUpdate);
+
+/**
+ * Where the published date starts in every IP Intelligence data file. The
+ * engine test reads the bytes there itself, so it does not rely on the header
+ * struct to find the date.
+ */
+static const size_t publishedFileOffset = 66;
+
+static_assert(
+	offsetof(fiftyoneDegreesDataSetIpiHeader, published) ==
+		publishedFileOffset,
+	"The published date must be at offset 66 of the header.");
 
 /**
  * A date that is not valid, and why.
@@ -459,10 +473,39 @@ static fiftyoneDegreesStatusCode getEngineFromFileStatus(const char *path) {
 }
 
 /**
- * Test that the engine's date read from each data file found is the date an
- * engine that loaded the same file gives.
+ * Reads the published date from the bytes of a data file at its fixed offset,
+ * rather than through the header struct. The year is a 16 bit little-endian
+ * integer, followed by a byte for the month and a byte for the day.
  */
-TEST_F(IpiDateTests, Engine_FromFile_MatchesTheLoadedEngine) {
+static void readPublishedBytes(
+	const std::string &path,
+	fiftyoneDegreesDate *date) {
+	unsigned char bytes[4];
+	FILE *file = fopen(path.c_str(), "rb");
+	ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";
+	size_t read = 0;
+	if (fseek(file, (long)publishedFileOffset, SEEK_SET) == 0) {
+		read = fread(bytes, 1, sizeof(bytes), file);
+	}
+	fclose(file);
+	ASSERT_EQ(sizeof(bytes), read) << "Could not read '" << path << "'.";
+	int16_t year;
+	memcpy(&year, bytes, sizeof(year));
+	*date = makeDate(year, bytes[2], bytes[3]);
+}
+
+/**
+ * Tests that need only an IP Intelligence data file, the Lite or Enterprise
+ * one, and not the ASN file.
+ */
+class IpiDataFileDateTests : public Base {};
+
+/**
+ * Test that the engine's date read from each data file found is the date in
+ * the bytes of its header, and the date an engine that loaded the same file
+ * gives.
+ */
+TEST_F(IpiDataFileDateTests, Engine_FromFile_MatchesTheLoadedEngine) {
 	int found = 0;
 	for (int i = 0; i < _IpiFileNamesLength; i++) {
 		const std::string path = GetFilePath(_dataFolderName, _IpiFileNames[i]);
@@ -473,6 +516,9 @@ TEST_F(IpiDateTests, Engine_FromFile_MatchesTheLoadedEngine) {
 		const FiftyoneDegrees::Common::Date fromFile =
 			FiftyoneDegrees::IpIntelligence::EngineIpi::
 			getPublishedTimeFromFile(path);
+		fiftyoneDegreesDate onDisk = makeDate(1, 1, 1);
+		ASSERT_NO_FATAL_FAILURE(readPublishedBytes(path, &onDisk));
+		expectDate(onDisk, fromFile, _IpiFileNames[i]);
 		FiftyoneDegrees::IpIntelligence::ConfigIpi config;
 		FiftyoneDegrees::Common::RequiredPropertiesConfig properties;
 		FiftyoneDegrees::IpIntelligence::EngineIpi engine(
@@ -507,6 +553,21 @@ TEST_F(IpiDateTests, Engine_FromFile_ShorterThanTheHeader) {
 		fromFileName,
 		data,
 		sizeof(fiftyoneDegreesDataSetIpiHeader) - 1));
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+		getEngineFromFileStatus(fromFileName));
+	remove(fromFileName);
+}
+
+/**
+ * Test that the engine throws the corrupt data status for a file whose
+ * published date is zero rather than giving a date.
+ */
+TEST_F(IpiDateTests, Engine_FromFile_ZeroDate) {
+	setDate(publishedPosition, makeDate(0, 0, 0));
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetIpiHeader)));
 	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
 		getEngineFromFileStatus(fromFileName));
 	remove(fromFileName);
