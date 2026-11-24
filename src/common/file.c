@@ -400,10 +400,14 @@ static bool iterateFiles(
 	fileCompare compare,
 	fileMatch match) {
 	char tempPath[FIFTYONE_DEGREES_FILE_MAX_PATH];
-	size_t nameStart;
+	size_t nameStart = strlen(path);
+	// The path must fit in the buffer with room for a slash and the null
+	// terminator.
+	if (nameStart + 2 > FIFTYONE_DEGREES_FILE_MAX_PATH) {
+		return false;
+	}
 	// Append a slash to the path if one is not there already.
-	strcpy(tempPath, path);
-	nameStart = strlen(path);
+	memcpy(tempPath, path, nameStart + 1);
 	if (nameStart != 0 &&
 		tempPath[nameStart - 1] != '/' &&
 		tempPath[nameStart - 1] != '\\') {
@@ -466,8 +470,12 @@ static bool iterateFiles(
 	if (dir != NULL) {
 		// Iterate over all files.
 		while ((ent = readdir(dir)) != NULL) {
-			// Append the name to the path.
-			strcpy(tempPath + nameStart, ent->d_name);
+			// Append the name to the path, skipping names which do not fit.
+			size_t nameLength = strlen(ent->d_name);
+			if (nameStart + nameLength + 1 > FIFTYONE_DEGREES_FILE_MAX_PATH) {
+				continue;
+			}
+			memcpy(tempPath + nameStart, ent->d_name, nameLength + 1);
 			// Call match and return if the file is a match.
 			if (compare(tempPath, state)) {
 				if (match(tempPath, state) == true) {
@@ -512,7 +520,10 @@ static bool iteratorFileCompare(const char *fileName, void *state) {
  */
 static bool iteratorFileMatch(const char *fileName, void *state) {
 	fileIteratorState *fileState = (fileIteratorState*)state;
-	strcpy((char*)fileState->destination, fileName);
+	// The iterator only passes paths which fit in
+	// FIFTYONE_DEGREES_FILE_MAX_PATH characters, the size required of the
+	// destination.
+	memcpy((char*)fileState->destination, fileName, strlen(fileName) + 1);
 	return true;
 }
 
@@ -664,7 +675,8 @@ static fiftyoneDegreesStatusCode getBasenameWithoutExtension(
 	size_t length) {
 	StatusCode status = NOT_SET;
 	const char* pos = getNameFromPath(path);
-	const char* dot = strrchr(path, '.');
+	// Only look for the extension in the file name, not the directories.
+	const char* dot = strrchr(pos, '.');
 	size_t end = strlen(pos);
 	if (dot != NULL) {
 		end = dot - pos;
@@ -674,7 +686,7 @@ static fiftyoneDegreesStatusCode getBasenameWithoutExtension(
 		status = INSUFFICIENT_MEMORY;
 	}
 	else {
-		strncpy(dest, pos, end);
+		memcpy(dest, pos, end);
 		dest[end] = '\0';
 		status = SUCCESS;
 	}
@@ -915,14 +927,20 @@ fiftyoneDegreesStatusCode fiftyoneDegreesFileCreateTempFile(
 		getUniqueLegacyFileName(TEMP_UNIQUE_STRING_LENGTH, fileName, 0);
 		status = FileCopy(masterFile, fileName);
 		if (status == SUCCESS) {
-			strcpy((char*)destination, fileName);
+			memcpy((char*)destination, fileName, strlen(fileName) + 1);
 			return status;
 		}
 	}
 	else if (paths != NULL) {
 		for (i = 0; i < count; i++) {
-			strcpy(tempPath, paths[i]);
 			nameStart = strlen(paths[i]);
+			// The path must fit in the buffer with room for a slash and the
+			// null terminator.
+			if (nameStart + 2 > FIFTYONE_DEGREES_FILE_MAX_PATH) {
+				status = FILE_PATH_TOO_LONG;
+				continue;
+			}
+			memcpy(tempPath, paths[i], nameStart + 1);
 			if (nameStart != 0 &&
 				tempPath[nameStart - 1] != '/' &&
 				tempPath[nameStart - 1] != '\\') {
@@ -932,7 +950,10 @@ fiftyoneDegreesStatusCode fiftyoneDegreesFileCreateTempFile(
 				getUniqueLegacyFileName(TEMP_UNIQUE_STRING_LENGTH, tempPath, nameStart);
 				status = FileCopy(masterFile, tempPath);
 				if (status == SUCCESS) {
-					strcpy((char*)destination, tempPath);
+					memcpy(
+						(char*)destination,
+						tempPath,
+						strlen(tempPath) + 1);
 					return status;
 				}
 			}

@@ -251,8 +251,9 @@ fiftyoneDegreesStatusCode fiftyoneDegreesDataSetInitFromFile(
 	}
 
 	// Temporary files are not requested so use the master file name
-	// as the working file name.
-	copiedString = strncpy(
+	// as the working file name. The length was checked against the size of
+	// the buffer above.
+	copiedString = (char*)memcpy(
 		(char*)dataSet->fileName,
 		dataSet->masterFileName,
 		fileNameLength);
