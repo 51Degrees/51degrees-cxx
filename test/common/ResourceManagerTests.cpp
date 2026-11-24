@@ -195,27 +195,43 @@ TEST_F(ResourceManager, ResourceReplace_HandleInUse) {
 #define NUMBER_OF_RELOADS 4
 
 /*
+ * The return type of each thread routine below, and the value it returns, so
+ * that every routine has the type FIFTYONE_DEGREES_THREAD_CREATE takes and is
+ * passed without a cast. On Windows that includes the calling convention
+ * CreateThread uses.
+ */
+#ifdef _MSC_VER
+#define RESOURCE_THREAD_RESULT DWORD WINAPI
+#define RESOURCE_THREAD_DONE 0
+#else
+#define RESOURCE_THREAD_RESULT void*
+#define RESOURCE_THREAD_DONE nullptr
+#endif
+
+/*
  * Run by each thread to increase resource 
  * usage counter
  */
-static void runResourceInc(void *state) {
+static RESOURCE_THREAD_RESULT runResourceInc(void *state) {
 	fiftyoneDegreesResourceManager *manager =
 		(fiftyoneDegreesResourceManager *)state;
 	for (int i = 0; i < NUMBER_OF_UPDATES; i++) {
 		fiftyoneDegreesResourceHandleIncUse(manager);
 	}
+	return RESOURCE_THREAD_DONE;
 }
 
 /*
  * Run by each thread to decrease resource 
  * usage counter
  */
-static void runResourceDec(void *state) {
+static RESOURCE_THREAD_RESULT runResourceDec(void *state) {
 	fiftyoneDegreesResourceHandle *handle =
 		(fiftyoneDegreesResourceHandle *)state;
 	for (int i = 0; i < NUMBER_OF_UPDATES; i++) {
 		fiftyoneDegreesResourceHandleDecUse(handle);
 	}
+	return RESOURCE_THREAD_DONE;
 }
 
 /*
@@ -263,7 +279,7 @@ TEST_F(ResourceManager, MultiThreading_HandleIncDec) {
 		// Start threads which increase the usage counter
 		startThreads(
 			threads,
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceInc,
+			&runResourceInc,
 			&manager);
 		joinThreads(threads);
 		ASSERT_EQ(
@@ -274,7 +290,7 @@ TEST_F(ResourceManager, MultiThreading_HandleIncDec) {
 		// Start threads which decrease the usage counter
 		startThreads(
 			threads,
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceDec,
+			&runResourceDec,
 			handle);
 		joinThreads(threads);
 		ASSERT_EQ(
@@ -310,7 +326,7 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_Inc) {
 		// Start threads which increase the usage counter
 		startThreads(
 			threads,
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceInc,
+			&runResourceInc,
 			&manager);
 
 		// Perform reloads
@@ -411,7 +427,7 @@ static void freeCheckedResource(void *pointer) {
  * Run by each thread to take and release handles, counting any that do not
  * lead to a live resource which has that handle.
  */
-static void runResourceIncDec(void *pointer) {
+static RESOURCE_THREAD_RESULT runResourceIncDec(void *pointer) {
 	ReplacedState *state = (ReplacedState*)pointer;
 	while (state->finished == false) {
 		fiftyoneDegreesResourceHandle *handle =
@@ -429,6 +445,7 @@ static void runResourceIncDec(void *pointer) {
 		}
 		fiftyoneDegreesResourceHandleDecUse(handle);
 	}
+	return RESOURCE_THREAD_DONE;
 }
 
 /*
@@ -452,7 +469,7 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_IncDec) {
 
 		startThreads(
 			threads,
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceIncDec,
+			&runResourceIncDec,
 			&state);
 		for (int i = 0; i < NUMBER_OF_REPLACEMENTS; i++) {
 			CheckedResource *next = newCheckedResource();
@@ -489,7 +506,7 @@ static void freeCountedResource(void *pointer) {
  * Run by each thread to replace the resource many times. Each thread waits
  * until every thread has started, so that the replacements overlap.
  */
-static void runResourceReplace(void *pointer) {
+static RESOURCE_THREAD_RESULT runResourceReplace(void *pointer) {
 	fiftyoneDegreesResourceManager *manager =
 		(fiftyoneDegreesResourceManager*)pointer;
 	FIFTYONE_DEGREES_INTERLOCK_INC(&readyThreads);
@@ -500,6 +517,7 @@ static void runResourceReplace(void *pointer) {
 		CheckedResource *next = newCheckedResource();
 		fiftyoneDegreesResourceReplace(manager, next, &next->handle);
 	}
+	return RESOURCE_THREAD_DONE;
 }
 
 /*
@@ -523,7 +541,7 @@ TEST_F(ResourceManager, MultiThreading_ResourceReplace_Concurrent) {
 
 		startThreads(
 			threads,
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceReplace,
+			&runResourceReplace,
 			&replacedManager);
 		joinThreads(threads);
 
@@ -557,7 +575,7 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_FreesOnce) {
 
 		startThreads(
 			threads,
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceIncDec,
+			&runResourceIncDec,
 			&state);
 		for (int i = 0; i < NUMBER_OF_REPLACEMENTS; i++) {
 			CheckedResource *next = newCheckedResource();
@@ -589,10 +607,11 @@ typedef struct waiting_state_t {
 	volatile long taken;
 } WaitingState;
 
-static void runResourceIncAtMax(void *pointer) {
+static RESOURCE_THREAD_RESULT runResourceIncAtMax(void *pointer) {
 	WaitingState *state = (WaitingState*)pointer;
 	state->handle = fiftyoneDegreesResourceHandleIncUse(state->manager);
 	FIFTYONE_DEGREES_INTERLOCK_INC(&state->taken);
+	return RESOURCE_THREAD_DONE;
 }
 
 /*
@@ -611,7 +630,7 @@ TEST_F(ResourceManager, MultiThreading_HandleInc_WaitsAtMax) {
 		FIFTYONE_DEGREES_THREAD thread;
 		FIFTYONE_DEGREES_THREAD_CREATE(
 			thread,
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceIncAtMax,
+			&runResourceIncAtMax,
 			&state);
 		std::this_thread::sleep_for(std::chrono::milliseconds(200));
 		EXPECT_EQ(0L, (long)state.taken) <<
@@ -656,13 +675,14 @@ typedef struct release_race_t {
  * Run by each thread to release its use of a replaced handle as soon as
  * every thread is ready, so that the releases overlap.
  */
-static void runResourceRelease(void *pointer) {
+static RESOURCE_THREAD_RESULT runResourceRelease(void *pointer) {
 	ReleaseRace *race = (ReleaseRace*)pointer;
 	FIFTYONE_DEGREES_INTERLOCK_INC(&race->ready);
 	while (race->go == 0) {
 		std::this_thread::yield();
 	}
 	fiftyoneDegreesResourceHandleDecUse(race->handle);
+	return RESOURCE_THREAD_DONE;
 }
 
 /*
@@ -693,7 +713,7 @@ TEST_F(ResourceManager, MultiThreading_FinalRelease_FreesOnce) {
 
 			startThreads(
 				threads,
-				(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceRelease,
+				&runResourceRelease,
 				&race);
 			while (race.ready < THREAD_COUNT) {
 				std::this_thread::yield();
