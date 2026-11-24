@@ -445,3 +445,77 @@ TEST_F(HashDateTests, FromFile_InvalidDate) {
 		remove(fromFileName);
 	}
 }
+
+/**
+ * Gets the status the engine throws for a file that gives no published date,
+ * or fails the test when it gives a date instead.
+ */
+static fiftyoneDegreesStatusCode getEngineFromFileStatus(const char *path) {
+	try {
+		FiftyoneDegrees::DeviceDetection::Hash::EngineHash::
+			getPublishedTimeFromFile(path);
+	}
+	catch (const FiftyoneDegrees::Common::StatusCodeException &e) {
+		return e.getCode();
+	}
+	ADD_FAILURE() << "A date was given for '" << path << "'.";
+	return FIFTYONE_DEGREES_STATUS_SUCCESS;
+}
+
+/**
+ * Test that the engine's date read from each data file found is the date an
+ * engine that loaded the same file gives.
+ */
+TEST_F(HashDateTests, Engine_FromFile_MatchesTheLoadedEngine) {
+	int found = 0;
+	for (int i = 0; i < _HashFileNamesLength; i++) {
+		const std::string path = GetFilePath(
+			_dataFolderName,
+			_HashFileNames[i]);
+		if (path.empty()) {
+			continue;
+		}
+		found++;
+		const FiftyoneDegrees::Common::Date fromFile =
+			FiftyoneDegrees::DeviceDetection::Hash::EngineHash::
+			getPublishedTimeFromFile(path);
+		FiftyoneDegrees::DeviceDetection::Hash::ConfigHash config;
+		FiftyoneDegrees::Common::RequiredPropertiesConfig properties(
+			requiredProperty);
+		FiftyoneDegrees::DeviceDetection::Hash::EngineHash engine(
+			path,
+			&config,
+			&properties);
+		const FiftyoneDegrees::Common::Date loaded =
+			engine.getPublishedTime();
+		EXPECT_NE(0, fromFile.getYear()) << _HashFileNames[i];
+		EXPECT_EQ(loaded.getYear(), fromFile.getYear()) << _HashFileNames[i];
+		EXPECT_EQ(loaded.getMonth(), fromFile.getMonth()) <<
+			_HashFileNames[i];
+		EXPECT_EQ(loaded.getDay(), fromFile.getDay()) << _HashFileNames[i];
+	}
+	EXPECT_LT(0, found) << "No data file was found.";
+}
+
+/**
+ * Test that the engine throws the status for a file that does not exist
+ * rather than giving a date.
+ */
+TEST_F(HashDateTests, Engine_FromFile_MissingFile) {
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_FILE_NOT_FOUND,
+		getEngineFromFileStatus("HashDateTests-NoSuchFile.hash"));
+}
+
+/**
+ * Test that the engine throws the status for a file shorter than the header
+ * rather than giving a date.
+ */
+TEST_F(HashDateTests, Engine_FromFile_ShorterThanTheHeader) {
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetHashHeader) - 1));
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+		getEngineFromFileStatus(fromFileName));
+	remove(fromFileName);
+}

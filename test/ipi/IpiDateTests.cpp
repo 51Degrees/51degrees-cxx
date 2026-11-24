@@ -441,3 +441,73 @@ TEST_F(IpiDateTests, FromFile_InvalidDate) {
 		remove(fromFileName);
 	}
 }
+
+/**
+ * Gets the status the engine throws for a file that gives no published date,
+ * or fails the test when it gives a date instead.
+ */
+static fiftyoneDegreesStatusCode getEngineFromFileStatus(const char *path) {
+	try {
+		FiftyoneDegrees::IpIntelligence::EngineIpi::getPublishedTimeFromFile(
+			path);
+	}
+	catch (const FiftyoneDegrees::Common::StatusCodeException &e) {
+		return e.getCode();
+	}
+	ADD_FAILURE() << "A date was given for '" << path << "'.";
+	return FIFTYONE_DEGREES_STATUS_SUCCESS;
+}
+
+/**
+ * Test that the engine's date read from each data file found is the date an
+ * engine that loaded the same file gives.
+ */
+TEST_F(IpiDateTests, Engine_FromFile_MatchesTheLoadedEngine) {
+	int found = 0;
+	for (int i = 0; i < _IpiFileNamesLength; i++) {
+		const std::string path = GetFilePath(_dataFolderName, _IpiFileNames[i]);
+		if (path.empty()) {
+			continue;
+		}
+		found++;
+		const FiftyoneDegrees::Common::Date fromFile =
+			FiftyoneDegrees::IpIntelligence::EngineIpi::
+			getPublishedTimeFromFile(path);
+		FiftyoneDegrees::IpIntelligence::ConfigIpi config;
+		FiftyoneDegrees::Common::RequiredPropertiesConfig properties;
+		FiftyoneDegrees::IpIntelligence::EngineIpi engine(
+			path,
+			&config,
+			&properties);
+		const FiftyoneDegrees::Common::Date loaded =
+			engine.getPublishedTime();
+		EXPECT_NE(0, fromFile.getYear()) << _IpiFileNames[i];
+		EXPECT_EQ(loaded.getYear(), fromFile.getYear()) << _IpiFileNames[i];
+		EXPECT_EQ(loaded.getMonth(), fromFile.getMonth()) << _IpiFileNames[i];
+		EXPECT_EQ(loaded.getDay(), fromFile.getDay()) << _IpiFileNames[i];
+	}
+	EXPECT_LT(0, found) << "No data file was found.";
+}
+
+/**
+ * Test that the engine throws the status for a file that does not exist
+ * rather than giving a date.
+ */
+TEST_F(IpiDateTests, Engine_FromFile_MissingFile) {
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_FILE_NOT_FOUND,
+		getEngineFromFileStatus("IpiDateTests-NoSuchFile.ipi"));
+}
+
+/**
+ * Test that the engine throws the status for a file shorter than the header
+ * rather than giving a date.
+ */
+TEST_F(IpiDateTests, Engine_FromFile_ShorterThanTheHeader) {
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetIpiHeader) - 1));
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+		getEngineFromFileStatus(fromFileName));
+	remove(fromFileName);
+}

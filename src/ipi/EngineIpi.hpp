@@ -210,6 +210,19 @@ namespace FiftyoneDegrees {
 				fiftyoneDegreesIpType type);
 
 			/**
+			 * Gets the date that 51Degrees published an IP Intelligence data
+			 * file from its header, without loading the file, so that an
+			 * update can tell whether a new file is newer before loading it.
+			 * @param fileName path to the data file
+			 * @return the published date in the file's header
+			 * @throws StatusCodeException when the file cannot be opened, is
+			 * shorter than the header, is not of the version this library
+			 * reads, holds a date that is not valid, or there is no memory to
+			 * read the header
+			 */
+			static Date getPublishedTimeFromFile(const string &fileName);
+
+			/**
 			 * @}
 			 * @name Common::EngineBase Implementation
 			 * @{

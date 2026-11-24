@@ -30,6 +30,7 @@
 %template(VectorUInt32Swig) std::vector<uint32_t>;
 
 %newobject process;
+%newobject getPublishedTimeFromFile;
 
 %rename (EngineHashSwig) EngineHash;
 
@@ -46,6 +47,7 @@ public:
 		RequiredPropertiesConfig *properties);
 	Date getPublishedTime();
 	Date getUpdateAvailableTime();
+	static Date getPublishedTimeFromFile(const std::string &fileName);
 	std::string getDataFilePath();
 	std::string getDataFileTempPath();
 	void refreshData();

@@ -205,6 +205,19 @@ Date EngineHash::getUpdateAvailableTime() const {
 	return Date(&date);
 }
 
+/**
+ * Throws the status of reading the header, as the engine's other file
+ * operations do, so a file that gives no valid date never gives a date.
+ */
+Date EngineHash::getPublishedTimeFromFile(const string &fileName) {
+	fiftyoneDegreesDate date;
+	StatusCode status = HashGetPublishedFromFile(fileName.c_str(), &date);
+	if (status != SUCCESS) {
+		throw StatusCodeException(status, fileName.c_str());
+	}
+	return Date(&date);
+}
+
 string EngineHash::getDataFilePath() const {
 	DataSetHash *dataSet = DataSetHashGet(manager.get());
 	string path = string(dataSet->b.b.masterFileName);
