@@ -31,6 +31,9 @@
 // counted. It is left out inside GitHub Actions.
 #define EXAMPLE_DOWNLOAD_SOURCE "examples-51degrees-cxx"
 
+// The name the data file path is read from.
+#define EXAMPLE_DD_PATH "_51DEGREES_DD_PATH"
+
 const char* fiftyoneDegreesExampleGetConfigName(ConfigHash config) {
 	if (CONFIG_EQUALS(HashInMemoryConfig)) {
 		return "InMemory";
@@ -96,6 +99,13 @@ static char* exampleLastSeparator(char *path) {
 	return last;
 }
 
+// Returns true if the file is a Device Detection data file, rather than one
+// of the evidence files the examples also look for.
+static bool exampleIsDataFile(const char *fileName) {
+	size_t length = strlen(fileName);
+	return length >= 5 && strcmp(fileName + length - 5, ".hash") == 0;
+}
+
 fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 	const char *dataFolderName,
 	const char *fileName,
@@ -107,7 +117,20 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 	char *separator;
 	int i, written;
 	bool inActions;
-	StatusCode status = FileGetPath(
+	StatusCode status;
+	const char *environmentPath = getenv(EXAMPLE_DD_PATH);
+
+	// A data file path in _51DEGREES_DD_PATH, such as a file CI has already
+	// fetched, is used in place of the data file the example names, so that
+	// nothing is downloaded. Evidence files are still found in the folder.
+	if (environmentPath != NULL && environmentPath[0] != '\0' &&
+		exampleIsDataFile(fileName)) {
+		written = Snprintf(destination, size, "%s", environmentPath);
+		return written < 0 || (size_t)written >= size ?
+			FILE_PATH_TOO_LONG : SUCCESS;
+	}
+
+	status = FileGetPath(
 		dataFolderName,
 		fileName,
 		destination,

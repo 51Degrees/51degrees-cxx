@@ -28,6 +28,14 @@ sh data/get-data-files.sh 51Degrees-LiteV4.1.hash
 ./data/get-data-files.ps1 51Degrees-LiteV4.1.hash
 ```
 
+The examples find the data file in this order:
+
+1. A path given as the example's first argument.
+2. A path in the `_51DEGREES_DD_PATH` environment variable, for example
+   `export _51DEGREES_DD_PATH=/path/to/file.hash`.
+3. The example's default file in `data/device-detection`, downloaded first
+   when it is missing.
+
 ## Building and testing
 
 Cloning, building with CMake or Visual Studio, and running the tests are the
