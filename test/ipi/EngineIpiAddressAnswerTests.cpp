@@ -559,3 +559,12 @@ TEST_F(IpiMappedAddressRangeTests, EveryPropertyMatchesIpv4) {
 		}
 	}
 }
+
+// Asking for none of the address copies nothing, so no buffer is needed.
+TEST(IpAddressCopy, NoBytesWantedNeedsNoBuffer) {
+	const Ipi::IpAddress address("8.8.8.8");
+	address.getCopyOfIpAddress(nullptr, 0);
+	unsigned char copy[4] = {0};
+	address.getCopyOfIpAddress(copy, sizeof(copy));
+	EXPECT_EQ(8, copy[0]);
+}

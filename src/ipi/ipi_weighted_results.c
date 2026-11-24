@@ -841,10 +841,12 @@ static void PropValuesMoveItems(
     for (uint32_t i = 0, n = values->count; i < n; i++) {
         PropValuesChunk * const nextChunk = &(values->items[i]);
         const uint8_t *nextHeaderStart = (const uint8_t *)nextChunkNew;
-        memcpy(nextChunkNew, nextChunk->data.ptr, nextChunk->data.allocated);
-        result->valuesData.used += nextChunk->data.allocated;
-        nextChunkNew += nextChunk->data.allocated;
+        // A chunk with no values has no data, so there is nothing to copy
+        // and its pointer may be null.
         if (nextChunk->data.allocated) {
+            memcpy(nextChunkNew, nextChunk->data.ptr, nextChunk->data.allocated);
+            result->valuesData.used += nextChunk->data.allocated;
+            nextChunkNew += nextChunk->data.allocated;
             Free(nextChunk->data.ptr);
             DataReset(&nextChunk->data);
         }

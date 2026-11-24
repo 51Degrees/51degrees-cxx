@@ -388,6 +388,40 @@ TEST_F(IpiPositionsTests, C_CollectionTakesTheIndexesOfTheNamesGiven) {
 }
 
 /**
+ * A name the data does not have gives a chunk of values with no data, which
+ * the collection skips.
+ */
+TEST_F(IpiPositionsTests, C_CollectionSkipsANameWithNoValues) {
+	const std::string names = std::string(missingName) + "," + smallNames[0];
+	fiftyoneDegreesResourceManager manager;
+	ASSERT_NO_FATAL_FAILURE(initSmall(&manager, names.c_str()));
+	ManagerGuard managerGuard(&manager, fiftyoneDegreesResourceManagerFree);
+	OwnedResults results(
+		fiftyoneDegreesResultsIpiCreate(&manager),
+		fiftyoneDegreesResultsIpiFree);
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	fiftyoneDegreesResultsIpiFromIpAddressString(
+		results.get(),
+		positionAddresses[1],
+		strlen(positionAddresses[1]),
+		exception);
+	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	fiftyoneDegreesWeightedValuesCollection collection =
+		fiftyoneDegreesResultsIpiGetValuesCollection(
+			results.get(),
+			nullptr,
+			0,
+			nullptr,
+			exception);
+	EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	EXPECT_GT(collection.itemsCount, (uint32_t)0);
+	for (uint32_t i = 0; i < collection.itemsCount; i++) {
+		EXPECT_EQ(1, collection.items[i]->requiredPropertyIndex);
+	}
+	fiftyoneDegreesWeightedValuesCollectionRelease(&collection);
+}
+
+/**
  * With no names given, the index of a property is its place in the sorted
  * list of the data set's properties, as it always was.
  */

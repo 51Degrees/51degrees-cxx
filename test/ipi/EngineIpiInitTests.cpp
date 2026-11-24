@@ -132,6 +132,22 @@ TEST_F(EngineIpiInitTests, ComponentMissing_Memory_FreesCopy) {
 }
 
 /**
+ * Test that memory holding no data fails with a status, and that nothing is
+ * copied from the null pointer given.
+ */
+TEST_F(EngineIpiInitTests, NoData_Memory_Throws) {
+	ConfigIpi config;
+	RequiredPropertiesConfig properties;
+	EXPECT_THROW(
+		EngineIpi(
+			(void*)nullptr,
+			(fiftyoneDegreesFileOffset)0,
+			&config,
+			&properties),
+		StatusCodeException);
+}
+
+/**
  * Gets the number of properties an engine makes available.
  */
 static int availableProperties(EngineIpi &engine) {

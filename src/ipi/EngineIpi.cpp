@@ -137,7 +137,9 @@ void* EngineIpi::copyData(void * const data, const FileOffset length) const {
 	if (dataCopy == nullptr) {
 		throw StatusCodeException(INSUFFICIENT_MEMORY);
 	}
-	memcpy(dataCopy, data, lengthAsSize);
+	if (lengthAsSize > 0) {
+		memcpy(dataCopy, data, lengthAsSize);
+	}
 	return dataCopy;
 }
 
