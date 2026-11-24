@@ -209,6 +209,19 @@ TEST_F(ResourceManager, ResourceReplace_HandleInUse) {
 #endif
 
 /*
+ * Reads a flag that another thread sets at the same time, as one atomic load,
+ * so the thread sees it change and the read is ordered after the set. A flag
+ * is set with FIFTYONE_DEGREES_INTERLOCK_INC.
+ */
+static long readFlag(volatile long *flag) {
+#ifdef _MSC_VER
+	return *flag;
+#else
+	return __atomic_load_n(flag, __ATOMIC_SEQ_CST);
+#endif
+}
+
+/*
  * Run by each thread to increase resource 
  * usage counter
  */
@@ -406,7 +419,7 @@ typedef struct checked_resource_t {
  */
 typedef struct replaced_state_t {
 	fiftyoneDegreesResourceManager *manager;
-	volatile bool finished;
+	volatile long finished;
 	volatile long faults;
 } ReplacedState;
 
@@ -429,7 +442,7 @@ static void freeCheckedResource(void *pointer) {
  */
 static RESOURCE_THREAD_RESULT runResourceIncDec(void *pointer) {
 	ReplacedState *state = (ReplacedState*)pointer;
-	while (state->finished == false) {
+	while (readFlag(&state->finished) == 0) {
 		fiftyoneDegreesResourceHandle *handle =
 			fiftyoneDegreesResourceHandleIncUse(state->manager);
 		if (handle == nullptr) {
@@ -459,7 +472,7 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_IncDec) {
 	if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
 		FIFTYONE_DEGREES_THREAD threads[THREAD_COUNT];
 		fiftyoneDegreesResourceManager replacedManager;
-		ReplacedState state = { &replacedManager, false, 0 };
+		ReplacedState state = { &replacedManager, 0, 0 };
 		CheckedResource *first = newCheckedResource();
 		fiftyoneDegreesResourceManagerInit(
 			&replacedManager,
@@ -478,7 +491,7 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_IncDec) {
 				next,
 				&next->handle);
 		}
-		state.finished = true;
+		FIFTYONE_DEGREES_INTERLOCK_INC(&state.finished);
 		joinThreads(threads);
 
 		fiftyoneDegreesResourceManagerFree(&replacedManager);
@@ -510,7 +523,7 @@ static RESOURCE_THREAD_RESULT runResourceReplace(void *pointer) {
 	fiftyoneDegreesResourceManager *manager =
 		(fiftyoneDegreesResourceManager*)pointer;
 	FIFTYONE_DEGREES_INTERLOCK_INC(&readyThreads);
-	while (readyThreads < THREAD_COUNT) {
+	while (readFlag(&readyThreads) < THREAD_COUNT) {
 		std::this_thread::yield();
 	}
 	for (int i = 0; i < CONCURRENT_REPLACEMENTS; i++) {
@@ -564,7 +577,7 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_FreesOnce) {
 	if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
 		FIFTYONE_DEGREES_THREAD threads[THREAD_COUNT];
 		fiftyoneDegreesResourceManager replacedManager;
-		ReplacedState state = { &replacedManager, false, 0 };
+		ReplacedState state = { &replacedManager, 0, 0 };
 		countedFrees = 0;
 		CheckedResource *first = newCheckedResource();
 		fiftyoneDegreesResourceManagerInit(
@@ -584,7 +597,7 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_FreesOnce) {
 				next,
 				&next->handle);
 		}
-		state.finished = true;
+		FIFTYONE_DEGREES_INTERLOCK_INC(&state.finished);
 		joinThreads(threads);
 		EXPECT_EQ(0L, (long)state.faults) <<
 			"A thread was given a handle without a live resource.";
@@ -678,7 +691,7 @@ typedef struct release_race_t {
 static RESOURCE_THREAD_RESULT runResourceRelease(void *pointer) {
 	ReleaseRace *race = (ReleaseRace*)pointer;
 	FIFTYONE_DEGREES_INTERLOCK_INC(&race->ready);
-	while (race->go == 0) {
+	while (readFlag(&race->go) == 0) {
 		std::this_thread::yield();
 	}
 	fiftyoneDegreesResourceHandleDecUse(race->handle);
@@ -715,10 +728,10 @@ TEST_F(ResourceManager, MultiThreading_FinalRelease_FreesOnce) {
 				threads,
 				&runResourceRelease,
 				&race);
-			while (race.ready < THREAD_COUNT) {
+			while (readFlag(&race.ready) < THREAD_COUNT) {
 				std::this_thread::yield();
 			}
-			race.go = 1;
+			FIFTYONE_DEGREES_INTERLOCK_INC(&race.go);
 			joinThreads(threads);
 			ASSERT_EQ(1L, (long)countedFrees) <<
 				"The replaced resource was not freed exactly once when its " <<

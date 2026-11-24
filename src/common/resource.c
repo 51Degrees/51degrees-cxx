@@ -43,6 +43,21 @@
 #endif
 #endif
 
+/*
+ * Reads the manager's active handle as one atomic load, as another thread can
+ * replace it with compare and exchange at the same time. The load also orders
+ * the reads of the handle after the writes that set it up, which a plain read
+ * of the pointer doesn't. Visual Studio reads it through a volatile pointer,
+ * for the same reasons as the counter above.
+ */
+#ifdef FIFTYONE_DEGREES_NO_THREADING
+#define ACTIVE_READ(m) ((m)->active)
+#elif defined(_MSC_VER)
+#define ACTIVE_READ(m) (*(volatile ResourceHandle* volatile*)&(m)->active)
+#else
+#define ACTIVE_READ(m) __atomic_load_n(&(m)->active, __ATOMIC_SEQ_CST)
+#endif
+
 /**
  * Returns the number of users a counter holds, without the claimed bit.
  * @param counter value read from a handle
@@ -203,7 +218,7 @@ void fiftyoneDegreesResourceHandleDecUse(
 	decremented = handle->counter;
 #endif
 	if (decremented == 0 &&  // Am I the last user of the handle?
-		handle->manager->active != handle) { // Is the handle still active?
+		ACTIVE_READ(handle->manager) != handle) { // Is the handle still active?
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 		// Atomically set the claimed bit to ensure only one thread can get
 		// into the freeHandle method.
@@ -218,7 +233,7 @@ void fiftyoneDegreesResourceHandleDecUse(
 			handle->counter,
 			CLAIMED,
 			0L) == 0L) {
-			assert(handle != handle->manager->active);
+			assert(handle != ACTIVE_READ(handle->manager));
 			freeHandle(handle);
 		}
 #else
@@ -234,9 +249,8 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 	volatile ResourceHandle* active;
 	for (;;) {
 		// Read the active handle once for each attempt, so the counter and
-		// the exchange use the same handle. The cast forces a new read, as
-		// the pointer itself is not volatile.
-		active = *(volatile ResourceHandle* volatile*)&manager->active;
+		// the exchange use the same handle.
+		active = ACTIVE_READ(manager);
 		compare = COUNTER_READ(active->counter);
 		// A claimed handle was replaced and its resource freed before it was
 		// read, so start again from the manager.
@@ -286,7 +300,7 @@ void fiftyoneDegreesResourceReplace(
 		manager,
 		newResource,
 		newResourceHandle,
-		manager->active->freeResource);
+		ACTIVE_READ(manager)->freeResource);
 	assert((*newResourceHandle)->counter == 0);
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	// Switch the active handle for the manager to the newly created one. If
