@@ -70,4 +70,5 @@ requires.
 | `GITHUB_ACTIONS` | GitHub Actions | The examples, which leave the source out of a data file download there |
 | `HOME` | The operating system | `cmake/FindGccAtomic.cmake`, to find a locally installed `libatomic` |
 | `LC_ALL` | The operating system | Set, not read, by the single file build workflow |
+| `RUNNER_TEMP` | GitHub Actions | `ci/cxx/run-unit-tests.ps1`, the folder a crash dump is written to and deleted from |
 | `gtest_force_shared_crt` | GoogleTest | The GoogleTest build, set in `CMakeLists.txt` |
