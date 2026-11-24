@@ -32,9 +32,6 @@ jobs:
     defaults:
       run:
         shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
-    env:
-      WARNINGS: -Wall -Wextra -Werror
-      DEFINES: ${{ matrix.product == 'ipi' && '-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -D_FILE_OFFSET_BITS=64 -DFIFTYONE_DEGREES_REDUCED_FILE -DFIFTYONE_DEGREES_IPI_SYMBOLS' || '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -97,10 +94,14 @@ jobs:
       - name: Compile with gcc
         run: |
           gcc --version | head -1
-          gcc -c -fcommon $WARNINGS $DEFINES -I. -o single-file.o single-file.c
+          gcc -c -fcommon -Wall -Wextra -Werror \
+            ${{ matrix.product == 'ipi' && '-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -D_FILE_OFFSET_BITS=64 -DFIFTYONE_DEGREES_REDUCED_FILE -DFIFTYONE_DEGREES_IPI_SYMBOLS' || '' }} \
+            -I. -o single-file.o single-file.c
 
       - name: Compile with clang
         if: matrix.os == 'ubuntu-latest' && !cancelled()
         run: |
           clang --version | head -1
-          clang -c -fcommon $WARNINGS $DEFINES -I. -o single-file-clang.o single-file.c
+          clang -c -fcommon -Wall -Wextra -Werror \
+            ${{ matrix.product == 'ipi' && '-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1 -D_FILE_OFFSET_BITS=64 -DFIFTYONE_DEGREES_REDUCED_FILE -DFIFTYONE_DEGREES_IPI_SYMBOLS' || '' }} \
+            -I. -o single-file-clang.o single-file.c
