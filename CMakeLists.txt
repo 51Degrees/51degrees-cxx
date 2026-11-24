@@ -33,6 +33,20 @@ if (_51DEGREES_WITH_ASAN AND NOT CMAKE_HOST_WIN32)
 	add_link_options(-fsanitize=address)
 endif()
 
+# Opt-in ThreadSanitizer, applied in the same way. It can't be combined with
+# AddressSanitizer in one build. Debug builds count test coverage, and the
+# counters are updated atomically so that ThreadSanitizer doesn't report them
+# as data races.
+option(_51DEGREES_WITH_TSAN "Build with ThreadSanitizer (compile + link)" OFF)
+if (_51DEGREES_WITH_TSAN AND _51DEGREES_WITH_ASAN)
+	message(FATAL_ERROR
+		"_51DEGREES_WITH_TSAN and _51DEGREES_WITH_ASAN can't both be ON")
+endif()
+if (_51DEGREES_WITH_TSAN AND NOT CMAKE_HOST_WIN32)
+	add_compile_options(-fsanitize=thread -fprofile-update=atomic)
+	add_link_options(-fsanitize=thread)
+endif()
+
 include(CMakeDependentOption)
 
 # The version the installed package reports. A release is a tag rather than a

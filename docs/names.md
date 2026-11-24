@@ -53,6 +53,7 @@ workflow of this repository reads a secret by name.
 | `_51DEGREES_LARGE_DATA_FILE_SUPPORT` | `OFF` | Defines `FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT` for the copy of common that Device Detection uses |
 | `_51DEGREES_REDUCED_FILE` | `OFF` | Defines `FIFTYONE_DEGREES_REDUCED_FILE` for the copy of common that Device Detection uses |
 | `_51DEGREES_WITH_ASAN` | `OFF` | Builds every target with AddressSanitizer |
+| `_51DEGREES_WITH_TSAN` | `OFF` | Builds every target with ThreadSanitizer. Can't be on with `_51DEGREES_WITH_ASAN` |
 | `_51DEGREES_EXPECTED_VERSION` | Empty | In `test/install`, the version the installed package must report |
 | `_51DEGREES_EXAMPLES` | Empty | In `test/install/examples`, the copy of the examples folder to build against the install |
 
@@ -73,5 +74,6 @@ requires.
 | `HOME` | The operating system | `cmake/FindGccAtomic.cmake`, to find a locally installed `libatomic` |
 | `LC_ALL` | The operating system | Set, not read, by the single file build workflow |
 | `ProgramFiles(x86)` | The operating system | `ci/cxx/run-unit-tests.ps1` and `ci/check-common-symbols.ps1`, to find the debugger and Visual Studio on Windows |
+| `TSAN_OPTIONS` | ThreadSanitizer | Set, not read, by the thread sanitizer workflow, so that every report is written before the job fails |
 | `RUNNER_TEMP` | GitHub Actions | `ci/cxx/run-unit-tests.ps1`, the folder a crash dump is written to and deleted from |
 | `gtest_force_shared_crt` | GoogleTest | The GoogleTest build, set in `CMakeLists.txt` |

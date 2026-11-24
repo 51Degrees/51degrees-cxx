@@ -23,7 +23,9 @@ function(fiftyone_add_common_tests name suffix prefix)
 		target_link_options(${name} PRIVATE "/WX")
 	else ()
 		target_compile_options(${name} PRIVATE ${COMPILE_OPTION_DEBUG})
-		if (NOT MINGW)
+		# The AddressSanitizer runtime can't be loaded beside the
+		# ThreadSanitizer one.
+		if (NOT MINGW AND NOT _51DEGREES_WITH_TSAN)
 			target_link_options(${name} PRIVATE "-fsanitize=address")
 		endif()
 		if (lower_CMAKE_BUILD_TYPE STREQUAL "debug")
