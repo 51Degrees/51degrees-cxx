@@ -38,6 +38,7 @@ public:
 	~FileHandle();
 
 	const char* getFileName();
+	bool isOpen();
 	FILE* getFile();
 	fiftyoneDegreesFilePool* getFilePool();
 
@@ -45,8 +46,9 @@ private:
 	const char *_fileName;
 	FILE *_file;
 	fiftyoneDegreesFilePool _filePool;
+	bool _filePoolReady;
 
-	void checkStatus(fiftyoneDegreesStatusCode status);
+	void checkStatus(fiftyoneDegreesStatusCode status, const char *action);
 };
 
 #endif
