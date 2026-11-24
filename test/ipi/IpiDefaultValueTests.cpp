@@ -182,7 +182,7 @@ static string writtenDefault(
 			exception);
 	EXCEPTION_THROW;
 	vector<char> buffer(defaultValueTextBytes);
-	fiftyoneDegreesStringBuilder builder = { buffer.data(), buffer.size() };
+	fiftyoneDegreesStringBuilder builder = { buffer.data(), buffer.size(), nullptr, 0, 0, false };
 	fiftyoneDegreesStringBuilderInit(&builder);
 	fiftyoneDegreesStringBuilderAddStringValue(
 		&builder,

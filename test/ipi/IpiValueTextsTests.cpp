@@ -198,7 +198,7 @@ static bool valueTextsStreamed(
 		const auto write = [&]() {
 			fiftyoneDegreesStringBuilder builder = {
 				buffer.data(),
-				buffer.size() };
+				buffer.size(), nullptr, 0, 0, false };
 			fiftyoneDegreesStringBuilderInit(&builder);
 			fiftyoneDegreesStringBuilderAddStringValue(
 				&builder,

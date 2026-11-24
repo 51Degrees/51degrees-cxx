@@ -51,6 +51,7 @@ This example is available in full on [GitHub](https://github.com/51Degrees/51deg
 
 #define MAX_EVIDENCE 8
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be in the
@@ -62,6 +63,7 @@ static const char *dataDir = "data/device-detection";
 // the Enterprise data file has as needing it. Contact us for a copy:
 // https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-gettingstarted.c&utm_term=top
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -211,7 +213,7 @@ static void outputValue(
 			propertyName,
 			valueBuffer,
 			valueBufferLength,
-			(char* const)",",
+			(char*)",",
 			exception);
 		EXCEPTION_THROW;
 	}

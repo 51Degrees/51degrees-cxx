@@ -44,6 +44,7 @@
 // Number of threads to start for performance analysis.
 #define THREAD_COUNT 4
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
@@ -52,6 +53,7 @@ static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 // values that are relevant to device detection. This example reads the
 // User-Agent of each record.
 static const char *userAgentFileName = "20000 Evidence Records.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -145,7 +147,6 @@ void reportProgress(memoryThreadState *state) {
  */
 static void executeTest(const char *userAgent, void *state) {
 	memoryThreadState *threadState = (memoryThreadState*)state;
-	ResultHash *result;
 	EXCEPTION_CREATE;
 
 	// If not calibrating the test environment perform device detection.
@@ -160,7 +161,6 @@ static void executeTest(const char *userAgent, void *state) {
 	// the walks use is measured.
 	ResultsEvaluateAll(&threadState->results->b.b, exception);
 	EXCEPTION_THROW;
-	result = (ResultHash*)threadState->results->items;
 
 	// Increase the count for this performance thread and update the user
 	// interface if a progress mark should be written.
@@ -176,7 +176,7 @@ static void executeTest(const char *userAgent, void *state) {
  * ensure the single managed resource is being used.
  * @param mainState state information about the main test
  */
-static void runMemoryThread(void* mainState) {
+static EXAMPLE_THREAD_RESULT runMemoryThread(void* mainState) {
 	char userAgent[1000] = "";
 	memoryThreadState threadState;
 	threadState.main = (memoryState*)mainState;
@@ -212,6 +212,7 @@ static void runMemoryThread(void* mainState) {
 	if (ThreadingGetIsThreadSafe()) {
 		THREAD_EXIT;
 	}
+	return EXAMPLE_THREAD_DONE;
 }
 
 /**
@@ -228,7 +229,7 @@ static void runMemoryTests(memoryState *state) {
 		for (thread = 0; thread < state->numberOfThreads; thread++) {
 			THREAD_CREATE(
 				state->threads[thread],
-				(THREAD_ROUTINE)&runMemoryThread,
+				runMemoryThread,
 				state);
 		}
 

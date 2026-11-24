@@ -35,6 +35,20 @@
 #include "../../src/common/memory.h"
 #include "../../src/common/file.h"
 
+/*
+ * The return type of a test thread routine, and the value it returns, so that
+ * a routine has the type FIFTYONE_DEGREES_THREAD_ROUTINE and is passed to
+ * runThreads without a cast. On Windows that includes the calling convention
+ * CreateThread uses.
+ */
+#ifdef _MSC_VER
+#define TEST_THREAD_RESULT DWORD WINAPI
+#define TEST_THREAD_DONE 0
+#else
+#define TEST_THREAD_RESULT void*
+#define TEST_THREAD_DONE nullptr
+#endif
+
 #if defined(_DEBUG) && defined(_MSC_FULL_VER)
 #define _CRTDBG_MAP_ALLOC
 /* Sampled memory states used to check for memory leaks. */

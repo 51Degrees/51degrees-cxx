@@ -97,6 +97,8 @@ TESTUTILS_NO_INLINE inline void fillStackWithZeroedHandles() {
 	for (size_t i = 0; i < StackFillPointers; i++) {
 		filled[i] = zeroed;
 	}
+	// Only the writes matter, as they are what leaves the stack zeroed.
+	(void)filled;
 }
 
 #endif //TESTUTILS_SIZEMANAGER_HPP

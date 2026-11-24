@@ -153,17 +153,31 @@ typedef struct fiftyone_degrees_resource_handle_t
 /** @endcond */
 
 /**
- * Handle for a shared resource. The first data structure counter tracks use
- * of the resource and free resources that are not longer active.
- * Counter must be the first member to ensure correct memory aligned for 
- * interlocked operations.
+ * The bit of a handle's counter that is set once a thread has claimed the
+ * handle to free it. A claimed handle is never given to another user.
+ */
+#define FIFTYONE_DEGREES_RESOURCE_CLAIMED 0x40000000L
+
+/**
+ * The most users a handle can have at once. The count is held in the bits
+ * below #FIFTYONE_DEGREES_RESOURCE_CLAIMED, so a thread that would go past it
+ * waits until another releases the handle.
+ */
+#define FIFTYONE_DEGREES_RESOURCE_IN_USE_MAX \
+    (FIFTYONE_DEGREES_RESOURCE_CLAIMED - 1)
+
+/**
+ * Handle for a shared resource. The counter tracks the use of the resource,
+ * so that a resource which is no longer active is freed when its last user
+ * releases it.
  */
 typedef struct fiftyone_degrees_resource_handle_t {
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-    volatile 
-#endif 
-    fiftyoneDegreesInterlockDoubleWidth counter; /**< Counter for this 
-                                                 handle. */
+    volatile
+#endif
+    long counter; /**< The number of users of the handle, with
+                  #FIFTYONE_DEGREES_RESOURCE_CLAIMED set once a thread has
+                  claimed the handle to free it. */
     const void* resource; /**< Pointer to the resource being managed. */
     const fiftyoneDegreesResourceManager* manager; /**< Pointer to the manager
                                                    the handle relates to. */

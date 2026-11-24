@@ -476,7 +476,7 @@ uint32_t fiftyoneDegreesIterateFakeIPv4s(
 	uint32_t count = 0;
 	for (uint64_t i = rangeStart; i <= rangeEnd; i += increment, ++count) {
 		{
-			StringBuilder builder = { buffer, sizeof(buffer) };
+			StringBuilder builder = { buffer, sizeof(buffer), NULL, 0, 0, false };
 			StringBuilderInit(&builder);
 			StringBuilderAddInteger(&builder, (uint8_t)((i >> 24) & 0xFF));
 			StringBuilderAddChar(&builder, '.');

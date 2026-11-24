@@ -59,9 +59,11 @@ public:
 		// Associate the file of User-Agents with stdin.
 #ifdef _MSC_VER
 		FILE *input = nullptr;
-		freopen_s(&input, userAgentsPath.c_str(), "r", stdin);
+		ASSERT_EQ(0, freopen_s(&input, userAgentsPath.c_str(), "r", stdin))
+			<< userAgentsPath;
 #else
-		freopen(userAgentsPath.c_str(), "r", stdin);
+		ASSERT_NE(nullptr, freopen(userAgentsPath.c_str(), "r", stdin))
+			<< userAgentsPath;
 #endif
 
 		// Capture stdout for the test.

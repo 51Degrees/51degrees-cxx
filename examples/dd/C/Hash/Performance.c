@@ -71,6 +71,7 @@ static bool detectionOnly = false;
 #define SIZE_OF_VALUE 1000
 #define MAX_EVIDENCE 20
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 // The device detection data folder from the sub module with lite device data.
 static const char* dataDir = "data/device-detection";
 
@@ -88,6 +89,7 @@ static const char* dataFileName = "51Degrees-LiteV4.1.hash";
 // values that are relevant to device detection. For example, User-Agent and 
 // UA-CH headers.
 static const char* evidenceFileName = "20000 Evidence Records.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -412,7 +414,7 @@ static void storeEvidence(KeyValuePair* pairs, uint16_t size, void* state) {
  * Run detections using the evidence on a single thread.
  * @param state pointer to the thread state
  */
-void runPerformanceThread(void* state) {
+EXAMPLE_THREAD_RESULT runPerformanceThread(void* state) {
 	EXCEPTION_CREATE;
 	String* value;
 	threadState *thisState = (threadState*)state;
@@ -501,6 +503,7 @@ void runPerformanceThread(void* state) {
 	if (ThreadingGetIsThreadSafe()) {
 		THREAD_EXIT;
 	}
+	return EXAMPLE_THREAD_DONE;
 }
 /**
  * Execute detections on specified number of threads.
@@ -526,7 +529,7 @@ double runTests(performanceState *state) {
 		for (thread = 0; thread < state->numberOfThreads; thread++) {
 			THREAD_CREATE(
 				state->threads[thread],
-				(THREAD_ROUTINE)&runPerformanceThread,
+				runPerformanceThread,
 				&state->threadStates[thread]);
 		}
 

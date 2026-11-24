@@ -136,9 +136,11 @@ fiftyoneDegreesResourceManagerFree(&manager);
  */
 #define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-matchmetrics.c"
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -154,7 +156,7 @@ static const char* getPropertyValueAsString(
 		propertyName,
 		valueBuffer,
 		sizeof(valueBuffer),
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW;
 	return valueBuffer;

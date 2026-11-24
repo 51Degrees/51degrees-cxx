@@ -284,7 +284,7 @@ void fiftyoneDegreesExampleOutputEnterpriseValue(
 		propertyName,
 		buffer,
 		sizeof(buffer),
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW
 	printf("   %s: %s\n", propertyName, buffer);

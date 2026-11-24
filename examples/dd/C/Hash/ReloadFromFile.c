@@ -96,6 +96,7 @@ https://51degrees.com/Support/Documentation/APIs/C-V32/Benchmarks?utm_source=cod
 
 #define THREAD_COUNT 4
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
@@ -104,6 +105,7 @@ static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 // values that are relevant to device detection. This example reads the
 // User-Agent of each record.
 static const char *userAgentFileName = "20000 Evidence Records.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -226,10 +228,11 @@ static void runRequestsSingle(sharedState *state) {
 	printf("Finished with hash code '%i'\r\n", thread.hashCode);
 }
 
-static void runRequestsMulti(void *state) {
+static EXAMPLE_THREAD_RESULT runRequestsMulti(void *state) {
 	sharedState *shared = (sharedState*)state;
 	runRequestsSingle(shared);
 	INTERLOCK_INC(&shared->threadsFinished);
+	return EXAMPLE_THREAD_DONE;
 }
 
 /**
@@ -241,7 +244,7 @@ static void startThreads(sharedState *state) {
 	for (thread = 0; thread < THREAD_COUNT; thread++) {
 		THREAD_CREATE(
 			state->threads[thread],
-			(THREAD_ROUTINE)&runRequestsMulti,
+			runRequestsMulti,
 			state);
 	}
 }

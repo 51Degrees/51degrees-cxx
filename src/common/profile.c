@@ -35,6 +35,19 @@ MAP_TYPE(Collection)
 #define NULL_PROFILE ((Profile){0, 0, 0})
 #endif
 
+/*
+ * The value indexes of a profile follow the packed profile structure, so they
+ * can start at any byte. A uint32_t pointer to them lets the compiler assume
+ * they are 4 byte aligned, and GCC 15 then vectorizes the loops over them with
+ * aligned loads that fault. Reading them through this type tells the compiler
+ * they can be at any byte.
+ */
+#if defined(__GNUC__) || defined(__clang__)
+typedef uint32_t __attribute__((aligned(1))) ProfileValueIndex;
+#else
+typedef uint32_t ProfileValueIndex;
+#endif
+
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 uint32_t fiftyoneDegreesProfileGetFinalSize(
 	const void *initial,
@@ -116,7 +129,7 @@ static int compareProfileIdIndirect(
 
 static int compareValueToProperty(const void *p, const void *v) {
 	Property *property = (Property*)p;
-	uint32_t valueIndex = *(uint32_t*)v;
+	uint32_t valueIndex = *(const ProfileValueIndex*)v;
 	if (valueIndex < property->firstValueIndex) {
 		return 1;
 	}
@@ -126,13 +139,13 @@ static int compareValueToProperty(const void *p, const void *v) {
 	return 0;
 }
 
-static uint32_t* getFirstValueForProfileAndProperty(
+static const ProfileValueIndex* getFirstValueForProfileAndProperty(
 	const fiftyoneDegreesProfile *profile,
 	const fiftyoneDegreesProperty *property) {
 
 	// Search to find a value that is equal to or between the first and last
 	// value indexes for the property.
-	uint32_t *valueIndex = (uint32_t*)bsearch(
+	const ProfileValueIndex *valueIndex = (const ProfileValueIndex*)bsearch(
 		property,
 		profile + 1,
 		profile->valueCount,
@@ -164,8 +177,8 @@ static uint32_t iterateValues(
 	const Property *property,
 	void *state,
 	ProfileIterateMethod callback,
-	const uint32_t *valIndexPtr,
-	const uint32_t *maxValIndexPtr,
+	const ProfileValueIndex *valIndexPtr,
+	const ProfileValueIndex *maxValIndexPtr,
 	Exception *exception) {
 	Item valueItem;
 	uint32_t count = 0;
@@ -436,7 +449,7 @@ uint32_t fiftyoneDegreesProfileIterateValuesForProperty(
 	void *state,
 	fiftyoneDegreesProfileIterateMethod callback,
 	fiftyoneDegreesException *exception) {
-	uint32_t *firstValueIndex  = getFirstValueForProfileAndProperty(
+	const ProfileValueIndex *firstValueIndex = getFirstValueForProfileAndProperty(
 		profile, 
 		property);
 	uint32_t count = 0;
@@ -447,7 +460,7 @@ uint32_t fiftyoneDegreesProfileIterateValuesForProperty(
 			state, 
 			callback, 
 			firstValueIndex,
-			((uint32_t*)(profile + 1)) + profile->valueCount,
+			((const ProfileValueIndex*)(profile + 1)) + profile->valueCount,
 			exception);
 	}
 	return count;
@@ -484,14 +497,15 @@ uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(
 	// so a profile with no value for the property returns no values here.
 	// iterateValues also refuses a starting value outside the property.
 	if (i < profile->valueCount) {
-		uint32_t* firstValueIndex = (uint32_t*)(profile + 1) + i;
+		const ProfileValueIndex* firstValueIndex =
+			(const ProfileValueIndex*)(profile + 1) + i;
 		return iterateValues(
 			values,
 			property,
 			state,
 			callback,
 			firstValueIndex,
-			((uint32_t*)(profile + 1)) + profile->valueCount,
+			((const ProfileValueIndex*)(profile + 1)) + profile->valueCount,
 			exception);
 	}
 	return 0;
@@ -573,7 +587,7 @@ uint32_t fiftyoneDegreesProfileIterateProfilesForPropertyWithTypeAndValueAndOffs
 	fiftyoneDegreesException * const exception) {
 	uint32_t i, count = 0;
 	Item propertyItem, offsetItem, profileItem;
-	uint32_t *profileValueIndex, *maxProfileValueIndex;
+	const ProfileValueIndex *profileValueIndex, *maxProfileValueIndex;
 	const Property *property;
 	Profile *profile;
 	DataReset(&propertyItem.data);
@@ -628,11 +642,14 @@ uint32_t fiftyoneDegreesProfileIterateProfilesForPropertyWithTypeAndValueAndOffs
 							profile,
 							property);
 						if (profileValueIndex != NULL) {
-							maxProfileValueIndex = ((uint32_t*)(profile + 1)) +
+							maxProfileValueIndex =
+								((const ProfileValueIndex*)(profile + 1)) +
 								profile->valueCount;
-							while (*profileValueIndex <=
-								property->lastValueIndex &&
-								profileValueIndex < maxProfileValueIndex) {
+							// Check the address is within the profile before
+							// reading the value index it points to.
+							while (profileValueIndex < maxProfileValueIndex &&
+								*profileValueIndex <=
+								property->lastValueIndex) {
 								if ((uint32_t)valueIndex ==
 									*profileValueIndex) {
 									callback(state, &profileItem);
@@ -664,7 +681,8 @@ uint32_t fiftyoneDegreesProfileIterateValueIndexes(
 	Value* value;
 	bool cont = true;
 	uint32_t count = 0;
-	const uint32_t* valueIndexes = (const uint32_t*)(profile + 1);
+	const ProfileValueIndex* valueIndexes =
+		(const ProfileValueIndex*)(profile + 1);
 	uint32_t valueIndex;
 	DataReset(&valueItem.data);
 

@@ -156,9 +156,11 @@ Areas: "POLYGON EMPTY":1
  */
 #define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-gettingstarted.c"
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;

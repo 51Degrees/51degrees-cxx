@@ -36,7 +36,7 @@ public:
 		ConfigHash *config,
 		RequiredPropertiesConfig *properties,
 		const char *dataDirectory,
-		const char **hashFileNames,
+		const char * const *hashFileNames,
 		int hashFileNamesLength,
 		const char *evidenceFileName) 
 		: EngineDeviceDetectionTests(
@@ -879,7 +879,7 @@ public:
 		ConfigHash *config,
 		RequiredPropertiesConfig *properties,
 		const char *dataDirectory,
-		const char **hashFileNames,
+		const char * const *hashFileNames,
 		int hashFileNamesLength,
 		const char *evidenceFileName)
 		: EngineHashTests(
@@ -934,7 +934,7 @@ public:
 		ConfigHash *config,
 		RequiredPropertiesConfig *properties,
 		const char *dataDirectory,
-		const char **hashFileNames,
+		const char * const *hashFileNames,
 		int hashFileNamesLength,
 		const char *evidenceFileName)
 		: EngineHashTests(

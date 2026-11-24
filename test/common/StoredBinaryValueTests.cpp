@@ -2070,7 +2070,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_LongValue_ToText_FromMemory) {
     ASSERT_NE(nullptr, value);
 
     std::vector<char> buffer(1024 * 1024);
-    StringBuilder builder = { buffer.data(), buffer.size() };
+    StringBuilder builder = { buffer.data(), buffer.size(), nullptr, 0, 0, false };
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(
         &builder,
@@ -2172,7 +2172,7 @@ static std::string expectedText(
     const uint8_t places) {
     EXCEPTION_CREATE;
     std::vector<char> buffer(1024 * 1024);
-    StringBuilder builder = { buffer.data(), buffer.size() };
+    StringBuilder builder = { buffer.data(), buffer.size(), nullptr, 0, 0, false };
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(&builder, value, type, places, exception);
     StringBuilderComplete(&builder);
@@ -2763,7 +2763,7 @@ static std::string storedBinaryValueText(
     const uint8_t places) {
     char text[64];
     FIFTYONE_DEGREES_EXCEPTION_CREATE;
-    StringBuilder builder = { text, sizeof(text) };
+    StringBuilder builder = { text, sizeof(text), nullptr, 0, 0, false };
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(&builder, &value, type, places, exception);
     StringBuilderComplete(&builder);

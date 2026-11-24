@@ -128,7 +128,7 @@ void JsonTests::CreateObjects() {
 
 TEST_F(JsonTests, basicJsonForming) {
     FIFTYONE_DEGREES_EXCEPTION_CREATE;
-    fiftyoneDegreesStringBuilder builder {(char * const)fiftyoneDegreesMalloc(BUFFER_SIZE), BUFFER_SIZE};
+    fiftyoneDegreesStringBuilder builder {(char *)fiftyoneDegreesMalloc(BUFFER_SIZE), BUFFER_SIZE, nullptr, 0, 0, false};
     
     fiftyoneDegreesJson json {
         builder, /**< Output buffer */
@@ -180,7 +180,7 @@ TEST_F(JsonTests, basicJsonForming) {
 
 TEST_F(JsonTests, unhappyPaths) {
     FIFTYONE_DEGREES_EXCEPTION_CREATE;
-    fiftyoneDegreesStringBuilder builder {(char * const)fiftyoneDegreesMalloc(BUFFER_SIZE), BUFFER_SIZE};
+    fiftyoneDegreesStringBuilder builder {(char *)fiftyoneDegreesMalloc(BUFFER_SIZE), BUFFER_SIZE, nullptr, 0, 0, false};
     
     fiftyoneDegreesJson json {
         builder, /**< Output buffer */

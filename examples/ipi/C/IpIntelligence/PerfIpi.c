@@ -93,6 +93,7 @@ Average matching per second: ***
 // Number of threads to start for performance analysis.
 #define THREAD_COUNT 4
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char* dataDir = "data/ip-intelligence";
 
 // The free ASN data file is used by default, as any data file will do for
@@ -101,6 +102,7 @@ static const char* dataDir = "data/ip-intelligence";
 static const char* dataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 static const char* ipAddressFileName = "evidence.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -267,7 +269,7 @@ static void executeTest(const char* ipAddress, void* state) {
  * ensure the single managed resource is being used.
  * @param mainState state information about the main test
  */
-static void runPerformanceThread(void* mainState) {
+static EXAMPLE_THREAD_RESULT runPerformanceThread(void* mainState) {
 	char ipAddress[BUFFER] = "";
 	performanceThreadState threadState;
 	threadState.main = (performanceState*)mainState;
@@ -311,6 +313,7 @@ static void runPerformanceThread(void* mainState) {
 	if (ThreadingGetIsThreadSafe()) {
 		THREAD_EXIT;
 	}
+	return EXAMPLE_THREAD_DONE;
 }
 
 /**
@@ -327,7 +330,7 @@ static void runPerformanceTests(performanceState* state) {
 		for (thread = 0; thread < state->numberOfThreads; thread++) {
 			THREAD_CREATE(
 				state->threads[thread],
-				(THREAD_ROUTINE)&runPerformanceThread,
+				runPerformanceThread,
 				state);
 		}
 

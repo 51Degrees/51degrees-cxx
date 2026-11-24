@@ -237,7 +237,7 @@ protected:
 				i,
 				buffer,
 				sizeof(buffer),
-				(char* const)"|",
+				(char*)"|",
 				exception);
 			EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
 			values.append(buffer).append("\n");

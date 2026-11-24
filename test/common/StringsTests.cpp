@@ -42,7 +42,7 @@ public:
 
 void Strings::SetUp() {
     builder = (StringBuilder *) fiftyoneDegreesMalloc(sizeof(StringBuilder));
-    StringBuilder local_builder = {(char *)fiftyoneDegreesMalloc(bufferSize), bufferSize};
+    StringBuilder local_builder = {(char *)fiftyoneDegreesMalloc(bufferSize), bufferSize, nullptr, 0, 0, false};
     memcpy((void *) builder, &local_builder, sizeof(StringBuilder));
 }
 
@@ -188,7 +188,7 @@ TEST_F(Strings, StringBuilder_AddInteger64Limits) {
 
 TEST_F(Strings, StringBuilder_NullBuffer) {
     StringBuilder *prev = builder;
-    StringBuilder local = {nullptr, 0};
+    StringBuilder local = {nullptr, 0, nullptr, 0, 0, false};
     builder = &local;
     fiftyoneDegreesStringBuilderInit(builder);
     EXPECT_EQ(builder->remaining, 0);
@@ -200,7 +200,7 @@ TEST_F(Strings, StringBuilder_NullBuffer) {
 
 TEST_F(Strings, StringBuilder_OneChar) {
     StringBuilder *prev = builder;
-    StringBuilder local = {(char *) fiftyoneDegreesMalloc(1), 1};
+    StringBuilder local = {(char *) fiftyoneDegreesMalloc(1), 1, nullptr, 0, 0, false};
     builder = &local;
     
     fiftyoneDegreesStringBuilderInit(builder);

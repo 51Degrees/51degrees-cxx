@@ -31,6 +31,19 @@
 #endif
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/*
+ * The return type of a thread routine, and the value it returns, so that a
+ * routine has the type THREAD_CREATE takes and is passed without a cast. On
+ * Windows that includes the calling convention CreateThread uses.
+ */
+#ifdef _MSC_VER
+#define EXAMPLE_THREAD_RESULT DWORD WINAPI
+#define EXAMPLE_THREAD_DONE 0
+#else
+#define EXAMPLE_THREAD_RESULT void*
+#define EXAMPLE_THREAD_DONE NULL
+#endif
+
 #ifdef _MSC_VER
 #define TIMER_CREATE double start, end
 #define TIMER_START start = GetTickCount()

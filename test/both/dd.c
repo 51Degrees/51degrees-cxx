@@ -85,7 +85,7 @@ BothResult bothDdLookup(void) {
 			"IsMobile",
 			value,
 			sizeof(value),
-			(char* const)",",
+			(char*)",",
 			exception);
 	}
 	BothResult result = EXCEPTION_OKAY && strcmp(value, "True") == 0 ?

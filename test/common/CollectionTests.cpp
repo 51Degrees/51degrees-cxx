@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include "pch.h"
+#include "gtest/gtest-spi.h"
 #include <sstream>
 #include "Base.hpp"
 #include "FileHandle.hpp"
@@ -88,10 +89,8 @@ public:
 		fiftyoneDegreesCollectionItem *item,
 		fiftyoneDegreesCollectionKey key,
 		fiftyoneDegreesException *exception) {
-#		ifdef _MSC_VER
-		UNREFERENCED_PARAMETER(key);
-		UNREFERENCED_PARAMETER(exception);
-#		endif
+		(void)key;
+		(void)exception;
 		const uint32_t * const itemValue = (const uint32_t*)item->data.ptr;
 		const uint32_t * const stateValue = (const uint32_t*)state;
 		return *itemValue - *stateValue;
@@ -129,10 +128,8 @@ public:
 		fiftyoneDegreesCollectionItem *item,
 		fiftyoneDegreesCollectionKey key,
 		fiftyoneDegreesException *exception) {
-#		ifdef _MSC_VER
-		UNREFERENCED_PARAMETER(key);
-		UNREFERENCED_PARAMETER(exception);
-#		endif
+		(void)key;
+		(void)exception;
 		const char *itemString = FIFTYONE_DEGREES_STRING(item->data.ptr);
 		const char *targetString = (const char *)state;
 		return strcmp(itemString, targetString);
@@ -235,9 +232,7 @@ public:
 					&key,
 					&targetItem,
 					exception);
-#				ifdef _MSC_VER
-				UNREFERENCED_PARAMETER(theValue);
-#				endif
+				(void)theValue;
 				FIFTYONE_DEGREES_EXCEPTION_THROW;
 				const fiftyoneDegreesCollectionIndexOrOffset end = {data->count - 1};
 				const long index = fiftyoneDegreesCollectionBinarySearch(
@@ -383,9 +378,10 @@ public:
 		fiftyoneDegreesListFree(&list);
 	}
 
-	static void randomMultiThreadedRunThread(void* state) {
+	static TEST_THREAD_RESULT randomMultiThreadedRunThread(void* state) {
 		((CollectionTest*)state)->random();
 		FIFTYONE_DEGREES_THREAD_EXIT;
+		return TEST_THREAD_DONE;
 	}
 
 
@@ -395,7 +391,6 @@ public:
 		}
 		runThreads(
 			config->getConcurrency(),
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)
 			CollectionTest::randomMultiThreadedRunThread);
 	}
 
@@ -479,6 +474,8 @@ public:
 				data->count / config->getConcurrency()) <<
 				"Number of threads are too high for a successful test.";
 		}
+		ASSERT_TRUE(fileHandle->isOpen()) << "The test data file " <<
+			fileHandle->getFileName() << " is not open.";
 		fseek(fileHandle->getFile(), 0, SEEK_SET);
 		collection = fiftyoneDegreesCollectionCreateFromFile(
 			fileHandle->getFile(),
@@ -569,6 +566,30 @@ public:
 	}
 };
 
+/**
+ * Creates the file helper for a file in a folder that does not exist, so the
+ * file cannot be written.
+ */
+static void createFileHandleInMissingFolder() {
+	static byte data[] = { 1, 2, 3, 4 };
+	FileHandle fileHandle(
+		"missing-folder/collection-test",
+		data,
+		sizeof(data),
+		1);
+	EXPECT_FALSE(fileHandle.isOpen());
+}
+
+/**
+ * Check that the file helper reports a file it cannot write as a test failure
+ * which names the file, and has nothing to close afterwards.
+ */
+TEST(CollectionTestFileHandle, FileThatCannotBeWritten) {
+	EXPECT_FATAL_FAILURE(
+		createFileHandleInMissingFolder(),
+		"missing-folder/collection-test could not be written");
+}
+
 class CollectionTestFileVariableLimits : public Base {
 public:
 	CollectionTestFileVariableLimits() {}
@@ -583,9 +604,7 @@ public:
 static uint32_t getIntArraySize(
 	const void *initial,
     fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 	return (uint32_t)(sizeof(int32_t) * ((*(int32_t*)initial) + 1));
 }
 
@@ -670,6 +689,12 @@ TEST_F(CollectionTestFileVariableLimits, OnlyElementHeader) {
 		data,
 		size + sizeof(uint32_t),
 		1);
+	if (fileHandle->isOpen() == false) {
+		delete fileHandle;
+		delete[] data;
+		delete[] offsets;
+		FAIL() << "The test data file could not be created.";
+	}
 	fseek(fileHandle->getFile(), 0, SEEK_SET);
 
 	// Create the collection.

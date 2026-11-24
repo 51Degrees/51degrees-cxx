@@ -136,7 +136,7 @@ static char* getPropertyValueAsString(
 		propertyName,
 		buffer,
 		bufferSize,
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW;
 	return buffer;
@@ -385,7 +385,6 @@ TEST_F(HashCTests, ResultsHashGetValuesStringTest) {
 	ResultsHash* resultsUserAgents;
 	ResultsHash* resultsDeviceId;
 
-	char deviceId[40] = "";
 	char isMobile[40] = "";
 
 	resultsUserAgents = ResultsHashCreate(&manager, 0);
@@ -401,7 +400,7 @@ TEST_F(HashCTests, ResultsHashGetValuesStringTest) {
 		"isMobile",
 		isMobile,
 		sizeof(isMobile),
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW;
     
@@ -422,7 +421,7 @@ TEST_F(HashCTests, ResultsHashGetValuesStringTest) {
 		"isMobile",
 		isMobile,
 		sizeof(isMobile),
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW;
     //StringBuilder adds 1 char which is a null-terminator
@@ -604,7 +603,7 @@ TEST_F(HashCTests, ResultsHashGetValuesStringNoTrailingSeparator) {
 
 	char buffer[100] = "";
 	ResultsHashGetValuesString(
-		results, "IsMobile", buffer, 100, (char* const)",", exception);
+		results, "IsMobile", buffer, 100, (char*)",", exception);
 	ResultsHashFree(results);
 
 	EXPECT_STREQ("True", buffer) <<
@@ -677,7 +676,7 @@ TEST_F(HashCTests, ReloadFromFile_AnotherReloadMeanwhile) {
 		"IsMobile",
 		isMobile,
 		sizeof(isMobile),
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW;
 	EXPECT_STREQ("True", isMobile);
@@ -857,11 +856,9 @@ static void* getFail(
 	const CollectionKey * const key,
 	fiftyoneDegreesCollectionItem * const item,
 	fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(collection);
-	UNREFERENCED_PARAMETER(key);
-	UNREFERENCED_PARAMETER(item);
-#	endif
+	(void)collection;
+	(void)key;
+	(void)item;
 	EXCEPTION_SET(CORRUPT_DATA);
 	return nullptr;
 }

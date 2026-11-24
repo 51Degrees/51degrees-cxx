@@ -21,6 +21,8 @@
     <ClCompile Include="..\..\..\test\common\CacheTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionConfigTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionExtentTests.cpp" />
+    <ClCompile Include="..\..\..\test\common\CollectionFailedReadTests.cpp" />
+    <ClCompile Include="..\..\..\test\common\CollectionHandleReuseTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionOffsetTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionOffsetShiftTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionTests.cpp" />

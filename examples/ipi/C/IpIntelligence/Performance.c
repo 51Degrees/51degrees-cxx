@@ -70,6 +70,7 @@
 #define SIZE_OF_VALUE 1000
 #define MAX_EVIDENCE 20
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 // The ip intelligence data folder from the sub module with lite ip intel data.
 static const char* dataDir = "data/ip-intelligence";
 
@@ -82,6 +83,7 @@ static const char* dataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 // This file contains the 20,000 random IP formatted as header values.
 static const char* evidenceFileName = "evidence.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -449,7 +451,7 @@ static void runPass(
  * Run IP address lookups using the evidence on a single thread.
  * @param state pointer to the thread state
  */
-void runPerformanceThread(void* state) {
+EXAMPLE_THREAD_RESULT runPerformanceThread(void* state) {
 	EXCEPTION_CREATE;
 	threadState *thisState = (threadState*)state;
 
@@ -486,6 +488,7 @@ void runPerformanceThread(void* state) {
 	if (ThreadingGetIsThreadSafe()) {
 		THREAD_EXIT;
 	}
+	return EXAMPLE_THREAD_DONE;
 }
 /**
  * Execute IP address lookups on specified number of threads.
@@ -513,7 +516,7 @@ double runTests(performanceState *state, int passes) {
 		for (thread = 0; thread < state->numberOfThreads; thread++) {
 			THREAD_CREATE(
 				state->threads[thread],
-				(THREAD_ROUTINE)&runPerformanceThread,
+				runPerformanceThread,
 				&state->threadStates[thread]);
 		}
 

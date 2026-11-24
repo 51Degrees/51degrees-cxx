@@ -167,7 +167,20 @@ static void executePerformanceTest(int key, void *state) {
 	}
 }
 
-void runPerformanceTest(void* state) {
+/*
+ * The return type of the thread routine, and the value it returns, so that it
+ * has the type FIFTYONE_DEGREES_THREAD_CREATE takes and is passed without a
+ * cast. On Windows that includes the calling convention CreateThread uses.
+ */
+#ifdef _MSC_VER
+#define CACHE_PERF_THREAD_RESULT DWORD WINAPI
+#define CACHE_PERF_THREAD_DONE 0
+#else
+#define CACHE_PERF_THREAD_RESULT void*
+#define CACHE_PERF_THREAD_DONE NULL
+#endif
+
+CACHE_PERF_THREAD_RESULT runPerformanceTest(void* state) {
 	int i;
 	performanceThreadState threadState;
 	threadState.state = (performanceState*)state;
@@ -181,6 +194,7 @@ void runPerformanceTest(void* state) {
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	FIFTYONE_DEGREES_THREAD_EXIT;
 #endif
+	return CACHE_PERF_THREAD_DONE;
 }
 
 /**
@@ -201,7 +215,7 @@ void performanceTest(performanceState *state) {
 	for (thread = 0; thread < state->numberOfThreads; thread++) {
 		FIFTYONE_DEGREES_THREAD_CREATE(
 			threads[thread],
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runPerformanceTest,
+			runPerformanceTest,
 			state);
 	}
 

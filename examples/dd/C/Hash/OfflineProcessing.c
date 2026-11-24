@@ -61,6 +61,7 @@ This example is available in full on [GitHub](https://github.com/51Degrees/51deg
  */
 #define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-offlineprocessing.c"
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be somewhere in the
@@ -73,6 +74,7 @@ static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 // This file contains the 20,000 most commonly seen combinations of header values 
 // that are relevant to device detection. For example, User-Agent and UA-CH headers.
 static const char *evidenceFileName = "20000 Evidence Records.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -137,7 +139,7 @@ static void outputValue(
 			propertyName,
 			valueBuffer,
 			valueBufferLength,
-			(char* const)",",
+			(char*)",",
 			exception);
 		EXCEPTION_THROW;
 	}

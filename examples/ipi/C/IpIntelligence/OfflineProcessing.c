@@ -135,11 +135,13 @@ Expected content of output file:
  */
 #define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-offlineprocessing.c"
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 
 static const char* ipAddressFileName = "evidence.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -200,14 +202,12 @@ static void process(const char* ipAddress, void* state) {
 	EXCEPTION_CREATE;
 	uint32_t i;
 	offlineProcessState* offline = (offlineProcessState*)state;
-	ResultIpi* result;
 	DataSetIpi* dataSet = (DataSetIpi*)offline->results->b.dataSet;
 	ResultsIpiFromIpAddressString(
 		offline->results,
 		ipAddress,
 		strlen(ipAddress),
 		exception);
-	result = (ResultIpi*)offline->results->items;
 
 	// Write the IP Address.
 	fprintf(offline->output, "\"%s\"", ipAddress);
