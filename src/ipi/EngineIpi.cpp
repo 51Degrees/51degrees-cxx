@@ -304,6 +304,20 @@ static IpIntelligence::ResultsIpi* giveResults(
 	return given;
 }
 
+// Throws for any failure except an IP address in the wrong format, which gives
+// empty results instead. Does nothing where exceptions are disabled, as there
+// is no status to read.
+static void throwUnlessIncorrectFormat(fiftyoneDegreesException *exception) {
+#ifdef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
+	(void)exception;
+#else
+	if (exception->status !=
+		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
+		EXCEPTION_THROW;
+	}
+#endif
+}
+
 // As in EngineHash, a set of results is created for each call rather than taken
 // from a pool made at startup, because of the complexity that would add.
 IpIntelligence::ResultsIpi* EngineIpi::process(
@@ -314,10 +328,7 @@ IpIntelligence::ResultsIpi* EngineIpi::process(
 		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
 		exception);
-	if (EXCEPTION_CHECK(
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
-		EXCEPTION_THROW;
-	}
+	throwUnlessIncorrectFormat(exception);
 	return giveResults(results, manager);
 }
 
@@ -330,10 +341,7 @@ IpIntelligence::ResultsIpi* EngineIpi::process(
 		ipAddress,
 		ipAddress == nullptr ? 0 : strlen(ipAddress),
 		exception);
-	if (EXCEPTION_CHECK(
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
-		EXCEPTION_THROW;
-	}
+	throwUnlessIncorrectFormat(exception);
 	return giveResults(results, manager);
 }
 
@@ -349,10 +357,7 @@ IpIntelligence::ResultsIpi *EngineIpi::process(
 		length,
 		type,
 		exception);
-	if (EXCEPTION_CHECK(
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
-		EXCEPTION_THROW;
-	}
+	throwUnlessIncorrectFormat(exception);
 	return giveResults(results, manager);
 }
 
@@ -364,10 +369,7 @@ Common::ResultsBase* EngineIpi::processBase(
 		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
 		exception);
-	if (EXCEPTION_CHECK(
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
-		EXCEPTION_THROW;
-	}
+	throwUnlessIncorrectFormat(exception);
 	return giveResults(results, manager);
 }
 

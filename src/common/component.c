@@ -121,21 +121,15 @@ void fiftyoneDegreesComponentInitList(
 	Item item;
 	Component *component;
 	if (ListInit(list, count) == list) {
-		CollectionKeyType keyType = {
-			FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_COMPONENT,
-			0, // TBD
-			fiftyoneDegreesComponentGetFinalSize,
-		};
 		while (list->count < count && EXCEPTION_OKAY) {
 
 			// Get the component and add it to the list.
 			DataReset(&item.data);
-			keyType.initialBytesCount = sizeof(Component) - sizeof(fiftyoneDegreesComponentKeyValuePair);
 			CollectionKey componentKey = {
 				{ offset },
 				NULL,
 			};
-			componentKey.keyType = &keyType;
+			componentKey.keyType = CollectionKeyType_Component;
 			component = (Component*)components->get(
 				components,
 				&componentKey,

@@ -61,7 +61,10 @@ EXTERNAL uint32_t fiftyoneDegreesThrowUnsupportedStoredValueType(
 #define fiftyoneDegreesThrowUnsupportedStoredValueType NULL
 #endif
 
-
+/*
+ * A common source uses each key type below, so neither product has one it
+ * doesn't use when its sources and these headers are pasted into one file.
+ */
 static const fiftyoneDegreesCollectionKeyType CollectionKeyType_Azimuth_raw = {
     FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
     sizeof(int16_t),

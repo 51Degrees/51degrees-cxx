@@ -37,6 +37,9 @@ MAP_TYPE(Collection)
 MAP_TYPE(CollectionConfig)
 #endif
 
+const fiftyoneDegreesCollectionIndexOrOffset
+	fiftyoneDegreesCollectionIndexOrOffset_Zero = { 0 };
+
 /**
  * Converts a stored offset, or the stored size, of a collection to bytes.
  * Only variable length collections created with an offset shift store these

@@ -39,6 +39,7 @@
 #include <stdint.h>
 #include "propertyValueType.h"
 #include "exceptions.h"
+#include "common.h"
 
 /**
  * Passed a pointer to the first part of a variable size item and returns
@@ -58,8 +59,13 @@ typedef union fiftyone_degrees_collection_index_or_offset_t {
 	uint32_t offset;  /**< byte offset of the item from the start of collection. */
 } fiftyoneDegreesCollectionIndexOrOffset;
 
-static const fiftyoneDegreesCollectionIndexOrOffset
-	fiftyoneDegreesCollectionIndexOrOffset_Zero = { 0 };
+/**
+ * The location of the first item. Defined once in collection.c, so that a
+ * source which doesn't use it has nothing unused, even with the headers pasted
+ * into one file.
+ */
+EXTERNAL_VAR const fiftyoneDegreesCollectionIndexOrOffset
+	fiftyoneDegreesCollectionIndexOrOffset_Zero;
 
 /**
  * Explains to a collection how to properly extract the requested value.

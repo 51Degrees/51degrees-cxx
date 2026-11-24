@@ -32,8 +32,10 @@
 /**
  * Buffer length sufficient to hold any IP address.
  * Technically, 39 + 1(NUL), but with some trailing space just in case.
+ * A macro rather than a static variable, so that a source which doesn't use
+ * it has nothing unused, even with the headers pasted into one file.
  */
-static const uint8_t fiftyoneDegreesIpAddressStringMaxLength = 50;
+#define fiftyoneDegreesIpAddressStringMaxLength ((uint8_t)50)
 
 /**
  * The length for the buffer most WKT strings are expected to fit into.

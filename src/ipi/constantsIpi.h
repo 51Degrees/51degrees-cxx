@@ -44,6 +44,12 @@
 #define FIFTYONE_DEGREES_WKT_DECIMAL_PLACES 3
 #endif
 
-static const uint8_t fiftyoneDegreesDefaultWktDecimalPlaces = FIFTYONE_DEGREES_WKT_DECIMAL_PLACES;
+/**
+ * The number of decimal places WKT coordinates are written to by default. A
+ * macro rather than a static variable, so that a source which doesn't use it
+ * has nothing unused, even with the headers pasted into one file.
+ */
+#define fiftyoneDegreesDefaultWktDecimalPlaces \
+	((uint8_t)FIFTYONE_DEGREES_WKT_DECIMAL_PLACES)
 
 #endif //FIFTYONE_DEGREES_CONSTANTSIPI_H
