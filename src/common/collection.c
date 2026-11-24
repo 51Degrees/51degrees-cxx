@@ -962,9 +962,14 @@ fiftyoneDegreesFileHandle* fiftyoneDegreesCollectionReadFilePosition(
 /**
  * Reads the bytes at the position in the file with one call that leaves out
  * the stream's buffer, rather than a seek and a read that fills the buffer.
- * Everything else that reads a handle from the pool seeks first, so where the
- * file is left does not matter. Only Visual Studio builds include the Windows
- * headers, so other Windows builds use the stream.
+ * Only Visual Studio builds include the Windows headers, so other Windows
+ * builds use the stream.
+ *
+ * With Visual Studio, ReadFile at a position moves the file pointer to the
+ * end of the bytes read. The stream works out where its buffer is in the file
+ * from the file pointer, and a later seek to a position it takes to be in the
+ * buffer is served from the buffer. So the file pointer is put back where the
+ * stream left it, and the buffer stays where the stream takes it to be.
  */
 static StatusCode readFixed(
 	FILE *file,
@@ -974,15 +979,21 @@ static StatusCode readFixed(
 #if defined(_MSC_VER)
 	OVERLAPPED overlapped;
 	DWORD bytesRead = 0;
+	LARGE_INTEGER zero, pointer;
+	BOOL read;
+	const HANDLE handle = (HANDLE)_get_osfhandle(_fileno(file));
+	zero.QuadPart = 0;
+	if (SetFilePointerEx(handle, zero, &pointer, FILE_CURRENT) == FALSE) {
+		return COLLECTION_FILE_SEEK_FAIL;
+	}
 	memset(&overlapped, 0, sizeof(overlapped));
 	overlapped.Offset = (DWORD)position;
 	overlapped.OffsetHigh = (DWORD)(position >> 32);
-	return (ReadFile(
-		(HANDLE)_get_osfhandle(_fileno(file)),
-		buffer,
-		length,
-		&bytesRead,
-		&overlapped) && bytesRead == length) ?
+	read = ReadFile(handle, buffer, length, &bytesRead, &overlapped);
+	if (SetFilePointerEx(handle, pointer, NULL, FILE_BEGIN) == FALSE) {
+		return COLLECTION_FILE_SEEK_FAIL;
+	}
+	return (read && bytesRead == length) ?
 		SUCCESS : COLLECTION_FILE_READ_FAIL;
 #elif defined(_WIN32)
 	if (FileSeek(file, (FileOffset)position, SEEK_SET) != 0) {
@@ -1137,7 +1148,12 @@ static void* readFileVariable(
 						ptr = data->ptr;
 					}
 					else {
+
+						// The read failed so free the memory allocated and set
+						// the status code. The data is reset so that nothing
+						// frees the memory again or reads into it.
 						Free(data->ptr);
+						DataReset(data);
 						EXCEPTION_SET(COLLECTION_FILE_READ_FAIL);
 					}
 				}

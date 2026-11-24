@@ -24,6 +24,12 @@
     <ClCompile Include="..\..\..\test\common\CollectionExtentTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\common\CollectionFailedReadTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\common\CollectionHandleReuseTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\common\CollectionTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
