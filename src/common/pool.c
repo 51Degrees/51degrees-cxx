@@ -176,13 +176,14 @@ fiftyoneDegreesPoolItem* fiftyoneDegreesPoolItemGet(
 	fiftyoneDegreesPool *pool,
 	fiftyoneDegreesException *exception) {
 	PoolItem *item = poolPop(pool);
+	// Only a build without threading sets the exception, and then only when
+	// exceptions are enabled.
+	(void)exception;
 	if (item == NULL) {
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 		// Wait for another thread to release an item. The count is raised
 		// before the stack is read again, so a release either finds the
 		// count and wakes this thread, or pushes its item before the read.
-		// Waiting cannot fail, so the exception is not used.
-		(void)exception;
 		FIFTYONE_DEGREES_MUTEX_LOCK(&pool->lock);
 		INTERLOCK_INC(&pool->waiting);
 		while ((item = poolPop(pool)) == NULL) {

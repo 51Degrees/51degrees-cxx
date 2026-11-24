@@ -1833,6 +1833,8 @@ static StatusCode readDataSetFromFile(
 
 #endif
 
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+
 /**
  * Calculates the highest concurrency value to ensure sufficient file reader
  * handles are generated at initialisation to service the maximum number of
@@ -1856,8 +1858,6 @@ static uint16_t getMaxConcurrency(const ConfigIpi* config) {
 	MAX_CONCURRENCY(graph);
 	return concurrency;
 }
-
-#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
 static StatusCode initWithFile(
 	DataSetIpi* dataSet,

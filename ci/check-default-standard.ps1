@@ -10,7 +10,9 @@ options, such as -Wall -Wextra in node-gyp. The CMake build sets C11 and
 C++17, so it cannot show a warning that only a newer default standard gives.
 Each file is compiled as Device Detection builds it and, for common and IP
 Intelligence, as IP Intelligence builds it, with -Wall -Wextra -Werror and
-the optimization a release build uses, as some warnings need it. Each header
+the optimization a release build uses, as some warnings need it. Each file
+is also compiled as a memory only build, and without threading or
+exceptions, as the CMake options build it. Each header
 is then compiled on its own, because a file that includes a header first has
 nothing before it to bring in what the header left out. Runs on Linux with
 gcc and g++, then with clang and clang++, as each gives warnings the other
@@ -88,6 +90,18 @@ foreach ($toolchain in $toolchains) {
                 ($ipi + '-DFIFTYONE_DEGREES_IPI_GRAPH_TRACE') `
                 'as IP Intelligence with the graph trace'
         }
+        # The CMake options for memory only builds, and for builds without
+        # threading or exceptions, leave out code the other builds use. As
+        # in CMake, the threading option is given to C files only.
+        $options = $name -match '^src/ipi/' ? $ipi : @()
+        Test-File $compiler $build $file.FullName $name `
+            ($options + '-DFIFTYONE_DEGREES_MEMORY_ONLY') 'as a memory only build'
+        $without = @('-DFIFTYONE_DEGREES_EXCEPTIONS_DISABLED')
+        if ($file.Extension -eq '.c') {
+            $without += '-DFIFTYONE_DEGREES_NO_THREADING'
+        }
+        Test-File $compiler $build $file.FullName $name `
+            ($options + $without) 'without threading or exceptions'
     }
 
     # Each header is compiled through a generated source file that has only

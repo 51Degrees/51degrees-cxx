@@ -167,8 +167,10 @@ static void releaseMemory(Item *item) {
 	DataReset(&item->data);
 }
 
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+
 /**
- * Releases an item held in a cache collection so that it is eligible for 
+ * Releases an item held in a cache collection so that it is eligible for
  * eviction from the cache.
  * @param item to be released and eligible for eviction from the cache. The 
  * handle must reference a cache node.
@@ -194,6 +196,8 @@ static void releaseFile(Item *item) {
 		item->collection = NULL;
 	}
 }
+
+#endif
 
 static void freeCollection(Collection *collection) {
 	Free(collection->state);
