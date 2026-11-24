@@ -158,6 +158,36 @@ TEST(WKBToT, WKBToT_Test_Point_NegativeZero)
 	convertAndCompare(wkbBytes, expected, "Point 2D (Negative < 1)");
 }
 
+/**
+ * A value in the data file can start at any byte, so the same point is
+ * converted from each offset 0 to 7 of an 8 byte aligned buffer, in both byte
+ * orders.
+ */
+TEST(WKBToT, WKBToT_Test_Point_2D_AnyOffset)
+{
+	const byte bigEndian[] = {
+		0x00,
+		0x00, 0x00, 0x00, 0x01,
+		0x40, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x40, 0x31, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
+	};
+	const byte littleEndian[] = {
+		0x01,
+		0x01, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x40,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x31, 0x40,
+	};
+	const char * const expected = "POINT(3.5 17.25)";
+	for (const byte *point : { bigEndian, littleEndian }) {
+		for (size_t offset = 0; offset < 8; offset++) {
+			alignas(8) byte buffer[8 + sizeof(bigEndian)] = { 0 };
+			memcpy(buffer + offset, point, sizeof(bigEndian));
+			SCOPED_TRACE(offset);
+			convertAndCompare(buffer + offset, expected, "Point 2D at offset");
+		}
+	}
+}
+
 TEST(WKBToT, WKBToT_Test_Point_2D_3places)
 {
 	const byte wkbBytes[] = {

@@ -103,12 +103,13 @@ const String* fiftyoneDegreesValueGetName(
 	const Value *value,
 	CollectionItem *item,
 	Exception *exception) {
-	return &StoredBinaryValueGet(
+	const StoredBinaryValue * const stored = StoredBinaryValueGet(
 		strings,
 		value->nameOffset,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // legacy contract
 		item,
-		exception)->stringValue;
+		exception);
+	return stored == NULL ? NULL : &stored->stringValue;
 }
 
 const String* fiftyoneDegreesValueGetDescription(
@@ -130,12 +131,13 @@ const String* fiftyoneDegreesValueGetDescription(
 	if (value->descriptionOffset <= 0) {
 		return getNoString(strings, item);
 	}
-	return &StoredBinaryValueGet(
+	const StoredBinaryValue * const stored = StoredBinaryValueGet(
 		strings,
 		value->descriptionOffset,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // description is string
 		item,
-		exception)->stringValue;
+		exception);
+	return stored == NULL ? NULL : &stored->stringValue;
 #endif
 }
 
@@ -151,12 +153,13 @@ const String* fiftyoneDegreesValueGetUrl(
 	if (value->urlOffsetOrWeight == 0) {
 		return getNoString(strings, item);
 	}
-	return &StoredBinaryValueGet(
+	const StoredBinaryValue * const stored = StoredBinaryValueGet(
 		strings,
 		value->urlOffsetOrWeight,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // URL is string
 		item,
-		exception)->stringValue;
+		exception);
+	return stored == NULL ? NULL : &stored->stringValue;
 }
 
 const Value* fiftyoneDegreesValueGet(

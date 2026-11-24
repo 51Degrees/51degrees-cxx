@@ -257,7 +257,7 @@ public:
 				exception);
 			EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
 			for (const fiftyoneDegreesValue* value : found) {
-				result.push_back(value->nameOffset);
+				result.push_back((int32_t)value->nameOffset);
 			}
 		}
 		if (property != NULL) {

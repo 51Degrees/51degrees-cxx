@@ -63,7 +63,8 @@ static void addProfileValuesMethod(
 	Value* value; // The current value pointer
 	DataReset(&valueItem.data);
 	
-	uint32_t* first = (uint32_t*)(profile + 1); // First value for the profile
+	// First value for the profile
+	const byte* first = (const byte*)(profile + 1);
 	uint32_t base = getProfileIdIndex(index, profile->profileId) * 
 		index->availablePropertyCount;
 
@@ -79,7 +80,8 @@ static void addProfileValuesMethod(
 		p < index->availablePropertyCount &&
 		EXCEPTION_OKAY;
 		i++) {
-		valueKey.indexOrOffset.offset = *(first + i);
+		valueKey.indexOrOffset.offset = UnalignedReadUint32(
+			first + (size_t)i * sizeof(uint32_t));
 		value = values->get(values, &valueKey, &valueItem, exception);
 		if (value != NULL && EXCEPTION_OKAY) {
 
