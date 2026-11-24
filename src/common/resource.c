@@ -47,8 +47,9 @@
  * Reads the manager's active handle as one atomic load, as another thread can
  * replace it with compare and exchange at the same time. The load also orders
  * the reads of the handle after the writes that set it up, which a plain read
- * of the pointer doesn't. Visual Studio reads it through a volatile pointer,
- * for the same reasons as the counter above.
+ * of the pointer doesn't. Visual Studio reads it through a volatile pointer.
+ * Under /volatile:ms, the default on x86 and x64, a volatile read has acquire
+ * semantics, so it gives the same order.
  */
 #ifdef FIFTYONE_DEGREES_NO_THREADING
 #define ACTIVE_READ(m) ((m)->active)
