@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include "pch.h"
+#include "gtest/gtest-spi.h"
 #include <sstream>
 #include "Base.hpp"
 #include "FileHandle.hpp"
@@ -484,6 +485,8 @@ public:
 				data->count / config->getConcurrency()) <<
 				"Number of threads are too high for a successful test.";
 		}
+		ASSERT_TRUE(fileHandle->isOpen()) << "The test data file " <<
+			fileHandle->getFileName() << " is not open.";
 		fseek(fileHandle->getFile(), 0, SEEK_SET);
 		collection = fiftyoneDegreesCollectionCreateFromFile(
 			fileHandle->getFile(),
@@ -572,6 +575,30 @@ public:
 		return data->ptr;
 	}
 };
+
+/**
+ * Creates the file helper for a file in a folder that does not exist, so the
+ * file cannot be written.
+ */
+static void createFileHandleInMissingFolder() {
+	static byte data[] = { 1, 2, 3, 4 };
+	FileHandle fileHandle(
+		"missing-folder/collection-test",
+		data,
+		sizeof(data),
+		1);
+	EXPECT_FALSE(fileHandle.isOpen());
+}
+
+/**
+ * Check that the file helper reports a file it cannot write as a test failure
+ * which names the file, and has nothing to close afterwards.
+ */
+TEST(CollectionTestFileHandle, FileThatCannotBeWritten) {
+	EXPECT_FATAL_FAILURE(
+		createFileHandleInMissingFolder(),
+		"missing-folder/collection-test could not be written");
+}
 
 class CollectionTestFileVariableLimits : public Base {
 public:
@@ -674,6 +701,12 @@ TEST_F(CollectionTestFileVariableLimits, OnlyElementHeader) {
 		data,
 		size + sizeof(uint32_t),
 		1);
+	if (fileHandle->isOpen() == false) {
+		delete fileHandle;
+		delete[] data;
+		delete[] offsets;
+		FAIL() << "The test data file could not be created.";
+	}
 	fseek(fileHandle->getFile(), 0, SEEK_SET);
 
 	// Create the collection.

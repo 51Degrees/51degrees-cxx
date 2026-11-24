@@ -494,6 +494,22 @@ TEST_F(CacheTestFourtyEight, ThreadSafety12) { multiThreadRandom(12); }
 TEST_F(CacheTestFourtyEight, ThreadSafety24) { multiThreadRandom(24); }
 TEST_F(CacheTestFourtyEight, ThreadSafety48) { multiThreadRandom(48); }
 
+/**
+ * Check that every get is counted as either a hit or a miss when several
+ * threads use the cache's shards at the same time.
+ */
+TEST_F(CacheTestFourtyEight, CountsEveryGetFromManyThreads) {
+	if (fiftyoneDegreesThreadingGetIsThreadSafe() == false) {
+		return;
+	}
+	const uint16_t threads = 6;
+	multiThreadRandom(threads);
+	EXPECT_EQ(
+		(unsigned long)threads * TEST_STRINGS_COUNT,
+		(unsigned long)(cache->hits + cache->misses)) <<
+		"Each get should add one to the hits or the misses.";
+}
+
 TEST_F(CacheTestTwentyFour, ThreadSafety2) { multiThreadRandom(2); }
 TEST_F(CacheTestTwentyFour, ThreadSafety4) { multiThreadRandom(4); }
 TEST_F(CacheTestTwentyFour, ThreadSafety6) { multiThreadRandom(6); }

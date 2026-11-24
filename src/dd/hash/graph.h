@@ -113,10 +113,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 5105)
 #include <windows.h>
-#pragma warning(pop)
 #endif
 #include "../../common/common.h"
 #include "../../common/data.h"

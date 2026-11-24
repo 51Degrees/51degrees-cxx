@@ -630,9 +630,11 @@ uint32_t fiftyoneDegreesProfileIterateProfilesForPropertyWithTypeAndValueAndOffs
 						if (profileValueIndex != NULL) {
 							maxProfileValueIndex = ((uint32_t*)(profile + 1)) +
 								profile->valueCount;
-							while (*profileValueIndex <=
-								property->lastValueIndex &&
-								profileValueIndex < maxProfileValueIndex) {
+							// Check the address is within the profile before
+							// reading the value index it points to.
+							while (profileValueIndex < maxProfileValueIndex &&
+								*profileValueIndex <=
+								property->lastValueIndex) {
 								if ((uint32_t)valueIndex ==
 									*profileValueIndex) {
 									callback(state, &profileItem);

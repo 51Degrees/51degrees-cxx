@@ -81,11 +81,7 @@ typedef void*(*FIFTYONE_DEGREES_THREAD_ROUTINE)(void*);
 #endif
 
 #ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 5105) 
 #include <windows.h>
-#pragma warning (default: 5105) 
-#pragma warning (pop)
 #include <intrin.h>
 #pragma intrinsic (_InterlockedIncrement)
 #pragma intrinsic (_InterlockedDecrement)

@@ -127,11 +127,7 @@
 #include <errno.h>
 #include <stdint.h>
 #ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 5105) 
 #include <windows.h>
-#pragma warning (default: 5105) 
-#pragma warning (pop)
 #endif
 #include <assert.h>
 #include <limits.h>
@@ -189,15 +185,24 @@ typedef struct fiftyone_degrees_pool_item_t {
 } fiftyoneDegreesPoolItem;
 
 /**
- * The head of the stack used for pop and push operations.
+ * The head of the stack used for pop and push operations. The ABA value
+ * counts every change to the head, so that a thread that read the head
+ * before other threads changed it finds it changed. It is 32 bits, as a 16
+ * bit count comes back to the same value after 65536 changes, which threads
+ * using a pool at once can make while another thread is paused.
  */
 typedef union fiftyone_degrees_pool_head_t {
-	volatile long exchange; /**< Number used in the compare exchange operation */
+	volatile int64_t exchange; /**< Number used in the compare exchange
+								   operation */
 	struct {
-		uint16_t index; /**< Index of the item in the linked list */
-		uint16_t aba; /**< ABA value used to ensure proper operation */
+		uint32_t index; /**< Index of the item in the linked list */
+		uint32_t aba; /**< ABA value used to ensure proper operation */
 	} values; /**< Value index with its ABA value */
+#ifdef _MSC_VER
 } fiftyoneDegreesPoolHead;
+#else
+} __attribute__((aligned(8))) fiftyoneDegreesPoolHead;
+#endif
 
 /**
  * Pool of resources stored as items in a stack.

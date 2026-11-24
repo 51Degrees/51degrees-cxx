@@ -313,6 +313,74 @@ TEST_F(Pool, PoolGetMultiple) {
 }
 
 /**
+ * Check that the head of the stack is different after gets and releases have
+ * changed the stack, however many there were. A get reads the head and the
+ * item after it, then replaces the head only if it is unchanged. A thread
+ * that pauses between the two must find the head changed, or it puts back as
+ * the head an item that another thread now holds, and two threads then use
+ * the same resource.
+ *
+ * Here the head is A, then B, and a third item X is in use. Other gets and
+ * releases take A and B, release X and A, and leave the head as A, then X,
+ * with B in use. 65536 changes in all are made, which is when a 16 bit count
+ * of changes comes back to the value it started at.
+ */
+TEST_F(Pool, PoolHeadChangesAfterManyGetsAndReleases) {
+	// Arrange
+	testResourceCounter counter;
+	counter.count = 0;
+	counter.resources = resources;
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	fiftyoneDegreesPoolInit(
+		&pool,
+		3,
+		&counter,
+		createResource,
+		freeResource,
+		exception);
+	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	fiftyoneDegreesPoolItem* x = fiftyoneDegreesPoolItemGet(&pool, exception);
+
+	// The head as a get that pauses would read it.
+	const long long before = (long long)pool.head.exchange;
+	int changes = 0;
+
+	// Act
+	fiftyoneDegreesPoolItem* a = fiftyoneDegreesPoolItemGet(&pool, exception);
+	fiftyoneDegreesPoolItem* b = fiftyoneDegreesPoolItemGet(&pool, exception);
+	fiftyoneDegreesPoolItemRelease(x);
+	fiftyoneDegreesPoolItemRelease(a);
+	changes += 4;
+	while (changes < 65536) {
+		fiftyoneDegreesPoolItem* item =
+			fiftyoneDegreesPoolItemGet(&pool, exception);
+		ASSERT_EQ(a, item);
+		fiftyoneDegreesPoolItemRelease(item);
+		changes += 2;
+	}
+
+	// Assert
+	EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	EXPECT_EQ(65536, changes);
+	EXPECT_NE(before, (long long)pool.head.exchange) <<
+		"The head is the same as before the stack changed, so a get that "
+		"read it before would take B, which is in use, as the next head.";
+
+	// The stack is A then X, so the next two gets return those and not B.
+	fiftyoneDegreesPoolItem* first =
+		fiftyoneDegreesPoolItemGet(&pool, exception);
+	fiftyoneDegreesPoolItem* second =
+		fiftyoneDegreesPoolItemGet(&pool, exception);
+	EXPECT_EQ(a, first);
+	EXPECT_EQ(x, second);
+
+	// Cleanup
+	fiftyoneDegreesPoolItemRelease(second);
+	fiftyoneDegreesPoolItemRelease(first);
+	fiftyoneDegreesPoolItemRelease(b);
+}
+
+/**
  * Check that when the only item in a pool is in use, a get waits until the
  * item is released and then returns it. A single threaded build cannot wait,
  * so the get returns null and sets the insufficient handles exception.
