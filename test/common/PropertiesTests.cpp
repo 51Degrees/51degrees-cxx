@@ -118,7 +118,7 @@ protected:
 		
 		for (uint32_t i = 0; i < stringState->count; i++) {
 			const fiftyoneDegreesCollectionKey key {
-				stringState->offsets[i],
+				{ stringState->offsets[i] },
 				CollectionKeyType_String,
 			};
 			auto const currentName = (const fiftyoneDegreesString*)
@@ -294,7 +294,7 @@ TEST_F(Properties, RepeatedArray) {
 	required.count = sizeof(tests) / sizeof(const char*);
 	required.existing = NULL;
 	CreateProperties(&required);
-	ASSERT_EQ(1, this->properties->count);
+	ASSERT_EQ(1u, this->properties->count);
 }
 
 /**
@@ -309,7 +309,7 @@ TEST_F(Properties, RepeatedString) {
 	required.count = 0;
 	required.existing = NULL;
 	CreateProperties(&required);
-	ASSERT_EQ(1, this->properties->count);
+	ASSERT_EQ(1u, this->properties->count);
 }
 
 /**
@@ -324,7 +324,7 @@ TEST_F(Properties, RepeatedString) {
 	required.count = sizeof(tests) / sizeof(const char*);
 	required.existing = NULL;
 	CreateProperties(&required);
-	ASSERT_EQ(1, this->properties->count);
+	ASSERT_EQ(1u, this->properties->count);
 }
 
 /**
@@ -339,7 +339,7 @@ TEST_F(Properties, RepeatedString_DifferentCase) {
 	required.count = 0;
 	required.existing = NULL;
 	CreateProperties(&required);
-	ASSERT_EQ(1, this->properties->count);
+	ASSERT_EQ(1u, this->properties->count);
 }
 
 /**
@@ -392,10 +392,10 @@ TEST_F(Properties, EvidenceProperties) {
 	ASSERT_NE(-1, yellowJsIndex);
 
 	ASSERT_EQ(
-		1,
+		1u,
 		this->properties->items[yellowIndex].evidenceProperties->count);
 	ASSERT_EQ(
-		yellowJsIndex,
+		(uint32_t)yellowJsIndex,
 		this->properties->items[yellowIndex].evidenceProperties->items[0]);
 }
 
@@ -423,7 +423,7 @@ TEST_F(Properties, EvidenceProperties_None) {
 	ASSERT_NE(-1, yellowJsIndex);
 
 	ASSERT_EQ(
-		0,
+		0u,
 		this->properties->items[redIndex].evidenceProperties->count);
 }
 
@@ -452,10 +452,10 @@ TEST_F(Properties, EvidenceProperties_NotRequired) {
 	ASSERT_EQ(-1, yellowJsIndex);
 
 	ASSERT_EQ(
-		1,
+		1u,
 		this->properties->items[yellowIndex].evidenceProperties->count);
 	ASSERT_NE(
-		-1,
+		(uint32_t)-1,
 		this->properties->items[yellowIndex].evidenceProperties->items[0]);
 }
 

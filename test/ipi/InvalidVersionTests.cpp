@@ -118,6 +118,7 @@ protected:
 	/**
 	 * Helper to write the buffer to a temporary file.
 	 * @param filePath Output path where the file was written.
+	 * @param filePathSize Size of filePath in bytes.
 	 * @param length Number of bytes from the start of the buffer to write.
 	 * @return true if successful, false otherwise.
 	 */
@@ -126,11 +127,10 @@ protected:
 		size_t filePathSize,
 		size_t length = TOTAL_BUFFER_SIZE) {
 #ifdef _WIN32
-#	ifdef _MSC_VER
-    	UNREFERENCED_PARAMETER(filePath);
-    	UNREFERENCED_PARAMETER(filePathSize);
-#	endif
-		// Windows: use tmpnam_s or GetTempFileName
+		// GetTempFileNameA writes up to MAX_PATH characters to filePath.
+		if (filePathSize < MAX_PATH) {
+			return false;
+		}
 		char tempDir[MAX_PATH];
 		if (GetTempPathA(MAX_PATH, tempDir) == 0) {
 			return false;

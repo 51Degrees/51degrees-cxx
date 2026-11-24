@@ -226,12 +226,6 @@ int main(int argc, char* argv[]) {
 	}
 
 
-#ifdef _DEBUG
-#ifndef _MSC_VER
-	dmalloc_debug_setup("log-stats,log-non-free,check-fence,log=dmalloc.log");
-#endif
-#endif
-
 	try {
 		auto const metaData = std::make_unique<MetaDataExample>(dataFilePath);
 		metaData->run();
@@ -244,8 +238,6 @@ int main(int argc, char* argv[]) {
 #ifdef _DEBUG
 #ifdef _MSC_VER
 	_CrtDumpMemoryLeaks();
-#else
-	printf("Log file is %s\r\n", dmalloc_logpath);
 #endif
 #endif
 

@@ -154,8 +154,12 @@ TEST_F(ComponentTests, GetKeyValuePair_IndexEqualToCount_ReturnsNull) {
 	const fiftyoneDegreesComponentKeyValuePair *pair =
 		fiftyoneDegreesComponentGetKeyValuePair(&component, 0, exception);
 	ASSERT_NE(nullptr, pair);
-	EXPECT_EQ((uint32_t)7, pair->key);
-	EXPECT_EQ((uint32_t)9, pair->value);
+	// The component is packed, so the pair can be at any byte, and is
+	// copied out before its fields are read.
+	fiftyoneDegreesComponentKeyValuePair copy;
+	memcpy(&copy, pair, sizeof(copy));
+	EXPECT_EQ((uint32_t)7, copy.key);
+	EXPECT_EQ((uint32_t)9, copy.value);
 	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_NOT_SET, exception->status);
 	pair = fiftyoneDegreesComponentGetKeyValuePair(
 		&component,

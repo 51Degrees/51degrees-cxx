@@ -344,7 +344,9 @@ static void writeFile(
 }
 
 /** A file the tests below write and remove. */
-static const char fromFileName[] = "IpiDateTests-FromFile.ipi";
+static const std::string fromFileNameValue =
+	testProcessName("IpiDateTests-FromFile") + ".ipi";
+static const char *fromFileName = fromFileNameValue.c_str();
 
 /**
  * Test that the published date read from a data file without loading it is

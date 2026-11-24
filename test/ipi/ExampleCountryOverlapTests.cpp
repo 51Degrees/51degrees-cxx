@@ -36,7 +36,9 @@
 #include "../../examples/ipi/C/IpIntelligence/CountryOverlap.c"
 
 /** CSV written by the test and removed afterwards. */
-static const char testOutputPath[] = "country-overlap-test.csv";
+static const std::string testOutputPathValue =
+	testProcessName("country-overlap-test") + ".csv";
+static const char *testOutputPath = testOutputPathValue.c_str();
 
 /** First /16 chunk swept, 1.0.0.0. The chunks from 0.0.0.0 are reserved
 and hold no locations, so starting there would exercise little. */

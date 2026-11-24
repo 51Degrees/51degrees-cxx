@@ -31,6 +31,14 @@
 #endif
 #include <stdio.h>
 #include <iostream>
+#include <string>
+#ifdef _MSC_VER
+#include <process.h>
+#define TEST_PROCESS_ID _getpid
+#else
+#include <unistd.h>
+#define TEST_PROCESS_ID getpid
+#endif
 #include "../../src/common/Exceptions.hpp"
 #include "../../src/common/memory.h"
 #include "../../src/common/file.h"
@@ -72,6 +80,17 @@ if (c->release != NULL) {\
 
 using std::stringstream;
 using std::cout;
+
+/**
+ * Returns the name with this process's id added. ctest runs each test in its
+ * own process, several at once, so a file or folder a test makes under a
+ * fixed name would be shared with the tests running at the same time.
+ * @param name of the file or folder
+ * @return the name followed by an underscore and the process id
+ */
+static inline std::string testProcessName(const char *name) {
+	return std::string(name) + "_" + std::to_string(TEST_PROCESS_ID());
+}
 
 /**
  * Adds a test to check the value returned by a get method is equal to the

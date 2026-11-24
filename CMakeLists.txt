@@ -200,6 +200,15 @@ if (BUILD_TESTING)
 	# For Windows: Prevent overriding the parent project's compiler/linker settings
 	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 	FetchContent_MakeAvailable(googletest)
+	# googletest marks its include folders as system folders, and compilers
+	# report nothing from a system header. That hides the warnings the
+	# assertions raise on the tests' own values, such as EXPECT_EQ comparing
+	# signed with unsigned. They are made ordinary include folders so those
+	# warnings show. googletest's own libraries keep googletest's options.
+	foreach(target gtest gtest_main gmock gmock_main)
+		set_property(TARGET ${target}
+			PROPERTY INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "")
+	endforeach()
 	include(GoogleTest)
 endif()
 

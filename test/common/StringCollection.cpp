@@ -37,7 +37,7 @@ const fiftyoneDegreesString* getStringValue(
 	stringCollectionState *strings = (stringCollectionState*)state;
 	if (index < strings->count) {
 		const fiftyoneDegreesCollectionKey key {
-			strings->offsets[index],
+			{ strings->offsets[index] },
 			CollectionKeyType_String,
 		};
 		value = (String*)strings->collection->get(
@@ -62,7 +62,7 @@ long getHeaderUniqueId(
 	auto const strings = (const stringCollectionState*)state;
 	if (index < strings->count) {
 		const fiftyoneDegreesCollectionKey key {
-			strings->offsets[index],
+			{ strings->offsets[index] },
 			CollectionKeyType_String,
 		};
 		strings->collection->get(

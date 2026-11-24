@@ -72,7 +72,7 @@ TEST_P(CollectionOffsetTest, DirectWrite) {
         // prepare
         ItemBox item;
         const CollectionKey key {
-            (uint32_t)i,
+            { (uint32_t)i },
             CollectionKeyType_Byte,
         };
         auto const ptr = (const byte *)collection->get(
@@ -99,7 +99,7 @@ TEST_P(CollectionOffsetTest, DirectRead) {
         // prepare
         ItemBox item;
         const CollectionKey key {
-            (uint32_t)i,
+            { (uint32_t)i },
             CollectionKeyType_Byte,
         };
         auto const ptr = (byte *)collection->get(

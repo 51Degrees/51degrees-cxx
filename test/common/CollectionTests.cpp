@@ -195,7 +195,7 @@ public:
 		fiftyoneDegreesDataReset(&item.data);
 		for (uint32_t i = 0; i < data->count; i++) {
 			const fiftyoneDegreesCollectionKey key {
-				data->map[i],
+				{ data->map[i] },
 				&data->keyType,
 			};
 			collection->get(
@@ -224,7 +224,7 @@ public:
 
 			for (uint32_t i = 0; i < data->count; i++) {
 				const fiftyoneDegreesCollectionKey key {
-					data->map[i],
+					{ data->map[i] },
 					&data->keyType,
 				};
 				auto const theValue = (const uint32_t *)collection->get(
@@ -291,7 +291,7 @@ public:
 		fiftyoneDegreesCollectionItem item;
 		fiftyoneDegreesDataReset(&item.data);
 		const fiftyoneDegreesCollectionKey key {
-			data->outOfRange(),
+			{ data->outOfRange() },
 			&data->keyType,
 		};
 		EXPECT_EQ(collection->get(
@@ -321,7 +321,7 @@ public:
 			ASSERT_LT(index, data->count) << "Random index must be less than "
 			"the count of available test data items";
 			const fiftyoneDegreesCollectionKey key {
-					data->map[index],
+					{ data->map[index] },
 				&data->keyType,
 			};
 			EXPECT_NE(collection->get(
@@ -350,7 +350,7 @@ public:
 			fiftyoneDegreesCollectionItem item;
 			fiftyoneDegreesDataReset(&item.data);
 			const fiftyoneDegreesCollectionKey key {
-				data->map[i],
+				{ data->map[i] },
 				&data->keyType,
 			};
 			EXPECT_NE(collection->get(
@@ -587,7 +587,8 @@ static void createFileHandleInMissingFolder() {
 TEST(CollectionTestFileHandle, FileThatCannotBeWritten) {
 	EXPECT_FATAL_FAILURE(
 		createFileHandleInMissingFolder(),
-		"missing-folder/collection-test could not be written");
+		testProcessName("missing-folder/collection-test") +
+			" could not be written");
 }
 
 class CollectionTestFileVariableLimits : public Base {
@@ -722,7 +723,7 @@ TEST_F(CollectionTestFileVariableLimits, OnlyElementHeader) {
 	};
 	for (uint32_t i = 0; i < count; i++) {
 		const fiftyoneDegreesCollectionKey key {
-			offsets[i],
+			{ offsets[i] },
 			&keyType,
 		};
 		value = (uint32_t*)collection->get(

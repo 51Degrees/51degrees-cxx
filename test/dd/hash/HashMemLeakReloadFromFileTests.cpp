@@ -160,7 +160,6 @@ static void run(
 	MemoryReader *reader,
 	bool fromFile) {
 	StatusCode status;
-	int numberOfReloads = 0;
 	int numberOfReloadFails = 0;
 	sharedState state;
 	state.manager = manager;
@@ -172,10 +171,7 @@ static void run(
 		startThreads(&state);
 		while (state.threadsFinished < THREAD_COUNT) {
 			status = reload(manager, reader, fromFile, exception);
-			if (status == SUCCESS) {
-				numberOfReloads++;
-			}
-			else {
+			if (status != SUCCESS) {
 				numberOfReloadFails++;
 			}
 #ifdef _MSC_VER
@@ -189,14 +185,13 @@ static void run(
 	else {
 		runRequestsSingle(&state);
 		status = reload(manager, reader, fromFile, exception);
-		if (status == SUCCESS) {
-			numberOfReloads++;
-		}
-		else {
+		if (status != SUCCESS) {
 			numberOfReloadFails++;
 		}
 		runRequestsSingle(&state);
 	}
+	EXPECT_EQ(0, numberOfReloadFails) <<
+		"Every reload of the data should succeed.";
 }
 
 void hashMemReloadRun(

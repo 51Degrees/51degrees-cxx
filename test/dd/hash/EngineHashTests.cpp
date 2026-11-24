@@ -221,8 +221,6 @@ public:
 		verifyMatchForLowerPrecedence();
 	}
 	void verifyNoMatchedNodes() {
-		vector<string>::iterator it;
-
 		// Disable unmatched-result defaults BEFORE detection. The unified
 		// evidence-driven detection fills components that have no matched
 		// profile with each component's default profile (flagged as

@@ -202,7 +202,7 @@ TEST_F (HashCTests, ResultsHashFromDeviceIdTest) {
 	EXCEPTION_THROW;
 
 	memset(isMobile, 0, sizeof(isMobile));
-	EXPECT_EQ(1, resultsDeviceId->count) << "Only one results should be "
+	EXPECT_EQ(1u, resultsDeviceId->count) << "Only one results should be "
 		<< "returned from detection using device ID.\n";
 	EXPECT_EQ(true, ResultsHashGetHasValues(
 		resultsDeviceId,
@@ -405,7 +405,7 @@ TEST_F(HashCTests, ResultsHashGetValuesStringTest) {
 	EXCEPTION_THROW;
     
     //StringBuilder adds 1 char which is a null-terminator
-	EXPECT_EQ(1, charsAdded) << "No result should have been found where "
+	EXPECT_EQ(1u, charsAdded) << "No result should have been found where "
 		<< "uniqueHttpHeaderIndex is "
 		<< resultsDeviceId->items[0].b.uniqueHttpHeaderIndex
 		<< "\n";
@@ -425,7 +425,7 @@ TEST_F(HashCTests, ResultsHashGetValuesStringTest) {
 		exception);
 	EXCEPTION_THROW;
     //StringBuilder adds 1 char which is a null-terminator
-	EXPECT_EQ(1, charsAdded) << "No result should have been found where "
+	EXPECT_EQ(1u, charsAdded) << "No result should have been found where "
 		<< "uniqueHttpHeaderIndex is "
 		<< resultsDeviceId->items[0].b.uniqueHttpHeaderIndex
 		<< "\n";
@@ -490,7 +490,7 @@ TEST_F(HashCTests, GraphTraceGetTests) {
 		length,
 		resultsUserAgents->items[0].trace,
 		mobileUserAgent);
-	EXPECT_EQ(strlen(fullBuffer), written) <<
+	EXPECT_EQ(strlen(fullBuffer), (size_t)written) <<
 		"Failed to write the full graph trace.\n";
 	EXPECT_EQ(potentiallyWritten, written) <<
 		"Failed to return corrent number of written characters.\n";
@@ -1218,7 +1218,7 @@ TEST_F(HashCOverridesTests, OverrideListIsSizedFromTheDataSet) {
 	// A caller asking for no overrides still gets none, which is how
 	// overrides are turned off.
 	ResultsHash* none = ResultsHashCreate(&manager, 0);
-	EXPECT_EQ(0, none->b.b.overrides->capacity) <<
+	EXPECT_EQ(0u, none->b.b.overrides->capacity) <<
 		"A capacity of zero should still turn overrides off.\n";
 
 	ResultsHashFree(results);

@@ -158,11 +158,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 5105) 
 #include <windows.h>
-#pragma warning (default: 5105) 
-#pragma warning (pop)
 #include <direct.h>
 #include <tchar.h>
 #else
@@ -187,11 +183,7 @@
  */
 #ifdef _MSC_FULL_VER
 #define GET_CURRENT_DIR _getcwd
-#pragma warning (push)
-#pragma warning (disable: 5105) 
 #include <windows.h>
-#pragma warning (default: 5105) 
-#pragma warning (pop)
 #include <direct.h>
 #include <tchar.h>
 #else

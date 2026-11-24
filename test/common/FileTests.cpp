@@ -40,9 +40,12 @@
 #define _rmdir rmdir
 #endif
 
-static const char *tempPath1 = "tmp1";
-static const char* tempPath2 = "tmp2";
-static const char *fileName = "tempfile";
+static const std::string tempPath1Name = testProcessName("tmp1");
+static const std::string tempPath2Name = testProcessName("tmp2");
+static const std::string fileNameValue = testProcessName("tempfile");
+static const char *tempPath1 = tempPath1Name.c_str();
+static const char *tempPath2 = tempPath2Name.c_str();
+static const char *fileName = fileNameValue.c_str();
 static const char someData[] = "some data";
 
 /**
