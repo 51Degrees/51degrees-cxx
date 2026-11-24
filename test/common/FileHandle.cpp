@@ -29,9 +29,9 @@ using namespace FiftyoneDegrees::Common;
 /**
  * Opens the file specified by the file name, and writes the data provided to
  * it. A file pool is then created with the concurrency specified. If the file
- * already exists, then it is deleted first. If the file cannot be written or
- * opened, the test fails with a message naming the file, and the helper holds
- * nothing to close.
+ * already exists, then it is deleted first. If the file cannot be written,
+ * opened, or opened by a file pool, the test fails with a message naming the
+ * file, and isOpen() is false.
  * @param fileName full path to the file to create
  * @param data bytes to write to the file
  * @param number of bytes to write
@@ -59,12 +59,14 @@ FileHandle::FileHandle(
 		_file = NULL;
 		return;
 	}
+	// A failure the exception records is also returned as the status, so it
+	// is reported with the file name rather than thrown. The destructor then
+	// still closes the file and deletes it.
 	status = fiftyoneDegreesFilePoolInit(
 		&_filePool,
 		_fileName,
 		concurrency,
 		exception);
-	FIFTYONE_DEGREES_EXCEPTION_THROW
 	checkStatus(status, "opened by a file pool");
 	_filePoolReady = status == FIFTYONE_DEGREES_STATUS_SUCCESS;
 }

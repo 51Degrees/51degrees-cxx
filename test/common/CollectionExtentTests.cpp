@@ -68,6 +68,10 @@ protected:
 			bytes.data(),
 			bytes.size(),
 			1);
+		if (file.isOpen() == false) {
+			// The helper has already failed the test with the file name.
+			return false;
+		}
 		fseek(file.getFile(), 0, SEEK_SET);
 		fiftyoneDegreesCollection *collection =
 			fiftyoneDegreesCollectionCreateFromFile(

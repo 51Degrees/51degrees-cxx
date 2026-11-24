@@ -105,6 +105,8 @@ protected:
 			data.data(),
 			data.size() * sizeof(uint32_t),
 			1);
+		// The helper has already failed the test with the file name.
+		ASSERT_TRUE(fileHandle->isOpen());
 		fiftyoneDegreesCollectionConfig config = { false, 0, 1 };
 		FILE *file = fileHandle->getFile();
 		fseek(file, 0, SEEK_SET);
