@@ -245,19 +245,13 @@ static void runMemoryTests(memoryState *state) {
 	printf("\n\n");
 }
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4100) 
-#endif
 /**
  * Increments the state counter to work out the number of User-Agents.
  */
 static void userAgentCount(const char *userAgent, void *state) {
+	(void)userAgent;
 	(*(int*)state)++;
 }
-#ifdef _MSC_VER
-#pragma warning (pop)
-#endif
 
 /**
  * Iterate the evidence file and count the number of User-Agents it
@@ -442,9 +436,12 @@ int main(int argc, char* argv[]) {
 
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
-	char userAgentFilePath[FILE_MAX_PATH];
+	char userAgentFilePath[FILE_MAX_PATH] = "";
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -459,7 +456,10 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	if (argc > 2) {
-		strcpy(userAgentFilePath, argv[2]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[2],
+			userAgentFilePath,
+			sizeof(userAgentFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(

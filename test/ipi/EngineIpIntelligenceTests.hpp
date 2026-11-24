@@ -27,12 +27,12 @@
 #include <cstdlib>
 #include "Constants.hpp"
 #include "../common/EngineTests.hpp"
+#include "../common/EnvironmentVariable.hpp"
 
 // Helper to check if running on CI and config uses temp file (skip to save disk space)
 #define SKIP_TEMP_FILE_TESTS_ON_CI() \
 	do { \
-		const char* ci = std::getenv("CI"); \
-		if (ci != nullptr && std::string(ci) == "true" && \
+		if (isRunningOnCI() && \
 			config != nullptr && config->getConfig().b.useTempFile) { \
 			GTEST_SKIP() << "Skipping temp file test on CI (large temp file)"; \
 		} \
@@ -47,8 +47,7 @@
 // LowMemory and Balanced configs use file-backed access and are not affected.
 #define SKIP_IN_MEMORY_RELOAD_TESTS_ON_CI() \
 	do { \
-		const char* ci = std::getenv("CI"); \
-		if (ci != nullptr && std::string(ci) == "true" && config != nullptr) { \
+		if (isRunningOnCI() && config != nullptr) { \
 			const auto &ipiConfig = config->getConfig(); \
 			if (ipiConfig.b.allInMemory || ipiConfig.strings.loaded) { \
 				GTEST_SKIP() << "Skipping MetaDataReload on CI for in-memory " \

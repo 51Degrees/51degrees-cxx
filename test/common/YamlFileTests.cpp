@@ -22,6 +22,7 @@
 
 #include "pch.h"
 #include <cstdio>
+#include <fstream>
 #include <string>
 #include <sstream>
 #include "../../src/common/yamlfile.h"
@@ -68,27 +69,24 @@ static string getFileWithPath(string fileName) {
  */
 static void createTestFile(string fileNamePath, vector<string> testRecords, bool withEOFNewLine)
 {
-	// Create a new file
-	FILE* fp = fopen(fileNamePath.c_str(), "w+");
+	// Create a new file, in text mode as before
+	ofstream file(fileNamePath);
 
-	if (fp != NULL) {
+	if (file.is_open()) {
 		for (size_t i = 0; i < testRecords.size(); i++) {
 			if (i != 0) {
 				// Write a new line if not first
 				// The end result will always be
 				// a file without EOF newline
-				fwrite("\n", 1, 1, fp);
+				file << "\n";
 			}
-			fwrite(testRecords[i].c_str(), testRecords[i].size(), 1, fp);
+			file << testRecords[i];
+		}
+
+		if (withEOFNewLine) {
+			file << "\n";
 		}
 	}
-
-	if (withEOFNewLine) {
-		fwrite("\n", 1, 1, fp);
-	}
-
-	// Create a new file
-	fclose(fp);
 }
 
 /*
@@ -332,13 +330,9 @@ TEST(YamlFileIteratorTests, NoLimitLastDocEmptyNoEOFNewLine) {
  * translated and the caller controls CRLF precisely).
  */
 static void writeRawFile(const string& path, const string& content) {
-	FILE* fp = fopen(path.c_str(), "wb");
-	if (fp != NULL) {
-		if (!content.empty()) {
-			fwrite(content.data(), 1, content.size(), fp);
-		}
-		fclose(fp);
-	}
+	// An empty content still creates an empty file. The status is not
+	// checked, as before.
+	fiftyoneDegreesFileWrite(path.c_str(), content.data(), content.size());
 }
 
 /*

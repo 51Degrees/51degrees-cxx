@@ -68,7 +68,7 @@ fiftyoneDegreesResultsIpi* results =
 
 4. Open an output file to write the results to.
 ```
-	FILE* fout = fopen(outputFile, "w");
+	FILE* fout = fiftyoneDegreesExampleFileOpenWrite(outputFile);
 ```
 
 5. Write a header to the output file with the property names in '|'	separated
@@ -250,7 +250,7 @@ void run(
 
 	// Open a fresh data file for writing the output to.
 	FileDelete(outputFilePath);
-	state.output = fopen(outputFilePath, "w");
+	state.output = fiftyoneDegreesExampleFileOpenWrite(outputFilePath);
 	if (state.output == NULL) {
 		printf("Could not open file %s for write\n", outputFilePath);
 		return;
@@ -400,24 +400,26 @@ void fiftyoneDegreesOfflineProcessingRun(
  */
 int main(int argc, char* argv[]) {
 	int i = 0;
+	int written;
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
-	char ipAddressFilePath[FILE_MAX_PATH];
+	char ipAddressFilePath[FILE_MAX_PATH] = "";
 	char outputFilePath[FILE_MAX_PATH];
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
 	const char* envDataFilePath =
 		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = fiftyoneDegreesExampleCopyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -432,7 +434,10 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	if (argc > 2) {
-		strcpy(ipAddressFilePath, argv[2]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[2],
+			ipAddressFilePath,
+			sizeof(ipAddressFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -447,14 +452,29 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	if (argc > 3) {
-		strcpy(outputFilePath, argv[3]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[3],
+			outputFilePath,
+			sizeof(outputFilePath));
 	}
 	else {
 		while (ipAddressFilePath[i] != '.' && ipAddressFilePath[i] != '\0') {
-			outputFilePath[i] = ipAddressFilePath[i];
 			i++;
 		}
-		strcpy(&outputFilePath[i], ".processed.csv");
+		written = Snprintf(
+			outputFilePath,
+			sizeof(outputFilePath),
+			"%.*s.processed.csv",
+			i,
+			ipAddressFilePath);
+		if (written < 0 || (size_t)written >= sizeof(outputFilePath)) {
+			status = FILE_PATH_TOO_LONG;
+		}
+	}
+	if (status != SUCCESS) {
+		reportStatus(status, ipAddressFilePath);
+		fgetc(stdin);
+		return 1;
 	}
 
 #ifdef _DEBUG

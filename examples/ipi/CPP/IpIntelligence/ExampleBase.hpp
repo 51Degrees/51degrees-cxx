@@ -138,6 +138,21 @@ namespace FiftyoneDegrees {
 				static const char *getDataFilePathFromEnvironment();
 
 				/**
+				 * Copies a path, such as a command line argument, to the
+				 * destination. A path too long for the destination is not
+				 * copied, and a message saying so is written to standard
+				 * error.
+				 * @param source path to copy
+				 * @param destination memory to copy the path to
+				 * @param size of the destination in bytes
+				 * @return the status of the copy
+				 */
+				static fiftyoneDegreesStatusCode copyPath(
+					const char *source,
+					char *destination,
+					size_t size);
+
+				/**
 				 * Prints the "Find out more" section that every example
 				 * ends with.
 				 * @param example the example's own source file, which

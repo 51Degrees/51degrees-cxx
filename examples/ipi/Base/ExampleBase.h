@@ -230,6 +230,27 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 EXTERNAL const char* fiftyoneDegreesExampleGetDataFilePathFromEnvironment(void);
 
 /**
+ * Copies a path, such as a command line argument, to the destination. A path
+ * too long for the destination is not copied, and a message saying so is
+ * written to standard error.
+ * @param source path to copy
+ * @param destination memory to copy the path to
+ * @param size of the destination in bytes
+ * @return SUCCESS, or FILE_PATH_TOO_LONG when the path does not fit
+ */
+EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesExampleCopyPath(
+    const char *source,
+    char *destination,
+    size_t size);
+
+/**
+ * Opens a text file for writing, replacing any file already there.
+ * @param fileName path of the file to open
+ * @return the open file, or NULL when it could not be opened
+ */
+EXTERNAL FILE* fiftyoneDegreesExampleFileOpenWrite(const char *fileName);
+
+/**
  * Function pointer for generic function to be handle IP address.
  * @param ipAddress IP address
  * @param state callback-specific state

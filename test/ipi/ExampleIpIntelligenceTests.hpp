@@ -27,13 +27,13 @@
 #include <string>
 #include "../../src/common/file.h"
 #include "../common/ExampleTests.hpp"
+#include "../common/EnvironmentVariable.hpp"
 #include "../../src/ipi/ipi.h"
 #include "Constants.hpp"
 
 // Helper to skip temp file tests on CI
 inline bool shouldSkipTempFileTestOnCI(fiftyoneDegreesConfigIpi config) {
-    const char* ci = std::getenv("CI");
-    return ci != nullptr && std::string(ci) == "true" && config.b.useTempFile;
+    return isRunningOnCI() && config.b.useTempFile;
 }
 
 class ExampleIpIntelligenceTest : public ExampleTests {

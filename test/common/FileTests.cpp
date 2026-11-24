@@ -112,7 +112,9 @@ protected:
 	 * @param file path to check
 	 */
 	static bool fileExists(const char* file) {
-		if (FILE* f = fopen(file, "r")) {
+		FILE* f = NULL;
+		if (fiftyoneDegreesFileOpen(file, &f) ==
+			FIFTYONE_DEGREES_STATUS_SUCCESS) {
 			fclose(f);
 			return true;
 		}
@@ -979,7 +981,7 @@ TEST_F(File, TempExists_ComparePortion) {
 	const char *paths[] = { tempPath1 };
 	long bytesToCompare = 4;
 	char alteredData[sizeof(someData)];
-	strcpy(alteredData, someData);
+	memcpy(alteredData, someData, sizeof(someData));
 
 	// Modify some of the data in altered data to make the temp file different
 	// for the purposes of this test.

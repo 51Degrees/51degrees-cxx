@@ -30,12 +30,8 @@ gtest_discover_tests(IpiTests DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST
 set_target_properties(IpiTests PROPERTIES FOLDER "Tests")
 
 if (MSVC)
-	target_compile_options(IpiTests PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/W4" "/WX")
+	target_compile_options(IpiTests PRIVATE "/W4" "/WX")
 	target_link_options(IpiTests PRIVATE "/WX")
 else()
-	target_compile_options(IpiTests PRIVATE ${COMPILE_OPTION_DEBUG})
-endif()
-
-if (CMAKE_COMPILER_IS_GNUCC)
-	target_compile_options(IpiTests PRIVATE "-Wall" "-Werror" "-Wno-unused-variable" "-Wno-unused-result" "-Wno-unused-but-set-variable")
+	target_compile_options(IpiTests PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
 endif()

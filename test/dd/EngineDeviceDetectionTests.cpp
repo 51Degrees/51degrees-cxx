@@ -513,13 +513,12 @@ void EngineDeviceDetectionTests::reloadFileWithLock() {
 	catch (exception e) {
 		FAIL() << "Incorrect exception was thrown.\n";
 	}
-// It is recommended to use CloseHandle to close the handle returned from
-// OpenFile so it is valid to suppress the warning generated due to casting
-// to pointer type here.
-#pragma warning (disable: 4312)
-	EXPECT_TRUE(CloseHandle(reinterpret_cast<HANDLE>(hFile))) <<
+	// It is recommended to use CloseHandle to close the handle returned from
+	// OpenFile. The HFILE is an int, so widen it to a pointer sized integer,
+	// sign extending as LongToHandle does, before casting to a handle.
+	EXPECT_TRUE(CloseHandle(
+		reinterpret_cast<HANDLE>(static_cast<intptr_t>(hFile)))) <<
 		"Failed to close the data file which was opened exclusively.\n";
-#pragma warning (default: 4312)
 
 	ResultsDeviceDetection* results2 = engine->processDeviceDetection(
 		mobileUserAgent);

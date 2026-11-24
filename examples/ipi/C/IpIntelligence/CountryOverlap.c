@@ -1817,7 +1817,7 @@ int fiftyoneDegreesIpiCountryOverlap(
 
 	// Open the output before the sweep so that a path that cannot be
 	// written fails at once rather than after an hour of work.
-	FILE* file = fopen(outputPath, "w");
+	FILE* file = fiftyoneDegreesExampleFileOpenWrite(outputPath);
 	if (file == NULL) {
 		printf("Could not open '%s' for writing.\n", outputPath);
 		DataSetIpiRelease(dataSet);

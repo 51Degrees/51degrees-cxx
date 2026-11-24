@@ -275,8 +275,8 @@ static bool reportHeader(
 	// Copy the key and value into null terminated strings for output.
 	char* key = (char*)Malloc(pair->item.keyLength + 1);
 	char* value = (char*)Malloc(pair->item.valueLength + 1);
-	strncpy(key, pair->item.key, pair->item.keyLength);
-	strncpy(value, pair->item.value, pair->item.valueLength);
+	memcpy(key, pair->item.key, pair->item.keyLength);
+	memcpy(value, pair->item.value, pair->item.valueLength);
 	key[pair->item.keyLength] = '\0';
 	value[pair->item.valueLength] = '\0';
 
@@ -483,7 +483,10 @@ int main(int argc, char* argv[]) {
 	// Use the supplied path for the data file or find the lite data that
 	// is included in the repository
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(

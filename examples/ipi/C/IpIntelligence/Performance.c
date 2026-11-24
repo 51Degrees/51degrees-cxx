@@ -261,10 +261,8 @@ static const char* getOrAddSharedString(
 	if (node->value == NULL) {
 		return NULL;
 	}
-	if (strncpy((char*)node->value, target, length) == NULL) {
-		return NULL;
-	}
-	
+	memcpy((char*)node->value, target, length);
+
 	// Add to the linked list or start a new linked list if this is the first.
 	if (perfState->sharedStringFirst == NULL) {
 		perfState->sharedStringFirst = node;
@@ -343,13 +341,11 @@ static void storeEvidence(KeyValuePair* pairs, uint16_t size, void* state) {
 			strlen(pairs[i].value);
 		evidence->items[i].item.value = (const char*)Malloc(
 			sizeof(char) * (evidence->items[i].item.valueLength + 1));
-		ptr = strncpy(
-			(char*)evidence->items[i].item.value,
-			pairs[i].value,
-			evidence->items[i].item.valueLength);
+		ptr = (char*)evidence->items[i].item.value;
 		if (ptr == NULL) {
 			EXCEPTION_THROW
 		}
+		memcpy(ptr, pairs[i].value, evidence->items[i].item.valueLength);
 		*(ptr + evidence->items[i].item.valueLength) = '\0';
 		evidence->items[i].parsedValue = evidence->items[i].item.value;
 	}
@@ -1078,12 +1074,22 @@ int main(int argc, char* argv[]) {
 		if (strcmp(argv[i], DATA_OPTION) == 0 ||
 			strcmp(argv[i], DATA_OPTION_SHORT) == 0) {
 			// Set data file path
-			strcpy(dataFilePath, argv[i + 1]);
+			if (fiftyoneDegreesExampleCopyPath(
+				argv[i + 1],
+				dataFilePath,
+				sizeof(dataFilePath)) != SUCCESS) {
+				return 1;
+			}
 		}
 		else if (strcmp(argv[i], IP_ADDRESSES_OPTION) == 0 ||
 			strcmp(argv[i], IP_ADDRESSES_OPTION_SHORT) == 0) {
 			// Set evidence file path
-			strcpy(evidenceFilePath, argv[i + 1]);
+			if (fiftyoneDegreesExampleCopyPath(
+				argv[i + 1],
+				evidenceFilePath,
+				sizeof(evidenceFilePath)) != SUCCESS) {
+				return 1;
+			}
 		}
 		else if (strcmp(argv[i], THREAD_OPTION) == 0 ||
 			strcmp(argv[i], THREAD_OPTION_SHORT) == 0) {
@@ -1175,7 +1181,7 @@ int main(int argc, char* argv[]) {
 #endif
 			return 1;
 		}
-		strcpy(dataFilePath, envDataFilePath);
+		memcpy(dataFilePath, envDataFilePath, strlen(envDataFilePath) + 1);
 	}
 
 	if (strlen(dataFilePath) == 0) {
@@ -1220,7 +1226,7 @@ int main(int argc, char* argv[]) {
 	params.iterations = iterations;
 	params.output = stdout;
 	if (outFile != NULL) {
-		params.resultsOutput = fopen(outFile, "w");
+		params.resultsOutput = fiftyoneDegreesExampleFileOpenWrite(outFile);
 	}
 	else {
 		params.resultsOutput = NULL;

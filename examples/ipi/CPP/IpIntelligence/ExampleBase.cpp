@@ -88,6 +88,13 @@ const char *ExampleBase::getDataFilePathFromEnvironment() {
 	return fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 }
 
+fiftyoneDegreesStatusCode ExampleBase::copyPath(
+	const char *source,
+	char *destination,
+	size_t size) {
+	return fiftyoneDegreesExampleCopyPath(source, destination, size);
+}
+
 void ExampleBase::findOutMore(const char *example) {
 	fiftyoneDegreesExampleFindOutMore(stdout, example);
 }

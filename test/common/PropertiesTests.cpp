@@ -112,8 +112,9 @@ protected:
 		stringCollectionState *stringState = (stringCollectionState*)state;
 		fiftyoneDegreesString* name = (fiftyoneDegreesString*)property->name.data.ptr;
 		char* jsName = (char*)malloc(name->size + (sizeof(char) * strlen("js")));
-		strcpy(jsName, &name->value);
-		strcpy(jsName + name->size - 1, "js");
+		// The size includes the null terminator, which "js" replaces.
+		memcpy(jsName, &name->value, name->size - 1);
+		memcpy(jsName + name->size - 1, "js", sizeof("js"));
 		
 		for (uint32_t i = 0; i < stringState->count; i++) {
 			const fiftyoneDegreesCollectionKey key {

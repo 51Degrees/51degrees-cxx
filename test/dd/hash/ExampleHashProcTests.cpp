@@ -57,7 +57,12 @@ public:
 		}
 
 		// Associate the file of User-Agents with stdin.
+#ifdef _MSC_VER
+		FILE *input = nullptr;
+		freopen_s(&input, userAgentsPath.c_str(), "r", stdin);
+#else
 		freopen(userAgentsPath.c_str(), "r", stdin);
+#endif
 
 		// Capture stdout for the test.
 		testing::internal::CaptureStdout();

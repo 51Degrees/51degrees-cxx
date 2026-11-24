@@ -201,7 +201,10 @@ int main(int argc, char* argv[]) {
 	char dataFilePath[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	char userAgentFilePath[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = ExampleBase::getFilePath(
@@ -217,7 +220,10 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (argc > 2) {
-		strcpy(userAgentFilePath, argv[2]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[2],
+			userAgentFilePath,
+			sizeof(userAgentFilePath));
 	}
 	else {
 		status = ExampleBase::getFilePath(

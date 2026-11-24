@@ -189,7 +189,10 @@ int main(int argc, char* argv[]) {
 	StatusCode status = SUCCESS;
 	ConfigHash config = fiftyoneDegreesHashDefaultConfig;
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(

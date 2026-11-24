@@ -123,7 +123,8 @@ protected:
 			path = GetFilePath(_dataFolderName, _HashFileNames[i]);
 		}
 		ASSERT_FALSE(path.empty()) << "No data file was found.";
-		FILE *file = fopen(path.c_str(), "rb");
+		FILE *file = nullptr;
+		fiftyoneDegreesFileOpen(path.c_str(), &file);
 		ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";
 		fseek(file, 0, SEEK_END);
 		good.resize((size_t)ftell(file));

@@ -148,15 +148,8 @@ protected:
 		close(fd);
 #endif
 		
-		FILE* file = fopen(filePath, "wb");
-		if (file == nullptr) {
-			return false;
-		}
-		
-		size_t written = fwrite(buffer, 1, length, file);
-		fclose(file);
-		
-		return written == length;
+		return fiftyoneDegreesFileWrite(filePath, buffer, length) ==
+			FIFTYONE_DEGREES_STATUS_SUCCESS;
 	}
 
 	/**

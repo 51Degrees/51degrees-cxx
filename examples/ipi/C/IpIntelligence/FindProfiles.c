@@ -126,16 +126,11 @@ static int exitCode = 0;
 // #define CONFIG fiftyoneDegreesIpiBalancedConfig
 // #define CONFIG fiftyoneDegreesIpiBalancedTempConfig
 
-#ifdef _MSC_VER
-#pragma warning (disable:4100)
-#endif
 static bool count(void* state, Item* item) {
+	(void)item;
 	(*(uint32_t*)state) += 1;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning (default:4100) 
-#endif
 
 void run(ResourceManager* manager) {
 	EXCEPTION_CREATE;
@@ -233,15 +228,16 @@ int main(int argc, char* argv[]) {
 	const char* envDataFilePath =
 		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = fiftyoneDegreesExampleCopyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(

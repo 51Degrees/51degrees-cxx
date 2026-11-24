@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include <cstdio>
+#include <fstream>
 #include <string>
 #include "ExampleIpIntelligenceTests.hpp"
 
@@ -104,15 +105,17 @@ private:
     static void expectCsvWithHeader(
         const char* path,
         const char* expectedStart) {
-        FILE* file = fopen(path, "r");
-        ASSERT_NE(nullptr, file) <<
+        std::ifstream file(path);
+        ASSERT_TRUE(file.is_open()) <<
             "Expected the example to write '" << path << "'.";
-        char line[256] = "";
-        const char* read = fgets(line, sizeof(line), file);
-        fclose(file);
-        ASSERT_NE(nullptr, read) <<
+        std::string line;
+        const bool read = static_cast<bool>(std::getline(file, line));
+        file.close();
+        ASSERT_TRUE(read) <<
             "Expected '" << path << "' to contain a header row.";
-        EXPECT_EQ(0, strncmp(line, expectedStart, strlen(expectedStart)))
+        EXPECT_EQ(
+            0,
+            strncmp(line.c_str(), expectedStart, strlen(expectedStart)))
             << "Unexpected header in '" << path << "': " << line;
     }
 };

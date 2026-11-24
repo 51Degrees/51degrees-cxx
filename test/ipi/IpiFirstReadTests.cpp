@@ -330,7 +330,8 @@ public:
 				"' was not found. Run data/get-data-files.sh or .ps1 to "
 				"download it.";
 		}
-		FILE* file = fopen(path.c_str(), "rb");
+		FILE* file = nullptr;
+		fiftyoneDegreesFileOpen(path.c_str(), &file);
 		ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";
 		fseek(file, 0, SEEK_END);
 		good.resize((size_t)ftell(file));

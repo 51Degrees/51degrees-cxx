@@ -52,13 +52,7 @@ public:
 			data = nullptr;
 		}
 	}
-#ifdef _MSC_VER
-#pragma warning (disable: 4100) 
-#endif
-	virtual void verify(fiftyoneDegreesData *itemData, int index) {}
-#ifdef _MSC_VER
-#pragma warning (default: 4100) 
-#endif
+	virtual void verify(fiftyoneDegreesData * /*itemData*/, int /*index*/) {}
 	virtual uint32_t outOfRange() { return 0; }
 	fiftyoneDegreesCollectionItemComparer itemComparer;
 	const uint32_t count;
@@ -115,9 +109,10 @@ public:
 		byte *current = data + sizeof(uint32_t);
 		for (uint32_t i = 0; i < count; i++) {
 			map[i] = (uint32_t)(current - data - sizeof(uint32_t));
-			strcpy((char*)current, TEST_STRINGS[i]);
-			current += strlen(TEST_STRINGS[i]);
-			current++;
+			// Copy the string and its null terminator.
+			const size_t length = strlen(TEST_STRINGS[i]) + 1;
+			memcpy(current, TEST_STRINGS[i], length);
+			current += length;
 		}
 		elementSize = 0;
 		itemComparer = itemComparerString;
@@ -313,9 +308,9 @@ public:
 		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_FAILED);
 		EXPECT_EQ(item.data.ptr, nullptr) << "Item data pointer should be "
 			"null when an invalid index or offset is provided";
-		EXPECT_EQ(item.data.allocated, 0) << "Item data allocation should be "
+		EXPECT_EQ(item.data.allocated, 0u) << "Item data allocation should be "
 			"0 when an invalid index or offset is provided";
-		EXPECT_EQ(item.data.used, 0) << "Item data usage should be 0 when an "
+		EXPECT_EQ(item.data.used, 0u) <<"Item data usage should be 0 when an "
 			"invalid index or offset is provided";
 		if (fiftyoneDegreesCollectionGetIsMemoryOnly() == false) {
 			FIFTYONE_DEGREES_COLLECTION_RELEASE(collection, &item);
@@ -562,8 +557,9 @@ public:
 			return NULL;
 		}
 
-		// Copy from the stream to the data pointer.
-		strcpy((char*)data->ptr, stream.str().c_str());
+		// Copy from the stream to the data pointer. The length includes the
+		// null terminator.
+		memcpy(data->ptr, stream.str().c_str(), length);
 		data->used = length;
 
 		// Release the handle to the pool.

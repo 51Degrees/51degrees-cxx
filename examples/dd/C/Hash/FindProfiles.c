@@ -95,16 +95,11 @@ static int exitCode = 0;
 // #define CONFIG fiftyoneDegreesHashBalancedConfig
 // #define CONFIG fiftyoneDegreesHashBalancedTempConfig
 
-#ifdef _MSC_VER
-#pragma warning (disable:4100)
-#endif
 static bool count(void *state, Item *item) {
+	(void)item;
 	(*(uint32_t*)state) += 1;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning (default:4100) 
-#endif
 
 void run(ResourceManager* manager) {
 	EXCEPTION_CREATE;
@@ -196,7 +191,10 @@ int main(int argc, char* argv[]) {
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(

@@ -24,8 +24,10 @@ function(add_examples folder extension suffix library)
 			add_executable(${name}${suffix} ${file} ${ARGN})
 			target_link_libraries(${name}${suffix} PRIVATE ${library})
 			if (MSVC)
-				target_compile_definitions(${name}${suffix}
-					PRIVATE _CRT_SECURE_NO_WARNINGS)
+				target_compile_options(${name}${suffix} PRIVATE /W4 /WX)
+			else()
+				target_compile_options(${name}${suffix}
+					PRIVATE -Wall -Wextra -Werror)
 			endif()
 			message(STATUS "Found example '${name}${suffix}'")
 		endif()

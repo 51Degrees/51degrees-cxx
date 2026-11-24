@@ -53,7 +53,8 @@ protected:
 			GTEST_SKIP() << "The file '" << asnFileName << "' was not found. "
 				"Run data/get-data-files.sh or .ps1 to download it.";
 		}
-		FILE *file = fopen(found.c_str(), "rb");
+		FILE *file = nullptr;
+		fiftyoneDegreesFileOpen(found.c_str(), &file);
 		ASSERT_NE(nullptr, file) << "Could not open '" << found << "'.";
 		fseek(file, 0, SEEK_END);
 		data.resize((size_t)ftell(file));

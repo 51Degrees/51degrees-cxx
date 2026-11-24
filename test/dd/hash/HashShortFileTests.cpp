@@ -50,7 +50,8 @@ protected:
 			found = GetFilePath(_dataFolderName, _HashFileNames[i]);
 		}
 		ASSERT_FALSE(found.empty()) << "No data file was found.";
-		FILE *file = fopen(found.c_str(), "rb");
+		FILE *file = nullptr;
+		fiftyoneDegreesFileOpen(found.c_str(), &file);
 		ASSERT_NE(nullptr, file) << "Could not open '" << found << "'.";
 		fseek(file, 0, SEEK_END);
 		data.resize((size_t)ftell(file));

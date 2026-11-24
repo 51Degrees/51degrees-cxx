@@ -3,9 +3,10 @@
 add_executable(js-snippet-export ${CMAKE_CURRENT_LIST_DIR}/main.cpp)
 target_link_libraries(js-snippet-export fiftyone-hash-cxx)
 if (MSVC)
-	target_compile_options(js-snippet-export PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/W4" "/WX")
+	target_compile_options(js-snippet-export PRIVATE "/W4" "/WX")
+	target_link_options(js-snippet-export PRIVATE "/WX")
 else()
-	target_compile_options(js-snippet-export PRIVATE ${COMPILE_OPTION_DEBUG} "-Werror")
+	target_compile_options(js-snippet-export PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
 endif()
 set_target_properties(js-snippet-export PROPERTIES FOLDER "Tools")
 

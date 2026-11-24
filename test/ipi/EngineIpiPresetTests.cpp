@@ -1902,7 +1902,8 @@ protected:
 	string tempFilePath;
 
 	void readSmallFile(const string& path) {
-		FILE* file = fopen(path.c_str(), "rb");
+		FILE* file = nullptr;
+		fiftyoneDegreesFileOpen(path.c_str(), &file);
 		ASSERT_NE(nullptr, file);
 		fseek(file, 0, SEEK_END);
 		data.resize((size_t)ftell(file));
@@ -1925,11 +1926,12 @@ protected:
 		close(descriptor);
 #endif
 		tempFilePath = path;
-		FILE* file = fopen(tempFilePath.c_str(), "wb");
-		ASSERT_NE(nullptr, file);
-		const size_t written = fwrite(data.data(), 1, data.size(), file);
-		fclose(file);
-		ASSERT_EQ(data.size(), written);
+		ASSERT_EQ(
+			FIFTYONE_DEGREES_STATUS_SUCCESS,
+			fiftyoneDegreesFileWrite(
+				tempFilePath.c_str(),
+				data.data(),
+				data.size()));
 	}
 
 	const fiftyoneDegreesDataSetIpiHeader* header() const {
