@@ -80,8 +80,11 @@
 #define FIFTYONE_DEGREES_VALUE_IS_MASKED(v) \
 	((((uint32_t)((v)->urlOffsetOrWeight)) & 0xFFFF0000u) == 0xFF000000u)
 
-/** Value structure containing meta data relating to the value. */
-#pragma pack(push, 2)
+/**
+ * Value structure containing meta data relating to the value. The values
+ * collection holds them packed, so a value can start at any byte.
+ */
+#pragma pack(push, 1)
 typedef struct fiftyoneDegrees_value_t {
 	const int16_t propertyIndex; /**< Index of the property the value relates to */
 	const int32_t nameOffset; /**< The offset in the strings structure to the 

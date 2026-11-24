@@ -51,6 +51,7 @@
 #include "../../common/Base.hpp"
 #include "../../../src/dd/hash/EngineHash.hpp"
 #include "../../../src/dd/hash/hash.h"
+#include "../../../src/common/unaligned.h"
 
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
@@ -176,6 +177,15 @@ void initFromMemory(
 	manager.initialised = true;
 }
 
+/**
+ * Gets the value index at the position given in the list that follows the
+ * profile. The list can start at any byte, so the index is copied out.
+ */
+uint32_t valueIndexAt(const fiftyoneDegreesProfile *profile, uint32_t v) {
+	return fiftyoneDegreesUnalignedReadUint32(
+		(const unsigned char*)(profile + 1) + (size_t)v * sizeof(uint32_t));
+}
+
 void readFile(const std::string &path, std::vector<unsigned char> &data) {
 	FILE *file = fopen(path.c_str(), "rb");
 	ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";
@@ -214,10 +224,11 @@ ValueProfileIds readValueProfileIds(
 			ADD_FAILURE() << "Could not read the profile at " << i << ".";
 			break;
 		}
-		const uint32_t *values = (const uint32_t*)(profile + 1);
+		const uint32_t profileId = profile->profileId;
 		for (uint32_t v = 0; v < profile->valueCount; v++) {
-			if (values[v] >= first && values[v] <= last) {
-				found[values[v]].push_back(profile->profileId);
+			const uint32_t value = valueIndexAt(profile, v);
+			if (value >= first && value <= last) {
+				found[value].push_back(profileId);
 			}
 		}
 		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->profiles, &item);
@@ -355,8 +366,9 @@ ProfileIds getIds(
 }
 
 bool addId(void *state, fiftyoneDegreesCollectionItem *item) {
-	((ProfileIds*)state)->push_back(
-		((fiftyoneDegreesProfile*)item->data.ptr)->profileId);
+	const uint32_t profileId =
+		((fiftyoneDegreesProfile*)item->data.ptr)->profileId;
+	((ProfileIds*)state)->push_back(profileId);
 	return true;
 }
 
@@ -523,17 +535,20 @@ void makeListData(
 			if (profile == nullptr) {
 				break;
 			}
-			const uint32_t *values = (const uint32_t*)(profile + 1);
 			for (uint32_t v = 0; v + 1 < profile->valueCount; v++) {
-				if (values[v] >= a.firstValueIndex && values[v] < lastA &&
-					values[v + 1] >= b.firstValueIndex &&
-					values[v + 1] <= lastB) {
+				const uint32_t value = valueIndexAt(profile, v);
+				const uint32_t next = valueIndexAt(profile, v + 1);
+				if (value >= a.firstValueIndex && value < lastA &&
+					next >= b.firstValueIndex &&
+					next <= lastB) {
 					list.profileId = profile->profileId;
-					list.kept = values[v];
-					list.added = values[v] + 1;
-					list.removed = values[v + 1];
+					list.kept = value;
+					list.added = value + 1;
+					list.removed = next;
 					position = (size_t)(
-						(const unsigned char*)&values[v + 1] - list.data.data());
+						(const unsigned char*)(profile + 1) +
+						(size_t)(v + 1) * sizeof(uint32_t) -
+						list.data.data());
 					break;
 				}
 			}

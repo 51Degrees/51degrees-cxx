@@ -70,11 +70,14 @@
  * Key value pair contained in each component. This can point to anything. For
  * example, in the Hash device detection API, the key is the unique id of an
  * HTTP header, and the value is the index of the set of root nodes to use.
+ * The pairs follow the packed component structure, so they are packed too.
  */
+#pragma pack(push, 1)
 typedef struct fiftyoneDegrees_component_keyvaluepair_t {
 	uint32_t key; /**< Integer key */
 	uint32_t value; /**< Integer value */
 } fiftyoneDegreesComponentKeyValuePair;
+#pragma pack(pop)
 
 /**
  * A component of a data set. For example a hardware component contains

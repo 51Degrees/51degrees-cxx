@@ -1550,8 +1550,8 @@ static StatusCode valueProfilesRead(
 	Exception *exception) {
 	Item item;
 	Profile *profile;
-	const uint32_t *values;
-	uint32_t i, position, key, r, v;
+	const byte *values;
+	uint32_t i, position, key, r, v, value;
 	const uint32_t count = CollectionGetCount(dataSet->profileOffsets);
 	DataReset(&item.data);
 	for (i = 0; i < count; i++) {
@@ -1571,20 +1571,23 @@ static StatusCode valueProfilesRead(
 
 		// The values of a profile and the ranges are both in ascending order
 		// of value index, so one walk along both finds each value with a key.
-		values = (const uint32_t*)(profile + 1);
+		// The value indexes follow the packed profile, so they can start at
+		// any byte.
+		values = (const byte*)(profile + 1);
 		r = 0;
 		v = 0;
 		while (v < profile->valueCount && r < rangesCount) {
-			if (values[v] < ranges[r].firstValueIndex) {
+			value = UnalignedReadUint32(values + (size_t)v * sizeof(uint32_t));
+			if (value < ranges[r].firstValueIndex) {
 				v++;
 			}
-			else if (values[v] - ranges[r].firstValueIndex >=
+			else if (value - ranges[r].firstValueIndex >=
 				ranges[r].valuesCount) {
 				r++;
 			}
 			else {
 				key = ranges[r].firstKey +
-					(values[v] - ranges[r].firstValueIndex);
+					(value - ranges[r].firstValueIndex);
 				if (fill == false) {
 					index->starts[key]++;
 				}
@@ -2505,31 +2508,33 @@ static StatusCode initWithMemory(
 
 	// Create each of the collections.
 	uint32_t stringsCount = dataSet->header.strings.count;
-	*(uint32_t*)(&dataSet->header.strings.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, 0);
 	COLLECTION_CREATE_MEMORY(strings)
-	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, stringsCount);
 
 	// Override the header count so that the variable collection can work.
 	uint32_t componentCount = dataSet->header.components.count;
-	*(uint32_t*)(&dataSet->header.components.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.components.count, 0);
 	COLLECTION_CREATE_MEMORY(components)
-	*(uint32_t*)(&dataSet->header.components.count) = componentCount;
+	UnalignedWriteUint32(
+		(void*)&dataSet->header.components.count,
+		componentCount);
 
 	COLLECTION_CREATE_MEMORY(maps)
 	COLLECTION_CREATE_MEMORY(properties)
 	COLLECTION_CREATE_MEMORY(values)
 		
 	uint32_t profileCount = dataSet->header.profiles.count;
-	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, 0);
 	COLLECTION_CREATE_MEMORY(profiles)
-	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, profileCount);
 		
 	COLLECTION_CREATE_MEMORY(rootNodes);
 
 	uint32_t nodesCount = dataSet->header.nodes.count;
-	*(uint32_t*)(&dataSet->header.nodes.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, 0);
 	COLLECTION_CREATE_MEMORY(nodes)
-	*(uint32_t*)(&dataSet->header.nodes.count) = nodesCount;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, nodesCount);
 
 	COLLECTION_CREATE_MEMORY(profileOffsets)
 
@@ -2932,18 +2937,20 @@ static StatusCode readDataSetFromFile(
 		}
 	}
 	uint32_t stringsCount = dataSet->header.strings.count;
-	*(uint32_t*)(&dataSet->header.strings.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, 0);
 	COLLECTION_CREATE_FILE_WITH_CONFIG(
 		strings,
 		fiftyoneDegreesStringRead,
 		heldConfig(&dataSet->config.strings, *hold));
-	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, stringsCount);
 
 	// Override the header count so that the variable collection can work.
 	uint32_t componentCount = dataSet->header.components.count;
-	*(uint32_t*)(&dataSet->header.components.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.components.count, 0);
 	COLLECTION_CREATE_FILE(components, fiftyoneDegreesComponentReadFromFile);
-	*(uint32_t*)(&dataSet->header.components.count) = componentCount;
+	UnalignedWriteUint32(
+		(void*)&dataSet->header.components.count,
+		componentCount);
 	dataSet->components->count = componentCount;
 
 	COLLECTION_CREATE_FILE(maps, CollectionReadFileFixed);
@@ -2952,17 +2959,17 @@ static StatusCode readDataSetFromFile(
 
 	// Override the header count so that the variable collection can work.
 	uint32_t profileCount = dataSet->header.profiles.count;
-	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, 0);
 	COLLECTION_CREATE_FILE(profiles, fiftyoneDegreesProfileReadFromFile);
-	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, profileCount);
 	dataSet->profiles->count = profileCount;
 
 	COLLECTION_CREATE_FILE(rootNodes, CollectionReadFileFixed);
 
 	uint32_t nodesCount = dataSet->header.nodes.count;
-	*(uint32_t*)(&dataSet->header.nodes.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, 0);
 	COLLECTION_CREATE_FILE(nodes, fiftyoneDegreesGraphNodeReadFromFile);
-	*(uint32_t*)(&dataSet->header.nodes.count) = nodesCount;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, nodesCount);
 
 	COLLECTION_CREATE_FILE(profileOffsets, CollectionReadFileFixed);
 

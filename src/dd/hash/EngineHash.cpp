@@ -398,8 +398,10 @@ namespace {
 static bool addProfileId(void *state, fiftyoneDegreesCollectionItem *item) {
 	ProfileIdsState *profileIds = (ProfileIdsState*)state;
 	try {
-		profileIds->ids.push_back(
-			((fiftyoneDegreesProfile*)item->data.ptr)->profileId);
+		// The profile is packed, so its id is copied rather than referenced.
+		const uint32_t profileId =
+			((fiftyoneDegreesProfile*)item->data.ptr)->profileId;
+		profileIds->ids.push_back(profileId);
 	}
 	catch (...) {
 		profileIds->failed = true;

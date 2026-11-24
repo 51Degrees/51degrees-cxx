@@ -657,12 +657,13 @@ static void initGetEvidencePropertyRelated(
 			&propertyItem,
 			exception);
 		if (property != NULL && EXCEPTION_OKAY) {
-			name = &StoredBinaryValueGet(
+			const StoredBinaryValue* const nameValue = StoredBinaryValueGet(
 				dataSet->strings,
 				property->nameOffset,
 				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // name is string
 				&nameItem,
-				exception)->stringValue;
+				exception);
+			name = nameValue != NULL ? &nameValue->stringValue : NULL;
 			if (name != NULL && EXCEPTION_OKAY) {
 				if (requiredLength == name->size -1 &&
 					// Check that the available property matches the start of
@@ -896,22 +897,24 @@ static StatusCode initWithMemory(
 
 	// Create each of the collections.
 	const uint32_t stringsCount = dataSet->header.strings.count;
-	*(uint32_t*)(&dataSet->header.strings.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, 0);
 	COLLECTION_CREATE_MEMORY(strings)
-	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, stringsCount);
 
 	// Override the header count so that the variable collection can work.
 	const uint32_t componentCount = dataSet->header.components.count;
-	*(uint32_t*)(&dataSet->header.components.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.components.count, 0);
 	COLLECTION_CREATE_MEMORY(components)
-	*(uint32_t*)(&dataSet->header.components.count) = componentCount;
+	UnalignedWriteUint32(
+		(void*)&dataSet->header.components.count,
+		componentCount);
 
 	COLLECTION_CREATE_MEMORY(maps)
 	COLLECTION_CREATE_MEMORY(properties)
 	COLLECTION_CREATE_MEMORY(values)
 
 	const uint32_t profileCount = dataSet->header.profiles.count;
-	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, 0);
 #ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
 	// The profiles collection stores offsets in the unit declared by the
 	// header. No other collection uses shifted offsets.
@@ -925,7 +928,7 @@ static StatusCode initWithMemory(
 #else
 	COLLECTION_CREATE_MEMORY(profiles)
 #endif
-	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, profileCount);
 
 	COLLECTION_CREATE_MEMORY(graphs);
 
@@ -1052,7 +1055,7 @@ static StatusCode createProfilesFromFile(
 	FILE* file,
 	const fiftyoneDegreesCollectionConfig* config) {
 	const uint32_t profileCount = dataSet->header.profiles.count;
-	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, 0);
 #ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
 	// The profiles collection stores offsets in the unit declared by the
 	// header. No other collection uses shifted offsets.
@@ -1071,7 +1074,7 @@ static StatusCode createProfilesFromFile(
 		dataSet->header.profiles,
 		fiftyoneDegreesProfileReadFromFile);
 #endif
-	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, profileCount);
 	if (dataSet->profiles == NULL) {
 		return getCollectionFileStatus(
 			dataSet,
@@ -1914,18 +1917,20 @@ static StatusCode readDataSetFromFile(
 		}
 	}
 	const uint32_t stringsCount = dataSet->header.strings.count;
-	*(uint32_t*)(&dataSet->header.strings.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, 0);
 	COLLECTION_CREATE_FILE_WITH_CONFIG(
 		strings,
 		fiftyoneDegreesStoredBinaryValueRead,
 		heldConfig(&dataSet->config.strings, hold));
-	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, stringsCount);
 
 	// Override the header count so that the variable collection can work.
 	const uint32_t componentCount = dataSet->header.components.count;
-	*(uint32_t*)(&dataSet->header.components.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.components.count, 0);
 	COLLECTION_CREATE_FILE(components, fiftyoneDegreesComponentReadFromFile);
-	*(uint32_t*)(&dataSet->header.components.count) = componentCount;
+	UnalignedWriteUint32(
+		(void*)&dataSet->header.components.count,
+		componentCount);
 
 	COLLECTION_CREATE_FILE(maps, CollectionReadFileFixed);
 	COLLECTION_CREATE_FILE(properties, CollectionReadFileFixed);
@@ -3117,7 +3122,7 @@ static uint32_t getProfileOffset(
 		offsetIndex,
 		CollectionKeyType_Integer,
 	};
-	const uint32_t * const resultRef = (uint32_t*)profileOffsets->get(
+	const byte * const resultRef = (const byte*)profileOffsets->get(
 		profileOffsets,
 		&resultKey,
 		&item,
@@ -3125,7 +3130,8 @@ static uint32_t getProfileOffset(
 	if (!(resultRef && EXCEPTION_OKAY)) {
 		return 0;
 	}
-	const uint32_t result = *resultRef;
+	// The profile offsets can start at any byte.
+	const uint32_t result = UnalignedReadUint32(resultRef);
 	COLLECTION_RELEASE(profileOffsets, &item);
 	return result;
 }
