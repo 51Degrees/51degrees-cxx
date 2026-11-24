@@ -2121,6 +2121,12 @@ static StatusCode initDataSetFromMemory(
 		dataSet->b.b.memoryToFree = memory;
 	}
 
+	// Missing memory cannot be read. Report it before the end of the memory
+	// is worked out, as no offset may be added to a null pointer.
+	if (memory == NULL) {
+		return NULL_POINTER;
+	}
+
 	// Set up the reader.
 	reader.startByte = reader.current = (byte*)memory;
 	reader.length = size;
@@ -2638,6 +2644,12 @@ void fiftyoneDegreesResultsIpiFromIpAddressString(
 	size_t ipLength,
 	fiftyoneDegreesException* exception) {
 	IpAddress ip;
+	// A missing string holds no IP address. Report it before the end of the
+	// string is worked out, as no offset may be added to a null pointer.
+	if (ipAddress == NULL) {
+		EXCEPTION_SET(INCORRECT_IP_ADDRESS_FORMAT);
+		return;
+	}
 	const bool parsed =
 		IpAddressParse(ipAddress, ipAddress + ipLength, &ip);
 	// Check if the IP address was successfully created
