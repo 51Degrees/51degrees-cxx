@@ -1127,6 +1127,28 @@ TEST_F(File, TempPathFillingTheBuffer) {
 }
 
 /**
+ * Check that a path two characters shorter than the buffer, with no trailing
+ * slash, is handled. A slash is added, which leaves no room for the search
+ * pattern's * and terminator on Windows, so nothing is searched.
+ */
+TEST_F(File, TempPathTwoShortOfTheBuffer) {
+	std::string longPath(FIFTYONE_DEGREES_FILE_MAX_PATH - 2, 'a');
+	const char *paths[] = { longPath.c_str() };
+	char foundFileName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	foundFileName[0] = '\0';
+	EXPECT_FALSE(fiftyoneDegreesFileGetExistingTempFile(
+		fileName,
+		paths,
+		1,
+		-1,
+		foundFileName)) <<
+		"A path that leaves no room for the search pattern should not be "
+		"searched.";
+	EXPECT_STREQ("", foundFileName) <<
+		"Nothing should be written to the destination.";
+}
+
+/**
  * Check that an existing file is found by the getPath method, and that the
  * path it was found at is written correctly.
  */

@@ -418,7 +418,8 @@ static bool iterateFiles(
 	wchar_t wString[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	WIN32_FIND_DATAW file;
 	HANDLE searchHandle;
-	if (nameStart + 1 > FIFTYONE_DEGREES_FILE_MAX_PATH) {
+	// The search pattern needs room for the * and the null terminator.
+	if (nameStart + 2 > FIFTYONE_DEGREES_FILE_MAX_PATH) {
 		return false;
 	}
 	// Build the search pattern, e.g. /some/path/*
@@ -439,7 +440,8 @@ static bool iterateFiles(
 	if ((searchHandle = FindFirstFileW(wString, &file))
 		!= INVALID_HANDLE_VALUE) {
 		do {
-			// Append the name to the path.
+			// Append the name to the path, skipping names which do not fit,
+			// as the other platforms do.
 			if (WideCharToMultiByte(
 				CP_ACP,
 				0,
@@ -450,8 +452,7 @@ static bool iterateFiles(
 					(FIFTYONE_DEGREES_FILE_MAX_PATH - nameStart)),
 				NULL,
 				NULL) == 0) {
-				FindClose(searchHandle);
-				return false;
+				continue;
 			}
 			// Call match and return if the file is a match.
 			if (compare(tempPath, state)) {

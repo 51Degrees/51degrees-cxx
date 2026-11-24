@@ -81,6 +81,13 @@ foreach ($toolchain in $toolchains) {
             Test-File $compiler $build $file.FullName $name $ipi `
                 'as IP Intelligence'
         }
+        # The graph's trace output is only built with its macro, so the
+        # graph is compiled once more with it.
+        if ($name -eq 'src/ipi/graph/graph.c') {
+            Test-File $compiler $build $file.FullName $name `
+                ($ipi + '-DFIFTYONE_DEGREES_IPI_GRAPH_TRACE') `
+                'as IP Intelligence with the graph trace'
+        }
     }
 
     # Each header is compiled through a generated source file that has only

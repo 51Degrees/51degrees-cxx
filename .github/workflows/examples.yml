@@ -79,8 +79,12 @@ jobs:
             if ("$_" -match "Found C(\+\+)? example '([A-Za-z0-9]+)'") { $Matches[2] } })
           "Examples: $($names -join ', ')"
           if ($names.Count -eq 0) { throw "Configure found no examples" }
+          # The build output is printed in full, so the compiler options and
+          # any compiler message can be read in the log of a passing run too.
           $build = cmake --build . --config Release --parallel 4 2>&1
-          if ($LASTEXITCODE -ne 0) { $build | Select-Object -Last 80 | Out-Host; throw "The build failed" }
+          $code = $LASTEXITCODE
+          $build | Out-Host
+          if ($code -ne 0) { throw "The build failed" }
           Pop-Location
           $names -join ' ' | Set-Content examples.txt
 
