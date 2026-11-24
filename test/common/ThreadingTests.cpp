@@ -26,46 +26,8 @@
 #include <thread>
 #include <vector>
 
-/**
- * Macro used to ensure that local variables are aligned to memory boundaries
- * to support interlocked operations that require double width data structures
- * and pointers to be aligned.
- */
-#if ((defined(_MSC_VER) && defined(_WIN64)) \
-    || ((defined(__GNUC__) || defined(__clang__)) \
-        && (defined(__x86_64__) || defined(__aarch64__))))
-#define ALIGN_SIZE 16
-typedef struct testDoubleWidth_t {
-	void* ptr;
-	int32_t count;
-	int32_t padding;
-} testDoubleWidth;
-#else
-#define ALIGN_SIZE 8
-typedef struct testDoubleWidth_t {
-	void* ptr;
-	int32_t count;
-} testDoubleWidth;
-#endif
-
-typedef union doubleWidth_u {
-    fiftyoneDegreesInterlockDoubleWidth fodDW;
-    testDoubleWidth testDW;
-} doubleWidth;
-
-#ifdef _MSC_VER
-#define INTERLOCK_DOUBLE_WIDTH \
-    __declspec(align(ALIGN_SIZE)) doubleWidth
-#else
-typedef doubleWidth alignedDoubleWidth __attribute__ ((aligned (ALIGN_SIZE)));
-#define INTERLOCK_DOUBLE_WIDTH alignedDoubleWidth
-#endif
-
 class Threading : public Base
 {
-public:
-    INTERLOCK_DOUBLE_WIDTH item;
-
 protected:
 
 	void SetUp() {
@@ -76,61 +38,24 @@ protected:
 		Base::TearDown();
 	}
 };
-TEST_F(Threading, DoubleWidthExchange_Matching) {
-
-    int val1 = 122;
-    int val2 = 123;
-
-    memset(&item, 0, sizeof(item));
-    item.testDW.ptr = (void*)&val1;
-
-    INTERLOCK_DOUBLE_WIDTH newItem;
-    newItem = item;
-    INTERLOCK_DOUBLE_WIDTH compare;
-    compare = newItem;
-    newItem.testDW.ptr = (void*)&val2;
-    newItem.testDW.count++;
-
-    bool changed = 
-        FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
-            item.fodDW, 
-            newItem.fodDW, 
-            compare.fodDW);
-    
-    ASSERT_TRUE(changed);
-    ASSERT_EQ(newItem.testDW.count, item.testDW.count);
-    ASSERT_EQ(newItem.testDW.ptr, item.testDW.ptr);
-    ASSERT_EQ(
-        *(int*)newItem.testDW.ptr, 
-        *(int*)item.testDW.ptr);
+/**
+ * Swaps a value that matches the comparand, and returns the old value.
+ */
+TEST_F(Threading, Exchange_Matching) {
+    volatile long value = 5;
+    long old = FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(value, 6L, 5L);
+    ASSERT_EQ(5L, old);
+    ASSERT_EQ(6L, (long)value);
 }
-TEST_F(Threading, DoubleWidthExchange_NonMatching) {
 
-    int val1 = 122;
-    int val2 = 123;
-
-    memset(&item, 0, sizeof(item));
-    item.testDW.ptr = (void*)&val1;
-
-    INTERLOCK_DOUBLE_WIDTH newItem;
-    newItem = item;
-    INTERLOCK_DOUBLE_WIDTH compare;
-    compare = newItem;
-    newItem.testDW.ptr = (void*)&val2;
-    newItem.testDW.count++;
-
-    item.testDW.count++;
-
-    bool changed = 
-        FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
-            item.fodDW, 
-            newItem.fodDW, 
-            compare.fodDW);
-    ASSERT_FALSE(changed);
-    ASSERT_NE(newItem.testDW.ptr, item.testDW.ptr);
-    ASSERT_NE(
-        *(int*)newItem.testDW.ptr, 
-        *(int*)item.testDW.ptr);
+/**
+ * Leaves a value that does not match the comparand, and returns it.
+ */
+TEST_F(Threading, Exchange_NonMatching) {
+    volatile long value = 7;
+    long old = FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(value, 6L, 5L);
+    ASSERT_EQ(7L, old);
+    ASSERT_EQ(7L, (long)value);
 }
 
 /**

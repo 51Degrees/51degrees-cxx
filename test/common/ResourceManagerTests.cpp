@@ -23,6 +23,7 @@
 #include "pch.h"
 #include "../../src/common/resource.h"
 #include "Base.hpp"
+#include <chrono>
 #include <thread>
 
 class ResourceManager : public Base
@@ -532,5 +533,136 @@ TEST_F(ResourceManager, MultiThreading_ResourceReplace_Concurrent) {
 			(long)countedFrees) <<
 			"A resource put in place while another thread replaced the " <<
 			"resource was never freed.";
+	}
+}
+
+/*
+ * A thread that takes a handle which already has the most users it can have.
+ */
+typedef struct waiting_state_t {
+	fiftyoneDegreesResourceManager *manager;
+	fiftyoneDegreesResourceHandle *handle;
+	volatile long taken;
+} WaitingState;
+
+static void runResourceIncAtMax(void *pointer) {
+	WaitingState *state = (WaitingState*)pointer;
+	state->handle = fiftyoneDegreesResourceHandleIncUse(state->manager);
+	FIFTYONE_DEGREES_INTERLOCK_INC(&state->taken);
+}
+
+/*
+ * Check that a thread taking a handle with the most users the count can hold
+ * waits until another user releases it, rather than taking the count past
+ * its bits and into the claimed bit.
+ */
+TEST_F(ResourceManager, MultiThreading_HandleInc_WaitsAtMax) {
+	if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
+		fiftyoneDegreesResourceHandle *handle =
+			fiftyoneDegreesResourceHandleIncUse(&manager);
+
+		// Stand in for the most users the handle can have.
+		handle->counter = FIFTYONE_DEGREES_RESOURCE_IN_USE_MAX;
+		WaitingState state = { &manager, nullptr, 0 };
+		FIFTYONE_DEGREES_THREAD thread;
+		FIFTYONE_DEGREES_THREAD_CREATE(
+			thread,
+			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceIncAtMax,
+			&state);
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		EXPECT_EQ(0L, (long)state.taken) <<
+			"A handle was taken past the most users it can have.";
+		EXPECT_EQ(
+			(long)FIFTYONE_DEGREES_RESOURCE_IN_USE_MAX,
+			(long)fiftyoneDegreesResourceHandleGetUse(handle)) <<
+			"The in use count went past the most users it can have.";
+
+		// One user releasing the handle lets the waiting thread take it.
+		fiftyoneDegreesResourceHandleDecUse(handle);
+		FIFTYONE_DEGREES_THREAD_JOIN(thread);
+		FIFTYONE_DEGREES_THREAD_CLOSE(thread);
+		EXPECT_EQ(1L, (long)state.taken) <<
+			"The waiting thread did not take the handle once it was released.";
+		EXPECT_EQ(handle, state.handle) <<
+			"The waiting thread took a different handle.";
+		EXPECT_EQ(
+			(long)FIFTYONE_DEGREES_RESOURCE_IN_USE_MAX,
+			(long)fiftyoneDegreesResourceHandleGetUse(handle)) <<
+			"The in use count is wrong after the waiting thread took it.";
+
+		// Put back the one real user, and release it.
+		handle->counter = 1;
+		fiftyoneDegreesResourceHandleDecUse(handle);
+	}
+}
+
+// Number of times the threads race to release the last uses of a handle
+#define RELEASE_RACES 2000
+
+/*
+ * The handle the threads release, and what lets them start together.
+ */
+typedef struct release_race_t {
+	fiftyoneDegreesResourceHandle *handle;
+	volatile long ready;
+	volatile long go;
+} ReleaseRace;
+
+/*
+ * Run by each thread to release its use of a replaced handle as soon as
+ * every thread is ready, so that the releases overlap.
+ */
+static void runResourceRelease(void *pointer) {
+	ReleaseRace *race = (ReleaseRace*)pointer;
+	FIFTYONE_DEGREES_INTERLOCK_INC(&race->ready);
+	while (race->go == 0) {
+		std::this_thread::yield();
+	}
+	fiftyoneDegreesResourceHandleDecUse(race->handle);
+}
+
+/*
+ * Check that when several threads release the last uses of a replaced handle
+ * at the same time, its resource is freed once, and not while any of them
+ * still holds it.
+ */
+TEST_F(ResourceManager, MultiThreading_FinalRelease_FreesOnce) {
+	if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
+		FIFTYONE_DEGREES_THREAD threads[THREAD_COUNT];
+		for (int i = 0; i < RELEASE_RACES; i++) {
+			fiftyoneDegreesResourceManager raceManager;
+			countedFrees = 0;
+			CheckedResource *first = newCheckedResource();
+			fiftyoneDegreesResourceManagerInit(
+				&raceManager,
+				first,
+				&first->handle,
+				freeCountedResource);
+			ReleaseRace race = { nullptr, 0, 0 };
+			for (int t = 0; t < THREAD_COUNT; t++) {
+				race.handle = fiftyoneDegreesResourceHandleIncUse(&raceManager);
+			}
+			CheckedResource *next = newCheckedResource();
+			fiftyoneDegreesResourceReplace(&raceManager, next, &next->handle);
+			ASSERT_EQ(0L, (long)countedFrees) <<
+				"A replaced resource was freed while it was in use.";
+
+			startThreads(
+				threads,
+				(FIFTYONE_DEGREES_THREAD_ROUTINE)&runResourceRelease,
+				&race);
+			while (race.ready < THREAD_COUNT) {
+				std::this_thread::yield();
+			}
+			race.go = 1;
+			joinThreads(threads);
+			ASSERT_EQ(1L, (long)countedFrees) <<
+				"The replaced resource was not freed exactly once when its " <<
+				"last uses were released together, on race " << i << ".";
+
+			fiftyoneDegreesResourceManagerFree(&raceManager);
+			ASSERT_EQ(2L, (long)countedFrees) <<
+				"The active resource was not freed with the manager.";
+		}
 	}
 }
