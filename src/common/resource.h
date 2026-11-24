@@ -249,8 +249,8 @@ EXTERNAL void fiftyoneDegreesResourceHandleDecUse(
 
 /**
  * Return the current usage counter.
- * WARNING: This call is not thread-safe and is suitable for using in
- * testing only.
+ * WARNING: Other threads can change the count as soon as it is read, so this
+ * call is suitable for using in testing only.
  * @param handle to the resource which should be released by the manager
  * @return the current usage counter
  */
