@@ -42,11 +42,11 @@ public:
 EXAMPLE_TESTS(ExampleTestFindProfiles)
 
 /**
- * Country codes whose profiles are counted.
+ * Country codes whose profiles are counted. Each one walks every profile in
+ * the data set, so the list is kept short. It holds the country with the most
+ * profiles, one with few and one between them.
  */
-static const char * const countryCodes[] = {
-	"IT", "GB", "US", "FR", "DE", "JP", "CN", "BR", "IN", "ZA", "AU", "CA"
-};
+static const char * const countryCodes[] = { "US", "GB", "JP" };
 
 /**
  * Counts the profiles that hold each country code, with the data set loaded
