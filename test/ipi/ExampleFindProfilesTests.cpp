@@ -91,10 +91,7 @@ static std::vector<uint32_t> countProfilesForEachCountry(
 
 /**
  * Check that a data set which reads each profile from the file when it is
- * needed finds the same profiles for each value as one held in memory. Each
- * profile read from the file is held in memory of its own size, so when run
- * with AddressSanitizer this also checks that only the values of the profile
- * are read.
+ * needed finds the same profiles for each value as one held in memory.
  */
 TEST_F(ExampleTestFindProfiles, LowMemoryFindsTheSameProfilesAsInMemory) {
 	if (dataFilePath.empty()) {
