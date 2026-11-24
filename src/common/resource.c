@@ -47,14 +47,16 @@
  * Reads the manager's active handle as one atomic load, as another thread can
  * replace it with compare and exchange at the same time. The load also orders
  * the reads of the handle after the writes that set it up, which a plain read
- * of the pointer doesn't. Visual Studio reads it through a volatile pointer.
- * Under /volatile:ms, the default on x86 and x64, a volatile read has acquire
- * semantics, so it gives the same order.
+ * of the pointer doesn't. Visual Studio reads it with an interlocked compare
+ * and exchange of NULL for NULL, which changes nothing and is a full barrier
+ * on every target. A volatile read is not enough, as it has no acquire
+ * semantics under /volatile:iso, the default on ARM64.
  */
 #ifdef FIFTYONE_DEGREES_NO_THREADING
 #define ACTIVE_READ(m) ((m)->active)
 #elif defined(_MSC_VER)
-#define ACTIVE_READ(m) (*(volatile ResourceHandle* volatile*)&(m)->active)
+#define ACTIVE_READ(m) \
+	((volatile ResourceHandle*)INTERLOCK_EXCHANGE_PTR((m)->active, NULL, NULL))
 #else
 #define ACTIVE_READ(m) __atomic_load_n(&(m)->active, __ATOMIC_SEQ_CST)
 #endif
