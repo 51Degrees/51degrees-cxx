@@ -233,6 +233,18 @@ TEST_F(File, TempCreateFilenameSmallBuffer) {
 }
 
 /**
+ * Check a null destination is too small for the name, whatever length is
+ * given with it.
+ */
+TEST_F(File, TempCreateFileNameNullDestination) {
+	for (size_t length : { (size_t)0, (size_t)FIFTYONE_DEGREES_FILE_MAX_PATH }) {
+		EXPECT_EQ(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY,
+			fiftyoneDegreesFileAddTempFileName(fileName, NULL, 0, length)) <<
+			"Length " << length;
+	}
+}
+
+/**
  * Check a name that needs all of the length, leaving no room for its null, is
  * too long rather than cut short, and that one more byte is enough.
  */

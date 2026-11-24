@@ -64,34 +64,61 @@ static StatusCode readNextBlock(FileState* fileState) {
 	else if (bytesRead == 0) {
 		status = FILE_END_OF_FILE;
 	}
-	fileState->end = fileState->buffer + bytesRead - 1;
-	fileState->current = fileState->buffer;
+	if (bytesRead > 0) {
+		fileState->end = fileState->buffer + bytesRead - 1;
+		fileState->current = fileState->buffer;
+	}
+	else {
+		// Nothing was read, so the next read starts a new block.
+		fileState->end = NULL;
+		fileState->current = NULL;
+	}
 	return status;
 }
 
 // Read the next character or null if there are no more characters to be read.
+// Current and end are null until a block has been read.
 static char* readNext(FileState* fileState) {
-	StatusCode status = SUCCESS;
-	fileState->current++;
-	if (fileState->current > fileState->end) {
-		status = readNextBlock(fileState);
-		if (status != SUCCESS) {
-			return NULL;
-		}
+	if (fileState->current != NULL &&
+		fileState->current < fileState->end) {
+		fileState->current++;
+		return fileState->current;
+	}
+	if (readNextBlock(fileState) != SUCCESS) {
+		return NULL;
 	}
 	return fileState->current;
 }
 
-// Sets the current and end pointers to the current key.
+// The pair being written, or null when the document has more pairs than the
+// caller's array holds.
+static KeyValuePair* getCurrentPair(PairState* state) {
+	return state->index >= 0 && state->index < state->size ?
+		state->pairs + state->index : NULL;
+}
+
+// Sets the current and end pointers to the current key, or to null when
+// there is no pair to write to.
 static void setCurrentKey(PairState* state) {
-	KeyValuePair* current = state->pairs + state->index;
+	KeyValuePair* current = getCurrentPair(state);
+	if (current == NULL) {
+		state->current = NULL;
+		state->end = NULL;
+		return;
+	}
 	state->current = (char*)current->key;
 	state->end = (char*)(current->key + current->keyLength - 1);
 }
 
-// Sets the current and end pointers to the current value.
+// Sets the current and end pointers to the current value, or to null when
+// there is no pair to write to.
 static void setCurrentValue(PairState* state) {
-	KeyValuePair* current = state->pairs + state->index;
+	KeyValuePair* current = getCurrentPair(state);
+	if (current == NULL) {
+		state->current = NULL;
+		state->end = NULL;
+		return;
+	}
 	state->current = (char*)current->value;
 	state->end = (char*)current->value + current->valueLength - 1;
 }
@@ -99,15 +126,21 @@ static void setCurrentValue(PairState* state) {
 // Switches from writing to the current key to the current value. Ensures that
 // the current string being written is null terminated.
 static void switchKeyValue(PairState* state) {
-	*state->current = '\0';
+	if (state->current != NULL) {
+		*state->current = '\0';
+	}
 	setCurrentValue(state);
 }
 
 // Advances to the next key value pair. Ensures that the current string being 
-// written is null terminated.
+// written is null terminated. The index stops at the size of the array.
 static void nextPair(PairState* state) {
-	*state->current = '\0';
-	state->index++;
+	if (state->current != NULL) {
+		*state->current = '\0';
+	}
+	if (state->index < state->size) {
+		state->index++;
+	}
 	setCurrentKey(state);
 }
 
@@ -194,7 +227,7 @@ StatusCode fiftyoneDegreesYamlFileIterateWithLimit(
 		handle, 
 		buffer, 
 		length,
-		// Set the end and current to 0 to force the next block to be read.
+		// Set the end and current to null to force the next block to be read.
 		0,
 		0,
 		0, 
@@ -208,8 +241,9 @@ StatusCode fiftyoneDegreesYamlFileIterateWithLimit(
 		keyValuePairs,
 		collectionSize,
 		0,
-		(char*)keyValuePairs[0].key,
-		(char*)(keyValuePairs[0].key + keyValuePairs[0].keyLength - 1) };
+		NULL,
+		NULL };
+	setCurrentKey(&pairState);
 
 	// If there is no limit then set the limit to the largest value to 
 	// avoid checking for negative values in the loop.
@@ -227,17 +261,22 @@ StatusCode fiftyoneDegreesYamlFileIterateWithLimit(
 			// emit a phantom empty.
 			if (fileState.newLineCount == 0 && fileState.position > 0) {
 
-				// If the value opened with a single quote and the last
-				// character is also a single quote then remove the trailing
-				// quote (the opening one was skipped while reading).
-				if (fileState.quote > 0 &&
-					*(pairState.current - 1) == '\'') {
-					pairState.current--;
-				}
-				// If there is a value, remove any wrapping double
-				// quotes the serializer added around a leading single quote.
-				else if (fileState.colon > 0) {
-					stripDoubleQuoteWrap(&pairState);
+				// Current is null when the document has more pairs than the
+				// array holds, and there is no pair to finish.
+				if (pairState.current != NULL) {
+					// If the value opened with a single quote and the last
+					// character is also a single quote then remove the
+					// trailing quote (the opening one was skipped while
+					// reading).
+					if (fileState.quote > 0 &&
+						*(pairState.current - 1) == '\'') {
+						pairState.current--;
+					}
+					// If there is a value, remove any wrapping double quotes
+					// the serializer added around a leading single quote.
+					else if (fileState.colon > 0) {
+						stripDoubleQuoteWrap(&pairState);
+					}
 				}
 				nextPair(&pairState);
 			}

@@ -787,6 +787,10 @@ fiftyoneDegreesStatusCode fiftyoneDegreesFileAddTempFileName(
 	if (status != SUCCESS) {
 		return status;
 	}
+	// A null destination has no room for the name.
+	if (destination == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
 
 	do {
 		if (getRandomString(TEMP_UNIQUE_STRING_LENGTH + 1, uniqueString) < 0) {

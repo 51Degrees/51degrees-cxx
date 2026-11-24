@@ -344,26 +344,30 @@ static void writeRawFile(const string& path, const string& content) {
 /*
  * Iterate over the given raw file content using a caller supplied read buffer
  * size. A small buffer forces records to span file blocks, exercising the
- * block boundary handling.
+ * block boundary handling. The pairs are allocated to exactly the count
+ * given.
  */
-static TestState iterateRaw(const string& content, size_t bufferSize) {
+static TestState iterateRaw(
+	const string& content,
+	size_t bufferSize,
+	uint16_t pairCount = 8) {
 	string filePath = getFileWithPath("quotefile");
 	writeRawFile(filePath, content);
 
 	vector<char> buffer(bufferSize, 0);
-	char key[8][256];
-	char value[8][256];
-	KeyValuePair pairs[8];
-	for (int i = 0; i < 8; i++) {
-		pairs[i] = { key[i], 256, value[i], 256 };
+	vector<char> key((size_t)pairCount * 256);
+	vector<char> value((size_t)pairCount * 256);
+	vector<KeyValuePair> pairs(pairCount);
+	for (uint16_t i = 0; i < pairCount; i++) {
+		pairs[i] = { &key[(size_t)i * 256], 256, &value[(size_t)i * 256], 256 };
 	}
 	TestState state;
 	fiftyoneDegreesYamlFileIterateWithLimit(
 		filePath.c_str(),
 		buffer.data(),
 		bufferSize,
-		pairs,
-		8,
+		pairs.data(),
+		pairCount,
 		-1,
 		&state,
 		testCallBack);
@@ -448,6 +452,27 @@ TEST(YamlFileDocumentTests, LastDocumentReturnedAtEof) {
 	ASSERT_EQ((size_t)2, s[0].size());
 	ASSERT_EQ((size_t)1, s[1].size());
 	ASSERT_EQ(string("3"), s[1][0].value);
+}
+
+// A document with more pairs than the array holds gives the pairs that fit,
+// and the next document is read from its start.
+TEST(YamlFileDocumentTests, MorePairsThanTheArrayHolds) {
+	TestState s = iterateRaw(
+		"header.a: 1\nheader.b: 2\nheader.c: 3\nheader.d: 4\n---\n"
+		"header.e: 5",
+		500,
+		2);
+	ASSERT_EQ((size_t)2, s.size());
+	ASSERT_EQ((size_t)2, s[0].size());
+	ASSERT_EQ(string("1"), s[0][0].value);
+	ASSERT_EQ(string("2"), s[0][1].value);
+	ASSERT_EQ((size_t)1, s[1].size());
+	ASSERT_EQ(string("5"), s[1][0].value);
+}
+
+// With no pairs to fill, nothing is read into them and no document is given.
+TEST(YamlFileDocumentTests, NoPairsInTheArray) {
+	ASSERT_EQ((size_t)0, iterateRaw("header.a: 1\n---\nheader.b: 2", 500, 0).size());
 }
 
 // CRLF line endings, read with a tiny buffer, produce the same documents.
