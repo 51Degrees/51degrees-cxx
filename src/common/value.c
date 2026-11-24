@@ -59,9 +59,7 @@ static int compareValueByName(
 	Item *item,
 	CollectionKey key,
 	Exception *exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(key);
-#	endif
+	(void)key;
 	int result = 0;
 	Item name;
 	const StoredBinaryValue *value;
@@ -120,11 +118,10 @@ const String* fiftyoneDegreesValueGetDescription(
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
 	// A reduced size data file does not contain value descriptions, so this
 	// method cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(strings);
-	UNREFERENCED_PARAMETER(value);
-	UNREFERENCED_PARAMETER(item);
-#endif
+	(void)strings;
+	(void)value;
+	(void)item;
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED)
 	return NULL;
 #else
@@ -168,7 +165,7 @@ const Value* fiftyoneDegreesValueGet(
 	CollectionItem *item,
 	Exception *exception) {
 	const CollectionKey valueKey = {
-		valueIndex,
+		{ valueIndex },
 		CollectionKeyType_Value,
 	};
 	return (const Value*)values->get(
@@ -218,7 +215,7 @@ static long searchByNameAndType(
 		storedValueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
 	const size_t requiredSize = strlen(valueName) + 3;
 	char * const buffer = isString ? NULL : Malloc(requiredSize);
-	StringBuilder tempBuilder = { buffer, requiredSize };
+	StringBuilder tempBuilder = { buffer, requiredSize, NULL, 0, 0, false };
 	search.tempBuilder = isString ? NULL : &tempBuilder;
 
 	const long index = CollectionBinarySearch(
@@ -313,6 +310,7 @@ static char* emptyText(
 	char * const text = buffer != NULL && bufferLength > 0
 		? buffer
 		: (char*)Malloc(1);
+	(void)exception; // Not used when exceptions are disabled.
 	if (text == NULL) {
 		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return NULL;

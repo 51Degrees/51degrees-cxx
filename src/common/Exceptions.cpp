@@ -68,7 +68,7 @@ FatalException::FatalException(
 }
 #else 
 FatalException::FatalException(
-	fiftyoneDegreesException* exception) : StatusCodeException(NOT_SET) {
+	fiftyoneDegreesException*) : StatusCodeException(NOT_SET) {
 	message.append(
 		"Exceptions disabled with FIFTYONE_DEGREES_EXCEPTIONS_DISABLED");
 }

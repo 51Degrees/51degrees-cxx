@@ -33,9 +33,11 @@
  */
 #define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-procipi.c"
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -91,7 +93,7 @@ static int run(fiftyoneDegreesResourceManager *manager) {
 		if (!strlen(ipAddress)) {
 			continue;
 		}
-		StringBuilder builder = { output, sizeof(output) };
+		StringBuilder builder = { output, sizeof(output), NULL, 0, 0, false };
 		StringBuilderInit(&builder);
 
 		// Set the results from the IP address provided from standard in.
@@ -184,15 +186,16 @@ int main(int argc, char* argv[]) {
 	const char* envDataFilePath =
 		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = fiftyoneDegreesExampleCopyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(

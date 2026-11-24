@@ -20,7 +20,9 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+#ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
+#endif
 
 #include "string.h"
 #include "fiftyone.h"
@@ -65,7 +67,7 @@ const StoredBinaryValue* fiftyoneDegreesStoredBinaryValueGet(
     Exception *exception) {
 
     const CollectionKey key = {
-        offset,
+        { offset },
         GetCollectionKeyTypeForStoredValueType(storedValueType, exception),
     };
     if (EXCEPTION_FAILED) {
@@ -159,7 +161,7 @@ static size_t writeText(
     char * const text,
     const size_t length,
     Exception * const exception) {
-    StringBuilder builder = { text, length };
+    StringBuilder builder = { text, length, NULL, 0, 0, false };
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(
         &builder,

@@ -50,12 +50,11 @@ static void addProfileValuesMethod(
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
 	// A reduced size data file does not contain profile ids, so this method
 	// cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(index);
-	UNREFERENCED_PARAMETER(propertyIndexes);
-	UNREFERENCED_PARAMETER(values);
-	UNREFERENCED_PARAMETER(profile);
-#endif
+	(void)index;
+	(void)propertyIndexes;
+	(void)values;
+	(void)profile;
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 #else
 	uint32_t valueIndex;
@@ -69,7 +68,7 @@ static void addProfileValuesMethod(
 		index->availablePropertyCount;
 
 	CollectionKey valueKey = {
-		0,
+		{ 0 },
 		CollectionKeyType_Value,
 	};
 	// For each of the values associated with the profile check to see if it
@@ -123,11 +122,11 @@ static void iterateProfiles(
 	DataReset(&profileItem.data);
 	DataReset(&profileOffsetItem.data);
 	CollectionKey profileOffsetKey = {
-		0,
+		{ 0 },
 		CollectionKeyType_ProfileOffset,
 	};
 	CollectionKey profileKey = {
-		0,
+		{ 0 },
 		CollectionKeyType_Profile,
 	};
 	for (uint32_t i = 0; 
@@ -169,10 +168,9 @@ static uint32_t getProfileId(
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
 	// A reduced size data file does not contain profile ids, so this method
 	// cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(profileOffsets);
-	UNREFERENCED_PARAMETER(index);
-#endif
+	(void)profileOffsets;
+	(void)index;
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED);
 	return 0;
 #else
@@ -181,7 +179,7 @@ static uint32_t getProfileId(
 	Item profileOffsetItem; // The profile offset memory
 	DataReset(&profileOffsetItem.data);
 	const CollectionKey profileOffsetKey = {
-		index,
+		{ index },
 		CollectionKeyType_ProfileOffset,
 	};
 	profileOffset = profileOffsets->get(
@@ -206,6 +204,7 @@ static map* createPropertyIndexes(
 	PropertiesAvailable* available,
 	Exception* exception) {
 	map* index = (map*)Malloc(sizeof(map) * available->count);
+	(void)exception; // Not used when exceptions are disabled.
 	if (index == NULL) {
 		EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY);
 		return NULL;
@@ -246,7 +245,7 @@ fiftyoneDegreesIndicesPropertyProfileCreate(
 	index->filled = 0;
 	index->profileCount = CollectionGetCount(profileOffsets);
 	index->minProfileId = getProfileId(profileOffsets, 0, exception);
-	if (!EXCEPTION_OKAY) {
+	if (EXCEPTION_FAILED) {
 		Free(index);
 		Free(propertyIndexes);
 		return NULL;
@@ -255,7 +254,7 @@ fiftyoneDegreesIndicesPropertyProfileCreate(
 		profileOffsets,
 		index->profileCount - 1,
 		exception);
-	if (!EXCEPTION_OKAY) {
+	if (EXCEPTION_FAILED) {
 		Free(index);
 		Free(propertyIndexes);
 		return NULL;

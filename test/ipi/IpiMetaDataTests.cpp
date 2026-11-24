@@ -173,7 +173,7 @@ static string ipiMetaDataWrittenStored(
 	fiftyoneDegreesPropertyValueType type,
 	vector<char> &buffer) {
 	EXCEPTION_CREATE;
-	fiftyoneDegreesStringBuilder builder = { buffer.data(), buffer.size() };
+	fiftyoneDegreesStringBuilder builder = { buffer.data(), buffer.size(), nullptr, 0, 0, false };
 	fiftyoneDegreesStringBuilderInit(&builder);
 	fiftyoneDegreesStringBuilderAddStringValue(
 		&builder,

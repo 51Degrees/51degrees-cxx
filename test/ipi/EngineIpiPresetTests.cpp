@@ -1823,13 +1823,14 @@ TEST_F(IpiPresetTests, EngineMetaDataMatches) {
  */
 class IpiPresetThreadTests : public IpiPresetTests {
 public:
-	static void runThread(void* state) {
+	static TEST_THREAD_RESULT runThread(void* state) {
 		IpiPresetThreadTests* const test = (IpiPresetThreadTests*)state;
 		if (presetAnswers(test->threadManager, test->threadAddresses) !=
 			test->threadExpected) {
 			test->threadFailures++;
 		}
 		FIFTYONE_DEGREES_THREAD_EXIT;
+		return TEST_THREAD_DONE;
 	}
 	void TearDown() override {
 		vector<string>().swap(threadAddresses);
@@ -1856,7 +1857,7 @@ TEST_F(IpiPresetThreadTests, ThreadsGetTheSameAnswers) {
 	threadExpected = presetAnswers(threadManager, threadAddresses);
 	runThreads(
 		4,
-		(FIFTYONE_DEGREES_THREAD_ROUTINE)IpiPresetThreadTests::runThread);
+		IpiPresetThreadTests::runThread);
 	EXPECT_EQ(0, threadFailures.load());
 }
 
@@ -1902,7 +1903,8 @@ protected:
 	string tempFilePath;
 
 	void readSmallFile(const string& path) {
-		FILE* file = fopen(path.c_str(), "rb");
+		FILE* file = nullptr;
+		fiftyoneDegreesFileOpen(path.c_str(), &file);
 		ASSERT_NE(nullptr, file);
 		fseek(file, 0, SEEK_END);
 		data.resize((size_t)ftell(file));
@@ -1925,11 +1927,12 @@ protected:
 		close(descriptor);
 #endif
 		tempFilePath = path;
-		FILE* file = fopen(tempFilePath.c_str(), "wb");
-		ASSERT_NE(nullptr, file);
-		const size_t written = fwrite(data.data(), 1, data.size(), file);
-		fclose(file);
-		ASSERT_EQ(data.size(), written);
+		ASSERT_EQ(
+			FIFTYONE_DEGREES_STATUS_SUCCESS,
+			fiftyoneDegreesFileWrite(
+				tempFilePath.c_str(),
+				data.data(),
+				data.size()));
 	}
 
 	const fiftyoneDegreesDataSetIpiHeader* header() const {

@@ -152,9 +152,15 @@ int main(int argc, char* argv[]) {
 		}
 
 		const std::time_t now = std::time(nullptr);
+		std::tm generated = {};
+#ifdef _WIN32
+		gmtime_s(&generated, &now);
+#else
+		gmtime_r(&now, &generated);
+#endif
 		std::ostringstream manifest;
 		manifest << "{\n  \"generated\": \""
-			<< std::put_time(std::gmtime(&now), "%Y-%m-%dT%H:%M:%SZ") << "\",\n"
+			<< std::put_time(&generated, "%Y-%m-%dT%H:%M:%SZ") << "\",\n"
 			<< "  \"dataFile\": " << toJsonString(dataFile.u8string()) << ",\n"
 			<< "  \"jsPropertyCount\": " << propertyCount << ",\n"
 			<< "  \"snippetCount\": " << snippetCount << ",\n"

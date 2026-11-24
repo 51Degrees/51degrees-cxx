@@ -32,3 +32,41 @@ fiftyoneDegreesResultsBase* fiftyoneDegreesResultsInit(
 	results->overrides = NULL;
 	return results;
 }
+
+void fiftyoneDegreesResultsEvaluateAll(
+	fiftyoneDegreesResultsBase *results,
+	fiftyoneDegreesException *exception) {
+	uint32_t word, bit;
+	for (word = 0; word < FIFTYONE_DEGREES_RESULTS_PENDING_WORDS; word++) {
+		while (results->pending[word] != 0) {
+			bit = 0;
+			while ((results->pending[word] & ((uint32_t)1 << bit)) == 0) {
+				bit++;
+			}
+			ResultsEvaluate(results, (byte)(word * 32 + bit), exception);
+			if (EXCEPTION_FAILED) {
+				return;
+			}
+		}
+	}
+}
+
+bool fiftyoneDegreesResultsHasOverrideValue(
+	fiftyoneDegreesResultsBase *results,
+	uint32_t availableIndex) {
+	return results->overrides != NULL &&
+		OverrideHasValueForRequiredPropertyIndex(
+			results->overrides,
+			availableIndex);
+}
+
+uint32_t fiftyoneDegreesResultsGetOverrideValues(
+	fiftyoneDegreesResultsBase *results,
+	uint32_t availableIndex,
+	fiftyoneDegreesList *values) {
+	return results->overrides == NULL ? 0 :
+		OverrideValuesAdd(
+			results->overrides,
+			availableIndex,
+			values);
+}

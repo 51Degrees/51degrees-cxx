@@ -28,7 +28,7 @@ public:
 		ConfigIpi *config,
 		RequiredPropertiesConfig *properties,
 		const char *dataDirectory,
-		const char **ipiFileNames,
+		const char * const *ipiFileNames,
 		int ipiFileNamesLength,
 		const char *evidenceFileName)
 		: EngineIpIntelligenceTests(

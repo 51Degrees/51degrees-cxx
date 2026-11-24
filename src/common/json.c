@@ -86,7 +86,7 @@ static void addValueContents(
 			binaryValue,
 			storedValueType,
 			MAX_DOUBLE_DECIMAL_PLACES,
-			s->exception);
+			exception);
 		if (EXCEPTION_FAILED) {
 			return;
 		}
@@ -155,6 +155,7 @@ void fiftyoneDegreesJsonPropertyStart(fiftyoneDegreesJson* s) {
 void fiftyoneDegreesJsonPropertyEnd(fiftyoneDegreesJson* s) {
     if (s->property == NULL) {
         fiftyoneDegreesException* exception = s->exception;
+        (void)exception; // Not used when exceptions are disabled.
         FIFTYONE_DEGREES_EXCEPTION_SET(
             FIFTYONE_DEGREES_STATUS_NULL_POINTER)
             return;
@@ -167,6 +168,7 @@ void fiftyoneDegreesJsonPropertyEnd(fiftyoneDegreesJson* s) {
 void fiftyoneDegreesJsonPropertyValues(fiftyoneDegreesJson* s) {
 	const StoredBinaryValue* value;
 	fiftyoneDegreesException * const exception = s->exception;
+	(void)exception; // Not used when exceptions are disabled.
 
 	// Check that the values is populated.
 	if (s->values == NULL) {

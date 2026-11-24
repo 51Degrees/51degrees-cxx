@@ -25,7 +25,7 @@
 
 const static char _dataFolderName[] = "data/device-detection";
 
-const static char* _HashFileNames[] = { "TAC-HashV41.hash", "51Degrees-EnterpriseV4.1.hash", "51Degrees-LiteV4.1.hash" };
+static const char* const _HashFileNames[] = { "TAC-HashV41.hash", "51Degrees-EnterpriseV4.1.hash", "51Degrees-LiteV4.1.hash" };
 
 const static int _HashFileNamesLength = 3;
 
@@ -46,7 +46,7 @@ extern "C" void fiftyoneDegreesExampleUserAgentsIterate(
 	void *state,
 	void(*callback)(const char*, void*));
 
-const static char* _fileTypes[] = { "TAC", "Enterprise", "Lite" };
+static const char* const _fileTypes[] = { "TAC", "Enterprise", "Lite" };
 
 const static char _reloadTestFile[] = "reload-test-file.dat";
 

@@ -31,6 +31,19 @@
 #endif
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/*
+ * The return type of a thread routine, and the value it returns, so that a
+ * routine has the type THREAD_CREATE takes and is passed without a cast. On
+ * Windows that includes the calling convention CreateThread uses.
+ */
+#ifdef _MSC_VER
+#define EXAMPLE_THREAD_RESULT DWORD WINAPI
+#define EXAMPLE_THREAD_DONE 0
+#else
+#define EXAMPLE_THREAD_RESULT void*
+#define EXAMPLE_THREAD_DONE NULL
+#endif
+
 #ifdef _MSC_VER
 #define TIMER_CREATE double start, end
 #define TIMER_START start = GetTickCount()
@@ -218,6 +231,27 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
     const char *fileName,
     char *destination,
     size_t size);
+
+/**
+ * Copies a path, such as a command line argument, to the destination. A path
+ * too long for the destination is not copied, and a message saying so is
+ * written to standard error.
+ * @param source path to copy
+ * @param destination memory to copy the path to
+ * @param size of the destination in bytes
+ * @return SUCCESS, or FILE_PATH_TOO_LONG when the path does not fit
+ */
+EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesExampleCopyPath(
+    const char *source,
+    char *destination,
+    size_t size);
+
+/**
+ * Opens a text file for writing, replacing any file already there.
+ * @param fileName path of the file to open
+ * @return the open file, or NULL when it could not be opened
+ */
+EXTERNAL FILE* fiftyoneDegreesExampleFileOpenWrite(const char *fileName);
 
 /**
  * Reads a YAML evidence file, such as "20000 Evidence Records.yml", and calls

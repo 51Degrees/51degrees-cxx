@@ -20,7 +20,9 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+#ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
+#endif
 
 #include "string.h"
 #include "fiftyone.h"
@@ -32,9 +34,7 @@
 uint32_t fiftyoneDegreesStringGetFinalSize(
 	const void *initial,
     Exception * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+	(void)exception;
 	return (uint32_t)(sizeof(uint16_t) + (*(uint16_t*)initial));
 }
 #endif
@@ -63,7 +63,7 @@ const fiftyoneDegreesString* fiftyoneDegreesStringGet(
 	fiftyoneDegreesCollectionItem *item,
 	fiftyoneDegreesException *exception) {
 	const CollectionKey stringKey = {
-		offset,
+		{ offset },
 		CollectionKeyType_String,
 	};
 	return (String*)strings->get(

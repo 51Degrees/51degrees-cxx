@@ -97,3 +97,51 @@ TEST(RequiredPropertiesConfig, StringCopied) {
 	assertPropertiesAreEqual(&properties, &testVector);
 	delete conf;
 }
+
+/**
+ * Check that every property in a comma separated string is returned each time
+ * getProperties is called, and that the count does not change.
+ */
+TEST(RequiredPropertiesConfig, StringGetPropertiesRepeated) {
+	RequiredPropertiesConfig conf(&testString);
+	int count = conf.getCount();
+	for (int i = 0; i < 3; i++) {
+		vector<string> properties = conf.getProperties();
+		assertPropertiesAreEqual(&properties, &testVector);
+		EXPECT_EQ(count, conf.getCount());
+	}
+}
+
+/**
+ * Check that containsProperty sees every property in a comma separated
+ * string each time it is called, in any case, and in any order.
+ */
+TEST(RequiredPropertiesConfig, StringContainsPropertyRepeated) {
+	RequiredPropertiesConfig conf(&testString);
+	for (int i = 0; i < 3; i++) {
+		for (auto it = testVector.rbegin(); it != testVector.rend(); ++it) {
+			EXPECT_TRUE(conf.containsProperty(*it)) <<
+				"Property '" << *it << "' was not found on pass " << i;
+		}
+		EXPECT_TRUE(conf.containsProperty("green"));
+		EXPECT_TRUE(conf.containsProperty("BLUE"));
+		EXPECT_FALSE(conf.containsProperty("Gree"));
+		EXPECT_FALSE(conf.containsProperty("Greens"));
+		EXPECT_FALSE(conf.containsProperty("Red,Green"));
+		EXPECT_FALSE(conf.containsProperty(""));
+	}
+	vector<string> properties = conf.getProperties();
+	assertPropertiesAreEqual(&properties, &testVector);
+}
+
+/**
+ * Check that empty items in a comma separated string are skipped.
+ */
+TEST(RequiredPropertiesConfig, StringEmptyItemsSkipped) {
+	RequiredPropertiesConfig conf(",Red,,Green,Blue,");
+	for (int i = 0; i < 2; i++) {
+		vector<string> properties = conf.getProperties();
+		assertPropertiesAreEqual(&properties, &testVector);
+	}
+	EXPECT_FALSE(conf.containsProperty(""));
+}

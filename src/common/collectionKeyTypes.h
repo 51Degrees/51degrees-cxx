@@ -46,9 +46,7 @@
 static uint32_t fiftyoneDegreesGetFinalByteArraySize(
     const void *initial,
     fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
     return (uint32_t)(sizeof(uint16_t) + (*(uint16_t*)initial));
 }
 #else
@@ -63,7 +61,10 @@ EXTERNAL uint32_t fiftyoneDegreesThrowUnsupportedStoredValueType(
 #define fiftyoneDegreesThrowUnsupportedStoredValueType NULL
 #endif
 
-
+/*
+ * A common source uses each key type below, so neither product has one it
+ * doesn't use when its sources and these headers are pasted into one file.
+ */
 static const fiftyoneDegreesCollectionKeyType CollectionKeyType_Azimuth_raw = {
     FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
     sizeof(int16_t),

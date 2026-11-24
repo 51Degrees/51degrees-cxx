@@ -22,6 +22,7 @@
  
 #include "pch.h"
 #include "FileHandle.hpp"
+#include "Base.hpp"
 #include "../../src/common/Exceptions.hpp"
 
 using namespace FiftyoneDegrees::Common;
@@ -32,7 +33,8 @@ using namespace FiftyoneDegrees::Common;
  * already exists, then it is deleted first. If the file cannot be written,
  * opened, or opened by a file pool, the test fails with a message naming the
  * file, and isOpen() is false.
- * @param fileName full path to the file to create
+ * @param fileName full path to the file to create, to which the process id
+ * is added
  * @param data bytes to write to the file
  * @param number of bytes to write
  * @param concurrency to use for the file pool
@@ -43,17 +45,17 @@ FileHandle::FileHandle(
 	size_t dataSize,
 	uint16_t concurrency) {
 	FIFTYONE_DEGREES_EXCEPTION_CREATE
-	_fileName = fileName;
+	_fileName = testProcessName(fileName);
 	_file = NULL;
 	_filePoolReady = false;
-	fiftyoneDegreesFileDelete(fileName);
+	fiftyoneDegreesFileDelete(_fileName.c_str());
 	fiftyoneDegreesStatusCode status =
-		fiftyoneDegreesFileWrite(_fileName, data, dataSize);
+		fiftyoneDegreesFileWrite(_fileName.c_str(), data, dataSize);
 	checkStatus(status, "written");
 	if (status != FIFTYONE_DEGREES_STATUS_SUCCESS) {
 		return;
 	}
-	status = fiftyoneDegreesFileOpen(_fileName, &_file);
+	status = fiftyoneDegreesFileOpen(_fileName.c_str(), &_file);
 	checkStatus(status, "opened");
 	if (status != FIFTYONE_DEGREES_STATUS_SUCCESS) {
 		_file = NULL;
@@ -64,7 +66,7 @@ FileHandle::FileHandle(
 	// still closes the file and deletes it.
 	status = fiftyoneDegreesFilePoolInit(
 		&_filePool,
-		_fileName,
+		_fileName.c_str(),
 		concurrency,
 		exception);
 	checkStatus(status, "opened by a file pool");
@@ -81,7 +83,7 @@ FileHandle::~FileHandle() {
 	if (_file != NULL) {
 		fclose(_file);
 	}
-	fiftyoneDegreesFileDelete(_fileName);
+	fiftyoneDegreesFileDelete(_fileName.c_str());
 }
 
 /**
@@ -97,7 +99,7 @@ bool FileHandle::isOpen() {
  * @return file name
  */
 const char* FileHandle::getFileName() {
-	return _fileName;
+	return _fileName.c_str();
 }
 
 /**

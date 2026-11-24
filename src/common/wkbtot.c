@@ -60,11 +60,6 @@ static uint8_t readUByte(const byte ** const wkbBytes) {
     *wkbBytes += 1;
     return result;
 }
-static int8_t readSByte(const byte ** const wkbBytes) {
-    const int8_t result = *(int8_t *)(*wkbBytes);
-    *wkbBytes += 1;
-    return result;
-}
 // A number in WKB can start at any byte.
 static int16_t readShortMatchingByteOrder(const byte ** const wkbBytes) {
     const int16_t result = UnalignedReadInt16(*wkbBytes);
@@ -177,20 +172,22 @@ static double readFullDouble(
 }
 static const NumReader NUM_READER_STANDARD = {
     "Standard NumReader",
-    readFullInteger,
-    readFullInteger,
-    readFullDouble,
-    readFullDouble,
-    readFullDouble,
-    readFullDouble,
+    {
+        readFullInteger,
+        readFullInteger,
+    },
+    {
+        readFullDouble,
+        readFullDouble,
+        readFullDouble,
+        readFullDouble,
+    },
 };
 
 static uint32_t readSingleUByte(
     const RawValueReader * const rawReader,
     const byte **wkbBytes) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(rawReader);
-#	endif
+    (void)rawReader;
     return readUByte(wkbBytes);
 }
 static uint32_t readUShort(
@@ -210,12 +207,16 @@ static double readShortDeclination(
 }
 static const NumReader NUM_READER_REDUCED_SHORT = {
     "Short-Reduced NumReader",
-    readSingleUByte,
-    readUShort,
-    readShortAzimuth,
-    readShortDeclination,
-    readShortAzimuth,
-    readShortDeclination,
+    {
+        readSingleUByte,
+        readUShort,
+    },
+    {
+        readShortAzimuth,
+        readShortDeclination,
+        readShortAzimuth,
+        readShortDeclination,
+    },
 };
 
 static const NumReader *selectNumReader(const WkbtotReductionMode reductionMode) {
@@ -305,6 +306,7 @@ static void withParenthesesIterate(
     const uint32_t count) {
 
     Exception * const exception = context->exception;
+    (void)exception; // Not used when exceptions are disabled.
 
     StringBuilderAddChar(context->output.stringBuilder, '(');
     context->output.isSeparated = true;
@@ -543,6 +545,7 @@ static void handleGeometry(
         sizeof(GEOMETRIES) / sizeof(GEOMETRIES[0]);
     if (coordType >= CoordModesCount || geometryCode >= GeometriesCount) {
         Exception * const exception = context->exception;
+        (void)exception; // Not used when exceptions are disabled.
         EXCEPTION_SET(UNKNOWN_GEOMETRY);
         return;
     }
@@ -560,6 +563,7 @@ static void handleGeometry(
         : parser->childParser);
     if (!visitor) {
         Exception * const exception = context->exception;
+        (void)exception; // Not used when exceptions are disabled.
         EXCEPTION_SET(RESERVED_GEOMETRY);
         return;
     }
@@ -633,7 +637,7 @@ fiftyoneDegreesWkbtotResult fiftyoneDegreesConvertWkbToWkt(
     DecimalPlacesType const decimalPlaces,
     Exception * const exception) {
 
-    StringBuilder stringBuilder = { buffer, length };
+    StringBuilder stringBuilder = { buffer, length, NULL, 0, 0, false };
     StringBuilderInit(&stringBuilder);
 
     handleWKBRoot(

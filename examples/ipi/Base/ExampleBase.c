@@ -84,6 +84,70 @@ void fiftyoneDegreesExampleMemCheck(
 #endif
 }
 
+fiftyoneDegreesStatusCode fiftyoneDegreesExampleCopyPath(
+	const char *source,
+	char *destination,
+	size_t size) {
+	size_t length = strlen(source);
+	if (length >= size) {
+		fprintf(stderr, "The path '%s' is longer than the %d characters "
+			"allowed.\n", source, (int)size - 1);
+		return FILE_PATH_TOO_LONG;
+	}
+	memcpy(destination, source, length + 1);
+	return SUCCESS;
+}
+
+FILE* fiftyoneDegreesExampleFileOpenWrite(const char *fileName) {
+#ifdef _MSC_VER
+	FILE *file = NULL;
+	if (fopen_s(&file, fileName, "w") != 0) {
+		return NULL;
+	}
+	return file;
+#else
+	return fopen(fileName, "w");
+#endif
+}
+
+/**
+ * Copies the value of an environment variable to the destination, cut to fit
+ * when it is longer.
+ * @param name of the environment variable
+ * @param destination memory to copy the value to
+ * @param size of the destination in bytes
+ * @return true when the variable is set
+ */
+static bool exampleGetEnvironmentVariable(
+	const char *name,
+	char *destination,
+	size_t size) {
+	bool found = false;
+	size_t length;
+#ifdef _MSC_VER
+	char *value = NULL;
+	size_t valueSize = 0;
+	if (_dupenv_s(&value, &valueSize, name) != 0) {
+		value = NULL;
+	}
+#else
+	const char *value = getenv(name);
+#endif
+	if (value != NULL && size > 0) {
+		length = strlen(value);
+		if (length >= size) {
+			length = size - 1;
+		}
+		memcpy(destination, value, length);
+		destination[length] = '\0';
+		found = true;
+	}
+#ifdef _MSC_VER
+	free(value);
+#endif
+	return found;
+}
+
 // Returns the last path separator in the path, or NULL if there is none.
 static char* exampleLastSeparator(char *path) {
 	char *last = NULL;
@@ -104,6 +168,7 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 	char linkName[FILE_MAX_PATH];
 	char dataPath[FILE_MAX_PATH];
 	char command[FILE_MAX_PATH * 2];
+	char actions[16];
 	char *separator;
 	int i, written;
 	bool inActions;
@@ -137,8 +202,11 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 
 	// Inside GitHub Actions the data repository's script names the build,
 	// so that test runs are not counted as people using the examples.
-	inActions = getenv("GITHUB_ACTIONS") != NULL &&
-		strcmp(getenv("GITHUB_ACTIONS"), "true") == 0;
+	inActions = exampleGetEnvironmentVariable(
+		"GITHUB_ACTIONS",
+		actions,
+		sizeof(actions)) &&
+		strcmp(actions, "true") == 0;
 #ifdef _WIN32
 	// PowerShell 7 when it is on the path, otherwise Windows PowerShell,
 	// which, started from PowerShell 7, inherits its module path and then
@@ -181,8 +249,14 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 #define EXAMPLE_IPI_PATH "_51DEGREES_IPI_PATH"
 
 const char* fiftyoneDegreesExampleGetDataFilePathFromEnvironment(void) {
-	const char *path = getenv(EXAMPLE_IPI_PATH);
-	if (path != NULL && path[0] != '\0') {
+	// One character longer than any path the examples accept, so that a
+	// longer value, which is cut to fit, is still refused as too long.
+	static char path[FILE_MAX_PATH + 1];
+	if (exampleGetEnvironmentVariable(
+		EXAMPLE_IPI_PATH,
+		path,
+		sizeof(path)) &&
+		path[0] != '\0') {
 		return path;
 	}
 	return NULL;
@@ -402,7 +476,7 @@ uint32_t fiftyoneDegreesIterateFakeIPv4s(
 	uint32_t count = 0;
 	for (uint64_t i = rangeStart; i <= rangeEnd; i += increment, ++count) {
 		{
-			StringBuilder builder = { buffer, sizeof(buffer) };
+			StringBuilder builder = { buffer, sizeof(buffer), NULL, 0, 0, false };
 			StringBuilderInit(&builder);
 			StringBuilderAddInteger(&builder, (uint8_t)((i >> 24) & 0xFF));
 			StringBuilderAddChar(&builder, '.');

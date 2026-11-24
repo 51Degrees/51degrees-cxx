@@ -21,21 +21,16 @@
  * ********************************************************************* */
 
 #include "pch.h"
+#include <vector>
 #include "../../src/common/overrides.h"
 #include "../../src/common/memory.h"
 #include "../../src/common/string.h"
 #include "StringCollection.hpp"
 
-#ifdef _MSC_VER
 // This is a mock implementation of the method
-#pragma warning (disable: 4100)
-#endif
-static void overrideProfileId(void *state, uint32_t profileId) {
+static void overrideProfileId(void *state, uint32_t /*profileId*/) {
 	(*(int*)state)++;
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4100)
-#endif
 // This test whether the ProfileIds evidence key is treated
 // as case insensitive.
 // Since the test only targets the case insensitivity aspect
@@ -74,6 +69,33 @@ TEST(OverrideProfileIdsTests, CaseSensitivity) {
     fiftyoneDegreesEvidenceFree(evidence);
 }
 
+static void collectProfileId(void *state, uint32_t profileId) {
+	((std::vector<uint32_t>*)state)->push_back(profileId);
+}
+
+// Only the ASCII digits 0 to 9 are read as part of a profile id. A byte above
+// 127 separates ids like any other character that is not a digit, whatever
+// the locale and whether char is signed or not, so it never gives an id.
+TEST(OverrideProfileIdsTests, ByteAbove127IsNotADigit) {
+	fiftyoneDegreesEvidenceKeyValuePairArray* evidence =
+		fiftyoneDegreesEvidenceCreate(1);
+	fiftyoneDegreesEvidenceAddString(
+		evidence,
+		FIFTYONE_DEGREES_EVIDENCE_QUERY,
+		"51D_ProfileIds",
+		"\xB2" "12-34\xB9" "-\xB3");
+
+	std::vector<uint32_t> ids;
+	fiftyoneDegreesOverrideProfileIds(evidence, &ids, collectProfileId);
+
+	ASSERT_EQ(2u, ids.size()) <<
+		"Only the two runs of ASCII digits should give profile ids.";
+	EXPECT_EQ(12u, ids[0]);
+	EXPECT_EQ(34u, ids[1]);
+
+	fiftyoneDegreesEvidenceFree(evidence);
+}
+
 // Check if overrides are set correctly
 TEST(OverrideValuesResetTests, Positive) {
 	uint32_t i, capacity = 10;
@@ -92,10 +114,10 @@ TEST(OverrideValuesResetTests, Positive) {
 	}
 
 	fiftyoneDegreesOverrideValuesReset(overrides);
-	EXPECT_EQ(0, overrides->count) << "Failed to reset overrides count.";
+	EXPECT_EQ(0u, overrides->count) << "Failed to reset overrides count.";
 	for (i = 0; i < capacity; i++) {
-		EXPECT_EQ(0, overrides->items[i].string.used);
-		EXPECT_EQ(0, overrides->items[i].requiredPropertyIndex);
+		EXPECT_EQ(0u, overrides->items[i].string.used);
+		EXPECT_EQ(0u, overrides->items[i].requiredPropertyIndex);
 		EXPECT_STREQ("", FIFTYONE_DEGREES_STRING(overrides->items[i].string.ptr));
 	}
 
@@ -118,7 +140,7 @@ TEST(OverridesAddTests, LastFreeItemIsStored) {
 	EXPECT_TRUE(fiftyoneDegreesOverridesAdd(overrides, 0, "first"));
 	EXPECT_TRUE(fiftyoneDegreesOverridesAdd(overrides, 1, "second")) <<
 		"The value that takes the last free item is stored.";
-	EXPECT_EQ(2, overrides->count);
+	EXPECT_EQ(2u, overrides->count);
 	EXPECT_EQ(
 		FIFTYONE_DEGREES_STATUS_SUCCESS,
 		overrides->status) << "Filling the array is not a shortfall.";
@@ -136,7 +158,7 @@ TEST(OverridesAddTests, NewPropertyWhenFullIsRefused) {
 	EXPECT_TRUE(fiftyoneDegreesOverridesAdd(overrides, 0, "first"));
 	EXPECT_FALSE(fiftyoneDegreesOverridesAdd(overrides, 1, "second")) <<
 		"A new property cannot be stored in a full array.";
-	EXPECT_EQ(1, overrides->count);
+	EXPECT_EQ(1u, overrides->count);
 	EXPECT_STREQ(
 		"first",
 		FIFTYONE_DEGREES_STRING(overrides->items[0].string.ptr)) <<
@@ -160,7 +182,7 @@ TEST(OverridesAddTests, ExistingPropertyWhenFullIsReplaced) {
 	EXPECT_TRUE(fiftyoneDegreesOverridesAdd(overrides, 3, "first"));
 	EXPECT_TRUE(fiftyoneDegreesOverridesAdd(overrides, 3, "")) <<
 		"A property already in a full array can still be replaced.";
-	EXPECT_EQ(1, overrides->count);
+	EXPECT_EQ(1u, overrides->count);
 	EXPECT_STREQ(
 		"",
 		FIFTYONE_DEGREES_STRING(overrides->items[0].string.ptr));
@@ -178,23 +200,17 @@ TEST(OverridesAddTests, NoPropertyIndexStoresNothing) {
 		fiftyoneDegreesOverrideValuesCreate(1);
 
 	EXPECT_FALSE(fiftyoneDegreesOverridesAdd(overrides, -1, "value"));
-	EXPECT_EQ(0, overrides->count);
+	EXPECT_EQ(0u, overrides->count);
 	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, overrides->status);
 	EXPECT_FALSE(fiftyoneDegreesOverridesAdd(NULL, 0, "value"));
 
 	fiftyoneDegreesOverrideValuesFree(overrides);
 }
 
-#ifdef _MSC_VER
 // The size is not needed by this mock implementation.
-#pragma warning (disable: 4100)
-#endif
-static void* FIFTYONE_DEGREES_CALL_CONV failingMalloc(size_t size) {
+static void* FIFTYONE_DEGREES_CALL_CONV failingMalloc(size_t /*size*/) {
 	return NULL;
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4100)
-#endif
 
 // Where the value cannot be copied the property is taken out of the array
 // rather than left as an item with no value to return, the status says why,
@@ -212,12 +228,12 @@ TEST(OverridesAddTests, ValueThatCannotBeCopiedLeavesNoItem) {
 	fiftyoneDegreesMalloc = standardMalloc;
 
 	EXPECT_FALSE(added) << "A value that cannot be copied is not stored.";
-	EXPECT_EQ(1, overrides->count) <<
+	EXPECT_EQ(1u, overrides->count) <<
 		"The item taken for the property is given back.";
 	EXPECT_EQ(
 		FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY,
 		overrides->status);
-	EXPECT_EQ(7, overrides->items[0].requiredPropertyIndex);
+	EXPECT_EQ(7u, overrides->items[0].requiredPropertyIndex);
 	EXPECT_STREQ(
 		"first",
 		FIFTYONE_DEGREES_STRING(overrides->items[0].string.ptr)) <<
@@ -253,9 +269,9 @@ TEST(OverridesAddTests, ReplacementThatCannotBeCopiedLeavesNoItem) {
 	fiftyoneDegreesMalloc = standardMalloc;
 
 	EXPECT_FALSE(added);
-	EXPECT_EQ(1, overrides->count) <<
+	EXPECT_EQ(1u, overrides->count) <<
 		"The property whose value could not be replaced is taken out.";
-	EXPECT_EQ(8, overrides->items[0].requiredPropertyIndex) <<
+	EXPECT_EQ(8u, overrides->items[0].requiredPropertyIndex) <<
 		"The item left in use is the one for the other property.";
 	EXPECT_STREQ(
 		"second",
@@ -293,25 +309,19 @@ static const char* overrideTestPropertyNames[] = {
 	"Blue"
 };
 
-#ifdef _MSC_VER
 // These are mock implementations of the methods.
-#pragma warning (disable: 4100)
-#endif
 static uint32_t noEvidenceProperties(
-	void *state,
-	fiftyoneDegreesPropertyAvailable *property,
-	fiftyoneDegreesEvidenceProperties *evidenceProperties) {
+	void * /*state*/,
+	fiftyoneDegreesPropertyAvailable * /*property*/,
+	fiftyoneDegreesEvidenceProperties * /*evidenceProperties*/) {
 	return 0;
 }
 
 static bool everyPropertyOverridable(
-	void *state,
-	uint32_t requiredPropertyIndex) {
+	void * /*state*/,
+	uint32_t /*requiredPropertyIndex*/) {
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4100)
-#endif
 
 // Every cookie and query item is read even after the array has filled, so a
 // value sent later in the evidence still replaces the value held for its
@@ -361,8 +371,8 @@ TEST(OverridesExtractTests, EveryEvidenceItemIsReadWhenTheArrayFills) {
 		values,
 		evidence);
 
-	EXPECT_EQ(3, read) << "Every cookie and query item should be read.";
-	EXPECT_EQ(1, values->count);
+	EXPECT_EQ(3u, read) << "Every cookie and query item should be read.";
+	EXPECT_EQ(1u, values->count);
 	EXPECT_STREQ(
 		"three",
 		FIFTYONE_DEGREES_STRING(values->items[0].string.ptr)) <<
@@ -420,7 +430,7 @@ TEST(OverridesExtractTests, EveryValueIsStoredWhenThereIsRoom) {
 		values,
 		evidence);
 
-	EXPECT_EQ(3, values->count);
+	EXPECT_EQ(3u, values->count);
 	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, values->status);
 
 	fiftyoneDegreesEvidenceFree(evidence);

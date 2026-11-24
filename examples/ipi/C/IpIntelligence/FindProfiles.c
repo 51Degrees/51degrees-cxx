@@ -108,9 +108,11 @@ There are '1' countries in the data set with code 'gb'.
  */
 #define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-findprofiles.c"
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -126,16 +128,11 @@ static int exitCode = 0;
 // #define CONFIG fiftyoneDegreesIpiBalancedConfig
 // #define CONFIG fiftyoneDegreesIpiBalancedTempConfig
 
-#ifdef _MSC_VER
-#pragma warning (disable:4100)
-#endif
 static bool count(void* state, Item* item) {
+	(void)item;
 	(*(uint32_t*)state) += 1;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning (default:4100) 
-#endif
 
 void run(ResourceManager* manager) {
 	EXCEPTION_CREATE;
@@ -233,15 +230,16 @@ int main(int argc, char* argv[]) {
 	const char* envDataFilePath =
 		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = fiftyoneDegreesExampleCopyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(

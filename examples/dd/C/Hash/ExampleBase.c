@@ -31,6 +31,9 @@
 // counted. It is left out inside GitHub Actions.
 #define EXAMPLE_DOWNLOAD_SOURCE "examples-51degrees-cxx"
 
+// The name the data file path is read from.
+#define EXAMPLE_DD_PATH "_51DEGREES_DD_PATH"
+
 const char* fiftyoneDegreesExampleGetConfigName(ConfigHash config) {
 	if (CONFIG_EQUALS(HashInMemoryConfig)) {
 		return "InMemory";
@@ -84,6 +87,70 @@ void fiftyoneDegreesExampleMemCheck(
 #endif
 }
 
+fiftyoneDegreesStatusCode fiftyoneDegreesExampleCopyPath(
+	const char *source,
+	char *destination,
+	size_t size) {
+	size_t length = strlen(source);
+	if (length >= size) {
+		fprintf(stderr, "The path '%s' is longer than the %d characters "
+			"allowed.\n", source, (int)size - 1);
+		return FILE_PATH_TOO_LONG;
+	}
+	memcpy(destination, source, length + 1);
+	return SUCCESS;
+}
+
+FILE* fiftyoneDegreesExampleFileOpenWrite(const char *fileName) {
+#ifdef _MSC_VER
+	FILE *file = NULL;
+	if (fopen_s(&file, fileName, "w") != 0) {
+		return NULL;
+	}
+	return file;
+#else
+	return fopen(fileName, "w");
+#endif
+}
+
+/**
+ * Copies the value of an environment variable to the destination, cut to fit
+ * when it is longer.
+ * @param name of the environment variable
+ * @param destination memory to copy the value to
+ * @param size of the destination in bytes
+ * @return true when the variable is set
+ */
+static bool exampleGetEnvironmentVariable(
+	const char *name,
+	char *destination,
+	size_t size) {
+	bool found = false;
+	size_t length;
+#ifdef _MSC_VER
+	char *value = NULL;
+	size_t valueSize = 0;
+	if (_dupenv_s(&value, &valueSize, name) != 0) {
+		value = NULL;
+	}
+#else
+	const char *value = getenv(name);
+#endif
+	if (value != NULL && size > 0) {
+		length = strlen(value);
+		if (length >= size) {
+			length = size - 1;
+		}
+		memcpy(destination, value, length);
+		destination[length] = '\0';
+		found = true;
+	}
+#ifdef _MSC_VER
+	free(value);
+#endif
+	return found;
+}
+
 // Returns the last path separator in the path, or NULL if there is none.
 static char* exampleLastSeparator(char *path) {
 	char *last = NULL;
@@ -96,6 +163,13 @@ static char* exampleLastSeparator(char *path) {
 	return last;
 }
 
+// Returns true if the file is a Device Detection data file, rather than one
+// of the evidence files the examples also look for.
+static bool exampleIsDataFile(const char *fileName) {
+	size_t length = strlen(fileName);
+	return length >= 5 && strcmp(fileName + length - 5, ".hash") == 0;
+}
+
 fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 	const char *dataFolderName,
 	const char *fileName,
@@ -104,10 +178,33 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 	char linkName[FILE_MAX_PATH];
 	char dataPath[FILE_MAX_PATH];
 	char command[FILE_MAX_PATH * 2];
+	char actions[16];
 	char *separator;
 	int i, written;
 	bool inActions;
-	StatusCode status = FileGetPath(
+	StatusCode status;
+	// One character longer than any path the examples accept, so that a
+	// longer value, which is cut to fit, is still refused as too long.
+	char environmentPath[FILE_MAX_PATH + 1];
+
+	// A data file path in _51DEGREES_DD_PATH, such as a file CI has already
+	// fetched, is used in place of the data file the example names, so that
+	// nothing is downloaded. Evidence files are still found in the folder.
+	if (exampleIsDataFile(fileName) &&
+		exampleGetEnvironmentVariable(
+			EXAMPLE_DD_PATH,
+			environmentPath,
+			sizeof(environmentPath)) &&
+		environmentPath[0] != '\0') {
+		if (strlen(environmentPath) >= FILE_MAX_PATH) {
+			return FILE_PATH_TOO_LONG;
+		}
+		written = Snprintf(destination, size, "%s", environmentPath);
+		return written < 0 || (size_t)written >= size ?
+			FILE_PATH_TOO_LONG : SUCCESS;
+	}
+
+	status = FileGetPath(
 		dataFolderName,
 		fileName,
 		destination,
@@ -137,8 +234,11 @@ fiftyoneDegreesStatusCode fiftyoneDegreesExampleGetFilePath(
 
 	// Inside GitHub Actions the data repository's script names the build,
 	// so that test runs are not counted as people using the examples.
-	inActions = getenv("GITHUB_ACTIONS") != NULL &&
-		strcmp(getenv("GITHUB_ACTIONS"), "true") == 0;
+	inActions = exampleGetEnvironmentVariable(
+		"GITHUB_ACTIONS",
+		actions,
+		sizeof(actions)) &&
+		strcmp(actions, "true") == 0;
 #ifdef _WIN32
 	// PowerShell 7 when it is on the path, otherwise Windows PowerShell,
 	// which, started from PowerShell 7, inherits its module path and then
@@ -216,7 +316,7 @@ void fiftyoneDegreesExampleOutputEnterpriseValue(
 		propertyName,
 		buffer,
 		sizeof(buffer),
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW
 	printf("   %s: %s\n", propertyName, buffer);

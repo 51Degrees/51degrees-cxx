@@ -75,8 +75,9 @@ static void addHeaderCallback(
             dataSet->b.uniqueHeaders, 
             name,
             length);
-        if (index >= 0) {
-            dataSet->ghevHeaders->items[dataSet->ghevHeaders->count++] = 
+        if (index >= 0 &&
+            dataSet->ghevHeaders->count < dataSet->ghevHeaders->capacity) {
+            dataSet->ghevHeaders->items[dataSet->ghevHeaders->count++] =
                 &dataSet->b.uniqueHeaders->items[index];
         }
     }
@@ -218,7 +219,7 @@ static int iterateProperties(
 
     for(uint32_t i = 0; i < propertiesCount && EXCEPTION_OKAY; i++) {
         const CollectionKey propertyKey = {
-            i,
+            { i },
             CollectionKeyType_Property,
         };
         Property* property = (Property*)properties->get(
@@ -301,9 +302,11 @@ void fiftyoneDegreesGhevDeviceDetectionInit(
         addHeaderCallback,
         exception);
 
-    // Check the number of headers added is the same as the capacity, unless
-    // a read failed.
-    assert(count == capacity || EXCEPTION_FAILED);
+    // Check the number of headers found is the same as the capacity, unless
+    // a read failed. The check is made in every build, not only in debug.
+    if (count != capacity && EXCEPTION_OKAY) {
+        EXCEPTION_SET(CORRUPT_DATA);
+    }
 }
 
 bool fiftyoneDegreesGhevDeviceDetectionAllPresent(

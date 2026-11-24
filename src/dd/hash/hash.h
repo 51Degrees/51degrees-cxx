@@ -50,10 +50,7 @@
 #include <ctype.h>
 #include <assert.h>
 #ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 5105)
 #include <windows.h>
-#pragma warning(pop)
 #endif
 #include "../../common/common.h"
 #include "../../common/data.h"
@@ -237,14 +234,17 @@ typedef struct fiftyone_degrees_config_hash_t {
 
 /**
  * Data structure containing the root nodes for the combination of an evidence
- * item and a component.
+ * item and a component. It is packed as the data file holds it, so its
+ * members can be read at any address.
  */
+#pragma pack(push, 1)
 typedef struct fiftyone_degrees_hash_rootnodes_t {
 	uint32_t performanceNodeOffset; /**< Offset in the nodes collection of the
                                     root node for the performance graph. */
 	uint32_t predictiveNodeOffset; /**< Offset in the nodes collection of the
                                    root node for the predictive graph. */
 } fiftyoneDegreesHashRootNodes;
+#pragma pack(pop)
 
 /**
  * Index from each value of the properties named when the data set is

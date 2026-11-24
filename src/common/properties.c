@@ -106,18 +106,12 @@ static PropertiesAvailable* initRequiredPropertiesMemory(uint32_t count) {
 	return available;
 }
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4100)
-#endif
 static void increaseRequiredPropertiesCount(
 	PropertiesAvailable *available,
 	uint32_t propertyIndex) {
+	(void)propertyIndex; // Only the count is needed here.
 	available->count++;
 }
-#ifdef _MSC_VER
-#pragma warning (pop)
-#endif
 
 static bool resultsContain(
 	PropertiesAvailable *available,

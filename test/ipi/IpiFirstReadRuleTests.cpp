@@ -462,7 +462,8 @@ protected:
 	void renameFirstProperty() {
 		ASSERT_FALSE(smallFilePath.empty()) << "The file '" << smallFileName <<
 			"' was not found.";
-		FILE* file = fopen(smallFilePath.c_str(), "rb");
+		FILE* file = nullptr;
+		fiftyoneDegreesFileOpen(smallFilePath.c_str(), &file);
 		ASSERT_NE(nullptr, file);
 		fseek(file, 0, SEEK_END);
 		good.resize((size_t)ftell(file));

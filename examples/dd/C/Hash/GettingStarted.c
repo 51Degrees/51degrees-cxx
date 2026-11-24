@@ -51,6 +51,7 @@ This example is available in full on [GitHub](https://github.com/51Degrees/51deg
 
 #define MAX_EVIDENCE 8
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be in the
@@ -62,6 +63,7 @@ static const char *dataDir = "data/device-detection";
 // the Enterprise data file has as needing it. Contact us for a copy:
 // https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-hash-gettingstarted.c&utm_term=top
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -211,7 +213,7 @@ static void outputValue(
 			propertyName,
 			valueBuffer,
 			valueBufferLength,
-			(char* const)",",
+			(char*)",",
 			exception);
 		EXCEPTION_THROW;
 	}
@@ -275,8 +277,8 @@ static bool reportHeader(
 	// Copy the key and value into null terminated strings for output.
 	char* key = (char*)Malloc(pair->item.keyLength + 1);
 	char* value = (char*)Malloc(pair->item.valueLength + 1);
-	strncpy(key, pair->item.key, pair->item.keyLength);
-	strncpy(value, pair->item.value, pair->item.valueLength);
+	memcpy(key, pair->item.key, pair->item.keyLength);
+	memcpy(value, pair->item.value, pair->item.valueLength);
 	key[pair->item.keyLength] = '\0';
 	value[pair->item.valueLength] = '\0';
 
@@ -483,7 +485,10 @@ int main(int argc, char* argv[]) {
 	// Use the supplied path for the data file or find the lite data that
 	// is included in the repository
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(

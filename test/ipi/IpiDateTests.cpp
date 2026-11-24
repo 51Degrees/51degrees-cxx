@@ -122,7 +122,8 @@ protected:
 			GTEST_SKIP() << "The file '" << asnFileName << "' was not found. "
 				"Run data/get-data-files.sh or .ps1 to download it.";
 		}
-		FILE *file = fopen(dataFilePath.c_str(), "rb");
+		FILE *file = nullptr;
+		fiftyoneDegreesFileOpen(dataFilePath.c_str(), &file);
 		ASSERT_NE(nullptr, file) << "Could not open '" << dataFilePath << "'.";
 		fseek(file, 0, SEEK_END);
 		data.resize((size_t)ftell(file));
@@ -336,15 +337,16 @@ static void writeFile(
 	const char *path,
 	const std::vector<unsigned char> &bytes,
 	size_t length) {
-	FILE *file = fopen(path, "wb");
-	ASSERT_NE(nullptr, file) << "Could not create '" << path << "'.";
-	const size_t written = fwrite(bytes.data(), 1, length, file);
-	fclose(file);
-	ASSERT_EQ(length, written) << "Could not write '" << path << "'.";
+	ASSERT_EQ(
+		FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileWrite(path, bytes.data(), length)) <<
+		"Could not write '" << path << "'.";
 }
 
 /** A file the tests below write and remove. */
-static const char fromFileName[] = "IpiDateTests-FromFile.ipi";
+static const std::string fromFileNameValue =
+	testProcessName("IpiDateTests-FromFile") + ".ipi";
+static const char *fromFileName = fromFileNameValue.c_str();
 
 /**
  * Test that the published date read from a data file without loading it is

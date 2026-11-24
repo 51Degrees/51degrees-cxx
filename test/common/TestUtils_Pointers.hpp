@@ -26,7 +26,7 @@
 #include "../../src/common/fiftyone.h"
 #include <memory>
 
-static void freeCollection(fiftyoneDegreesCollection * const ptr) {
+static inline void freeCollection(fiftyoneDegreesCollection * const ptr) {
     if (ptr) {
         ptr->freeCollection(ptr);
     }
@@ -34,7 +34,7 @@ static void freeCollection(fiftyoneDegreesCollection * const ptr) {
 using CollectionPtr = std::unique_ptr<fiftyoneDegreesCollection, decltype(&freeCollection)>;
 
 
-static void releaseItem(Item * const item) {
+static inline void releaseItem(Item * const item) {
     if (item) {
         COLLECTION_RELEASE(item->collection, item);
     }

@@ -32,13 +32,13 @@ using namespace FiftyoneDegrees::DeviceDetection;
 
 #define ENGINE_PROPERTIES_STRING(n,v) \
 static const string n = v; \
-static const string *n##Pointer = &n;
+static const string * const n##Pointer = &n;
 #define ENGINE_PROPERTIES_ARRAY_ONE(n,v) \
 static const vector<string> n = { v }; \
-static const vector<string> *n##Pointer = &n;
+static const vector<string> * const n##Pointer = &n;
 #define ENGINE_PROPERTIES_ARRAY_TWO(n,v1,v2) \
 static const vector<string> n = { v1, v2 }; \
-static const vector<string> *n##Pointer = &n;
+static const vector<string> * const n##Pointer = &n;
 
 // Common device detection properties in arrays and strings.
 ENGINE_PROPERTIES_STRING(OnePropertyString, "IsMobile")
@@ -51,36 +51,36 @@ ENGINE_PROPERTIES_ARRAY_TWO(TwoPropertyArray, "BrowserName", "IsMobile")
 ENGINE_PROPERTIES_ARRAY_TWO(DuplicatePropertyArray, "IsMobile", "IsMobile")
 ENGINE_PROPERTIES_ARRAY_TWO(InvalidPropertyArray, "INVALID1", "INVALID2")
 ENGINE_PROPERTIES_ARRAY_TWO(MixedPropertyArray, "IsMobile", "Invalid")
-static const string *NullPointer = nullptr;
+static const string * const NullPointer = nullptr;
 
 // User-Agent string of an iPhone mobile device.
-static const char* mobileUserAgent = (
+static const char* const mobileUserAgent = (
 	"Mozilla/5.0 (iPhone; CPU iPhone OS 7_1 like Mac OS X) "
 	"AppleWebKit/537.51.2 (KHTML, like Gecko) Version/7.0 Mobile/11D167 "
 	"Safari/9537.53");
 
 // User-Agent string of Firefox Web browser version 41 on desktop.
-static const char* desktopUserAgent = (
+static const char* const desktopUserAgent = (
 	"Mozilla/5.0 (Windows NT 6.3; WOW64; rv:41.0) "
 	"Gecko/20100101 Firefox/41.0");
 
 // User-Agent string of a MediaHub device.
-static const char* mediaHubUserAgent = (
+static const char* const mediaHubUserAgent = (
 	"Mozilla/5.0 (Linux; Android 4.4.2; X7 Quad Core "
 	"Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 "
 	"Chrome/30.0.0.0 Safari/537.36");
 
 // User-Agent string from an Opera Mini browser.
-static const char* operaUserAgent = (
+static const char* const operaUserAgent = (
 	"Opera/9.80 (Android; Opera Mini/20.0.2254/163.76; U; en) Presto/2.12.423 "
 	"Version/12.16");
 
 // User-Agent string which will never result in anything other than a not found
 // device.
-static const char* badUserAgent = ("!a^&$^(�*!$&()!*)$!�_");
+static const char* const badUserAgent = ("!a^&$^(�*!$&()!*)$!�_");
 
 // User-Agent of more than 500 characters.
-static const char *longUserAgent = (
+static const char * const longUserAgent = (
 	"Mozilla/5.0 (Linux; Android 4.4.2; X7 Quad Core "
 	"Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 "
 	"Chrome/30.0.0.0 Safari/537.36 Mozilla / 5.0 (Linux; Android 4.4.2; X7 "
@@ -101,7 +101,7 @@ public:
 	EngineDeviceDetectionTests(
 		RequiredPropertiesConfig *requiredProperties,
 		const char *directory,
-		const char **fileNames,
+		const char * const *fileNames,
 		int fileNamesLength,
 		const char *evidenceFileName);
 	virtual ~EngineDeviceDetectionTests();
@@ -130,7 +130,7 @@ public:
 	void verifyHasMandatoryKey(const std::string &);
 	void verifyHasDeviceIDQueryKey();
 	void verifyHasEntropyKeys();
-	static void multiThreadRandomRunThread(void* state);
+	static TEST_THREAD_RESULT multiThreadRandomRunThread(void* state);
 	void multiThreadRandom(uint16_t concurrency);
 	void reloadMemory();
 	void reloadFile();
@@ -143,7 +143,7 @@ protected:
 	vector<string> userAgents;
 	void compareResults(ResultsDeviceDetection *a, ResultsDeviceDetection *b);
 	bool fileReadToByteArray();
-	fiftyoneDegreesMemoryReader data = { nullptr, nullptr, 0L };
+	fiftyoneDegreesMemoryReader data = { nullptr, nullptr, nullptr, 0 };
 private:
 	string getRandomKeyWithMatchingPrefix(
 		const vector<string> *keys,

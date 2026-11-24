@@ -27,9 +27,7 @@
 uint32_t fiftyoneDegreesComponentGetFinalSize(
 	const void *initial,
     Exception * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+	(void)exception;
 	Component *component = (Component*)initial;
 	int32_t trailing = (component->keyValuesCount - 1) * 
 		sizeof(fiftyoneDegreesComponentKeyValuePair);
@@ -43,10 +41,9 @@ uint32_t fiftyoneDegreesComponentGetDefaultProfileId(
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
 	// A reduced size data file does not contain profile ids, so this method
 	// cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(profiles);
-	UNREFERENCED_PARAMETER(component);
-#endif
+	(void)profiles;
+	(void)component;
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED)
 	return 0;
 #else
@@ -55,7 +52,7 @@ uint32_t fiftyoneDegreesComponentGetDefaultProfileId(
 	Profile *profile;
 	DataReset(&profileItem.data);
 	const CollectionKey profileKey = {
-		component->defaultProfileOffset,
+		{ component->defaultProfileOffset },
 		CollectionKeyType_Profile,
 	};
 	profile = (Profile*)profiles->get(
@@ -90,12 +87,11 @@ fiftyoneDegreesComponentGetKeyValuePair(
 	fiftyoneDegreesComponent *component,
 	uint16_t index,
 	fiftyoneDegreesException *exception) {
-#ifndef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
-	if (index > component->keyValuesCount) {
+	(void)exception; // Not used when exceptions are disabled.
+	if (index >= component->keyValuesCount) {
 		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
 		return NULL;
 	}
-#endif
 	return &(&component->firstKeyValuePair)[index];
 }
 
@@ -126,20 +122,15 @@ void fiftyoneDegreesComponentInitList(
 	Item item;
 	Component *component;
 	if (ListInit(list, count) == list) {
-		CollectionKeyType keyType = {
-			FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_COMPONENT,
-			0, // TBD
-			fiftyoneDegreesComponentGetFinalSize,
-		};
 		while (list->count < count && EXCEPTION_OKAY) {
 
 			// Get the component and add it to the list.
 			DataReset(&item.data);
-			keyType.initialBytesCount = sizeof(Component) - sizeof(fiftyoneDegreesComponentKeyValuePair);
-			const CollectionKey componentKey = {
-				offset,
-				&keyType,
+			CollectionKey componentKey = {
+				{ offset },
+				NULL,
 			};
+			componentKey.keyType = CollectionKeyType_Component;
 			component = (Component*)components->get(
 				components,
 				&componentKey,

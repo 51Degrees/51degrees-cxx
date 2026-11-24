@@ -49,6 +49,7 @@
     <ClCompile Include="..\..\..\test\ipi\IpiEvidenceKeysTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiDefaultValueTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiValueTextsTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiAnyAlignmentTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiMetaDataTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiDefaultValueReloadTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiConcurrencyTests.cpp" />

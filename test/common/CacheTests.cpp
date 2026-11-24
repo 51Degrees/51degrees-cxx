@@ -49,27 +49,24 @@ public:
 		Base::TearDown();
 	}
 	fiftyoneDegreesCache *cache;
-	
-#ifdef _MSC_VER
-	// This is a mock function, so not all parameters can be used.
-#pragma warning (disable: 4100)
-#endif
+
 	/**
 	 * Load the string value of an integer from zero to nine into the node data.
-	 * Frees old data if there is any.
+	 * Frees old data if there is any. This is a mock function, so not all
+	 * parameters are used.
 	 */
 	static void load(
 		const void *state,
 		fiftyoneDegreesData *data,
-		const void *key, 
-		fiftyoneDegreesException *exception) {
+		const void *key,
+		fiftyoneDegreesException * /*exception*/) {
 		const char **values = (const char**)state;
 		ASSERT_EQ(values, TEST_STRINGS) <<
 			L"State passed for loading is not the expected array of strings";
 		const char *value = *(int*)key < TEST_STRINGS_COUNT ? values[*(int*)key] : "";
 		size_t size = (strlen(value) + 1) * sizeof(char);
 		if (fiftyoneDegreesDataMalloc(data, size) != nullptr) {
-			strcpy((char*)data->ptr, value);
+			memcpy(data->ptr, value, size);
 			data->used = (uint32_t)size;
 		}
 	}
@@ -90,9 +87,6 @@ public:
 		}
 		load(state, data, key, exception);
 	}
-#ifdef _MSC_VER
-#pragma warning (default: 4100)
-#endif
 
 	static void checkValue(long key, fiftyoneDegreesCacheNode *node) {
 		ASSERT_EQ(key, node->tree.key) <<
@@ -126,9 +120,9 @@ public:
 			"The cache parameters were not set correctly.";
 		ASSERT_EQ(&load, (void*)cache->load) <<
 			"The data load method was not set correctly.";
-		ASSERT_EQ(0, cache->hits) <<
+		ASSERT_EQ(0UL, cache->hits) <<
 			"The cache hits were not initialised to zero.";
-		ASSERT_EQ(0, cache->misses) <<
+		ASSERT_EQ(0UL, cache->misses) <<
 			"The cache misses were not initialised to zero.";
 		EXPECT_LE(cache->shardCount, minCapacity / cache->shardCount) <<
 			"Concurrency is too low for a successful test.";
@@ -168,16 +162,16 @@ public:
 	void getAndCheckAll(int hits, int misses) {
 		// First pass from an empty cache
 		getAndCheck(0, TEST_STRINGS_COUNT - 1);
-		ASSERT_EQ(0, cache->hits) <<
+		ASSERT_EQ(0UL, cache->hits) <<
 			"There should not have been any cache hits as no values were repeated.";
-		ASSERT_EQ(TEST_STRINGS_COUNT, cache->misses) <<
+		ASSERT_EQ((unsigned long)TEST_STRINGS_COUNT, cache->misses) <<
 			"Every fetch should have been a miss as no values were repeated.";
 
 		// Second pass from a cache populated with the last cache->capacity values
 		getAndCheck(0, TEST_STRINGS_COUNT - 1);
-		ASSERT_EQ(hits, cache->hits) <<
+		ASSERT_EQ((unsigned long)hits, cache->hits) <<
 			"All values should have existed in the cache.";
-		ASSERT_EQ(misses, cache->misses) <<
+		ASSERT_EQ((unsigned long)misses, cache->misses) <<
 			"All values should have existed in the cache.";
 	}
 
@@ -242,17 +236,17 @@ public:
 	*/
 	void evict(int count, int secondStart) {
 		getAndCheck(0, count - 1);
-		ASSERT_EQ(0, cache->hits) <<
+		ASSERT_EQ(0UL, cache->hits) <<
 			"There should not have been any cache hits as no values were repeated.";
-		ASSERT_EQ(count, cache->misses) <<
+		ASSERT_EQ((unsigned long)count, cache->misses) <<
 			"Every fetch should have been a miss as no values were repeated.";
 
 		// Check values are loaded again rather than retrieved
 		getAndCheck(secondStart, secondStart + count - 1);
-		ASSERT_EQ(0, cache->hits) <<
+		ASSERT_EQ(0UL, cache->hits) <<
 			"The values being requested should have been evicted due to the size "
 			"of the cache.";
-		ASSERT_EQ(count * 2, cache->misses) <<
+		ASSERT_EQ((unsigned long)(count * 2), cache->misses) <<
 			"The values being requested should have been evicted due to the size "
 			"of the cache.";
 	}
@@ -312,7 +306,7 @@ public:
 			"evicted from the cache.";
 	}
 	
-	static void* multiThreadRandomRunThread(void* state) {
+	static TEST_THREAD_RESULT multiThreadRandomRunThread(void* state) {
 		((CacheTest*)state)->random();
 		FIFTYONE_DEGREES_THREAD_EXIT;
 #if defined(__MINGW32__) || defined(__MINGW64__)
@@ -322,6 +316,7 @@ public:
 		// the thread before this point, so this should never be reached.
 		return NULL;
 #endif
+		return TEST_THREAD_DONE;
 	}
 	
 	/**
@@ -341,7 +336,7 @@ public:
 			"Number of threads are too high for a successful test.";
 		runThreads(
 			concurrency,
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)multiThreadRandomRunThread);
+			multiThreadRandomRunThread);
 	}
 };
 

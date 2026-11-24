@@ -20,11 +20,43 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-#include <algorithm>
 #include "ValueMetaDataCollectionForProfileHash.hpp"
 #include "fiftyone.h"
 
 using namespace FiftyoneDegrees::DeviceDetection::Hash;
+
+/**
+ * Gets the value index at the position given in the list that follows the
+ * profile. The list follows the packed profile, so it can start at any byte,
+ * and each index is copied out by its position.
+ */
+static uint32_t getValueIndex(const Profile *profile, uint32_t position) {
+	return UnalignedReadUint32(
+		(const byte*)(profile + 1) + (size_t)position * sizeof(uint32_t));
+}
+
+/**
+ * Returns the first position from first up to last whose value index the
+ * predicate is false for, where the predicate partitions the value indexes
+ * from first to last, as std::partition_point does.
+ */
+template <typename Predicate>
+static uint32_t partitionPoint(
+	const Profile *profile,
+	uint32_t first,
+	uint32_t last,
+	Predicate predicate) {
+	while (first < last) {
+		const uint32_t middle = first + (last - first) / 2;
+		if (predicate(getValueIndex(profile, middle))) {
+			first = middle + 1;
+		}
+		else {
+			last = middle;
+		}
+	}
+	return first;
+}
 
 ValueMetaDataCollectionForProfileHash::ValueMetaDataCollectionForProfileHash(
 	fiftyoneDegreesResourceManager *manager,
@@ -46,7 +78,7 @@ ValueMetaDataCollectionForProfileHash::~ValueMetaDataCollectionForProfileHash() 
 
 ValueMetaData* ValueMetaDataCollectionForProfileHash::getByIndex(
 	uint32_t index) const {
-	const uint32_t valueIndex = ((uint32_t*)(getProfile() + 1))[index];
+	const uint32_t valueIndex = getValueIndex(getProfile(), index);
 	return ValueMetaDataBuilderHash::build(dataSet, valueIndex);
 }
 
@@ -76,15 +108,16 @@ ValueMetaData* ValueMetaDataCollectionForProfileHash::getByKey(
 	// in the order of their value indexes, but a data file can hold one
 	// property's values within a profile out of that order.
 	const Profile * const profile = getProfile();
-	const uint32_t * const values = (const uint32_t*)(profile + 1);
-	const uint32_t * const last = values + profile->valueCount;
-	const uint32_t * const begin = std::partition_point(
-		values,
+	const uint32_t last = profile->valueCount;
+	const uint32_t begin = partitionPoint(
+		profile,
+		0,
 		last,
 		[firstValueIndex](uint32_t index) {
 			return index < firstValueIndex;
 		});
-	const uint32_t * const end = std::partition_point(
+	const uint32_t end = partitionPoint(
+		profile,
 		begin,
 		last,
 		[firstValueIndex, valueCount](uint32_t index) {
@@ -99,18 +132,23 @@ ValueMetaData* ValueMetaDataCollectionForProfileHash::getByKey(
 		key.getValueName().c_str(),
 		exception);
 	EXCEPTION_THROW;
-	if (valueIndex >= 0 &&
-		std::find(begin, end, (uint32_t)valueIndex) != end) {
-		return ValueMetaDataBuilderHash::build(dataSet, (uint32_t)valueIndex);
+	if (valueIndex >= 0) {
+		for (uint32_t position = begin; position < end; position++) {
+			if (getValueIndex(profile, position) == (uint32_t)valueIndex) {
+				return ValueMetaDataBuilderHash::build(
+					dataSet,
+					(uint32_t)valueIndex);
+			}
+		}
 	}
 	// When the profile does not hold the index found, the names in its block
 	// are compared, because the search by name can miss a value that the
 	// data file holds out of the byte order of its property's value names,
 	// or find another value of the same name.
-	for (const uint32_t *index = begin; index < end; index++) {
+	for (uint32_t position = begin; position < end; position++) {
 		ValueMetaData * const value = ValueMetaDataBuilderHash::build(
 			dataSet,
-			*index,
+			getValueIndex(profile, position),
 			key.getPropertyName());
 		if (value != nullptr && value->getName() == key.getValueName()) {
 			return value;
