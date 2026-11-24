@@ -30,6 +30,7 @@
 #include "StringCollection.hpp"
 #include "FixedSizeCollection.hpp"
 #include "VariableSizeCollection.hpp"
+#include "ShiftedCollection.hpp"
 #include <algorithm>
 
 constexpr int N_PROPERTIES = 15;
@@ -585,6 +586,40 @@ TEST_F(ProfileTests, profileIterateForPropertyAndValue) {
     profiles.clear();
     fiftyoneDegreesProfileIterateProfilesForPropertyAndValue(stringsCollection, propertiesCollection, valuesCollection, profilesCollection, profileOffsetsCollection, "Weight", "Moderate", &profiles, iterateProfiles, exception);
     compareProfiles(profilesCollectionHelper->getItem(4), profiles[0]);
+}
+
+/**
+ * The profile iteration IP Intelligence uses, with plain 32 bit profile
+ * offsets read through ProfileOffsetAsPureOffset, finds the same profiles
+ * when the offsets start at every byte offset.
+ */
+TEST_F(ProfileTests, profileIterateWithPlainOffsetsAtAnyOffset) {
+    const uint32_t *profileOffsets = profilesCollectionHelper->getState()->offsets;
+    std::vector<byte> records(N_PROFILES * sizeof(uint32_t));
+    memcpy(records.data(), profileOffsets, records.size());
+    for (size_t shift = 0; shift <= MAX_SHIFT_BYTES; shift++) {
+        SCOPED_TRACE(shift);
+        EXCEPTION_CREATE
+        ShiftedCollection offsets(records, sizeof(uint32_t), shift);
+        std::vector<fiftyoneDegreesProfile *> profiles;
+        const uint32_t count =
+            fiftyoneDegreesProfileIterateProfilesForPropertyWithTypeAndValueAndOffsetExtractor(
+                stringsCollection,
+                propertiesCollection,
+                NULL,
+                valuesCollection,
+                profilesCollection,
+                offsets.collection,
+                fiftyoneDegreesProfileOffsetAsPureOffset,
+                "Material",
+                "Metal",
+                &profiles,
+                iterateProfiles,
+                exception);
+        EXPECT_TRUE(EXCEPTION_OKAY);
+        ASSERT_EQ(1u, count);
+        compareProfiles(profilesCollectionHelper->getItem(2), profiles[0]);
+    }
 }
 
 // A profile with many values of one property. Its size is 9 + 4 * 40 = 169

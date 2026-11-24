@@ -41,13 +41,15 @@
 #include "component.h"
 #include "exceptions.h"
 #include "profile.h"
+#include "unaligned.h"
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 static uint32_t fiftyoneDegreesGetFinalByteArraySize(
     const void *initial,
     fiftyoneDegreesException * const exception) {
     (void)exception;
-    return (uint32_t)(sizeof(uint16_t) + (*(uint16_t*)initial));
+    return (uint32_t)(sizeof(uint16_t) +
+        fiftyoneDegreesUnalignedReadUint16(initial));
 }
 #else
 #define fiftyoneDegreesGetFinalByteArraySize NULL

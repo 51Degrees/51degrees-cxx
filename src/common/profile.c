@@ -105,7 +105,8 @@ static int compareProfileIdIndirect(
 	Exception * const exception) {
 	(void)key;
 	const IndirectProfileSearch * const search = (IndirectProfileSearch*)searchState;
-	const uint32_t profileOffsetValue = *(uint32_t*)profileOffsetItem->data.ptr;
+	const uint32_t profileOffsetValue = UnalignedReadUint32(
+		profileOffsetItem->data.ptr);
 	const CollectionKey profileKey = {
 		{ profileOffsetValue },
 		CollectionKeyType_Profile,
@@ -542,7 +543,7 @@ uint32_t fiftyoneDegreesProfileOffsetToPureOffset(const void * const rawProfileO
 	return ((const ProfileOffset*)rawProfileOffset)->offset;
 }
 uint32_t fiftyoneDegreesProfileOffsetAsPureOffset(const void * const rawProfileOffset) {
-	return *(const uint32_t*)rawProfileOffset;
+	return UnalignedReadUint32(rawProfileOffset);
 }
 
 uint32_t fiftyoneDegreesProfileIterateProfilesForPropertyWithTypeAndValue(
