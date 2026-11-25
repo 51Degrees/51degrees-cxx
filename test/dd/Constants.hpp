@@ -48,6 +48,4 @@ extern "C" void fiftyoneDegreesExampleUserAgentsIterate(
 
 static const char* const _fileTypes[] = { "TAC", "Enterprise", "Lite" };
 
-const static char _reloadTestFile[] = "reload-test-file.dat";
-
 #endif
