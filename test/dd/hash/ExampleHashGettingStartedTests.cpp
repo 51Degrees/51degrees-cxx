@@ -49,7 +49,7 @@ EXAMPLE_HASH_TESTS(ExampleHashTestGettingStarted)
 
 // A fresh clone has the free Lite data file, which the example runs on.
 TEST_F(ExampleHashTestGettingStarted, LiteDataFile) {
-	dataFilePath = getLiteDataFilePath();
+	useLiteDataFile();
 	if (dataFilePath.empty()) {
 		GTEST_SKIP() << "The Lite data file is not present.";
 	}

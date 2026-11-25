@@ -41,6 +41,19 @@ protected:
 	}
 
 	/**
+	 * Points the test at the free Lite data file, leaving the path empty when
+	 * it is not present. The path is copied into the room the constructor
+	 * reserved, so the change allocates no memory that outlives the test
+	 * body. Moving a new string in would hand the fixture memory allocated
+	 * after the memory checkpoint that is only freed with the fixture, after
+	 * the leak check, which counts it as a leak.
+	 */
+	void useLiteDataFile() {
+		const string path = getLiteDataFilePath();
+		dataFilePath = path;
+	}
+
+	/**
 	 * Expects every "Finished with hash code" line a reload example printed
 	 * to give the same code. Each processing run reads the same User-Agents,
 	 * and the data set is reloaded from the same file while they run, so

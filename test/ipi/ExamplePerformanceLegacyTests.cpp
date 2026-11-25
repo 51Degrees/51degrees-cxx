@@ -51,7 +51,7 @@ TEST_F(ExampleTestPerformanceLegacy, LowMemory) {
 // The example uses the free ASN data file by default, and reads AsnName,
 // which that file has in place of RegisteredName.
 TEST_F(ExampleTestPerformanceLegacy, AsnDataFile) {
-    dataFilePath = getAsnDataFilePath();
+    useAsnDataFile();
     if (dataFilePath.empty()) {
         GTEST_SKIP() << "The free ASN data file is not present.";
     }

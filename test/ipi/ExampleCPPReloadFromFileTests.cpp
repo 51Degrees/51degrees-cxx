@@ -55,7 +55,7 @@ public:
 
 // The example uses the free ASN data file by default.
 TEST_F(ExampleCPPTestReloadFromFile, AsnDataFile) {
-	dataFilePath = getAsnDataFilePath();
+	useAsnDataFile();
 	if (dataFilePath.empty()) {
 		GTEST_SKIP() << "The free ASN data file is not present.";
 	}

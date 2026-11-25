@@ -49,7 +49,7 @@ TEST_F(ExampleTestPerformance, All) {
 // The example uses the free ASN data file by default, and on it says what the
 // Enterprise data file adds and where to ask for a copy.
 TEST_F(ExampleTestPerformance, AsnDataFile) {
-    dataFilePath = getAsnDataFilePath();
+    useAsnDataFile();
     if (dataFilePath.empty()) {
         GTEST_SKIP() << "The free ASN data file is not present.";
     }

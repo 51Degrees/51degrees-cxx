@@ -50,7 +50,7 @@ EXAMPLE_HASH_TESTS(ExampleCPPHashMatchMetricsTests)
 
 // A fresh clone has the free Lite data file, which the example runs on.
 TEST_F(ExampleCPPHashMatchMetricsTests, LiteDataFile) {
-	dataFilePath = getLiteDataFilePath();
+	useLiteDataFile();
 	if (dataFilePath.empty()) {
 		GTEST_SKIP() << "The Lite data file is not present.";
 	}

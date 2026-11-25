@@ -62,7 +62,7 @@ TEST_F(ExampleCPPTestMetaData, DataFile) {
 // A fresh clone has the free ASN data file, which has none of the properties
 // the example prints.
 TEST_F(ExampleCPPTestMetaData, AsnDataFile) {
-	dataFilePath = getAsnDataFilePath();
+	useAsnDataFile();
 	if (dataFilePath.empty()) {
 		GTEST_SKIP() << "The free ASN data file is not present.";
 	}
