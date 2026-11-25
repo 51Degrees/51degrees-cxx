@@ -173,6 +173,9 @@
     <ClInclude Include="..\..\..\test\common\EngineTests.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\test\common\EnvironmentVariable.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\test\common\EvidenceTests.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
