@@ -32,17 +32,13 @@
 #include "../../src/common/threading.h"
 
 /**
- * Reads the allocation function pointer while the measuring thread stores it.
- * The library stores it atomically, so it is read atomically here too, or the
- * two accesses still race. Visual Studio reads an aligned pointer sized
- * volatile in one access.
+ * Reads the allocation function pointer while the measuring thread stores it,
+ * the same way the library reads it to call it.
  */
-static inline decltype(fiftyoneDegreesMalloc) readMalloc() {
-#ifdef _MSC_VER
-	return *(decltype(fiftyoneDegreesMalloc) volatile*)&fiftyoneDegreesMalloc;
-#else
-	return __atomic_load_n(&fiftyoneDegreesMalloc, __ATOMIC_RELAXED);
-#endif
+static inline fiftyoneDegreesMallocFunction readMalloc() {
+	return FIFTYONE_DEGREES_ALLOCATOR_READ(
+		fiftyoneDegreesMalloc,
+		fiftyoneDegreesMallocFunction);
 }
 
 /**
@@ -81,13 +77,15 @@ inline void expectSizeIgnoresOtherThread(
 		std::atomic<bool> measured(false);
 		std::thread other([&]() {
 			spinning = true;
-			decltype(fiftyoneDegreesMalloc) allocate = readMalloc();
+			fiftyoneDegreesMallocFunction allocate = readMalloc();
 			while (allocate != fiftyoneDegreesMemoryTrackingMalloc &&
 				measured == false) {
 				allocate = readMalloc();
 			}
 			if (allocate == fiftyoneDegreesMemoryTrackingMalloc) {
-				block = allocate(blockSize);
+				// Allocates as the library does, through the allocation
+				// function's own name, so the test covers that read.
+				block = fiftyoneDegreesMalloc(blockSize);
 				during = readMalloc() == fiftyoneDegreesMemoryTrackingMalloc;
 			}
 		});

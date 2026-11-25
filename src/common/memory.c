@@ -34,37 +34,102 @@
 
 static int shardDivider = sizeof(void*) * 3;
 
+/*
+ * The tracker's state is set up once, by the first thread to need it, and is
+ * never torn down, because a thread that read a tracking function before the
+ * allocation functions were pointed back can still call it at any time.
+ */
+#define SETUP_NONE 0 /* Not set up */
+#define SETUP_RUNNING 1 /* One thread is setting up */
+#define SETUP_DONE 2 /* Set up, and stays so */
+
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 
-/**
- * A thread can allocate through the tracker, and so read the initialised
- * flag, while another thread resets it, so the flag is read and written with
- * interlocked operations.
+/*
+ * Threads read the set up flag while another thread sets it, so every access
+ * is atomic. Reading SETUP_DONE also makes the set up visible, as acquire
+ * order there pairs with the interlocked exchange that stores it, which is a
+ * full barrier. Visual Studio reads with an interlocked exchange that changes
+ * nothing, which is a full barrier on every processor.
  */
-static long initialised = 0;
-#define INITIALISED_READ() (INTERLOCK_EXCHANGE(initialised, 0, 0) != 0)
-#define INITIALISED_SET() INTERLOCK_EXCHANGE(initialised, 1, 0)
+static long setUp = SETUP_NONE;
+#ifdef _MSC_VER
+#define SETUP_READ() INTERLOCK_EXCHANGE(setUp, SETUP_NONE, SETUP_NONE)
+#else
+#define SETUP_READ() __atomic_load_n(&setUp, __ATOMIC_ACQUIRE)
+#endif
+#define SETUP_CLAIM() \
+	(INTERLOCK_EXCHANGE(setUp, SETUP_RUNNING, SETUP_NONE) == SETUP_NONE)
+#define SETUP_FINISH() INTERLOCK_EXCHANGE(setUp, SETUP_DONE, SETUP_RUNNING)
 
-/**
- * Measuring points the allocation functions at the tracker while other
- * threads allocate through them, so each pointer is stored atomically.
- * Relaxed order is enough, as the tracker's own state is guarded by its
- * locks. Visual Studio writes an aligned pointer sized volatile in one access.
+/*
+ * Stores an allocation function pointer in one atomic access with release
+ * order, so a thread that reads the new pointer with
+ * FIFTYONE_DEGREES_ALLOCATOR_READ also sees what this thread did before,
+ * such as starting a measurement. Visual Studio stores an aligned pointer
+ * sized volatile in one access, after a full barrier.
  */
 #ifdef _MSC_VER
-#define ALLOCATOR_WRITE(v, n) (*(volatile uintptr_t*)&(v) = (uintptr_t)(n))
+#define ALLOCATOR_WRITE(v, t, n) \
+	(MemoryBarrier(), *(t volatile*)&(v) = (n))
 #else
-#define ALLOCATOR_WRITE(v, n) __atomic_store_n(&(v), (n), __ATOMIC_RELAXED)
+#define ALLOCATOR_WRITE(v, t, n) __atomic_store_n(&(v), (n), __ATOMIC_RELEASE)
 #endif
 
+#define STATE_LOCK() FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock)
+#define STATE_UNLOCK() FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.lock)
+#define SHARD_LOCK(s) FIFTYONE_DEGREES_MUTEX_LOCK(&state.locks[s])
+#define SHARD_UNLOCK(s) FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.locks[s])
+
 #else
 
-static bool initialised = false;
-#define INITIALISED_READ() initialised
-#define INITIALISED_SET() (initialised = true)
-#define ALLOCATOR_WRITE(v, n) ((v) = (n))
+static long setUp = SETUP_NONE;
+#define SETUP_READ() setUp
+#define SETUP_CLAIM() (setUp == SETUP_NONE ? (setUp = SETUP_RUNNING, true) : false)
+#define SETUP_FINISH() (setUp = SETUP_DONE)
+#define ALLOCATOR_WRITE(v, t, n) ((v) = (n))
+#define STATE_LOCK()
+#define STATE_UNLOCK()
+#define SHARD_LOCK(s)
+#define SHARD_UNLOCK(s)
 
 #endif
+
+#define WRITE_TRACKING_FUNCTIONS() \
+	ALLOCATOR_WRITE( \
+		fiftyoneDegreesMalloc, \
+		fiftyoneDegreesMallocFunction, \
+		fiftyoneDegreesMemoryTrackingMalloc); \
+	ALLOCATOR_WRITE( \
+		fiftyoneDegreesMallocAligned, \
+		fiftyoneDegreesMallocAlignedFunction, \
+		fiftyoneDegreesMemoryTrackingMallocAligned); \
+	ALLOCATOR_WRITE( \
+		fiftyoneDegreesFree, \
+		fiftyoneDegreesFreeFunction, \
+		fiftyoneDegreesMemoryTrackingFree); \
+	ALLOCATOR_WRITE( \
+		fiftyoneDegreesFreeAligned, \
+		fiftyoneDegreesFreeFunction, \
+		fiftyoneDegreesMemoryTrackingFreeAligned)
+
+#define WRITE_STANDARD_FUNCTIONS() \
+	ALLOCATOR_WRITE( \
+		fiftyoneDegreesMalloc, \
+		fiftyoneDegreesMallocFunction, \
+		fiftyoneDegreesMemoryStandardMalloc); \
+	ALLOCATOR_WRITE( \
+		fiftyoneDegreesMallocAligned, \
+		fiftyoneDegreesMallocAlignedFunction, \
+		fiftyoneDegreesMemoryStandardMallocAligned); \
+	ALLOCATOR_WRITE( \
+		fiftyoneDegreesFree, \
+		fiftyoneDegreesFreeFunction, \
+		fiftyoneDegreesMemoryStandardFree); \
+	ALLOCATOR_WRITE( \
+		fiftyoneDegreesFreeAligned, \
+		fiftyoneDegreesFreeFunction, \
+		fiftyoneDegreesMemoryStandardFreeAligned)
 
 typedef struct memory_allocation_t {
 	fiftyoneDegreesTreeNode tree; /* Tree node data structure */
@@ -127,67 +192,99 @@ static int getShardFromPointer(void *pointer) {
 		FIFTYONE_DEGREES_MEMORY_TRACKER_SHARDS;
 }
 
-static void tryInit() {
-	if (INITIALISED_READ() == false) {
-		MemoryTrackingReset();
+/**
+ * Creates the tracker's locks and trees the first time any thread needs
+ * them. A thread that finds another setting up waits for it, which takes
+ * only as long as creating the locks.
+ */
+static void ensureSetUp() {
+	int i;
+	if (SETUP_READ() == SETUP_DONE) {
+		return;
+	}
+	if (SETUP_CLAIM()) {
+		for (i = 0; i < FIFTYONE_DEGREES_MEMORY_TRACKER_SHARDS; i++) {
+#ifndef FIFTYONE_DEGREES_NO_THREADING
+			FIFTYONE_DEGREES_MUTEX_CREATE(state.locks[i]);
+#endif
+			fiftyoneDegreesTreeRootInit(&state.roots[i]);
+		}
+#ifndef FIFTYONE_DEGREES_NO_THREADING
+		FIFTYONE_DEGREES_MUTEX_CREATE(state.lock);
+#endif
+		SETUP_FINISH();
+		return;
+	}
+	while (SETUP_READ() != SETUP_DONE) {
 	}
 }
 
 /**
  * True while a thread other than the calling one measures, so that the
- * calling thread's memory is left out of the measurement.
+ * calling thread's memory is left out of the measurement. The caller holds
+ * the state lock.
  */
 static bool isOtherThreadMeasuring() {
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-	bool other;
-	FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock);
-	other = state.measuring &&
+	return state.measuring &&
 		FIFTYONE_DEGREES_THREAD_ID_EQUAL(
 			state.measurer,
 			FIFTYONE_DEGREES_THREAD_ID_CURRENT()) == false;
-	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.lock);
-	return other;
 #else
 	return false;
 #endif
 }
 
 static void trackAllocation(void* pointer, size_t size) {
+	allocation *record, *stale;
+	int shard;
+
+	if (pointer == NULL) {
+		return;
+	}
+
+	// Check and count under one lock, so a measurement can't start or stop
+	// between them. Memory allocated while another thread measures is not
+	// recorded, so its free is not counted either.
+	STATE_LOCK();
+	if (isOtherThreadMeasuring()) {
+		STATE_UNLOCK();
+		return;
+	}
+	state.allocated += size;
+	if (state.allocated > state.max) {
+		state.max = state.allocated;
+	}
+	STATE_UNLOCK();
+
 	// Create a new tree node to record the allocation.
-	allocation* record = (allocation*)malloc(sizeof(allocation));
-	int shard = getShardFromPointer(pointer);
+	record = (allocation*)malloc(sizeof(allocation));
+	shard = getShardFromPointer(pointer);
 	assert(record != NULL);
 	assert(shard < FIFTYONE_DEGREES_MEMORY_TRACKER_SHARDS);
 	fiftyoneDegreesTreeNodeInit(&record->tree, &state.roots[shard]);
 	record->tree.key = (int64_t)(intptr_t)pointer;
 	record->size = size;
 
-	// Update the tracking tree with the new allocation.
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_MUTEX_LOCK(&state.locks[shard]);
-#endif
-	fiftyoneDegreesTreeInsert(&record->tree);
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.locks[shard]);
-#endif
-
-	// Update the allocated and max values.
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock);
-#endif
-	state.allocated += size;
-	if (state.allocated > state.max) {
-		state.max = state.allocated;
+	// A record for the same address is left from memory the standard free
+	// released after tracking ended, as the address is live again. It is
+	// replaced, as the tree holds one record for each address.
+	SHARD_LOCK(shard);
+	stale = (allocation*)fiftyoneDegreesTreeFind(
+		&state.roots[shard],
+		record->tree.key);
+	if (stale != NULL) {
+		fiftyoneDegreesTreeDelete(&stale->tree);
 	}
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.lock);
-#endif
-
+	fiftyoneDegreesTreeInsert(&record->tree);
+	SHARD_UNLOCK(shard);
+	free(stale);
 }
 
 static void untrackAllocation(void *pointer) {
 	size_t size;
 	int shard;
+	allocation* record;
 
 	// The standard free accepts a null pointer, and the API relies on that
 	// throughout its clean up paths, so the tracking free must accept one
@@ -195,75 +292,50 @@ static void untrackAllocation(void *pointer) {
 	if (pointer == NULL) {
 		return;
 	}
+	ensureSetUp();
 	shard = getShardFromPointer(pointer);
 
 	// Get the size of the memory being freed and free the tracking memory.
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_MUTEX_LOCK(&state.locks[shard]);
-#endif
-	allocation* record = (allocation*)fiftyoneDegreesTreeFind(
+	SHARD_LOCK(shard);
+	record = (allocation*)fiftyoneDegreesTreeFind(
 		&state.roots[shard],
 		(int64_t)(intptr_t)pointer);
 	// Memory the tracker did not allocate has no record, as when another
 	// thread frees memory it allocated before the size functions pointed the
 	// allocation functions here. It is freed without being counted.
 	if (record == NULL) {
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-		FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.locks[shard]);
-#endif
+		SHARD_UNLOCK(shard);
 		return;
 	}
 	size = record->size;
 	fiftyoneDegreesTreeDelete(&record->tree);
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.locks[shard]);
-#endif
+	SHARD_UNLOCK(shard);
 	free(record);
 
 	// Memory another thread frees while one thread measures was allocated
 	// before the measurement started, so it is not taken from the count.
-	if (isOtherThreadMeasuring()) {
-		return;
+	STATE_LOCK();
+	if (isOtherThreadMeasuring() == false) {
+		state.allocated -= size;
 	}
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock);
-#endif
-	state.allocated -= size;
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.lock);
-#endif
-
+	STATE_UNLOCK();
 }
+
 void* fiftyoneDegreesMemoryTrackingMallocAligned(
 	int alignment,
 	size_t size) {
-	// Check that the tracker is initialised.
-	tryInit();
-
-	// Allocate the memory.
-	void* pointer = MemoryStandardMallocAligned(
-		alignment,
-		size);
-
-	// Track the allocation, unless another thread is measuring.
-	if (isOtherThreadMeasuring() == false) {
-		trackAllocation(pointer, size + size % alignment);
-	}
+	void* pointer;
+	ensureSetUp();
+	pointer = MemoryStandardMallocAligned(alignment, size);
+	trackAllocation(pointer, size + size % alignment);
 	return pointer;
 }
 
 void* fiftyoneDegreesMemoryTrackingMalloc(size_t size) {
-
-	// Check that the tracker is initialised.
-	tryInit();
-
-	// Allocate the memory.
-	void* pointer = MemoryStandardMalloc(size);
-
-	// Track the allocation, unless another thread is measuring.
-	if (isOtherThreadMeasuring() == false) {
-		trackAllocation(pointer, size);
-	}
+	void* pointer;
+	ensureSetUp();
+	pointer = MemoryStandardMalloc(size);
+	trackAllocation(pointer, size);
 	return pointer;
 }
 
@@ -280,102 +352,80 @@ void fiftyoneDegreesMemoryStandardFreeAligned(void* pointer) {
 }
 
 void fiftyoneDegreesMemoryTrackingFree(void *pointer) {
+	// The record goes before the memory, as another thread can be given the
+	// same address once it is freed.
 	untrackAllocation(pointer);
-	// Finally free the pointer.
 	MemoryStandardFree(pointer);
 }
 
 void fiftyoneDegreesMemoryTrackingFreeAligned(void* pointer) {
 	untrackAllocation(pointer);
-	// Finally free the pointer.
 	MemoryStandardFreeAligned(pointer);
 }
 
 size_t fiftyoneDegreesMemoryTrackingGetMax() {
-	return state.max;
+	size_t max;
+	ensureSetUp();
+	STATE_LOCK();
+	max = state.max;
+	STATE_UNLOCK();
+	return max;
 }
 
 size_t fiftyoneDegreesMemoryTrackingGetAllocated() {
-	return state.allocated;
+	size_t allocated;
+	ensureSetUp();
+	STATE_LOCK();
+	allocated = state.allocated;
+	STATE_UNLOCK();
+	return allocated;
 }
 
 void fiftyoneDegreesMemoryTrackingReset() {
-	int i;
-	if (INITIALISED_READ() == false) {
-		for (i = 0; i < FIFTYONE_DEGREES_MEMORY_TRACKER_SHARDS; i++) {
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-			FIFTYONE_DEGREES_MUTEX_CREATE(state.locks[i]);
-#endif
-			fiftyoneDegreesTreeRootInit(&state.roots[i]);
-		}
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-		FIFTYONE_DEGREES_MUTEX_CREATE(state.lock);
-#endif
-	}
+	ensureSetUp();
+	STATE_LOCK();
 	state.allocated = 0;
 	state.max = 0;
-	INITIALISED_SET();
+	STATE_UNLOCK();
 }
 
 void fiftyoneDegreesSetUpMemoryTracking() {
 	fiftyoneDegreesMemoryTrackingReset();
-	ALLOCATOR_WRITE(fiftyoneDegreesMalloc, fiftyoneDegreesMemoryTrackingMalloc);
-	ALLOCATOR_WRITE(
-		fiftyoneDegreesMallocAligned,
-		fiftyoneDegreesMemoryTrackingMallocAligned);
-	ALLOCATOR_WRITE(fiftyoneDegreesFree, fiftyoneDegreesMemoryTrackingFree);
-	ALLOCATOR_WRITE(
-		fiftyoneDegreesFreeAligned,
-		fiftyoneDegreesMemoryTrackingFreeAligned);
+	WRITE_TRACKING_FUNCTIONS();
 }
 
 size_t fiftyoneDegreesUnsetMemoryTracking() {
 	size_t memAlloced = MemoryTrackingGetAllocated();
-	ALLOCATOR_WRITE(fiftyoneDegreesMalloc, fiftyoneDegreesMemoryStandardMalloc);
-	ALLOCATOR_WRITE(
-		fiftyoneDegreesMallocAligned,
-		fiftyoneDegreesMemoryStandardMallocAligned);
-	ALLOCATOR_WRITE(fiftyoneDegreesFree, fiftyoneDegreesMemoryStandardFree);
-	ALLOCATOR_WRITE(
-		fiftyoneDegreesFreeAligned,
-		fiftyoneDegreesMemoryStandardFreeAligned);
+	WRITE_STANDARD_FUNCTIONS();
 	fiftyoneDegreesMemoryTrackingReset();
 	return memAlloced;
 }
 
 void fiftyoneDegreesMemoryTrackingStartMeasuring() {
-	fiftyoneDegreesMemoryTrackingReset();
+	ensureSetUp();
+	// The counts are reset in the same section that starts the measurement,
+	// so no other thread's allocation is counted in between.
+	STATE_LOCK();
+	state.allocated = 0;
+	state.max = 0;
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock);
 	state.measurer = FIFTYONE_DEGREES_THREAD_ID_CURRENT();
 	state.measuring = true;
-	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.lock);
 #endif
-	ALLOCATOR_WRITE(fiftyoneDegreesMalloc, fiftyoneDegreesMemoryTrackingMalloc);
-	ALLOCATOR_WRITE(
-		fiftyoneDegreesMallocAligned,
-		fiftyoneDegreesMemoryTrackingMallocAligned);
-	ALLOCATOR_WRITE(fiftyoneDegreesFree, fiftyoneDegreesMemoryTrackingFree);
-	ALLOCATOR_WRITE(
-		fiftyoneDegreesFreeAligned,
-		fiftyoneDegreesMemoryTrackingFreeAligned);
+	STATE_UNLOCK();
+	WRITE_TRACKING_FUNCTIONS();
 }
 
 void fiftyoneDegreesMemoryTrackingStopMeasuring() {
-	ALLOCATOR_WRITE(fiftyoneDegreesMalloc, fiftyoneDegreesMemoryStandardMalloc);
-	ALLOCATOR_WRITE(
-		fiftyoneDegreesMallocAligned,
-		fiftyoneDegreesMemoryStandardMallocAligned);
-	ALLOCATOR_WRITE(fiftyoneDegreesFree, fiftyoneDegreesMemoryStandardFree);
-	ALLOCATOR_WRITE(
-		fiftyoneDegreesFreeAligned,
-		fiftyoneDegreesMemoryStandardFreeAligned);
+	WRITE_STANDARD_FUNCTIONS();
+	ensureSetUp();
+	STATE_LOCK();
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock);
 	state.measuring = false;
-	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.lock);
 #endif
-	fiftyoneDegreesMemoryTrackingReset();
+	state.allocated = 0;
+	state.max = 0;
+	STATE_UNLOCK();
 }
 
 #ifdef FIFTYONE_DEGREES_MEMORY_TRACK_ENABLED
