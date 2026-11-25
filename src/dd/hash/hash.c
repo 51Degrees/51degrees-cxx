@@ -3343,6 +3343,12 @@ static StatusCode initDataSetFromMemoryIndexing(
 		dataSet->b.b.memoryToFree = memory;
 	}
 
+	// Missing memory cannot be read. Report it before the end of the memory
+	// is worked out, as no offset may be added to a null pointer.
+	if (memory == NULL) {
+		return NULL_POINTER;
+	}
+
 	// Set up the reader.
 	reader.startByte = reader.current = (byte*)memory;
 	reader.length = size;
