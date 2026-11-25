@@ -23,10 +23,12 @@
 #include "resource.h"
 #include "fiftyone.h"
 
-#define CLAIMED FIFTYONE_DEGREES_RESOURCE_CLAIMED
+#define ACTIVE FIFTYONE_DEGREES_RESOURCE_ACTIVE
 #define IN_USE_MAX FIFTYONE_DEGREES_RESOURCE_IN_USE_MAX
 
-#ifndef FIFTYONE_DEGREES_NO_THREADING
+#ifdef FIFTYONE_DEGREES_NO_THREADING
+#define COUNTER_READ(v) (v)
+#else
 /*
  * Reads a handle's counter as one atomic load, as other threads change it at
  * the same time. The read needs no ordering of its own, so gcc and clang use
@@ -63,7 +65,7 @@
 #endif
 
 /**
- * Returns the number of users a counter holds, without the claimed bit.
+ * Returns the number of users a counter holds, without the active bit.
  * @param counter value read from a handle
  * @return the number of users
  */
@@ -76,7 +78,8 @@ static int32_t getInUse(long counter) {
  * handle from the manager just before another thread replaces it, then read
  * the handle after its last reference has gone. So the resource is freed with
  * the last reference, but the memory of the handle stays until the manager is
- * freed as well, which costs one of these for each replacement.
+ * freed as well, which costs one of these for each replacement. The memory
+ * also stays until the release of the last reference has finished with it.
  *
  * Nothing limits how long a thread can pause between reading the active handle
  * and adding to its counter, so a handle can still be read after several more
@@ -127,12 +130,10 @@ static void setupResource(
 	retained->replaced = NULL;
 	retained->owners = HANDLE_MEMORY_OWNERS;
 
-	// The handle has no users and is not claimed.
-	handle->counter = 0;
+	// The handle has no users, and the active bit holds it for the manager.
+	handle->counter = ACTIVE;
 
-	// Set a link between the new active resource and the manager. Used to
-	// check if the resource can be freed when the last thread has finished
-	// using it.
+	// Set a link between the new active resource and the manager.
 	handle->manager = manager;
 
 	// Set the resource that the new handle manages to the one provided.
@@ -166,13 +167,10 @@ void fiftyoneDegreesResourceManagerInit(
 
 void fiftyoneDegreesResourceManagerFree(
 	fiftyoneDegreesResourceManager *manager) {
-	// Unlike IncUse and DecUse, Free should not be
-	// called at the same time as a reload so the 
-	// active handle won't change at this point.
-	// Thus, it is safe to perform assertion directly
-	// to the active handle here. 
+	// Free must not run at the same time as a take or a replace, so the
+	// active handle cannot change here. Releases can run at any time.
 	assert(manager->active == NULL ||
-		(manager->active->counter & CLAIMED) == 0);
+		(COUNTER_READ(manager->active->counter) & ACTIVE) != 0);
 	if (manager->active != NULL) {
 
 		ResourceHandle* newHandlePointer;
@@ -183,9 +181,9 @@ void fiftyoneDegreesResourceManagerFree(
 			NULL,
 			&newHandlePointer);
 
-		// Nothing may read from a manager being freed, so it can let go of
-		// every handle it has replaced. A handle still in use is freed when
-		// its last reference goes.
+		// Nothing may take a handle from a manager being freed, so it can let
+		// go of every handle it has replaced. The memory of a handle still in
+		// use is freed when its last reference goes.
 		for (handle = ((RetainedHandle*)newHandlePointer)->replaced;
 			handle != NULL;
 			handle = replaced) {
@@ -198,45 +196,21 @@ void fiftyoneDegreesResourceManagerFree(
 
 void fiftyoneDegreesResourceHandleDecUse(
 	fiftyoneDegreesResourceHandle *handle) {
-	// Releasing takes two atomic steps. The decrement, with a read of the
-	// active handle, finds whether this was the last user of a handle that is
-	// no longer active. The compare and exchange that claims the handle then
-	// makes sure only THIS thread frees it. See below for when more than one
-	// thread can get that far.
+	// The active bit counts as a use, so the counter reaches zero only at the
+	// last release of a handle that has been replaced. A handle at zero is
+	// never taken again, so only one release sees zero, and the handle's
+	// memory is kept until that release has freed the resource. Nothing here
+	// reads the manager, which may already have been freed.
 	long decremented;
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-	// The caller holds a use, so the count is at least 1 and the handle
-	// cannot be claimed. The decrement therefore needs no compare, and cannot
-	// reach the claimed bit.
 	decremented = FIFTYONE_DEGREES_INTERLOCK_DEC(&handle->counter);
-	assert(decremented >= 0 && decremented < CLAIMED);
 #else
 	assert(getInUse(handle->counter) > 0);
-	handle->counter--;
-	decremented = handle->counter;
+	decremented = --handle->counter;
 #endif
-	if (decremented == 0 &&  // Am I the last user of the handle?
-		ACTIVE_READ(handle->manager) != handle) { // Is the handle still active?
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-		// Atomically set the claimed bit to ensure only one thread can get
-		// into the freeHandle method.
-		// Consider the scenario where between the decrement this if statement:
-		// 1. another thread increments and decrements the counter, then
-		// 2. the active handle is replaced.
-		// In this case, both threads will make it into here, so access to
-		// the freeHandle method must be limited to one by atomically setting
-		// the claimed bit. Only the thread whose swap sets it frees the
-		// handle, and once it is set no thread can take the handle again.
-		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(
-			handle->counter,
-			CLAIMED,
-			0L) == 0L) {
-			assert(handle != ACTIVE_READ(handle->manager));
-			freeHandle(handle);
-		}
-#else
+	assert(decremented >= 0);
+	if (decremented == 0) {
 		freeHandle(handle);
-#endif
 	}
 }
 
@@ -250,12 +224,12 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 		// the exchange use the same handle.
 		active = ACTIVE_READ(manager);
 		compare = COUNTER_READ(active->counter);
-		// The counter only holds 0 to IN_USE_MAX, or CLAIMED, which is
-		// greater, so one unsigned comparison finds both cases that cannot
-		// be taken. A claimed handle was replaced and its resource freed
-		// before it was read. A full handle needs another thread to release
-		// it first. Either way, start again from the manager.
-		if ((unsigned long)compare >= (unsigned long)IN_USE_MAX) {
+		// Only a handle with the active bit set, and fewer than IN_USE_MAX
+		// users, can be taken, which is one unsigned comparison. A handle
+		// without the bit was replaced after it was read. A full handle needs
+		// another thread to release it first. Either way, start again from
+		// the manager. The exchange fails if the bit is cleared meanwhile.
+		if ((unsigned long)(compare - ACTIVE) >= (unsigned long)IN_USE_MAX) {
 			continue;
 		}
 		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(
@@ -267,7 +241,8 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 	}
 #else
 	// A single thread cannot wait for itself to release the handle.
-	assert(getInUse(manager->active->counter) < IN_USE_MAX);
+	assert((manager->active->counter & ACTIVE) != 0 &&
+		getInUse(manager->active->counter) < IN_USE_MAX);
 	manager->active->counter++;
 	return manager->active;
 #endif
@@ -276,11 +251,7 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 int32_t fiftyoneDegreesResourceHandleGetUse(
 	fiftyoneDegreesResourceHandle *handle) {
 	if (handle != NULL) {
-#ifndef FIFTYONE_DEGREES_NO_THREADING
 		return getInUse(COUNTER_READ(handle->counter));
-#else
-		return getInUse(handle->counter);
-#endif
 	}
 	else {
 		return 0;
@@ -291,38 +262,48 @@ void fiftyoneDegreesResourceReplace(
 	fiftyoneDegreesResourceManager *manager,
 	void *newResource,
 	fiftyoneDegreesResourceHandle **newResourceHandle) {
-	// Nothing is read through this pointer here, it is only compared and
-	// passed on, so it has the same type as the functions it is passed to.
-	ResourceHandle* oldHandle = NULL;
-	
+	ResourceHandle* oldHandle;
+	long counter;
+
 	// Add the new resource to the manager replacing the existing one.
 	setupResource(
 		manager,
 		newResource,
 		newResourceHandle,
 		ACTIVE_READ(manager)->freeResource);
-	assert((*newResourceHandle)->counter == 0);
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	// Switch the active handle for the manager to the newly created one. If
-	// another thread switched it first, the swap fails, so take the handle
-	// that is now active and try again.
+	// another thread switched it first, the swap fails, so try again with the
+	// handle that is now active.
 	do {
-		if (oldHandle != NULL) {
-			ResourceHandleDecUse(oldHandle);
-		}
-		oldHandle = ResourceHandleIncUse(manager);
-		((RetainedHandle*)*newResourceHandle)->replaced =
-			(ResourceHandle*)oldHandle;
+		oldHandle = (ResourceHandle*)ACTIVE_READ(manager);
+		((RetainedHandle*)*newResourceHandle)->replaced = oldHandle;
 	} while (INTERLOCK_EXCHANGE_PTR(
 		manager->active,
 		*newResourceHandle,
 		oldHandle) != oldHandle);
+
+	// Only the thread whose swap removed the old handle clears its active
+	// bit. Users can take and release it until then, so retry if the counter
+	// changes.
+	do {
+		counter = COUNTER_READ(oldHandle->counter);
+	} while (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(
+		oldHandle->counter,
+		counter - ACTIVE,
+		counter) != counter);
 #else
-	oldHandle = ResourceHandleIncUse(manager);
+	oldHandle = manager->active;
 	((RetainedHandle*)*newResourceHandle)->replaced = oldHandle;
 	manager->active = *newResourceHandle;
+	counter = oldHandle->counter;
+	oldHandle->counter -= ACTIVE;
 #endif
-	// Release this thread's use of the replaced resource. It is freed once
-	// nothing else holds it.
-	ResourceHandleDecUse(oldHandle);
+	assert((counter & ACTIVE) != 0);
+
+	// Free the replaced resource if it has no users. Otherwise its last
+	// release frees it.
+	if (counter == ACTIVE) {
+		freeHandle(oldHandle);
+	}
 }

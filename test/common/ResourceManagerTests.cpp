@@ -23,6 +23,7 @@
 #include "pch.h"
 #include "../../src/common/resource.h"
 #include "Base.hpp"
+#include <atomic>
 #include <chrono>
 #include <thread>
 
@@ -269,6 +270,50 @@ static void joinThreads(FIFTYONE_DEGREES_THREAD *threads) {
 	for (int i = 0; i < THREAD_COUNT; i++) {
 		FIFTYONE_DEGREES_THREAD_JOIN(threads[i]);
 		FIFTYONE_DEGREES_THREAD_CLOSE(threads[i]);
+	}
+}
+
+/*
+ * A release on one thread, and a flag it sets once the release has returned.
+ */
+typedef struct release_then_free_t {
+	fiftyoneDegreesResourceHandle *handle;
+	std::atomic<long> released;
+} ReleaseThenFree;
+
+/*
+ * Run by a thread to release the last use of a handle and then set the flag.
+ * The flag is set and read with relaxed order, which orders nothing, so the
+ * manager can be freed on another thread with no ordering against what the
+ * release did.
+ */
+static RESOURCE_THREAD_RESULT runReleaseThenFlag(void *pointer) {
+	ReleaseThenFree *state = (ReleaseThenFree*)pointer;
+	fiftyoneDegreesResourceHandleDecUse(state->handle);
+	state->released.store(1, std::memory_order_relaxed);
+	return RESOURCE_THREAD_DONE;
+}
+
+/*
+ * Check that freeing the manager on one thread is safe straight after another
+ * thread has released the last use of the active handle. Nothing but the
+ * handle orders the two, so a thread sanitizer reports any access the release
+ * makes to the handle after its decrement which the free is not ordered after.
+ */
+TEST_F(ResourceManager, MultiThreading_Free_AfterRelease) {
+	if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
+		FIFTYONE_DEGREES_THREAD thread;
+		ReleaseThenFree state;
+		state.handle = fiftyoneDegreesResourceHandleIncUse(&manager);
+		state.released.store(0, std::memory_order_relaxed);
+		FIFTYONE_DEGREES_THREAD_CREATE(thread, &runReleaseThenFlag, &state);
+		while (state.released.load(std::memory_order_relaxed) == 0) {
+			std::this_thread::yield();
+		}
+		disposeManager();
+		FIFTYONE_DEGREES_THREAD_JOIN(thread);
+		FIFTYONE_DEGREES_THREAD_CLOSE(thread);
+		ASSERT_TRUE(resource) << "The resource was not freed.";
 	}
 }
 
@@ -630,15 +675,16 @@ static RESOURCE_THREAD_RESULT runResourceIncAtMax(void *pointer) {
 /*
  * Check that a thread taking a handle with the most users the count can hold
  * waits until another user releases it, rather than taking the count past
- * its bits and into the claimed bit.
+ * its bits and into the active bit.
  */
 TEST_F(ResourceManager, MultiThreading_HandleInc_WaitsAtMax) {
 	if (fiftyoneDegreesThreadingGetIsThreadSafe()) {
 		fiftyoneDegreesResourceHandle *handle =
 			fiftyoneDegreesResourceHandleIncUse(&manager);
 
-		// Stand in for the most users the handle can have.
-		handle->counter = FIFTYONE_DEGREES_RESOURCE_IN_USE_MAX;
+		// Stand in for the most users the active handle can have.
+		handle->counter = FIFTYONE_DEGREES_RESOURCE_ACTIVE |
+			FIFTYONE_DEGREES_RESOURCE_IN_USE_MAX;
 		WaitingState state = { &manager, nullptr, 0 };
 		FIFTYONE_DEGREES_THREAD thread;
 		FIFTYONE_DEGREES_THREAD_CREATE(
@@ -667,7 +713,7 @@ TEST_F(ResourceManager, MultiThreading_HandleInc_WaitsAtMax) {
 			"The in use count is wrong after the waiting thread took it.";
 
 		// Put back the one real user, and release it.
-		handle->counter = 1;
+		handle->counter = FIFTYONE_DEGREES_RESOURCE_ACTIVE | 1;
 		fiftyoneDegreesResourceHandleDecUse(handle);
 	}
 }
