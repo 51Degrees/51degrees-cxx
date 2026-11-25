@@ -81,20 +81,12 @@ protected:
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_se_sm[2];
 int intersection_sh_se_sm_count = 0;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
-bool evidenceHeaderIntersection_sh_se_sm(void *state,
+bool evidenceHeaderIntersection_sh_se_sm(void * /*state*/,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_sh_se_sm[intersection_sh_se_sm_count] = *pair;
 	intersection_sh_se_sm_count++;
 	return true;
 }
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_se_sm) {
 	CreateEvidence(1);
@@ -122,10 +114,6 @@ TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_se_sm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_me_sm[2];
 int intersection_multiple_sh_me_mm_count = 0;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
 bool evidenceHeaderIntersection_sh_me_mm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	if (fiftyoneDegreesHeaderGetIndex(
@@ -137,9 +125,6 @@ bool evidenceHeaderIntersection_sh_me_mm(void *state,
 	}
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_me_sm) {
 	CreateEvidence(2);
@@ -173,10 +158,6 @@ TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_me_sm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_me_nm[2];
 int intersection_sh_me_nm_count = 0;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
 bool evidenceHeaderIntersection_sh_me_nm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	if (fiftyoneDegreesHeaderGetIndex(
@@ -188,9 +169,6 @@ bool evidenceHeaderIntersection_sh_me_nm(void *state,
 	}
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_me_nm) {
 	CreateEvidence(2);
@@ -222,20 +200,12 @@ TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_me_nm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_ne_nm[2];
 int intersection_sh_ne_nm_count = 0;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
-bool evidenceHeaderIntersection_sh_ne_nm(void *state,
+bool evidenceHeaderIntersection_sh_ne_nm(void * /*state*/,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_sh_ne_nm[intersection_sh_ne_nm_count] = *pair;
 	intersection_sh_ne_nm_count++;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#pragma warning(disable : 4100)
-#endif
 
 TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_ne_nm) {
 	CreateEvidence(1);

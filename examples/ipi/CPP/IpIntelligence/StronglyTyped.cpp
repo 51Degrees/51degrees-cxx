@@ -229,15 +229,16 @@ int main(int argc, char* argv[]) {
 	// environment variable, otherwise the parent folder structure is searched.
 	const char* envDataFilePath = ExampleBase::getDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = ExampleBase::copyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = ExampleBase::copyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = ExampleBase::getFilePath(
@@ -255,12 +256,6 @@ int main(int argc, char* argv[]) {
 	}
 
 
-#ifdef _DEBUG
-#ifndef _MSC_VER
-	dmalloc_debug_setup("log-stats,log-non-free,check-fence,log=dmalloc.log");
-#endif
-#endif
-
 	try {
 		auto const stronglyTyped = std::make_unique<StronglyTyped>(dataFilePath);
 		stronglyTyped->run();
@@ -273,8 +268,6 @@ int main(int argc, char* argv[]) {
 #ifdef _DEBUG
 #ifdef _MSC_VER
 	_CrtDumpMemoryLeaks();
-#else
-	printf("Log file is %s\r\n", dmalloc_logpath);
 #endif
 #endif
 

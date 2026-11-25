@@ -173,7 +173,9 @@ static CollectionPtr buildMemoryCollection(
 }
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
-static constexpr char fileName[] = "StoredBinaryValueTests_Data.hex";
+static const std::string fileNameValue =
+    testProcessName("StoredBinaryValueTests_Data") + ".hex";
+static const char *fileName = fileNameValue.c_str();
 
 static void prepareFileProps(StoredBinaryValues::FileProps &fileProps) {
     EXCEPTION_CREATE;
@@ -313,6 +315,23 @@ void StoredBinaryValues::SetUp() {
 }
 
 void StoredBinaryValues::TearDown() {
+#   ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+    // The collections, their file handles and the file pool are freed first,
+    // so that the file is closed before it is deleted.
+    FileCollectionBox *const boxes[] = {
+        &collection.fileNoCache,
+        &collection.fileCache,
+        &collection.fileLoadedNoCache,
+        &collection.fileLoadedCache,
+    };
+    for (FileCollectionBox *const box : boxes) {
+        box->ptr.reset();
+        box->handle.reset();
+    }
+    file.pool.reset();
+    EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS, FileDelete(fileName)) <<
+        "The file " << fileName << " was not deleted.";
+#   endif
 }
 
 
@@ -323,7 +342,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
     const fiftyoneDegreesCollectionKey key {
-        offsets.string1,
+        { offsets.string1 },
         CollectionKeyType_String,
     };
     auto * const value = (String *)collection.memory->get(
@@ -536,7 +555,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFileLoadedNo
     EXCEPTION_CREATE;
     ItemBox item;
     const fiftyoneDegreesCollectionKey key {
-        offsets.string1,
+        { offsets.string1 },
         CollectionKeyType_String,
     };
     auto * const value = (String *)collection.fileLoadedNoCache.ptr->get(
@@ -546,7 +565,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFileLoadedNo
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->size);
     for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
         ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->value)[i]);
@@ -564,7 +583,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_FromFileLoadedNoCache) 
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->stringValue.size);
     for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
         ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
@@ -582,7 +601,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String2_FromFileLoadedNoCache) 
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(string2_rawValueBytes) - 2, value->stringValue.size);
     for (size_t i = 0; i < sizeof(string2_rawValueBytes) - 2; i++) {
         ASSERT_EQ(string2_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
@@ -600,7 +619,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv4_FromFileLoadedNoCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(ipv4_rawValueBytes) - 2, value->byteArrayValue.size);
     for (size_t i = 0; i < sizeof(ipv4_rawValueBytes) - 2; i++) {
         ASSERT_EQ(ipv4_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
@@ -618,7 +637,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv6_FromFileLoadedNoCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(ipv6_rawValueBytes) - 2, value->byteArrayValue.size);
     for (size_t i = 0; i < sizeof(ipv6_rawValueBytes) - 2; i++) {
         ASSERT_EQ(ipv6_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
@@ -636,7 +655,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_WKB_FromFileLoadedNoCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(wkb_rawValueBytes) - 2, value->byteArrayValue.size);
     for (size_t i = 0; i < sizeof(wkb_rawValueBytes) - 2; i++) {
         ASSERT_EQ(wkb_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
@@ -654,7 +673,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFileLoadedNoCache) 
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -676,7 +695,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileLoadedNoCac
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -698,7 +717,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFileLoadedNoCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(floatValue_rawValueBytes); i++) {
         ASSERT_EQ(floatValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -716,7 +735,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Integer_FromFileLoadedNoCache) 
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
         ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -734,7 +753,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Byte_FromFileLoadedNoCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(byteValue_rawValueBytes); i++) {
         ASSERT_EQ(byteValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -753,7 +772,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Object_FromFileLoadedNoCache) {
     // In-Memory collection does NOT care about property type
     // => no exception
     ASSERT_TRUE(EXCEPTION_OKAY);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
         ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -768,7 +787,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFileLoadedCa
     EXCEPTION_CREATE;
     ItemBox item;
     const fiftyoneDegreesCollectionKey key {
-        offsets.string1,
+        { offsets.string1 },
         CollectionKeyType_String,
     };
     auto * const value = (String *)collection.fileLoadedCache.ptr->get(
@@ -778,7 +797,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFileLoadedCa
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->size);
     for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
         ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->value)[i]);
@@ -796,7 +815,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_FromFileLoadedCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->stringValue.size);
     for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
         ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
@@ -814,7 +833,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String2_FromFileLoadedCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(string2_rawValueBytes) - 2, value->stringValue.size);
     for (size_t i = 0; i < sizeof(string2_rawValueBytes) - 2; i++) {
         ASSERT_EQ(string2_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
@@ -832,7 +851,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv4_FromFileLoadedCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(ipv4_rawValueBytes) - 2, value->byteArrayValue.size);
     for (size_t i = 0; i < sizeof(ipv4_rawValueBytes) - 2; i++) {
         ASSERT_EQ(ipv4_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
@@ -850,7 +869,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv6_FromFileLoadedCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(ipv6_rawValueBytes) - 2, value->byteArrayValue.size);
     for (size_t i = 0; i < sizeof(ipv6_rawValueBytes) - 2; i++) {
         ASSERT_EQ(ipv6_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
@@ -868,7 +887,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_WKB_FromFileLoadedCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     ASSERT_EQ(sizeof(wkb_rawValueBytes) - 2, value->byteArrayValue.size);
     for (size_t i = 0; i < sizeof(wkb_rawValueBytes) - 2; i++) {
         ASSERT_EQ(wkb_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
@@ -886,7 +905,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFileLoadedCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -908,7 +927,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileLoadedCache
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -930,7 +949,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFileLoadedCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(floatValue_rawValueBytes); i++) {
         ASSERT_EQ(floatValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -948,7 +967,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Integer_FromFileLoadedCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
         ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -966,7 +985,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Byte_FromFileLoadedCache) {
         exception);
     EXCEPTION_THROW;
     ASSERT_NE(nullptr, value);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(byteValue_rawValueBytes); i++) {
         ASSERT_EQ(byteValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -985,7 +1004,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Object_FromFileLoadedCache) {
     // In-Memory collection does NOT care about property type
     // => no exception
     ASSERT_TRUE(EXCEPTION_OKAY);
-    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(0u, item->data.allocated);
     for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
         ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
@@ -1000,7 +1019,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
     const fiftyoneDegreesCollectionKey key {
-        offsets.string1,
+        { offsets.string1 },
         CollectionKeyType_String,
     };
     auto * const value = (String *)collection.fileCache.ptr->get(
@@ -1227,7 +1246,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFileNoCache)
     EXCEPTION_CREATE;
     ItemBox item;
     const fiftyoneDegreesCollectionKey key {
-        offsets.string1,
+        { offsets.string1 },
         CollectionKeyType_String,
     };
     auto * const value = (String *)collection.fileNoCache.ptr->get(
@@ -2070,7 +2089,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_LongValue_ToText_FromMemory) {
     ASSERT_NE(nullptr, value);
 
     std::vector<char> buffer(1024 * 1024);
-    StringBuilder builder = { buffer.data(), buffer.size() };
+    StringBuilder builder = { buffer.data(), buffer.size(), nullptr, 0, 0, false };
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(
         &builder,
@@ -2172,7 +2191,7 @@ static std::string expectedText(
     const uint8_t places) {
     EXCEPTION_CREATE;
     std::vector<char> buffer(1024 * 1024);
-    StringBuilder builder = { buffer.data(), buffer.size() };
+    StringBuilder builder = { buffer.data(), buffer.size(), nullptr, 0, 0, false };
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(&builder, value, type, places, exception);
     StringBuilderComplete(&builder);
@@ -2763,7 +2782,7 @@ static std::string storedBinaryValueText(
     const uint8_t places) {
     char text[64];
     FIFTYONE_DEGREES_EXCEPTION_CREATE;
-    StringBuilder builder = { text, sizeof(text) };
+    StringBuilder builder = { text, sizeof(text), nullptr, 0, 0, false };
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(&builder, &value, type, places, exception);
     StringBuilderComplete(&builder);

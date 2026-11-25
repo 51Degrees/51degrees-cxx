@@ -99,14 +99,10 @@ protected:
 	}
 };
 
-#ifdef _MSC_VER
-#pragma warning (disable: 4100)
-#endif
-
 void* createResource(
-	fiftyoneDegreesPool* pool,
+	fiftyoneDegreesPool* /*pool*/,
 	void* state,
-	fiftyoneDegreesException* exception) {
+	fiftyoneDegreesException* /*exception*/) {
 	testResourceCounter* counter = (testResourceCounter*)state;
 	counter->resources[counter->count].isSet = true;
 	counter->count++;
@@ -114,7 +110,7 @@ void* createResource(
 }
 
 void freeResource(
-	fiftyoneDegreesPool* pool,
+	fiftyoneDegreesPool* /*pool*/,
 	void* state) {
 	testResource* resource = (testResource*)state;
 	resource->isSet = false;
@@ -124,15 +120,11 @@ void freeResource(
 static testResource sharedResource;
 
 void* createSharedResource(
-	fiftyoneDegreesPool* pool,
-	void* state,
-	fiftyoneDegreesException* exception) {
+	fiftyoneDegreesPool* /*pool*/,
+	void* /*state*/,
+	fiftyoneDegreesException* /*exception*/) {
 	return &sharedResource;
 }
-
-#ifdef _MSC_VER
-#pragma warning (default: 4100)
-#endif
 
 
 /**

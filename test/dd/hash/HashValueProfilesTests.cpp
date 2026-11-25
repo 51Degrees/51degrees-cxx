@@ -177,7 +177,8 @@ void initFromMemory(
 }
 
 void readFile(const std::string &path, std::vector<unsigned char> &data) {
-	FILE *file = fopen(path.c_str(), "rb");
+	FILE *file = nullptr;
+	fiftyoneDegreesFileOpen(path.c_str(), &file);
 	ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";
 	fseek(file, 0, SEEK_END);
 	data.resize((size_t)ftell(file));

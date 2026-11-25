@@ -45,7 +45,7 @@ EngineIpIntelligenceTests::EngineIpIntelligenceTests(
 	ConfigIpi *config,
 	RequiredPropertiesConfig *requiredProperties,
 	const char *directory,
-	const char **fileNames,
+	const char * const *fileNames,
 	int fileNamesLength,
 	const char *evidenceFileName)
 	: EngineTests(requiredProperties, directory, fileNames, fileNamesLength) {
@@ -717,9 +717,7 @@ void EngineIpIntelligenceTests::randomIpAddressPresent(int count) {
 }
 
 void EngineIpIntelligenceTests::randomWithIpAddress(int count) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(count);
-#	endif
+	(void)count;
 	// FIXME: Unstable on CI
 	// EngineIpi *engineIpi = (EngineIpi*)getEngine();
 	// for (int i = 0; i < count; i++) {
@@ -732,9 +730,7 @@ void EngineIpIntelligenceTests::randomWithIpAddress(int count) {
 }
 
 void EngineIpIntelligenceTests::randomWithEvidence(int count) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(count);
-#	endif
+	(void)count;
 	// FIXME: Unstable on CI
 	// string ipKey = "query.client-ip-51d";
 	// EngineIpi *engineIpi = (EngineIpi*)getEngine();
@@ -747,10 +743,11 @@ void EngineIpIntelligenceTests::randomWithEvidence(int count) {
 	// }
 }
 
-void EngineIpIntelligenceTests::multiThreadRandomRunThread(void* state) {
+TEST_THREAD_RESULT EngineIpIntelligenceTests::multiThreadRandomRunThread(void* state) {
 	((EngineIpIntelligenceTests*)state)->randomWithIpAddress(200);
 	((EngineIpIntelligenceTests*)state)->randomWithEvidence(200);
 	FIFTYONE_DEGREES_THREAD_EXIT;
+	return TEST_THREAD_DONE;
 }
 
 /**
@@ -767,7 +764,7 @@ void EngineIpIntelligenceTests::multiThreadRandom(uint16_t concurrency) {
 	ASSERT_NE(nullptr, getEngine());
 	runThreads(
 		concurrency,
-		(FIFTYONE_DEGREES_THREAD_ROUTINE)multiThreadRandomRunThread);
+		multiThreadRandomRunThread);
 }
 
  void EngineIpIntelligenceTests::compareResults(

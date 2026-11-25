@@ -40,9 +40,12 @@
 #define _rmdir rmdir
 #endif
 
-static const char *tempPath1 = "tmp1";
-static const char* tempPath2 = "tmp2";
-static const char *fileName = "tempfile";
+static const std::string tempPath1Name = testProcessName("tmp1");
+static const std::string tempPath2Name = testProcessName("tmp2");
+static const std::string fileNameValue = testProcessName("tempfile");
+static const char *tempPath1 = tempPath1Name.c_str();
+static const char *tempPath2 = tempPath2Name.c_str();
+static const char *fileName = fileNameValue.c_str();
 static const char someData[] = "some data";
 
 /**
@@ -112,7 +115,9 @@ protected:
 	 * @param file path to check
 	 */
 	static bool fileExists(const char* file) {
-		if (FILE* f = fopen(file, "r")) {
+		FILE* f = NULL;
+		if (fiftyoneDegreesFileOpen(file, &f) ==
+			FIFTYONE_DEGREES_STATUS_SUCCESS) {
 			fclose(f);
 			return true;
 		}
@@ -979,7 +984,7 @@ TEST_F(File, TempExists_ComparePortion) {
 	const char *paths[] = { tempPath1 };
 	long bytesToCompare = 4;
 	char alteredData[sizeof(someData)];
-	strcpy(alteredData, someData);
+	memcpy(alteredData, someData, sizeof(someData));
 
 	// Modify some of the data in altered data to make the temp file different
 	// for the purposes of this test.

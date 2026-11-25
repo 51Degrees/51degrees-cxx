@@ -363,7 +363,7 @@ TEST_F(ResourceManager, MultiThreading_HandleReplace_Inc) {
 				total += fiftyoneDegreesResourceHandleGetUse(newHandles[i]);
 			}
 		}
-		ASSERT_EQ(THREAD_COUNT * NUMBER_OF_UPDATES, total) <<
+		ASSERT_EQ((uint32_t)(THREAD_COUNT * NUMBER_OF_UPDATES), total) <<
 			"The in use counter was not increased correctly.";
 
 		// Decrease usage counter of all handles to 0 to mark

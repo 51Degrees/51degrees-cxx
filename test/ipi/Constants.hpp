@@ -25,7 +25,7 @@
 
 const static char _dataFolderName[] = "data/ip-intelligence";
 
-const static char* _IpiFileNames[] = {"51Degrees-EnterpriseIpiV41.ipi", "51Degrees-LiteV41.ipi"};
+static const char* const _IpiFileNames[] = {"51Degrees-EnterpriseIpiV41.ipi", "51Degrees-LiteV41.ipi"};
 
 const static int _IpiFileNamesLength = 2;
 
@@ -46,6 +46,6 @@ extern "C" void fiftyoneDegreesEvidenceFileIterate(
 	void *state,
 	void(*callback)(const char*, void *));
 
-const static char* _fileTypes[] = {"Enterprise", "Lite"};
+static const char* const _fileTypes[] = {"Enterprise", "Lite"};
 
 #endif

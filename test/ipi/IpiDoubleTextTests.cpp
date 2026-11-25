@@ -362,7 +362,7 @@ TEST_F(IpiDoubleTextTests, EveryGeometryIsUnchanged) {
 				EXCEPTION_CREATE;
 				fiftyoneDegreesStringBuilder builder = {
 					buffer.data(),
-					buffer.size() };
+					buffer.size(), nullptr, 0, 0, false };
 				fiftyoneDegreesStringBuilderInit(&builder);
 				fiftyoneDegreesWriteWkbAsWktToStringBuilder(
 					wkb,
@@ -521,7 +521,7 @@ TEST_F(IpiDoubleTextTests, EveryNumberIsUnchanged) {
 				EXCEPTION_CREATE;
 				fiftyoneDegreesStringBuilder builder = {
 					buffer,
-					sizeof(buffer) };
+					sizeof(buffer), nullptr, 0, 0, false };
 				fiftyoneDegreesStringBuilderInit(&builder);
 				fiftyoneDegreesStringBuilderAddStringValue(
 					&builder,

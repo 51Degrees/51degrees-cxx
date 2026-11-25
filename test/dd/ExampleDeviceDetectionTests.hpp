@@ -30,7 +30,7 @@
 class ExampleDeviceDetectionTest: public ExampleTests {
 public: 
 	ExampleDeviceDetectionTest(
-		const char **dataFileNames,
+		const char * const *dataFileNames,
 		int dataFileNamesLength,
 		const char *evidenceFileName);
 protected:

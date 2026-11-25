@@ -93,6 +93,7 @@ Average matching per second: ***
 // Number of threads to start for performance analysis.
 #define THREAD_COUNT 4
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char* dataDir = "data/ip-intelligence";
 
 // The free ASN data file is used by default, as any data file will do for
@@ -101,6 +102,7 @@ static const char* dataDir = "data/ip-intelligence";
 static const char* dataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 static const char* ipAddressFileName = "evidence.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -267,7 +269,7 @@ static void executeTest(const char* ipAddress, void* state) {
  * ensure the single managed resource is being used.
  * @param mainState state information about the main test
  */
-static void runPerformanceThread(void* mainState) {
+static EXAMPLE_THREAD_RESULT runPerformanceThread(void* mainState) {
 	char ipAddress[BUFFER] = "";
 	performanceThreadState threadState;
 	threadState.main = (performanceState*)mainState;
@@ -311,6 +313,7 @@ static void runPerformanceThread(void* mainState) {
 	if (ThreadingGetIsThreadSafe()) {
 		THREAD_EXIT;
 	}
+	return EXAMPLE_THREAD_DONE;
 }
 
 /**
@@ -327,7 +330,7 @@ static void runPerformanceTests(performanceState* state) {
 		for (thread = 0; thread < state->numberOfThreads; thread++) {
 			THREAD_CREATE(
 				state->threads[thread],
-				(THREAD_ROUTINE)&runPerformanceThread,
+				runPerformanceThread,
 				state);
 		}
 
@@ -389,19 +392,13 @@ static double runTests(performanceState* state, int passes, const char* test) {
 #endif
 }
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4100) 
-#endif
 /**
  * Increments the state counter to work out the number of IP Addresses.
  */
 static void ipAddressCount(const char* ipAddress, void* state) {
+	(void)ipAddress;
 	(*(int*)state)++;
 }
-#ifdef _MSC_VER
-#pragma warning (pop)
-#endif
 
 /**
  * Iterate the IP Address source file and count the number of lines it
@@ -574,21 +571,22 @@ int main(int argc, char* argv[]) {
 
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
-	char ipAddressFilePath[FILE_MAX_PATH];
+	char ipAddressFilePath[FILE_MAX_PATH] = "";
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
 	const char* envDataFilePath =
 		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = fiftyoneDegreesExampleCopyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -603,7 +601,10 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	if (argc > 2) {
-		strcpy(ipAddressFilePath, argv[2]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[2],
+			ipAddressFilePath,
+			sizeof(ipAddressFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(

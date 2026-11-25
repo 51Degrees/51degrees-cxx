@@ -88,7 +88,7 @@ TEST_F(HeadersTests, Single) {
 		testHeaders_Single,
 		sizeof(testHeaders_Single) / sizeof(const char*),
 		false);
-	ASSERT_EQ(1, headers->count);
+	ASSERT_EQ(1u, headers->count);
 	for (uint32_t i = 0; i < headers->count; i++) {
 		EXPECT_EQ(true, headers->items[i].isDataSet);
 	}
@@ -114,7 +114,7 @@ TEST_F(HeadersTests, Multiple) {
 		sizeof(testHeaders_Multiple) / sizeof(const char*),
 		false);
 
-	ASSERT_EQ(4, headers->count);
+	ASSERT_EQ(4u, headers->count);
 	for (uint32_t i = 0; i < headers->count; i++) {
 		EXPECT_EQ(true, headers->items[i].isDataSet);
 	}
@@ -140,7 +140,7 @@ TEST_F(HeadersTests, SingleDuplicate) {
 		sizeof(testHeaders_SingleDuplicate) / sizeof(const char*),
 		false);
 
-	ASSERT_EQ(1, headers->count);
+	ASSERT_EQ(1u, headers->count);
 	for (uint32_t i = 0; i < headers->count; i++) {
 		EXPECT_EQ(true, headers->items[i].isDataSet);
 	}
@@ -167,7 +167,7 @@ TEST_F(HeadersTests, MultipleDuplicate) {
 		sizeof(testHeaders_MultipleDuplicate) / sizeof(const char*),
 		false);
 
-	ASSERT_EQ(3, headers->count);
+	ASSERT_EQ(3u, headers->count);
 	for (uint32_t i = 0; i < headers->count; i++) {
 		EXPECT_EQ(true, headers->items[i].isDataSet);
 	}
@@ -193,7 +193,7 @@ TEST_F(HeadersTests, EmptyString) {
 		sizeof(testHeaders_EmptyString) / sizeof(const char*),
 		false);
 
-	ASSERT_EQ(2, headers->count);
+	ASSERT_EQ(2u, headers->count);
 	for (uint32_t i = 0; i < headers->count; i++) {
 		EXPECT_EQ(true, headers->items[i].isDataSet);
 	}
@@ -218,7 +218,7 @@ TEST_F(HeadersTests, NullString) {
 		sizeof(testHeaders_NullString) / sizeof(const char*),
 		false);
 
-	ASSERT_EQ(2, headers->count);
+	ASSERT_EQ(2u, headers->count);
 	for (uint32_t i = 0; i < headers->count; i++) {
 		EXPECT_EQ(true, headers->items[i].isDataSet);
 	}
@@ -242,7 +242,7 @@ TEST_F(HeadersTests, CheckCase) {
 		testHeaders_Case,
 		sizeof(testHeaders_Case) / sizeof(const char*),
 		false);
-	ASSERT_EQ(2, headers->count);
+	ASSERT_EQ(2u, headers->count);
 	for (uint32_t i = 0; i < headers->count; i++) {
 		EXPECT_EQ(true, headers->items[i].isDataSet);
 	}
@@ -323,7 +323,7 @@ TEST_F(HeadersTests, None) {
 		testHeaders_None,
 		0,
 		false);
-	ASSERT_EQ(0, headers->count);
+	ASSERT_EQ(0u, headers->count);
 }
 
 // ----------------------------------------------------------------------
@@ -344,35 +344,35 @@ TEST_F(HeadersTests, PseudoHeadersPositive) {
 		testHeaders_PseudoHeaders,
 		sizeof(testHeaders_PseudoHeaders) / sizeof(const char*),
 		false);
-	EXPECT_EQ(6, headers->count);
+	EXPECT_EQ(6u, headers->count);
 
 	for (uint32_t i = 0; i < headers->count; i++) {
 		EXPECT_EQ(true, headers->items[i].isDataSet);
 	}
 
 	EXPECT_STREQ("header1", headers->items[0].name);
-	EXPECT_EQ(0, headers->items[0].segmentHeaders->count); // a simple header does not have segments
-    EXPECT_EQ(2, headers->items[0].pseudoHeaders->count); // mentioned in 2 pseudoheaders
+	EXPECT_EQ(0u, headers->items[0].segmentHeaders->count); // a simple header does not have segments
+    EXPECT_EQ(2u, headers->items[0].pseudoHeaders->count); // mentioned in 2 pseudoheaders
     EXPECT_EQ(&headers->items[3], headers->items[0].pseudoHeaders->items[0]);
     EXPECT_EQ(&headers->items[5], headers->items[0].pseudoHeaders->items[1]);
 
 	EXPECT_STREQ("header2", headers->items[1].name);
-	EXPECT_EQ(0, headers->items[1].segmentHeaders->count); // a simple header does not have segments
-    EXPECT_EQ(3, headers->items[1].pseudoHeaders->count); //mentioned in 3 pseudoheaders
+	EXPECT_EQ(0u, headers->items[1].segmentHeaders->count); // a simple header does not have segments
+    EXPECT_EQ(3u, headers->items[1].pseudoHeaders->count); //mentioned in 3 pseudoheaders
     EXPECT_EQ(&headers->items[3], headers->items[1].pseudoHeaders->items[0]);
     EXPECT_EQ(&headers->items[4], headers->items[1].pseudoHeaders->items[1]);
     EXPECT_EQ(&headers->items[5], headers->items[1].pseudoHeaders->items[2]);
 
 	EXPECT_STREQ("header3", headers->items[2].name);
-	EXPECT_EQ(0, headers->items[2].segmentHeaders->count); // a simple header does not have segments
-    EXPECT_EQ(2, headers->items[2].pseudoHeaders->count); // mentioned in 2 pseudoheaders
+	EXPECT_EQ(0u, headers->items[2].segmentHeaders->count); // a simple header does not have segments
+    EXPECT_EQ(2u, headers->items[2].pseudoHeaders->count); // mentioned in 2 pseudoheaders
     EXPECT_EQ(&headers->items[4], headers->items[2].pseudoHeaders->items[0]);
     EXPECT_EQ(&headers->items[5], headers->items[2].pseudoHeaders->items[1]);
 
 	EXPECT_STREQ("header1\x1Fheader2", headers->items[3].name);
-	EXPECT_EQ(2, headers->items[3].segmentHeaders->count);
-	EXPECT_EQ(7, headers->items[3].segmentHeaders->items[0]->nameLength);
-	EXPECT_EQ(7, headers->items[3].segmentHeaders->items[1]->nameLength);
+	EXPECT_EQ(2u, headers->items[3].segmentHeaders->count);
+	EXPECT_EQ(7u, headers->items[3].segmentHeaders->items[0]->nameLength);
+	EXPECT_EQ(7u, headers->items[3].segmentHeaders->items[1]->nameLength);
 	EXPECT_EQ(0, StringCompareLength(
 		"header1", 
 		headers->items[3].segmentHeaders->items[0]->name,
@@ -386,9 +386,9 @@ TEST_F(HeadersTests, PseudoHeadersPositive) {
     EXPECT_EQ(&headers->items[1], headers->items[3].segmentHeaders->items[1]);
 
 	EXPECT_STREQ("header2\x1Fheader3", headers->items[4].name);
-	EXPECT_EQ(2, headers->items[4].segmentHeaders->count);
-	EXPECT_EQ(7, headers->items[4].segmentHeaders->items[0]->nameLength);
-	EXPECT_EQ(7, headers->items[4].segmentHeaders->items[1]->nameLength);
+	EXPECT_EQ(2u, headers->items[4].segmentHeaders->count);
+	EXPECT_EQ(7u, headers->items[4].segmentHeaders->items[0]->nameLength);
+	EXPECT_EQ(7u, headers->items[4].segmentHeaders->items[1]->nameLength);
 	EXPECT_EQ(0, StringCompareLength(
 		"header2",
 		headers->items[4].segmentHeaders->items[0]->name,
@@ -402,10 +402,10 @@ TEST_F(HeadersTests, PseudoHeadersPositive) {
     
 
 	EXPECT_STREQ("header1\x1Fheader2\x1Fheader3", headers->items[5].name);
-	EXPECT_EQ(3, headers->items[5].segmentHeaders->count);
-	EXPECT_EQ(7, headers->items[5].segmentHeaders->items[0]->nameLength);
-	EXPECT_EQ(7, headers->items[5].segmentHeaders->items[1]->nameLength);
-	EXPECT_EQ(7, headers->items[5].segmentHeaders->items[2]->nameLength);
+	EXPECT_EQ(3u, headers->items[5].segmentHeaders->count);
+	EXPECT_EQ(7u, headers->items[5].segmentHeaders->items[0]->nameLength);
+	EXPECT_EQ(7u, headers->items[5].segmentHeaders->items[1]->nameLength);
+	EXPECT_EQ(7u, headers->items[5].segmentHeaders->items[2]->nameLength);
 	
     EXPECT_EQ(0, StringCompareLength(
 		"header1",
@@ -440,17 +440,17 @@ TEST_F(HeadersTests, PseudoHeadersMissing) {
 		testHeaders_PseudoHeadersMissing,
 		sizeof(testHeaders_PseudoHeadersMissing) / sizeof(const char*),
 		false);
-	EXPECT_EQ(3, headers->count);
+	EXPECT_EQ(3u, headers->count);
 
 	EXPECT_STREQ("header1\x1Fheader2", headers->items[0].name);
 	EXPECT_EQ(true, headers->items[0].isDataSet);
-	EXPECT_EQ(2, headers->items[0].segmentHeaders->count);
-	EXPECT_EQ(7, headers->items[0].segmentHeaders->items[0]->nameLength);
-    EXPECT_EQ(1, headers->items[0].segmentHeaders->items[0]->pseudoHeaders->count);
+	EXPECT_EQ(2u, headers->items[0].segmentHeaders->count);
+	EXPECT_EQ(7u, headers->items[0].segmentHeaders->items[0]->nameLength);
+    EXPECT_EQ(1u, headers->items[0].segmentHeaders->items[0]->pseudoHeaders->count);
     EXPECT_EQ(&headers->items[0], headers->items[0].segmentHeaders->items[0]->pseudoHeaders->items[0]);
     
-	EXPECT_EQ(7, headers->items[0].segmentHeaders->items[1]->nameLength);
-    EXPECT_EQ(1, headers->items[0].segmentHeaders->items[1]->pseudoHeaders->count);
+	EXPECT_EQ(7u, headers->items[0].segmentHeaders->items[1]->nameLength);
+    EXPECT_EQ(1u, headers->items[0].segmentHeaders->items[1]->pseudoHeaders->count);
     EXPECT_EQ(&headers->items[0], headers->items[0].segmentHeaders->items[1]->pseudoHeaders->items[0]);
     
 	EXPECT_EQ(0, StringCompareLength(
@@ -464,13 +464,13 @@ TEST_F(HeadersTests, PseudoHeadersMissing) {
 
 	EXPECT_STREQ("header1", headers->items[1].name);
 	EXPECT_EQ(false, headers->items[1].isDataSet);
-	EXPECT_EQ(1, headers->items[1].pseudoHeaders->count);
+	EXPECT_EQ(1u, headers->items[1].pseudoHeaders->count);
 	EXPECT_EQ(headers->items[0].segmentHeaders->items[0], &headers->items[1]);
 	
 
 	EXPECT_STREQ("header2", headers->items[2].name);
 	EXPECT_EQ(false, headers->items[2].isDataSet);
-	EXPECT_EQ(1, headers->items[2].pseudoHeaders->count);
+	EXPECT_EQ(1u, headers->items[2].pseudoHeaders->count);
 	EXPECT_EQ(headers->items[0].segmentHeaders->items[1], &headers->items[2]);
 }
 
@@ -495,22 +495,22 @@ TEST_F(HeadersTests, PseudoHeadersSpecialCases) {
 		testHeaders_PseudoHeadersSpecialCases,
 		sizeof(testHeaders_PseudoHeaders) / sizeof(const char*),
 		false);
-	EXPECT_EQ(5, headers->count);
+	EXPECT_EQ(5u, headers->count);
 
 	for (uint32_t i = 0; i < headers->count; i++) {
 		EXPECT_EQ(true, headers->items[i].isDataSet);
 	}
 
 	EXPECT_STREQ("header1", headers->items[0].name);
-	EXPECT_EQ(0, headers->items[0].segmentHeaders->count); // simple header
-    EXPECT_EQ(3, headers->items[0].pseudoHeaders->count); // mentioned in 3 pseudoheaders
+	EXPECT_EQ(0u, headers->items[0].segmentHeaders->count); // simple header
+    EXPECT_EQ(3u, headers->items[0].pseudoHeaders->count); // mentioned in 3 pseudoheaders
 
 	EXPECT_STREQ("header2", headers->items[1].name);
-	EXPECT_EQ(0, headers->items[1].segmentHeaders->count); // simple header
+	EXPECT_EQ(0u, headers->items[1].segmentHeaders->count); // simple header
 
 	EXPECT_STREQ("\x1Fheader1", headers->items[2].name);
-	EXPECT_EQ(1, headers->items[2].segmentHeaders->count);
-	EXPECT_EQ(7, headers->items[2].segmentHeaders->items[0]->nameLength);
+	EXPECT_EQ(1u, headers->items[2].segmentHeaders->count);
+	EXPECT_EQ(7u, headers->items[2].segmentHeaders->items[0]->nameLength);
 	EXPECT_EQ(0, StringCompareLength(
 		"header1",
 		headers->items[2].segmentHeaders->items[0]->name,
@@ -521,8 +521,8 @@ TEST_F(HeadersTests, PseudoHeadersSpecialCases) {
     EXPECT_EQ(headers->items[0].pseudoHeaders->items[0], &headers->items[2]);
 
 	EXPECT_STREQ("header1\x1F", headers->items[3].name);
-	EXPECT_EQ(1, headers->items[3].segmentHeaders->count);
-	EXPECT_EQ(7, headers->items[3].segmentHeaders->items[0]->nameLength);
+	EXPECT_EQ(1u, headers->items[3].segmentHeaders->count);
+	EXPECT_EQ(7u, headers->items[3].segmentHeaders->items[0]->nameLength);
 	EXPECT_EQ(0, StringCompareLength(
 		"header1",
 		headers->items[3].segmentHeaders->items[0]->name,
@@ -533,9 +533,9 @@ TEST_F(HeadersTests, PseudoHeadersSpecialCases) {
     
 
 	EXPECT_STREQ("header1\x1F\x1Fheader2", headers->items[4].name);
-	EXPECT_EQ(2, headers->items[4].segmentHeaders->count);
-	EXPECT_EQ(7, headers->items[4].segmentHeaders->items[0]->nameLength);
-	EXPECT_EQ(7, headers->items[4].segmentHeaders->items[1]->nameLength);
+	EXPECT_EQ(2u, headers->items[4].segmentHeaders->count);
+	EXPECT_EQ(7u, headers->items[4].segmentHeaders->items[0]->nameLength);
+	EXPECT_EQ(7u, headers->items[4].segmentHeaders->items[1]->nameLength);
 	EXPECT_EQ(0, StringCompareLength(
 		"header1",
 		headers->items[4].segmentHeaders->items[0]->name,

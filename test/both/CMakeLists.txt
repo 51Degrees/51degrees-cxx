@@ -16,11 +16,13 @@ add_executable(BothProducts
 	$<TARGET_OBJECTS:BothProductsIpi>)
 target_link_libraries(BothProducts fiftyone-hash-c fiftyone-ip-intelligence-c)
 
-if (MSVC)
-	target_compile_options(BothProductsDd PRIVATE "/D_CRT_SECURE_NO_WARNINGS")
-	target_compile_options(BothProductsIpi PRIVATE "/D_CRT_SECURE_NO_WARNINGS")
-	target_compile_options(BothProducts PRIVATE "/D_CRT_SECURE_NO_WARNINGS")
-endif()
+foreach (target BothProductsDd BothProductsIpi BothProducts)
+	if (MSVC)
+		target_compile_options(${target} PRIVATE "/W4" "/WX")
+	else()
+		target_compile_options(${target} PRIVATE "-Wall" "-Wextra" "-Werror")
+	endif()
+endforeach()
 
 set_target_properties(BothProductsDd BothProductsIpi BothProducts
 	PROPERTIES FOLDER "Tests")
@@ -48,11 +50,13 @@ if (_51DEGREES_CXX_BOTH_PRODUCTS)
 		fiftyone-hash-cxx
 		fiftyone-ip-intelligence-cxx)
 
-	if (MSVC)
-		target_compile_options(BothProductsCxxDd PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/EHsc")
-		target_compile_options(BothProductsCxxIpi PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/EHsc")
-		target_compile_options(BothProductsCxx PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/EHsc")
-	endif()
+	foreach (target BothProductsCxxDd BothProductsCxxIpi BothProductsCxx)
+		if (MSVC)
+			target_compile_options(${target} PRIVATE "/W4" "/WX" "/EHsc")
+		else()
+			target_compile_options(${target} PRIVATE "-Wall" "-Wextra" "-Werror")
+		endif()
+	endforeach()
 
 	set_target_properties(BothProductsCxxDd BothProductsCxxIpi BothProductsCxx
 		PROPERTIES FOLDER "Tests")

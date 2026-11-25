@@ -77,9 +77,11 @@ fiftyoneDegreesResourceManagerFree(&manager);
  */
 #define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-findprofiles.c"
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -95,16 +97,11 @@ static int exitCode = 0;
 // #define CONFIG fiftyoneDegreesHashBalancedConfig
 // #define CONFIG fiftyoneDegreesHashBalancedTempConfig
 
-#ifdef _MSC_VER
-#pragma warning (disable:4100)
-#endif
 static bool count(void *state, Item *item) {
+	(void)item;
 	(*(uint32_t*)state) += 1;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning (default:4100) 
-#endif
 
 void run(ResourceManager* manager) {
 	EXCEPTION_CREATE;
@@ -196,7 +193,10 @@ int main(int argc, char* argv[]) {
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(

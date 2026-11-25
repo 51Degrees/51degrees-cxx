@@ -429,7 +429,8 @@ void compareProfiles(ProfileContainer* expected, Profile* actual) {
 #ifndef FIFTYONE_DEGREES_REDUCED_FILE
     EXPECT_EQ(expected->profile.profileId, actual->profileId);
 #endif
-    EXPECT_EQ(N_PROPERTIES, actual->valueCount);
+    EXPECT_EQ((fiftyoneDegreesProfileValuesCountType)N_PROPERTIES,
+        actual->valueCount);
     const uint32_t* actualValues = (const uint32_t*)(actual + 1);
     for (int i=0; i<N_PROPERTIES; i++) {
 		EXPECT_EQ(expected->valueIndices[i], actualValues[i]);
@@ -748,8 +749,11 @@ void ProfileTests::indicesLookup(std::vector<std::string> &propertyNames) {
             uint32_t valueIdx = *(first + valueIdxIdxWithinProfile);
             //now retrieve value and check that it belongs to the property above
             const fiftyoneDegreesValue *value = fiftyoneDegreesValueGet(valuesCollection, valueIdx, &item, exception);
+            ASSERT_GE(value->propertyIndex, 0);
+            EXPECT_EQ(
+                (uint32_t)value->propertyIndex,
+                property.propertyIndex);
             COLLECTION_RELEASE(item.collection, &item);
-            EXPECT_EQ(value->propertyIndex, property.propertyIndex);
         }
     }
 
@@ -790,7 +794,7 @@ void ProfileTests::iterateValueIndicesForEachAvailableProperty(std::vector<std::
             
             std::vector<fiftyoneDegreesValue *> values;
             fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(valuesCollection, index, (uint32_t) j, profile, property, &values, collectValues, exception);
-            EXPECT_EQ(values.size(), 1);
+            EXPECT_EQ(values.size(), 1u);
             const fiftyoneDegreesValue *expectedValue = NULL;
             const uint32_t *first = (uint32_t *) (profile + 1);
             for (uint32_t k=0;k<profile->valueCount;++k) {
