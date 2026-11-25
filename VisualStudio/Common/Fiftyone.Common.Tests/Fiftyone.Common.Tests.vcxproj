@@ -72,6 +72,7 @@
     <ClInclude Include="..\..\..\test\common\Base.hpp" />
     <ClInclude Include="..\..\..\test\common\DoubleText.hpp" />
     <ClInclude Include="..\..\..\test\common\EngineTests.hpp" />
+    <ClInclude Include="..\..\..\test\common\EnvironmentVariable.hpp" />
     <ClInclude Include="..\..\..\test\common\EvidenceTests.hpp" />
     <ClInclude Include="..\..\..\test\common\ExampleTests.hpp" />
     <ClInclude Include="..\..\..\test\common\FileHandle.hpp" />
