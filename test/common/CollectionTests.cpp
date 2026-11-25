@@ -380,7 +380,7 @@ public:
 
 	static TEST_THREAD_RESULT randomMultiThreadedRunThread(void* state) {
 		((CollectionTest*)state)->random();
-		FIFTYONE_DEGREES_THREAD_EXIT;
+		// Returning ends the thread, as FIFTYONE_DEGREES_THREAD_EXIT would.
 		return TEST_THREAD_DONE;
 	}
 

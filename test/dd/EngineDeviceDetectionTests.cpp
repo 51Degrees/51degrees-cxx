@@ -413,7 +413,7 @@ void EngineDeviceDetectionTests::randomWithEvidence(int count) {
 TEST_THREAD_RESULT EngineDeviceDetectionTests::multiThreadRandomRunThread(void* state) {
 	((EngineDeviceDetectionTests*)state)->randomWithUserAgent(200);
 	((EngineDeviceDetectionTests*)state)->randomWithEvidence(200);
-	FIFTYONE_DEGREES_THREAD_EXIT;
+	// Returning ends the thread, as FIFTYONE_DEGREES_THREAD_EXIT would.
 	return TEST_THREAD_DONE;
 }
 

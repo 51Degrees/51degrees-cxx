@@ -1829,7 +1829,7 @@ public:
 			test->threadExpected) {
 			test->threadFailures++;
 		}
-		FIFTYONE_DEGREES_THREAD_EXIT;
+		// Returning ends the thread, as FIFTYONE_DEGREES_THREAD_EXIT would.
 		return TEST_THREAD_DONE;
 	}
 	void TearDown() override {
