@@ -108,8 +108,11 @@ protected:
 						exception);
 				ASSERT_TRUE(roots != NULL) <<
 					"No root nodes at index " << index;
-				offsets.push_back(roots->performanceNodeOffset);
-				offsets.push_back(roots->predictiveNodeOffset);
+				// The root nodes are packed, so their members are copied.
+				const uint32_t performance = roots->performanceNodeOffset;
+				const uint32_t predictive = roots->predictiveNodeOffset;
+				offsets.push_back(performance);
+				offsets.push_back(predictive);
 				TEST_COLLECTION_RELEASE(dataSet->rootNodes, item);
 			}
 		}

@@ -20,12 +20,43 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-#include <algorithm>
 #include "ValueMetaDataCollectionForProfileIpi.hpp"
 #include "fiftyone.h"
 #include "../common/collectionKeyTypes.h"
 
 using namespace FiftyoneDegrees::IpIntelligence;
+
+/**
+ * Gets the value index at the position given in the list that follows the
+ * profile. The list follows the packed profile, so it can start at any byte,
+ * and each index is copied out by its position.
+ */
+static uint32_t getValueIndex(const Profile *profile, uint32_t position) {
+	return UnalignedReadUint32(
+		(const byte*)(profile + 1) + (size_t)position * sizeof(uint32_t));
+}
+
+/**
+ * Returns the first position from first up to last whose value index is not
+ * less than the value given, where the value indexes from first to last are
+ * in ascending order, as std::lower_bound does.
+ */
+static uint32_t lowerBound(
+	const Profile *profile,
+	uint32_t first,
+	uint32_t last,
+	uint32_t value) {
+	while (first < last) {
+		const uint32_t middle = first + (last - first) / 2;
+		if (getValueIndex(profile, middle) < value) {
+			first = middle + 1;
+		}
+		else {
+			last = middle;
+		}
+	}
+	return first;
+}
 
 ValueMetaDataCollectionForProfileIpi::ValueMetaDataCollectionForProfileIpi(
 	fiftyoneDegreesResourceManager *manager,
@@ -52,7 +83,7 @@ ValueMetaDataCollectionForProfileIpi::~ValueMetaDataCollectionForProfileIpi() {
 
 ValueMetaData* ValueMetaDataCollectionForProfileIpi::getByIndex(
 	uint32_t index) const {
-	const uint32_t valueIndex = ((uint32_t*)(getProfile() + 1))[index];
+	const uint32_t valueIndex = getValueIndex(getProfile(), index);
 	return ValueMetaDataBuilderIpi::build(dataSet, valueIndex);
 }
 
@@ -85,18 +116,17 @@ ValueMetaData* ValueMetaDataCollectionForProfileIpi::getByKey(
 	// profile's value indexes are in ascending order, so its values of the
 	// property are the run within the property's range.
 	const Profile * const profile = getProfile();
-	const uint32_t * const first = (const uint32_t*)(profile + 1);
-	const uint32_t * const last = first + profile->valueCount;
-	const uint32_t * const begin =
-		std::lower_bound(first, last, firstValueIndex);
-	const uint32_t * const end =
-		std::lower_bound(begin, last, firstValueIndex + valueCount);
+	const uint32_t last = profile->valueCount;
+	const uint32_t begin = lowerBound(profile, 0, last, firstValueIndex);
+	const uint32_t end =
+		lowerBound(profile, begin, last, firstValueIndex + valueCount);
 	const string &valueName = key.getValueName();
 	char buffer[REASONABLE_WKT_STRING_LENGTH];
-	for (const uint32_t *valueIndex = begin; valueIndex < end; valueIndex++) {
+	for (uint32_t position = begin; position < end; position++) {
+		const uint32_t valueIndex = getValueIndex(profile, position);
 		char * const text = IpiGetValueText(
 			dataSet,
-			*valueIndex,
+			valueIndex,
 			FIFTYONE_DEGREES_VALUE_TEXT_NAME,
 			buffer,
 			sizeof(buffer),
@@ -112,7 +142,7 @@ ValueMetaData* ValueMetaDataCollectionForProfileIpi::getByKey(
 		if (same) {
 			return ValueMetaDataBuilderIpi::build(
 				dataSet,
-				*valueIndex,
+				valueIndex,
 				key.getPropertyName());
 		}
 	}

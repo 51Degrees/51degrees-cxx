@@ -766,8 +766,14 @@ protected:
 				&item,
 				exception);
 		EXCEPTION_THROW;
-		const uint32_t *first = (const uint32_t*)(stored + 1);
-		valueIndexes.assign(first, first + stored->valueCount);
+		// The value indexes can start at any byte, so their bytes are copied.
+		valueIndexes.resize(stored->valueCount);
+		if (valueIndexes.empty() == false) {
+			memcpy(
+				valueIndexes.data(),
+				stored + 1,
+				valueIndexes.size() * sizeof(uint32_t));
+		}
 		FIFTYONE_DEGREES_COLLECTION_RELEASE(dataSet->profiles, &item);
 	}
 

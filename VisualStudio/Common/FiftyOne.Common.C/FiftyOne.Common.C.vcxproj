@@ -45,6 +45,7 @@
     <ClInclude Include="..\..\..\src\common\textfile.h" />
     <ClInclude Include="..\..\..\src\common\threading.h" />
     <ClInclude Include="..\..\..\src\common\tree.h" />
+    <ClInclude Include="..\..\..\src\common\unaligned.h" />
     <ClInclude Include="..\..\..\src\common\value.h" />
     <ClInclude Include="..\..\..\src\common\weightedItem.h" />
     <ClInclude Include="..\..\..\src\common\wkbtot.h" />
