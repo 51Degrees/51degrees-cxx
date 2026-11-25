@@ -52,6 +52,23 @@
 #define POOL_READ_HEAD(v) POOL_READ(v)
 #endif
 
+/*
+ * Reads and writes an item's next index. A thread taking an item reads the
+ * next index of the item at the head while a thread releasing that same
+ * item may write it, so both are atomic. Relaxed order is enough: the
+ * compare exchange of the head orders the write before the item is seen at
+ * the head, and a taking thread that read a changed value finds the head
+ * changed too, so its compare exchange fails and it reads again. Visual
+ * Studio reads and writes an aligned 16 bit volatile in one access.
+ */
+#ifdef _MSC_VER
+#define POOL_NEXT_READ(v) (*(volatile uint16_t*)&(v))
+#define POOL_NEXT_WRITE(v, n) (*(volatile uint16_t*)&(v) = (n))
+#else
+#define POOL_NEXT_READ(v) __atomic_load_n(&(v), __ATOMIC_RELAXED)
+#define POOL_NEXT_WRITE(v, n) __atomic_store_n(&(v), (n), __ATOMIC_RELAXED)
+#endif
+
 static void poolWaitCreate(Pool *pool) {
 	pool->waiting = 0;
 	pool->waits = 0;
@@ -172,7 +189,8 @@ static PoolItem* poolPop(Pool *pool) {
 
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 		next.values.aba = orig.values.aba + 1;
-		next.values.index = pool->stack[orig.values.index].next;
+		next.values.index = POOL_NEXT_READ(
+			pool->stack[orig.values.index].next);
 	} while (INTERLOCK_EXCHANGE_64(
 		pool->head.exchange,
 		next.exchange,
@@ -217,7 +235,7 @@ void fiftyoneDegreesPoolItemRelease(fiftyoneDegreesPoolItem *item) {
 	Pool *pool = item->pool;
 	do {
 		orig.exchange = POOL_READ_HEAD(pool->head.exchange);
-		item->next = (uint16_t)orig.values.index;
+		POOL_NEXT_WRITE(item->next, (uint16_t)orig.values.index);
 		next.values.aba = orig.values.aba + 1;
 		next.values.index = (uint16_t)(item - pool->stack);
 	} while (INTERLOCK_EXCHANGE_64(

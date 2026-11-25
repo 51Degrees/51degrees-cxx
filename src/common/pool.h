@@ -189,7 +189,11 @@ typedef struct fiftyone_degrees_pool_item_t {
  * counts every change to the head, so that a thread that read the head
  * before other threads changed it finds it changed. It is 32 bits, as a 16
  * bit count comes back to the same value after 65536 changes, which threads
- * using a pool at once can make while another thread is paused.
+ * using a pool at once can make while another thread is paused. A 32 bit
+ * count comes back after 4294967296 changes. A thread paused between reading
+ * the head and its compare exchange for that many changes could put an item
+ * in use back at the head, which needs a pause of over an hour at a million
+ * changes a second.
  */
 typedef union fiftyone_degrees_pool_head_t {
 	volatile int64_t exchange; /**< Number used in the compare exchange
