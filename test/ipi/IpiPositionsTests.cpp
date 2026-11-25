@@ -635,3 +635,86 @@ TEST_F(IpiPositionsReloadTests, NothingNamed_SmallThenLarge) {
 	EXPECT_FALSE(property->getAvailable()) <<
 		"The metadata must not offer a property that has no index.";
 }
+
+/** The allocator in place before failingMalloc, which it calls. */
+static void *(FIFTYONE_DEGREES_CALL_CONV *allocatorBeforeFailing)(size_t) =
+	nullptr;
+
+/** The allocations made so far by failingMalloc. */
+static int allocationCalls = 0;
+
+/** The allocation that fails, counting from one, or zero for none. */
+static int allocationFailsOn = 0;
+
+static void* FIFTYONE_DEGREES_CALL_CONV failingMalloc(size_t size) {
+	return ++allocationCalls == allocationFailsOn ?
+		nullptr : allocatorBeforeFailing(size);
+}
+
+/**
+ * Builds the values collection of every property with the allocation given
+ * failing, and returns the allocations made and whether the build failed for
+ * lack of memory. A failed build must leave the collection empty, and the
+ * memory check in the base class finds anything not freed.
+ */
+static int collectWithFailure(
+	fiftyoneDegreesResultsIpi *results,
+	int failsOn,
+	bool *outOfMemory) {
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	allocatorBeforeFailing = fiftyoneDegreesMalloc;
+	allocationCalls = 0;
+	allocationFailsOn = failsOn;
+	fiftyoneDegreesMalloc = failingMalloc;
+	fiftyoneDegreesWeightedValuesCollection collection =
+		fiftyoneDegreesResultsIpiGetValuesCollection(
+			results,
+			nullptr,
+			0,
+			nullptr,
+			exception);
+	fiftyoneDegreesMalloc = allocatorBeforeFailing;
+	const int calls = allocationCalls;
+	*outOfMemory = FIFTYONE_DEGREES_EXCEPTION_CHECK(
+		FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY);
+	if (*outOfMemory) {
+		EXPECT_EQ((uint32_t)0, collection.itemsCount);
+		EXPECT_EQ(nullptr, collection.items);
+	}
+	else {
+		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	}
+	fiftyoneDegreesWeightedValuesCollectionRelease(&collection);
+	return calls;
+}
+
+/**
+ * The last two allocations of the values collection are its values and its
+ * list of items. When either fails, the collection reports insufficient
+ * memory and frees every value already read, strings included.
+ */
+TEST_F(IpiPositionsTests, C_CollectionFailsCleanlyWithoutMemory) {
+	fiftyoneDegreesResourceManager manager;
+	ASSERT_NO_FATAL_FAILURE(initSmall(&manager, nullptr));
+	ManagerGuard managerGuard(&manager, fiftyoneDegreesResourceManagerFree);
+	OwnedResults results(
+		fiftyoneDegreesResultsIpiCreate(&manager),
+		fiftyoneDegreesResultsIpiFree);
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	fiftyoneDegreesResultsIpiFromIpAddressString(
+		results.get(),
+		positionAddresses[1],
+		strlen(positionAddresses[1]),
+		exception);
+	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	bool outOfMemory = false;
+	const int calls = collectWithFailure(results.get(), 0, &outOfMemory);
+	ASSERT_FALSE(outOfMemory);
+	ASSERT_GE(calls, 2);
+	for (int fromLast = 0; fromLast < 2; fromLast++) {
+		const int failsOn = calls - fromLast;
+		collectWithFailure(results.get(), failsOn, &outOfMemory);
+		EXPECT_TRUE(outOfMemory) << "Allocation " << failsOn << " of " <<
+			calls << " failed without an error.";
+	}
+}

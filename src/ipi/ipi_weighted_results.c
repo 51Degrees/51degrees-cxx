@@ -813,18 +813,44 @@ static void PropValuesPopulate(
 }
 
 /**
+ * @brief Frees what each value still held in the chunks owns.
+ *
+ * Used when the values cannot be moved to the collection, which would
+ * otherwise free them. The chunks' own data is freed by PropValuesRelease.
+ *
+ * @param values Pointer to the PropValues structure containing the values
+ */
+static void PropValuesFreeItems(const PropValues * const values) {
+    for (uint32_t i = 0, n = values->count; i < n; i++) {
+        const PropValuesChunk * const chunk = &(values->items[i]);
+        if (chunk->count == 0 || chunk->converter->itemFreeFunc == NULL) {
+            continue;
+        }
+        uint8_t *nextHeader = (uint8_t *)chunk->data.ptr;
+        for (uint32_t j = 0, m = chunk->count; j < m; j++) {
+            chunk->converter->itemFreeFunc((WeightedValueHeader *)nextHeader);
+            nextHeader += chunk->converter->itemSize;
+        }
+    }
+}
+
+/**
  * @brief Moves items from PropValues to a WeightedValuesCollection.
  * 
  * Allocates memory in the result collection and copies all values from the
  * PropValues structure to the collection. This function also builds the
- * table of contents for the collection.
+ * table of contents for the collection. If either allocation fails, the
+ * values are freed, the collection is left empty and the exception is set
+ * to insufficient memory.
  * 
  * @param values Pointer to the PropValues structure containing the values
  * @param result Pointer to the WeightedValuesCollection to populate
+ * @param exception Pointer to an exception structure for error handling
  */
 static void PropValuesMoveItems(
     const PropValues * const values,
-    WeightedValuesCollection * const result) {
+    WeightedValuesCollection * const result,
+    Exception * const exception) {
 
     size_t totalSize = 0;
     uint32_t totalCount = 0;
@@ -832,10 +858,21 @@ static void PropValuesMoveItems(
         totalSize += values->items[i].data.allocated;
         totalCount += values->items[i].count;
     }
-    DataMalloc(&result->valuesData, totalSize);
-    DataMalloc(
-        &result->itemsData,
-        totalCount * sizeof(WeightedValueHeader*));
+    // A size of zero needs no memory, so null is only a failure for more.
+    const bool valuesFailed =
+        DataMalloc(&result->valuesData, totalSize) == NULL &&
+        totalSize > 0;
+    const bool itemsFailed =
+        DataMalloc(
+            &result->itemsData,
+            totalCount * sizeof(WeightedValueHeader*)) == NULL &&
+        totalCount > 0;
+    if (valuesFailed || itemsFailed) {
+        PropValuesFreeItems(values);
+        fiftyoneDegreesWeightedValuesCollectionRelease(result);
+        EXCEPTION_SET(INSUFFICIENT_MEMORY);
+        return;
+    }
     result->items = (WeightedValueHeader**)result->itemsData.ptr;
     uint8_t *nextChunkNew = (uint8_t *)result->valuesData.ptr;
     for (uint32_t i = 0, n = values->count; i < n; i++) {
@@ -913,7 +950,7 @@ WeightedValuesCollection fiftyoneDegreesResultsIpiGetValuesCollection(
             DataReset(&myTempData);
         }
     }
-    PropValuesMoveItems(&values, &result);
+    PropValuesMoveItems(&values, &result, exception);
     PropValuesRelease(&values);
     if (EXCEPTION_FAILED) {
         fiftyoneDegreesWeightedValuesCollectionRelease(&result);
