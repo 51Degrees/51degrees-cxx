@@ -33,6 +33,20 @@ if (_51DEGREES_WITH_ASAN AND NOT CMAKE_HOST_WIN32)
 	add_link_options(-fsanitize=address)
 endif()
 
+# Opt-in ThreadSanitizer, applied in the same way. It can't be combined with
+# AddressSanitizer in one build. Debug builds count test coverage, and the
+# counters are updated atomically so that ThreadSanitizer doesn't report them
+# as data races.
+option(_51DEGREES_WITH_TSAN "Build with ThreadSanitizer (compile + link)" OFF)
+if (_51DEGREES_WITH_TSAN AND _51DEGREES_WITH_ASAN)
+	message(FATAL_ERROR
+		"_51DEGREES_WITH_TSAN and _51DEGREES_WITH_ASAN can't both be ON")
+endif()
+if (_51DEGREES_WITH_TSAN AND NOT CMAKE_HOST_WIN32)
+	add_compile_options(-fsanitize=thread -fprofile-update=atomic)
+	add_link_options(-fsanitize=thread)
+endif()
+
 include(CMakeDependentOption)
 
 # The version the installed package reports. A release is a tag rather than a
@@ -199,7 +213,12 @@ if (BUILD_TESTING)
 	FetchContent_Declare(googletest URL https://github.com/google/googletest/archive/58d77fa8070e8cec2dc1ed015d66b454c8d78850.zip) # release-1.12.1
 	# For Windows: Prevent overriding the parent project's compiler/linker settings
 	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+	# googletest asks for CMake 3.5, which CMake 3.31 and later warn is
+	# deprecated. It is built with the policies of the CMake version this
+	# project asks for instead.
+	set(CMAKE_POLICY_VERSION_MINIMUM 3.24)
 	FetchContent_MakeAvailable(googletest)
+	unset(CMAKE_POLICY_VERSION_MINIMUM)
 	# googletest marks its include folders as system folders, and compilers
 	# report nothing from a system header. That hides the warnings the
 	# assertions raise on the tests' own values, such as EXPECT_EQ comparing
