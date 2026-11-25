@@ -598,7 +598,8 @@ TEST_F(ProfileTests, profileIterateWithPlainOffsetsAtAnyOffset) {
     std::vector<byte> records(N_PROFILES * sizeof(uint32_t));
     memcpy(records.data(), profileOffsets, records.size());
     for (size_t shift = 0; shift <= MAX_SHIFT_BYTES; shift++) {
-        SCOPED_TRACE(shift);
+        // The shift is added to each message rather than with SCOPED_TRACE,
+        // whose memory the base class's memory check counts.
         EXCEPTION_CREATE
         ShiftedCollection offsets(records, sizeof(uint32_t), shift);
         std::vector<fiftyoneDegreesProfile *> profiles;
@@ -616,9 +617,10 @@ TEST_F(ProfileTests, profileIterateWithPlainOffsetsAtAnyOffset) {
                 &profiles,
                 iterateProfiles,
                 exception);
-        EXPECT_TRUE(EXCEPTION_OKAY);
-        ASSERT_EQ(1u, count);
+        EXPECT_TRUE(EXCEPTION_OKAY) << "shift " << shift;
+        ASSERT_EQ(1u, count) << "shift " << shift;
         compareProfiles(profilesCollectionHelper->getItem(2), profiles[0]);
+        ASSERT_FALSE(HasFailure()) << "shift " << shift;
     }
 }
 
