@@ -34,7 +34,37 @@
 
 static int shardDivider = sizeof(void*) * 3;
 
+#ifndef FIFTYONE_DEGREES_NO_THREADING
+
+/**
+ * A thread can allocate through the tracker, and so read the initialised
+ * flag, while another thread resets it, so the flag is read and written with
+ * interlocked operations.
+ */
+static long initialised = 0;
+#define INITIALISED_READ() (INTERLOCK_EXCHANGE(initialised, 0, 0) != 0)
+#define INITIALISED_SET() INTERLOCK_EXCHANGE(initialised, 1, 0)
+
+/**
+ * Measuring points the allocation functions at the tracker while other
+ * threads allocate through them, so each pointer is stored atomically.
+ * Relaxed order is enough, as the tracker's own state is guarded by its
+ * locks. Visual Studio writes an aligned pointer sized volatile in one access.
+ */
+#ifdef _MSC_VER
+#define ALLOCATOR_WRITE(v, n) (*(volatile uintptr_t*)&(v) = (uintptr_t)(n))
+#else
+#define ALLOCATOR_WRITE(v, n) __atomic_store_n(&(v), (n), __ATOMIC_RELAXED)
+#endif
+
+#else
+
 static bool initialised = false;
+#define INITIALISED_READ() initialised
+#define INITIALISED_SET() (initialised = true)
+#define ALLOCATOR_WRITE(v, n) ((v) = (n))
+
+#endif
 
 typedef struct memory_allocation_t {
 	fiftyoneDegreesTreeNode tree; /* Tree node data structure */
@@ -98,7 +128,7 @@ static int getShardFromPointer(void *pointer) {
 }
 
 static void tryInit() {
-	if (initialised == false) {
+	if (INITIALISED_READ() == false) {
 		MemoryTrackingReset();
 	}
 }
@@ -271,7 +301,7 @@ size_t fiftyoneDegreesMemoryTrackingGetAllocated() {
 
 void fiftyoneDegreesMemoryTrackingReset() {
 	int i;
-	if (initialised == false) {
+	if (INITIALISED_READ() == false) {
 		for (i = 0; i < FIFTYONE_DEGREES_MEMORY_TRACKER_SHARDS; i++) {
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 			FIFTYONE_DEGREES_MUTEX_CREATE(state.locks[i]);
@@ -284,23 +314,31 @@ void fiftyoneDegreesMemoryTrackingReset() {
 	}
 	state.allocated = 0;
 	state.max = 0;
-	initialised = true;
+	INITIALISED_SET();
 }
 
 void fiftyoneDegreesSetUpMemoryTracking() {
 	fiftyoneDegreesMemoryTrackingReset();
-	fiftyoneDegreesMalloc = fiftyoneDegreesMemoryTrackingMalloc;
-	fiftyoneDegreesMallocAligned = fiftyoneDegreesMemoryTrackingMallocAligned;
-	fiftyoneDegreesFree = fiftyoneDegreesMemoryTrackingFree;
-	fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryTrackingFreeAligned;
+	ALLOCATOR_WRITE(fiftyoneDegreesMalloc, fiftyoneDegreesMemoryTrackingMalloc);
+	ALLOCATOR_WRITE(
+		fiftyoneDegreesMallocAligned,
+		fiftyoneDegreesMemoryTrackingMallocAligned);
+	ALLOCATOR_WRITE(fiftyoneDegreesFree, fiftyoneDegreesMemoryTrackingFree);
+	ALLOCATOR_WRITE(
+		fiftyoneDegreesFreeAligned,
+		fiftyoneDegreesMemoryTrackingFreeAligned);
 }
 
 size_t fiftyoneDegreesUnsetMemoryTracking() {
 	size_t memAlloced = MemoryTrackingGetAllocated();
-	fiftyoneDegreesMalloc = fiftyoneDegreesMemoryStandardMalloc;
-	fiftyoneDegreesMallocAligned = fiftyoneDegreesMemoryStandardMallocAligned;
-	fiftyoneDegreesFree = fiftyoneDegreesMemoryStandardFree;
-	fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryStandardFreeAligned;
+	ALLOCATOR_WRITE(fiftyoneDegreesMalloc, fiftyoneDegreesMemoryStandardMalloc);
+	ALLOCATOR_WRITE(
+		fiftyoneDegreesMallocAligned,
+		fiftyoneDegreesMemoryStandardMallocAligned);
+	ALLOCATOR_WRITE(fiftyoneDegreesFree, fiftyoneDegreesMemoryStandardFree);
+	ALLOCATOR_WRITE(
+		fiftyoneDegreesFreeAligned,
+		fiftyoneDegreesMemoryStandardFreeAligned);
 	fiftyoneDegreesMemoryTrackingReset();
 	return memAlloced;
 }
@@ -313,17 +351,25 @@ void fiftyoneDegreesMemoryTrackingStartMeasuring() {
 	state.measuring = true;
 	FIFTYONE_DEGREES_MUTEX_UNLOCK(&state.lock);
 #endif
-	fiftyoneDegreesMalloc = fiftyoneDegreesMemoryTrackingMalloc;
-	fiftyoneDegreesMallocAligned = fiftyoneDegreesMemoryTrackingMallocAligned;
-	fiftyoneDegreesFree = fiftyoneDegreesMemoryTrackingFree;
-	fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryTrackingFreeAligned;
+	ALLOCATOR_WRITE(fiftyoneDegreesMalloc, fiftyoneDegreesMemoryTrackingMalloc);
+	ALLOCATOR_WRITE(
+		fiftyoneDegreesMallocAligned,
+		fiftyoneDegreesMemoryTrackingMallocAligned);
+	ALLOCATOR_WRITE(fiftyoneDegreesFree, fiftyoneDegreesMemoryTrackingFree);
+	ALLOCATOR_WRITE(
+		fiftyoneDegreesFreeAligned,
+		fiftyoneDegreesMemoryTrackingFreeAligned);
 }
 
 void fiftyoneDegreesMemoryTrackingStopMeasuring() {
-	fiftyoneDegreesMalloc = fiftyoneDegreesMemoryStandardMalloc;
-	fiftyoneDegreesMallocAligned = fiftyoneDegreesMemoryStandardMallocAligned;
-	fiftyoneDegreesFree = fiftyoneDegreesMemoryStandardFree;
-	fiftyoneDegreesFreeAligned = fiftyoneDegreesMemoryStandardFreeAligned;
+	ALLOCATOR_WRITE(fiftyoneDegreesMalloc, fiftyoneDegreesMemoryStandardMalloc);
+	ALLOCATOR_WRITE(
+		fiftyoneDegreesMallocAligned,
+		fiftyoneDegreesMemoryStandardMallocAligned);
+	ALLOCATOR_WRITE(fiftyoneDegreesFree, fiftyoneDegreesMemoryStandardFree);
+	ALLOCATOR_WRITE(
+		fiftyoneDegreesFreeAligned,
+		fiftyoneDegreesMemoryStandardFreeAligned);
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 	FIFTYONE_DEGREES_MUTEX_LOCK(&state.lock);
 	state.measuring = false;
