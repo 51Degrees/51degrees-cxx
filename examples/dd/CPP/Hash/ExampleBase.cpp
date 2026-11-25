@@ -182,7 +182,7 @@ void ExampleBase::SharedState::processUserAgentsSingle() {
 void ExampleBase::SharedState::processUserAgentsMulti(void *state) {
 	SharedState *shared = (SharedState*)state;
 	shared->processUserAgentsSingle();
-	FIFTYONE_DEGREES_INTERLOCK_INC(&shared->threadsFinished);
+	shared->threadsFinished++;
 }
 
 void ExampleBase::SharedState::startThreads() {
@@ -203,7 +203,6 @@ ExampleBase::SharedState::SharedState(
 	DeviceDetection::Hash::EngineHash *engine,
 	string userAgentFilePath) {
 	this->engine = engine;
-	this->threadsFinished = 0;
 	this->userAgentFilePath = userAgentFilePath;
 }
 

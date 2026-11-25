@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include "EngineTests.hpp"
+#include <atomic>
 
 // If the library is thread safe then many threads can be run in parallel, if 
 // not then one.
@@ -555,7 +556,6 @@ public:
 		}
 		this->engine = engine;
 		this->tests = tests;
-		complete = false;
 	}
 	~MetaDataReloadState() {
 		delete[] hashValues;
@@ -563,7 +563,8 @@ public:
 	uint32_t* hashValues;
 	EngineBase *engine;
 	int tests;
-	volatile bool complete;
+	// Set by the main thread and read by the reloading thread.
+	std::atomic<bool> complete{false};
 };
 
 void hashMetaData(MetaDataReloadState *state, int index) {
@@ -635,7 +636,7 @@ void reloadRepeat(MetaDataReloadState *state) {
 #else
 		usleep(500000); // microseconds
 #endif
-	} while (state->complete == false);
+	} while (state->complete.load() == false);
 }
 
 void EngineTests::verifyMetaDataReload(EngineBase *engine) {
@@ -655,7 +656,7 @@ void EngineTests::verifyMetaDataReload(EngineBase *engine) {
 		for (int i = 0; i < THREAD_COUNT; i++) {
 			threads[i].join();
 		}
-		state.complete = true;
+		state.complete.store(true);
 		reloader.join();
 		delete[] threads;
 	}
@@ -663,7 +664,7 @@ void EngineTests::verifyMetaDataReload(EngineBase *engine) {
 	// Single threaded reload test.
 	else {
 		hashMetaData(&state, 0);
-		state.complete = true;
+		state.complete.store(true);
 		reloadRepeat(&state);
 		hashMetaData(&state, 1);
 	}

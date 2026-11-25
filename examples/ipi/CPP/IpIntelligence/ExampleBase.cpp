@@ -186,7 +186,7 @@ void ExampleBase::SharedState::processIpAddressesSingle() {
 void ExampleBase::SharedState::processIpAddressesMulti(void *state) {
 	SharedState *shared = (SharedState *)state;
 	shared->processIpAddressesSingle();
-	FIFTYONE_DEGREES_INTERLOCK_INC(&shared->threadsFinished);
+	shared->threadsFinished++;
 }
 
 void ExampleBase::SharedState::startThreads() {
@@ -206,7 +206,6 @@ void ExampleBase::SharedState::joinThreads() {
 ExampleBase::SharedState::SharedState(EngineIpi * const engine,
                                       const string &ipAddressFilePath) {
 	this->engine = engine;
-	this->threadsFinished = 0;
 	this->ipAddressFilePath = ipAddressFilePath;
 }
 

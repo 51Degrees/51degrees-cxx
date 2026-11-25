@@ -120,7 +120,7 @@ static int exitCode = 0;
 
  /**
   * Shared performance state. All members are immutable except runningThreads
-  * which is updated via an interlocked compare and exchange.
+  * which is updated via an interlocked increment.
   */
 typedef struct t_performance_state {
 	int ipAddressesCount; // Total number of IP Addresses
@@ -276,12 +276,13 @@ static EXAMPLE_THREAD_RESULT runPerformanceThread(void* mainState) {
 
 	// Ensure that only one thread reports progress. Avoids keeping a running
 	// total and synchronising performance test threads.
-	long initialRunning = threadState.main->runningThreads;
 	if (ThreadingGetIsThreadSafe()) {
-		threadState.reportProgress = INTERLOCK_EXCHANGE(
-			threadState.main->runningThreads,
-			initialRunning + 1,
-			initialRunning) == threadState.main->numberOfThreads - 1;
+		// Count this thread in with one atomic increment, so that no
+		// start is lost when threads start together. The thread that
+		// takes the count to the number of threads reports progress.
+		threadState.reportProgress = INTERLOCK_INC(
+			&threadState.main->runningThreads) ==
+			threadState.main->numberOfThreads;
 	}
 	else {
 		threadState.reportProgress = 1;
