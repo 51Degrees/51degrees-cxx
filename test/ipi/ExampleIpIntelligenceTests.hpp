@@ -57,6 +57,19 @@ protected:
     string getAsnDataFilePath() {
         return GetFilePath(_dataFolderName, "51Degrees-IPIV4AsnIpiV41.ipi");
     }
+
+    /**
+     * Points the test at the free ASN data file, leaving the path empty when
+     * it is not present. The path is copied into the room the constructor
+     * reserved, so the change allocates no memory that outlives the test
+     * body. Moving a new string in would hand the fixture memory allocated
+     * after the memory checkpoint that is only freed with the fixture, after
+     * the leak check, which counts it as a leak.
+     */
+    void useAsnDataFile() {
+        const string path = getAsnDataFilePath();
+        dataFilePath = path;
+    }
 };
 
 

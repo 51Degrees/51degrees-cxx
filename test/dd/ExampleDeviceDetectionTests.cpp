@@ -33,6 +33,10 @@ ExampleDeviceDetectionTest::ExampleDeviceDetectionTest(
         dataFilePath = GetFilePath(_dataFolderName, dataFileNames[i]);
     }
 
+    // Room for any data file path, so a test can point at another data file
+    // without allocating memory the leak check would count.
+    dataFilePath.reserve(FIFTYONE_DEGREES_FILE_MAX_PATH);
+
     evidenceFilePath = GetFilePath(_dataFolderName, evidenceFileName);
 	requiredProperties = "Id,IsMobile,BrowserName,DeviceType";
 };

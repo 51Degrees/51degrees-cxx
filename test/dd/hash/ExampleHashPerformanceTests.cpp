@@ -25,9 +25,9 @@
 
 class ExampleHashTestPerformance : public ExampleHashTest {
 public:
-	std::string output;
-
-	void run() {
+	// The output is returned for the test body to keep, as memory the fixture
+	// held would only be freed after the leak check.
+	std::string run() {
 		// Capture stdout for the test.
 		testing::internal::CaptureStdout();
 
@@ -39,8 +39,8 @@ public:
 			stdout,
 			NULL);
 
-		// Don't print the stdout
-		output = testing::internal::GetCapturedStdout();
+		// Returned for the tests to check, and not printed.
+		return testing::internal::GetCapturedStdout();
 	}
 };
 
@@ -54,14 +54,14 @@ TEST_F(ExampleHashTestPerformance, All) {
 // have. The benchmark must still finish, and say where to ask for the
 // Enterprise data file.
 TEST_F(ExampleHashTestPerformance, LiteDataFile) {
-	dataFilePath = getLiteDataFilePath();
+	useLiteDataFile();
 	if (dataFilePath.empty()) {
 		GTEST_SKIP() << "The Lite data file is not present.";
 	}
 	if (fiftyoneDegreesCollectionGetIsMemoryOnly()) {
 		GTEST_SKIP() << "The example does not run in the memory only build.";
 	}
-	run();
+	const std::string output = run();
 	EXPECT_NE(output.find("Properties retrieved 1\n"),
 		std::string::npos)
 		<< output;
