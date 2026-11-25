@@ -422,6 +422,41 @@ TEST_F(IpiPositionsTests, C_CollectionSkipsANameWithNoValues) {
 }
 
 /**
+ * Asking only for a name the data does not have gives an empty collection,
+ * which holds no memory, as nothing is allocated for no values.
+ */
+TEST_F(IpiPositionsTests, C_CollectionOfAMissingNameAloneIsEmpty) {
+	const std::string names = std::string(missingName) + "," + smallNames[0];
+	fiftyoneDegreesResourceManager manager;
+	ASSERT_NO_FATAL_FAILURE(initSmall(&manager, names.c_str()));
+	ManagerGuard managerGuard(&manager, fiftyoneDegreesResourceManagerFree);
+	OwnedResults results(
+		fiftyoneDegreesResultsIpiCreate(&manager),
+		fiftyoneDegreesResultsIpiFree);
+	FIFTYONE_DEGREES_EXCEPTION_CREATE;
+	fiftyoneDegreesResultsIpiFromIpAddressString(
+		results.get(),
+		positionAddresses[1],
+		strlen(positionAddresses[1]),
+		exception);
+	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	const int missingIndex[] = { 0 };
+	fiftyoneDegreesWeightedValuesCollection collection =
+		fiftyoneDegreesResultsIpiGetValuesCollection(
+			results.get(),
+			missingIndex,
+			1,
+			nullptr,
+			exception);
+	EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+	EXPECT_EQ((uint32_t)0, collection.itemsCount);
+	EXPECT_EQ(nullptr, collection.items);
+	EXPECT_EQ(nullptr, collection.valuesData.ptr);
+	EXPECT_EQ(nullptr, collection.itemsData.ptr);
+	fiftyoneDegreesWeightedValuesCollectionRelease(&collection);
+}
+
+/**
  * With no names given, the index of a property is its place in the sorted
  * list of the data set's properties, as it always was.
  */
@@ -653,14 +688,16 @@ static void* FIFTYONE_DEGREES_CALL_CONV failingMalloc(size_t size) {
 
 /**
  * Builds the values collection of every property with the allocation given
- * failing, and returns the allocations made and whether the build failed for
- * lack of memory. A failed build must leave the collection empty, and the
- * memory check in the base class finds anything not freed.
+ * failing, and returns the allocations made, whether the build failed for
+ * lack of memory and the items collected. A failed build must leave the
+ * collection empty, and the memory check in the base class finds anything
+ * not freed.
  */
 static int collectWithFailure(
 	fiftyoneDegreesResultsIpi *results,
 	int failsOn,
-	bool *outOfMemory) {
+	bool *outOfMemory,
+	uint32_t *itemsCount) {
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 	allocatorBeforeFailing = fiftyoneDegreesMalloc;
 	allocationCalls = 0;
@@ -677,9 +714,12 @@ static int collectWithFailure(
 	const int calls = allocationCalls;
 	*outOfMemory = FIFTYONE_DEGREES_EXCEPTION_CHECK(
 		FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY);
+	*itemsCount = collection.itemsCount;
 	if (*outOfMemory) {
 		EXPECT_EQ((uint32_t)0, collection.itemsCount);
 		EXPECT_EQ(nullptr, collection.items);
+		EXPECT_EQ((uint32_t)0, collection.valuesData.allocated);
+		EXPECT_EQ((uint32_t)0, collection.itemsData.allocated);
 	}
 	else {
 		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
@@ -689,9 +729,10 @@ static int collectWithFailure(
 }
 
 /**
- * The last two allocations of the values collection are its values and its
- * list of items. When either fails, the collection reports insufficient
- * memory and frees every value already read, strings included.
+ * Each allocation made while building the values collection fails in turn.
+ * The build either recovers and collects every value, or reports
+ * insufficient memory with an empty collection, and in both cases frees
+ * every value already read, strings included.
  */
 TEST_F(IpiPositionsTests, C_CollectionFailsCleanlyWithoutMemory) {
 	fiftyoneDegreesResourceManager manager;
@@ -708,13 +749,23 @@ TEST_F(IpiPositionsTests, C_CollectionFailsCleanlyWithoutMemory) {
 		exception);
 	ASSERT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
 	bool outOfMemory = false;
-	const int calls = collectWithFailure(results.get(), 0, &outOfMemory);
+	uint32_t allItems = 0;
+	const int calls = collectWithFailure(
+		results.get(), 0, &outOfMemory, &allItems);
 	ASSERT_FALSE(outOfMemory);
 	ASSERT_GE(calls, 2);
-	for (int fromLast = 0; fromLast < 2; fromLast++) {
-		const int failsOn = calls - fromLast;
-		collectWithFailure(results.get(), failsOn, &outOfMemory);
-		EXPECT_TRUE(outOfMemory) << "Allocation " << failsOn << " of " <<
-			calls << " failed without an error.";
+	ASSERT_GT(allItems, (uint32_t)0);
+	int failures = 0;
+	for (int failsOn = 1; failsOn <= calls; failsOn++) {
+		uint32_t itemsCount = 0;
+		collectWithFailure(results.get(), failsOn, &outOfMemory, &itemsCount);
+		if (outOfMemory) {
+			failures++;
+		}
+		else {
+			EXPECT_EQ(allItems, itemsCount) << "Allocation " << failsOn <<
+				" of " << calls << " failed without an error.";
+		}
 	}
+	EXPECT_GT(failures, 0);
 }

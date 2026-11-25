@@ -110,15 +110,24 @@ typedef struct {
 /**
  * @brief Initializes a PropValues structure.
  * 
- * Allocates memory for the specified number of property value chunks.
+ * Allocates memory for the specified number of property value chunks. When
+ * the allocation fails, the structure is left with no chunks.
  * 
  * @param values Pointer to the PropValues structure to initialize
  * @param count Number of chunks to allocate
+ * @return false if the memory could not be allocated
  */
-static void PropValuesInit(PropValues * const values, const uint32_t count) {
-    values->count = count;
+static bool PropValuesInit(PropValues * const values, const uint32_t count) {
+    values->count = 0;
+    values->items = NULL;
     DataReset(&values->data);
-    DataMalloc(&values->data, count * sizeof(PropValuesChunk));
+    if (count == 0) {
+        return true;
+    }
+    if (DataMalloc(&values->data, count * sizeof(PropValuesChunk)) == NULL) {
+        return false;
+    }
+    values->count = count;
     values->data.used = values->data.allocated;
     values->items = (PropValuesChunk *)values->data.ptr;
     for (uint32_t i = 0, n = values->count; i < n; i++) {
@@ -128,6 +137,7 @@ static void PropValuesInit(PropValues * const values, const uint32_t count) {
         values->items[i].count = 0;
         values->items[i].converter = NULL;
     }
+    return true;
 }
 
 /**
@@ -547,6 +557,8 @@ typedef struct {
  * @brief Populates a property values chunk with values.
  * 
  * Allocates memory for the chunk data and initializes all values in the chunk.
+ * When the allocation fails, the chunk is left with no values and the
+ * exception is set to insufficient memory.
  * 
  * @param context Pointer to the chunk context
  * @param converter Pointer to the converter for the value type
@@ -560,9 +572,16 @@ static void PropValuesChunkPopulate(
     Exception * const exception = context->exception;
 
     context->chunk->converter = converter;
-    DataMalloc(
+    if (context->valuesCount == 0) {
+        return;
+    }
+    if (DataMalloc(
         &context->chunk->data,
-        context->chunk->count * converter->itemSize);
+        context->valuesCount * converter->itemSize) == NULL) {
+        context->chunk->count = 0;
+        EXCEPTION_SET(INSUFFICIENT_MEMORY);
+        return;
+    }
     context->chunk->data.used = context->chunk->data.allocated;
     uint8_t * const chunkDataPtr = context->chunk->data.ptr;
 
@@ -840,17 +859,15 @@ static void PropValuesFreeItems(const PropValues * const values) {
  * Allocates memory in the result collection and copies all values from the
  * PropValues structure to the collection. This function also builds the
  * table of contents for the collection. If either allocation fails, the
- * values are freed, the collection is left empty and the exception is set
- * to insufficient memory.
+ * values are freed and the collection is left empty.
  * 
  * @param values Pointer to the PropValues structure containing the values
  * @param result Pointer to the WeightedValuesCollection to populate
- * @param exception Pointer to an exception structure for error handling
+ * @return false if the memory could not be allocated
  */
-static void PropValuesMoveItems(
+static bool PropValuesMoveItems(
     const PropValues * const values,
-    WeightedValuesCollection * const result,
-    Exception * const exception) {
+    WeightedValuesCollection * const result) {
 
     size_t totalSize = 0;
     uint32_t totalCount = 0;
@@ -858,20 +875,19 @@ static void PropValuesMoveItems(
         totalSize += values->items[i].data.allocated;
         totalCount += values->items[i].count;
     }
-    // A size of zero needs no memory, so null is only a failure for more.
+    // Nothing is allocated for a size of zero.
     const bool valuesFailed =
-        DataMalloc(&result->valuesData, totalSize) == NULL &&
-        totalSize > 0;
+        totalSize > 0 &&
+        DataMalloc(&result->valuesData, totalSize) == NULL;
     const bool itemsFailed =
+        totalCount > 0 &&
         DataMalloc(
             &result->itemsData,
-            totalCount * sizeof(WeightedValueHeader*)) == NULL &&
-        totalCount > 0;
+            totalCount * sizeof(WeightedValueHeader*)) == NULL;
     if (valuesFailed || itemsFailed) {
         PropValuesFreeItems(values);
         fiftyoneDegreesWeightedValuesCollectionRelease(result);
-        EXCEPTION_SET(INSUFFICIENT_MEMORY);
-        return;
+        return false;
     }
     result->items = (WeightedValueHeader**)result->itemsData.ptr;
     uint8_t *nextChunkNew = (uint8_t *)result->valuesData.ptr;
@@ -895,6 +911,7 @@ static void PropValuesMoveItems(
             result->itemsCount++;
         }
     }
+    return true;
 }
 
 /* Implementation of the function declared in the header file */
@@ -927,14 +944,20 @@ WeightedValuesCollection fiftyoneDegreesResultsIpiGetValuesCollection(
             EXCEPTION_SET(INVALID_INPUT);
             return result;
         }
-        PropValuesInit(&values, requiredPropertyIndexesLength);
+        if (!PropValuesInit(&values, requiredPropertyIndexesLength)) {
+            EXCEPTION_SET(INSUFFICIENT_MEMORY);
+            return result;
+        }
         for (uint32_t i = 0; i < requiredPropertyIndexesLength; i++) {
             values.items[i].requiredPropertyIndex = requiredPropertyIndexes[i];
         }
     } else {
         const uint32_t propsCount = PropertiesGetRequiredPropertyCount(
             dataSet->b.b.available);
-        PropValuesInit(&values, propsCount);
+        if (!PropValuesInit(&values, propsCount)) {
+            EXCEPTION_SET(INSUFFICIENT_MEMORY);
+            return result;
+        }
         for (uint32_t i = 0; i < propsCount; i++) {
             values.items[i].requiredPropertyIndex = (int)i;
         }
@@ -950,7 +973,9 @@ WeightedValuesCollection fiftyoneDegreesResultsIpiGetValuesCollection(
             DataReset(&myTempData);
         }
     }
-    PropValuesMoveItems(&values, &result, exception);
+    if (!PropValuesMoveItems(&values, &result)) {
+        EXCEPTION_SET(INSUFFICIENT_MEMORY);
+    }
     PropValuesRelease(&values);
     if (EXCEPTION_FAILED) {
         fiftyoneDegreesWeightedValuesCollectionRelease(&result);
