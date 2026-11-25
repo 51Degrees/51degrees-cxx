@@ -888,7 +888,9 @@ void EngineIpIntelligenceTests::reloadFileFailure() {
 	// Write a file which must fail to load to a temporary path.
 	unsigned char invalidData[sizeof(fiftyoneDegreesDataSetIpiHeader) + 64];
 	fillWithInvalidVersion(invalidData, sizeof(invalidData));
-	const char *invalidFileName = "invalid-version-reload.tmp";
+	const std::string invalidFileNameValue =
+		testProcessName("invalid-version-reload") + ".tmp";
+	const char *invalidFileName = invalidFileNameValue.c_str();
 	fiftyoneDegreesStatusCode status = fiftyoneDegreesFileWrite(
 		invalidFileName,
 		invalidData,

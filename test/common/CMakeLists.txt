@@ -11,8 +11,8 @@ else ()
 endif()
 set_target_properties(CachePerf PROPERTIES FOLDER "Examples/Common")
 
-FILE(GLOB COM_TEST_SRC ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
-FILE(GLOB COM_TEST_H ${CMAKE_CURRENT_LIST_DIR}/*.hpp)
+FILE(GLOB COM_TEST_SRC ${CMAKE_CURRENT_LIST_DIR}/*.cpp ${CMAKE_CURRENT_LIST_DIR}/*.c)
+FILE(GLOB COM_TEST_H ${CMAKE_CURRENT_LIST_DIR}/*.hpp ${CMAKE_CURRENT_LIST_DIR}/*.h)
 
 # Adds a common test executable linked to one copy of common. The prefix
 # keeps its test names apart from the other copy's.

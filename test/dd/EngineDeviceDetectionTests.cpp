@@ -36,6 +36,10 @@
 using std::ofstream;
 using std::endl;
 
+/** The file the reload tests write and every test's TearDown removes. */
+static const std::string reloadTestFileName =
+	testProcessName("reload-test-file") + ".dat";
+
 EngineDeviceDetectionTests::EngineDeviceDetectionTests(
 	RequiredPropertiesConfig *requiredProperties,
 	const char *directory,
@@ -77,7 +81,7 @@ void EngineDeviceDetectionTests::TearDown() {
 	}
 	EngineTests::TearDown();
 	// Reload test use this file, so clean it
-	remove(_reloadTestFile);
+	remove(reloadTestFileName.c_str());
 }
 
 void EngineDeviceDetectionTests::userAgentRead(
@@ -486,7 +490,7 @@ void EngineDeviceDetectionTests::reloadFileWithLock() {
 	OFSTRUCT lpReOpenBuff;
 
 	// Create a file to reload from
-	string targetFile = string(_reloadTestFile);
+	string targetFile = reloadTestFileName;
 	ofstream dst (targetFile.c_str());
 	dst << "test data" << endl;
 
@@ -545,7 +549,7 @@ void EngineDeviceDetectionTests::reloadFileWithBadData() {
 	// Create a file to reload from. The content is larger than any data
 	// file header so the reload fails on the content being wrong rather
 	// than the file being too short.
-	string targetFile = string(_reloadTestFile);
+	string targetFile = reloadTestFileName;
 	ofstream dst(targetFile.c_str());
 	for (i = 0; i < 4096; i++) {
 		dst << "bad data";
