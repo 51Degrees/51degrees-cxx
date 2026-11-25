@@ -481,7 +481,8 @@ static void readPublishedBytes(
 	const std::string &path,
 	fiftyoneDegreesDate *date) {
 	unsigned char bytes[4];
-	FILE *file = fopen(path.c_str(), "rb");
+	FILE *file = nullptr;
+	fiftyoneDegreesFileOpen(path.c_str(), &file);
 	ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";
 	size_t read = 0;
 	if (fseek(file, (long)publishedFileOffset, SEEK_SET) == 0) {
