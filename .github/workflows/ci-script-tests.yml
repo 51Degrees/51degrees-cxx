@@ -1,12 +1,13 @@
 name: CI script tests
 
-# Runs the tests of the scripts in ci/ when a pull request changes them.
+# Runs the tests of the scripts in ci/ when a pull request changes them, or
+# changes a workflow, which ci/data-files.Tests.ps1 reads.
 on:
   pull_request:
     branches: [rc, main]
     paths:
       - 'ci/**'
-      - '.github/workflows/ci-script-tests.yml'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:

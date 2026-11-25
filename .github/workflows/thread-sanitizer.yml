@@ -30,8 +30,21 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Download the free Device Detection data files
-        run: sh data/get-data-files.sh device-detection
+      # The tests read the free Lite data file and the evidence, which
+      # common-ci's fetch-assets step fetches or restores from the asset cache.
+      - name: Fetch the free Device Detection data files
+        uses: 51Degrees/common-ci/actions/fetch-assets@main
+        with:
+          assets: |
+            51Degrees-LiteV4.1.hash
+            20000 Evidence Records.yml
+          cache: 'true'
+
+      - name: Put the data files where the tests look for them
+        shell: pwsh
+        run: |
+          Copy-Item -LiteralPath 'assets/51Degrees-LiteV4.1.hash',
+            'assets/20000 Evidence Records.yml' -Destination data/device-detection
 
       - name: Build the tests with ThreadSanitizer
         shell: bash

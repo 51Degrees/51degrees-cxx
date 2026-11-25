@@ -2,11 +2,11 @@ name: Examples on the free data files
 
 # Builds the examples from a fresh clone as the README says, and runs each one
 # from the root of the clone with no settings, as someone trying them would.
-# Each example finds the free data file it needs or downloads it, so this is
-# the check that a fresh clone works. The Ubuntu job downloads the free files
-# and the other jobs restore them from a cache when it has them. The other
-# builds give the tests the Enterprise data files through secrets, so they
-# cannot show it.
+# Each example downloads the free data file it needs when it is missing, so
+# this is the check that a fresh clone works. Here that download comes from a
+# local server holding the files common-ci's fetch-assets step fetched for the
+# run, so no example asks the Distributor for a file. The other builds give
+# the tests the Enterprise data files through secrets, so they cannot show it.
 on:
   pull_request:
     branches: [rc, main]
@@ -27,8 +27,28 @@ permissions:
   contents: read
 
 jobs:
+  # Fetches the free data files once for the run, or finds them in the asset
+  # cache, so that each examples job restores them from the cache. The list
+  # is the same in both jobs, as it makes the cache key.
+  fetch:
+    name: Fetch the free data files
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Fetch the free data files, or find them in the asset cache
+        uses: 51Degrees/common-ci/actions/fetch-assets@main
+        with:
+          assets: |
+            51Degrees-LiteV4.1.hash
+            20000 Evidence Records.yml
+            51Degrees-LiteIpiV41.ipi
+            51Degrees-IPIV4AsnIpiV41.ipi
+          cache: 'true'
+          lazy: 'true'
+
   examples:
     name: Examples, ${{ matrix.os }}
+    needs: fetch
     strategy:
       fail-fast: false
       matrix:
@@ -47,23 +67,17 @@ jobs:
         with:
           submodules: recursive
 
-      # The Ubuntu job downloads the free data files as a fresh clone does,
-      # which tests the download, and saves them to a cache. The other jobs
-      # restore them when the cache has an entry they can read. A pull
-      # request reads only its own runs' entries and those of the default
-      # branch, and an entry unused for seven days is removed, so the other
-      # jobs still download until such an entry exists.
+      # Restores the files the fetch job fetched. On a miss, fetch-assets
+      # fetches them itself, as it is the one step that downloads them.
       - name: Restore the free data files
-        if: runner.os != 'Linux'
-        uses: actions/cache/restore@v4
+        uses: 51Degrees/common-ci/actions/fetch-assets@main
         with:
-          key: examples-free-data-${{ hashFiles('data/device-detection/*.link', 'data/ip-intelligence/*.link') }}
-          path: |
-            data/device-detection/51Degrees-LiteV4.1.hash
-            data/device-detection/20000 Evidence Records.yml
-            data/ip-intelligence/51Degrees-LiteV41.ipi
-            data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
-          enableCrossOsArchive: true
+          assets: |
+            51Degrees-LiteV4.1.hash
+            20000 Evidence Records.yml
+            51Degrees-LiteIpiV41.ipi
+            51Degrees-IPIV4AsnIpiV41.ipi
+          cache: 'true'
 
       - name: Build as the README says, without the tests
         run: |
@@ -92,6 +106,17 @@ jobs:
         run: |
           $names = (Get-Content examples.txt -Raw).Trim() -split ' '
           New-Item -ItemType File empty.txt | Out-Null
+          # The data file links point at a local server holding the fetched
+          # files, so an example that downloads its file gets the fetched one.
+          $standInLog = "$env:RUNNER_TEMP/data-files.log"
+          $standIn = ./ci/serve-data-files.ps1 -Assets assets -Data data `
+            -Folder "$env:RUNNER_TEMP/data-files" -Log $standInLog
+          # The server stops if the step fails part way.
+          trap {
+            if ($standIn) { Stop-Process -Id $standIn.Id -ErrorAction SilentlyContinue }
+            break
+          }
+          $downloaded = @()
           $taggedLink = ': https://51degrees\.com/\S+\?utm_source=code' +
             '&utm_medium=example&utm_campaign=51degrees-cxx' +
             '&utm_content=[a-z0-9.-]+&utm_term=[a-z0-9-]+$'
@@ -118,6 +143,9 @@ jobs:
               -RedirectStandardOutput output.txt -RedirectStandardError errors.txt
             $code = $process.ExitCode
             $output = @(Get-Content output.txt) + @(Get-Content errors.txt)
+            $downloaded += @($output | ForEach-Object {
+                if ("$_" -match '^(.+) is missing, so it is being downloaded') {
+                  $Matches[1] } })
             $output | Select-Object -First 60 | Out-Host
             if ($output.Count -gt 60) {
               "... $($output.Count) lines" | Out-Host
@@ -174,17 +202,26 @@ jobs:
               $failed += "$name (links carry utm_content $($contents -join ' and '), not $file)"
             }
           }
+          Stop-Process -Id $standIn.Id
+          # Every file the examples said they downloaded came from the local
+          # server, and nothing else was asked of it.
+          $requests = @(Get-Content $standInLog | ForEach-Object {
+              if ("$_" -match '"GET /(\S+) HTTP/[0-9.]+" (\d{3})') {
+                [pscustomobject]@{
+                  File = [Uri]::UnescapeDataString($Matches[1]).Split('/')[-1]
+                  Status = $Matches[2] } } })
+          $requests | ForEach-Object { "Data file server: $($_.File) $($_.Status)" }
+          $refused = @($requests | Where-Object Status -ne '200')
+          if ($refused) {
+            $failed += "data file server refused $($refused.File -join ', ')"
+          }
+          $asked = @($requests.File | Sort-Object -Unique)
+          $said = @($downloaded | Sort-Object -Unique)
+          if ($said.Count -eq 0) {
+            $failed += 'no example downloaded its data file'
+          }
+          elseif (($asked -join ', ') -ne ($said -join ', ')) {
+            $failed += "examples downloaded $($said -join ', ') but the data file server was asked for $($asked -join ', ')"
+          }
           if ($failed) { throw "Examples that failed: $($failed -join ', ')" }
-          "All $($names.Count) examples exited with 0, said what needs the Enterprise data file with the contact link, named their own file in every link and ended with Find out more"
-
-      - name: Save the free data files
-        if: runner.os == 'Linux' && success()
-        uses: actions/cache/save@v4
-        with:
-          key: examples-free-data-${{ hashFiles('data/device-detection/*.link', 'data/ip-intelligence/*.link') }}
-          path: |
-            data/device-detection/51Degrees-LiteV4.1.hash
-            data/device-detection/20000 Evidence Records.yml
-            data/ip-intelligence/51Degrees-LiteV41.ipi
-            data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
-          enableCrossOsArchive: true
+          "All $($names.Count) examples exited with 0, said what needs the Enterprise data file with the contact link, named their own file in every link and ended with Find out more, and downloaded $($said -join ', ') from the local data file server"
