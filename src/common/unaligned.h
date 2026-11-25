@@ -103,30 +103,6 @@ FIFTYONE_DEGREES_UNALIGNED_INLINE uint32_t fiftyoneDegreesUnalignedReadUint32(
 }
 
 /**
- * Reads an unsigned 64 bit integer that starts at any byte.
- * @param source address of the integer's first byte
- * @return the integer
- */
-FIFTYONE_DEGREES_UNALIGNED_INLINE uint64_t fiftyoneDegreesUnalignedReadUint64(
-	const void * const source) {
-	uint64_t value;
-	memcpy(&value, source, sizeof(value));
-	return value;
-}
-
-/**
- * Reads a single precision floating point number that starts at any byte.
- * @param source address of the number's first byte
- * @return the number
- */
-FIFTYONE_DEGREES_UNALIGNED_INLINE float fiftyoneDegreesUnalignedReadFloat(
-	const void * const source) {
-	float value;
-	memcpy(&value, source, sizeof(value));
-	return value;
-}
-
-/**
  * Reads a double precision floating point number that starts at any byte.
  * @param source address of the number's first byte
  * @return the number

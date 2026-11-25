@@ -35,7 +35,7 @@ uint32_t fiftyoneDegreesStringGetFinalSize(
 	const void *initial,
     Exception * const exception) {
 	(void)exception;
-	return (uint32_t)(sizeof(uint16_t) + (*(uint16_t*)initial));
+	return (uint32_t)(sizeof(uint16_t) + UnalignedReadUint16(initial));
 }
 #endif
 

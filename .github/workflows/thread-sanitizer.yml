@@ -1,11 +1,11 @@
 name: Thread sanitizer
 
 # Builds the common and Device Detection tests with ThreadSanitizer and runs
-# those that replace a resource, some while other threads read it. A missing
-# barrier there passes the other builds, as x86 orders the loads anyway, and
-# only ThreadSanitizer reports it. Any report fails the job. The reload
-# examples are left out, as their own counters of finished threads are plain
-# variables that ThreadSanitizer reports.
+# the resource manager tests and the Hash reload tests, some of which replace
+# a resource while other threads read it. A missing barrier there passes the
+# other builds, as x86 orders the loads anyway, and only ThreadSanitizer
+# reports it. Any report, and any warning from CMake or the compilers, fails
+# the job.
 on:
   pull_request:
     branches: [rc, main]
@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Clone with the submodules
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -34,10 +34,17 @@ jobs:
         run: sh data/get-data-files.sh device-detection
 
       - name: Build the tests with ThreadSanitizer
+        shell: bash
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Debug -D_51DEGREES_WITH_TSAN=ON \
-            -D_51DEGREES_BUILD_IP_INTELLIGENCE=OFF
-          cmake --build build --target CommonTests HashTests --parallel 4
+            -D_51DEGREES_BUILD_IP_INTELLIGENCE=OFF 2>&1 | tee build.log
+          cmake --build build --target CommonTests HashTests --parallel 4 \
+            2>&1 | tee -a build.log
+          if grep -nE 'warning:|CMake Warning|CMake Deprecation Warning' \
+            build.log; then
+            echo "::error::The build gave the warnings above"
+            exit 1
+          fi
 
       # ThreadSanitizer can't map its shadow memory with the address space
       # randomization of recent kernels, so the tests run with it turned off.

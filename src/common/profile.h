@@ -139,7 +139,7 @@ typedef uint32_t (*fiftyoneDegreesProfileOffsetValueExtractor)(const void *rawPr
  * @param rawProfileOffset a "raw" ProfileOffset retrieved from `profileOffsets`
  * @return Offset to the profile in the profiles structure
  */
-uint32_t fiftyoneDegreesProfileOffsetToPureOffset(const void *rawProfileOffset);
+EXTERNAL uint32_t fiftyoneDegreesProfileOffsetToPureOffset(const void *rawProfileOffset);
 
 /**
  * Function that extracts "pure" profile offset
@@ -148,7 +148,7 @@ uint32_t fiftyoneDegreesProfileOffsetToPureOffset(const void *rawProfileOffset);
  * @param rawProfileOffset a "raw" value retrieved from `profileOffsets`
  * @return Offset to the profile in the profiles structure
  */
-uint32_t fiftyoneDegreesProfileOffsetAsPureOffset(const void *rawProfileOffset);
+EXTERNAL uint32_t fiftyoneDegreesProfileOffsetAsPureOffset(const void *rawProfileOffset);
 
 /**
  * Definition of a callback function which is passed an item of a type 

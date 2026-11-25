@@ -213,7 +213,12 @@ if (BUILD_TESTING)
 	FetchContent_Declare(googletest URL https://github.com/google/googletest/archive/58d77fa8070e8cec2dc1ed015d66b454c8d78850.zip) # release-1.12.1
 	# For Windows: Prevent overriding the parent project's compiler/linker settings
 	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+	# googletest asks for CMake 3.5, which CMake 3.31 and later warn is
+	# deprecated. It is built with the policies of the CMake version this
+	# project asks for instead.
+	set(CMAKE_POLICY_VERSION_MINIMUM 3.24)
 	FetchContent_MakeAvailable(googletest)
+	unset(CMAKE_POLICY_VERSION_MINIMUM)
 	# googletest marks its include folders as system folders, and compilers
 	# report nothing from a system header. That hides the warnings the
 	# assertions raise on the tests' own values, such as EXPECT_EQ comparing
