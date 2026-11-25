@@ -37,16 +37,17 @@ MAP_TYPE(Collection)
 
 /*
  * The value indexes of a profile follow the packed profile structure, so they
- * can start at any byte. A uint32_t pointer to them lets the compiler assume
- * they are 4 byte aligned, and GCC 15 then vectorizes the loops over them with
- * aligned loads that fault. Reading them through this type tells the compiler
- * they can be at any byte.
+ * can start at any byte. A pointer to this 4 byte type steps from one index to
+ * the next and has no alignment on any compiler, and valueIndexAt reads the
+ * index it points to with a copy.
  */
-#if defined(__GNUC__) || defined(__clang__)
-typedef uint32_t __attribute__((aligned(1))) ProfileValueIndex;
-#else
-typedef uint32_t ProfileValueIndex;
-#endif
+typedef struct {
+	byte bytes[sizeof(uint32_t)];
+} ProfileValueIndex;
+
+static uint32_t valueIndexAt(const ProfileValueIndex * const valueIndex) {
+	return UnalignedReadUint32(valueIndex);
+}
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 uint32_t fiftyoneDegreesProfileGetFinalSize(
@@ -130,7 +131,7 @@ static int compareProfileIdIndirect(
 
 static int compareValueToProperty(const void *p, const void *v) {
 	Property *property = (Property*)p;
-	uint32_t valueIndex = *(const ProfileValueIndex*)v;
+	uint32_t valueIndex = valueIndexAt((const ProfileValueIndex*)v);
 	if (valueIndex < property->firstValueIndex) {
 		return 1;
 	}
@@ -150,7 +151,7 @@ static const ProfileValueIndex* getFirstValueForProfileAndProperty(
 		property,
 		profile + 1,
 		profile->valueCount,
-		sizeof(uint32_t),
+		sizeof(ProfileValueIndex),
 		compareValueToProperty);
 
 	if (valueIndex != NULL) {
@@ -158,7 +159,7 @@ static const ProfileValueIndex* getFirstValueForProfileAndProperty(
 		// Move back through the values until the first one for the property is 
 		// found.
 		while ((void*)valueIndex > (void*)(profile + 1) &&
-			*(valueIndex - 1) >= property->firstValueIndex) {
+			valueIndexAt(valueIndex - 1) >= property->firstValueIndex) {
 			valueIndex--;
 		}
 	}
@@ -196,8 +197,8 @@ static uint32_t iterateValues(
 		// property. Both ends of the property's range are checked, because a
 		// starting position that is wrong for the property would otherwise
 		// return the values of an earlier property of the profile.
-        *valIndexPtr >= property->firstValueIndex &&
-        *valIndexPtr <= property->lastValueIndex &&
+        valueIndexAt(valIndexPtr) >= property->firstValueIndex &&
+        valueIndexAt(valIndexPtr) <= property->lastValueIndex &&
 		EXCEPTION_OKAY) {
 
 		// Reset the items as they should never share the same memory.
@@ -206,7 +207,7 @@ static uint32_t iterateValues(
 		// Get the value from the value index and call the callback. Do not 
 		// free the item as the calling function is responsible for this.
 		const CollectionKey valueKey = {
-			{ *valIndexPtr },
+			{ valueIndexAt(valIndexPtr) },
 			CollectionKeyType_Value,
 		};
 		if (values->get(
@@ -649,10 +650,10 @@ uint32_t fiftyoneDegreesProfileIterateProfilesForPropertyWithTypeAndValueAndOffs
 							// Check the address is within the profile before
 							// reading the value index it points to.
 							while (profileValueIndex < maxProfileValueIndex &&
-								*profileValueIndex <=
+								valueIndexAt(profileValueIndex) <=
 								property->lastValueIndex) {
 								if ((uint32_t)valueIndex ==
-									*profileValueIndex) {
+									valueIndexAt(profileValueIndex)) {
 									callback(state, &profileItem);
 									count++;
 									break;
@@ -691,7 +692,7 @@ uint32_t fiftyoneDegreesProfileIterateValueIndexes(
 	for (ProfileValuesCountType i = 0; cont && i < profile->valueCount; i++) {
 
 		// Get the value to check if it relates to a required property.
-		valueIndex = *(valueIndexes + i);
+		valueIndex = valueIndexAt(valueIndexes + i);
 		const CollectionKey valueKey = {
 			{ valueIndex },
 			CollectionKeyType_Value,
