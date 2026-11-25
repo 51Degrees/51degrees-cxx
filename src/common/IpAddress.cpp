@@ -81,5 +81,7 @@ void FiftyoneDegrees::IpIntelligence::IpAddress::getCopyOfIpAddress(
         ? IPV4_LENGTH
         : IPV6_LENGTH);
 	const uint32_t copySize = (size < dataSize) ? size : dataSize;
-	memcpy(copy, ipAddress, copySize);
+	if (copySize > 0) {
+		memcpy(copy, ipAddress, copySize);
+	}
 }
