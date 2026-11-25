@@ -208,8 +208,13 @@ static void runMemoryThread(void* mainState) {
 
 	// Ensure that only on thread reports progress. Avoids keeping a running
 	// total and synchronising performance test threads.
-	long initialRunning = threadState.main->runningThreads;
+	long initialRunning;
 	if (ThreadingGetIsThreadSafe()) {
+		// Other threads change the count as it is read here, so it is
+		// read atomically: compare and exchange 0 for 0 returns the
+		// count and leaves it as it is.
+		initialRunning = INTERLOCK_EXCHANGE(
+			threadState.main->runningThreads, 0, 0);
 		threadState.reportProgress = INTERLOCK_EXCHANGE(
 			threadState.main->runningThreads,
 			initialRunning + 1,

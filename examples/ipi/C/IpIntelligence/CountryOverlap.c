@@ -1905,11 +1905,16 @@ int fiftyoneDegreesIpiCountryOverlap(
 	// finished. The wait is taken one second at a time so that a short
 	// sweep, such as the one the tests run, is not held up for the full
 	// reporting interval.
+	// The threads increment the count as it is read here, so it is read
+	// atomically: compare and exchange 0 for 0 returns the count and leaves
+	// it as it is.
 	int secondsSinceReport = 0;
-	while (shared.threadsDone < threadCount) {
+	while (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(shared.threadsDone, 0, 0) <
+		threadCount) {
 		sleepOneSecond();
 		secondsSinceReport++;
-		if (shared.threadsDone >= threadCount || secondsSinceReport < 30) {
+		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(shared.threadsDone, 0, 0) >=
+			threadCount || secondsSinceReport < 30) {
 			continue;
 		}
 		secondsSinceReport = 0;
