@@ -131,6 +131,12 @@ else()
 endif()
 message("-- TESTCOVERAGE_ENABLED=${TESTCOVERAGE_ENABLED}")
 
+# The tests run on several threads, so GCC updates the coverage counters
+# atomically. Otherwise increments are lost and gcovr reads negative counts.
+if (TESTCOVERAGE_ENABLED AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
+	add_compile_options(-fprofile-update=prefer-atomic)
+endif()
+
 if (NOT MSVC)
 	if (lower_CMAKE_BUILD_TYPE MATCHES "^debug")
 		set(COMPILE_OPTION_DEBUG -D_DEBUG)

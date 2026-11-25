@@ -197,6 +197,21 @@ namespace FiftyoneDegrees {
 				static Date getPublishedTimeFromFile(const string &fileName);
 
 				/**
+				 * Gets the product name of a Hash data file from its header,
+				 * without loading the file, so that an update at start-up can
+				 * ask the Distributor for the product of the file it has. The
+				 * name is "V4" followed by the tier, for example V4TAC, where
+				 * getProduct() of an engine that loaded the file gives the
+				 * tier alone.
+				 * @param fileName path to the data file
+				 * @return the product name the Distributor knows the file by
+				 * @throws StatusCodeException when the file cannot be opened,
+				 * ends before the name does, holds an empty tier, or is not of
+				 * the version this library reads
+				 */
+				static string getProductFromFile(const string &fileName);
+
+				/**
 				 * @}
 				 * @name Common::EngineBase Implementation
 				 * @{
