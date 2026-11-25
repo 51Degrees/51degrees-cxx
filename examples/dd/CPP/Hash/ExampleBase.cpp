@@ -203,7 +203,6 @@ ExampleBase::SharedState::SharedState(
 	DeviceDetection::Hash::EngineHash *engine,
 	string userAgentFilePath) {
 	this->engine = engine;
-	this->threadsFinished = 0;
 	this->userAgentFilePath = userAgentFilePath;
 }
 

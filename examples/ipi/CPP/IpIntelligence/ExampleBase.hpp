@@ -215,7 +215,7 @@ namespace FiftyoneDegrees {
 					EngineIpi *engine;            /**< Pointer to the engine */
 					/** Number of threads that have finished their processing,
 					counted atomically as the threads finish at the same time */
-					std::atomic<long> threadsFinished;
+					std::atomic<long> threadsFinished{0};
 					string ipAddressFilePath;      /**< Path to the IP Addresses to
 																		process */
 					thread threads[THREAD_COUNT];  /**< Pointers to the running

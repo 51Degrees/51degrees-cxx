@@ -72,7 +72,7 @@ static char valueBuffer[1024] = "";
 
 /**
  * Shared test state. All members are immutable except runningThreads
- * which is updated via an interlocked compare and exchange.
+ * which is updated via an interlocked increment.
  */
 typedef struct t_memory_state {
 	int ipAddressesCount; // Total number of IP Addresses
@@ -208,17 +208,13 @@ static void runMemoryThread(void* mainState) {
 
 	// Ensure that only on thread reports progress. Avoids keeping a running
 	// total and synchronising performance test threads.
-	long initialRunning;
 	if (ThreadingGetIsThreadSafe()) {
-		// Other threads change the count as it is read here, so it is
-		// read atomically: compare and exchange 0 for 0 returns the
-		// count and leaves it as it is.
-		initialRunning = INTERLOCK_EXCHANGE(
-			threadState.main->runningThreads, 0, 0);
-		threadState.reportProgress = INTERLOCK_EXCHANGE(
-			threadState.main->runningThreads,
-			initialRunning + 1,
-			initialRunning) == threadState.main->numberOfThreads - 1;
+		// Count this thread in with one atomic increment, so that no
+		// start is lost when threads start together. The thread that
+		// takes the count to the number of threads reports progress.
+		threadState.reportProgress = INTERLOCK_INC(
+			&threadState.main->runningThreads) ==
+			threadState.main->numberOfThreads;
 	}
 	else {
 		threadState.reportProgress = 1;

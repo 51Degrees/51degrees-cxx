@@ -556,7 +556,6 @@ public:
 		}
 		this->engine = engine;
 		this->tests = tests;
-		complete = false;
 	}
 	~MetaDataReloadState() {
 		delete[] hashValues;
@@ -565,7 +564,7 @@ public:
 	EngineBase *engine;
 	int tests;
 	// Set by the main thread and read by the reloading thread.
-	std::atomic<bool> complete;
+	std::atomic<bool> complete{false};
 };
 
 void hashMetaData(MetaDataReloadState *state, int index) {

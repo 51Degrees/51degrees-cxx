@@ -199,7 +199,6 @@ void ExampleBase::SharedState::joinThreads() {
 ExampleBase::SharedState::SharedState(EngineIpi * const engine,
                                       const string &ipAddressFilePath) {
 	this->engine = engine;
-	this->threadsFinished = 0;
 	this->ipAddressFilePath = ipAddressFilePath;
 }
 
