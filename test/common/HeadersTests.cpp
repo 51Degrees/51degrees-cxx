@@ -316,7 +316,8 @@ TEST_F(HeadersTests, FromUniqueId) {
 // Check that header collection creation works correctly when a 
 // collection with no headers is passed
 // ----------------------------------------------------------------------
-const char** testHeaders_None = new const char*[0];
+// There are no headers, so the list is never read.
+const char** testHeaders_None = nullptr;
 
 TEST_F(HeadersTests, None) {
 	CreateHeaders(

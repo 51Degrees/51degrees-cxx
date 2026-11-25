@@ -34,12 +34,19 @@
 #include "Base.hpp"
 #include "StringCollection.hpp"
 #include "FixedSizeCollection.hpp"
+#include "EnumFromInteger.h"
 
 using std::string;
 using std::vector;
 
 /** A weighted value's URL offset, being the mask with a weight of half. */
 static const int32_t metaDataTextWeighted = (int32_t)0xFF008000u;
+
+/**
+ * A text number that is none of the property or value texts. It is outside
+ * the range of either enum, so it is passed to the library as an integer.
+ */
+static const int metaDataTextNotKnown = 99;
 
 class MetaDataTextTests : public Base {
 public:
@@ -62,7 +69,7 @@ protected:
 	/** A text of the value at the index, as propertyText writes it. */
 	string valueText(
 		uint32_t index,
-		fiftyoneDegreesValueText text,
+		int text,
 		size_t length);
 
 	/** The property at the index. */
@@ -224,7 +231,7 @@ string MetaDataTextTests::propertyText(
 
 string MetaDataTextTests::valueText(
 	uint32_t index,
-	fiftyoneDegreesValueText text,
+	int text,
 	size_t length) {
 	EXCEPTION_CREATE;
 	const fiftyoneDegreesValue *value = fiftyoneDegreesValueGet(
@@ -234,7 +241,7 @@ string MetaDataTextTests::valueText(
 		exception);
 	EXCEPTION_THROW;
 	vector<char> buffer(length);
-	char *result = fiftyoneDegreesValueGetMetaDataText(
+	char *result = testValueGetMetaDataTextFromInteger(
 		stringsCollection,
 		nullptr,
 		value,
@@ -299,12 +306,12 @@ TEST_F(MetaDataTextTests, PropertyTextsAbsent) {
 TEST_F(MetaDataTextTests, PropertyTextNotKnown) {
 	EXCEPTION_CREATE;
 	char buffer[16];
-	EXPECT_EQ(nullptr, fiftyoneDegreesPropertyGetText(
+	EXPECT_EQ(nullptr, testPropertyGetTextFromInteger(
 		values,
 		stringsCollection,
 		nullptr,
 		property(0),
-		(fiftyoneDegreesPropertyText)99,
+		metaDataTextNotKnown,
 		buffer,
 		sizeof(buffer),
 		exception));
@@ -413,6 +420,6 @@ TEST_F(MetaDataTextTests, ValueTexts) {
 		EXPECT_EQ("", valueText(
 			2, FIFTYONE_DEGREES_VALUE_TEXT_URL, length));
 		EXPECT_EQ("<null>", valueText(
-			0, (fiftyoneDegreesValueText)99, length));
+			0, metaDataTextNotKnown, length));
 	}
 }

@@ -25,8 +25,8 @@
 #include "../../src/common/evidence.h"
 #include "../../src/common/headers.h"
 
-// Header names
-const char** testEvidenceHeaders_None = new const char*[0];
+// Header names. There are none, so the list is never read.
+const char** testEvidenceHeaders_None = nullptr;
 
 // Class that sets up the headers test structure when there are no headers. 
 // This stops us having to do it multiple times.

@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include "pch.h"
+#include "Base.hpp"
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -45,15 +46,16 @@ typedef vector<TestDocument> TestState;
 
 /*
  * Create a file name used for testing. The file
- * name will be pointed to the current path and
- * appended with '_tmp' suffix.
+ * name will be pointed to the current path, with
+ * this process's id and the '_tmp' suffix added, so
+ * tests running at the same time use different files.
  * @param fileName plain file name to be created
  * @return the string object of the newly constructed
  * file name.
  */
 static string getFileWithPath(string fileName) {
 	stringstream ss = stringstream("");
-	ss << "./" << fileName << TEMP_FILE_EXT;
+	ss << "./" << testProcessName(fileName.c_str()) << TEMP_FILE_EXT;
 	return ss.str();
 }
 

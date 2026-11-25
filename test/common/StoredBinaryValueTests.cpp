@@ -139,6 +139,16 @@ static constexpr int16_t shortValue_rawValue = 24672;
 static constexpr double shortValue_azimuth = 135.53147984252449110385448774682;
 static constexpr double shortValue_declination = 67.765739921262245551927243873409;
 
+/*
+ * How far an azimuth or declination read as a double may be from the expected
+ * value, in degrees. A stored short gives steps of 180/32767 or 90/32767
+ * degrees, so this is many orders of magnitude smaller than a step, and it is
+ * larger than the rounding of a double. Some x86 builds keep the result of
+ * the division at a greater precision than a double, so it can differ from
+ * the expected value in its last bits.
+ */
+static constexpr double angleToleranceDegrees = 1e-9;
+
 static constexpr byte floatValue_rawValueBytes[] = {
     0xCE, 0x2E, 0x88, 0x04,
 };
@@ -451,10 +461,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromMemory) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
-    ASSERT_EQ(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
+    ASSERT_NEAR(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
         value,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
-        0));
+        0),
+        angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromMemory) {
@@ -471,10 +482,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromMemory) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
-    ASSERT_EQ(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
+    ASSERT_NEAR(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
         value,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
-        0));
+        0),
+        angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromMemory) {
@@ -678,10 +690,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFileLoadedNoCache) 
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
-    ASSERT_EQ(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
+    ASSERT_NEAR(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
         value,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
-        0));
+        0),
+        angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileLoadedNoCache) {
@@ -700,10 +713,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileLoadedNoCac
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
-    ASSERT_EQ(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
+    ASSERT_NEAR(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
         value,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
-        0));
+        0),
+        angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFileLoadedNoCache) {
@@ -910,10 +924,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFileLoadedCache) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
-    ASSERT_EQ(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
+    ASSERT_NEAR(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
         value,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
-        0));
+        0),
+        angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileLoadedCache) {
@@ -932,10 +947,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileLoadedCache
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
-    ASSERT_EQ(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
+    ASSERT_NEAR(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
         value,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
-        0));
+        0),
+        angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFileLoadedCache) {
@@ -1142,10 +1158,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFileCache) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
-    ASSERT_EQ(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
+    ASSERT_NEAR(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
         value,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
-        0));
+        0),
+        angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileCache) {
@@ -1164,10 +1181,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileCache) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
-    ASSERT_EQ(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
+    ASSERT_NEAR(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
         value,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
-        0));
+        0),
+        angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFileCache) {
@@ -1369,10 +1387,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFileNoCache) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
-    ASSERT_EQ(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
+    ASSERT_NEAR(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
         value,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
-        0));
+        0),
+        angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileNoCache) {
@@ -1391,10 +1410,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileNoCache) {
         ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
-    ASSERT_EQ(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
+    ASSERT_NEAR(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
         value,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
-        0));
+        0),
+        angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFileNoCache) {
@@ -1801,7 +1821,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_ToDouble_Azimuth) {
         (const StoredBinaryValue *)shortValue_rawValueBytes,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
         -1);
-    EXPECT_EQ(shortValue_azimuth, result);
+    EXPECT_NEAR(shortValue_azimuth, result, angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_ToDouble_Declination) {
@@ -1809,7 +1829,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_ToDouble_Declination) {
         (const StoredBinaryValue *)shortValue_rawValueBytes,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
         -1);
-    EXPECT_EQ(shortValue_declination, result);
+    EXPECT_NEAR(shortValue_declination, result, angleToleranceDegrees);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_ToDouble_Default_minus1) {

@@ -46,6 +46,9 @@ static const std::string fileNameValue = testProcessName("tempfile");
 static const char *tempPath1 = tempPath1Name.c_str();
 static const char *tempPath2 = tempPath2Name.c_str();
 static const char *fileName = fileNameValue.c_str();
+static const std::string differentPrefixNameValue =
+	testProcessName("a-different-prefix") + ".dat";
+static const char *differentPrefixName = differentPrefixNameValue.c_str();
 static const char someData[] = "some data";
 
 /**
@@ -939,7 +942,7 @@ TEST_F(File, TempExists_DeleteDifferentPrefix) {
 	tempFileName2[0] = '\0';
 	// Make the temp directory to use.
 	createDir(tempPath1);
-	createFile("a-different-prefix.dat");
+	createFile(differentPrefixName);
 	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
 		fiftyoneDegreesFileNewTempFile(
 			fileName,
@@ -950,7 +953,7 @@ TEST_F(File, TempExists_DeleteDifferentPrefix) {
 		"A temporary file was not created.";
 	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
 		fiftyoneDegreesFileNewTempFile(
-			"a-different-prefix.dat",
+			differentPrefixName,
 			paths,
 			1,
 			tempFileName2,
@@ -961,7 +964,7 @@ TEST_F(File, TempExists_DeleteDifferentPrefix) {
 		"1 temporary file should have been deleted.";
 
 	EXPECT_TRUE(fiftyoneDegreesFileGetExistingTempFile(
-		"a-different-prefix.dat",
+		differentPrefixName,
 		paths,
 		1,
 		-1,
@@ -969,7 +972,7 @@ TEST_F(File, TempExists_DeleteDifferentPrefix) {
 		"The existing temporary file was deleted even though it had a different prefix.";
 
 	removeFile(tempFileName2);
-	removeFile("a-different-prefix.dat");
+	removeFile(differentPrefixName);
 	removeDir(tempPath1);
 }
 

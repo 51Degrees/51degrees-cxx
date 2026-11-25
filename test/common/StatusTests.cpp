@@ -24,9 +24,17 @@
 #include "../../src/common/string.h"
 #include "../../src/common/status.h"
 #include "../../src/common/snprintf.h"
+#include "EnumFromInteger.h"
 
 /* Test file name to use in tests. */
 static const char *fileName = "somefilename.dat";
+
+/*
+ * Status codes that no status has. They are outside the range of the status
+ * code enum, so they are passed to the library as integers.
+ */
+static const int statusCodeNotKnown = 1000;
+static const int statusCodeNegative = -1;
 
 /**
  * Check that the message string is neither null, nor an empty string. Also
@@ -269,8 +277,8 @@ TEST(Status, Get_EncodingErrorMessage) {
  */
 TEST(Status, Get_NonExistantCode) {
 	char code[5];
-	fiftyoneDegreesStatusCode invalidStatus = (fiftyoneDegreesStatusCode)1000;
-	const char *message = fiftyoneDegreesStatusGetMessage(invalidStatus, NULL);
+	const int invalidStatus = statusCodeNotKnown;
+	const char *message = testStatusGetMessageFromInteger(invalidStatus, NULL);
 	assertValidMessage(message);
 	Snprintf(code, 5, "%d", invalidStatus);
 	assertContains(message, code);
@@ -283,8 +291,8 @@ TEST(Status, Get_NonExistantCode) {
  */
 TEST(Status, Get_NegativeCode) {
 	char code[5];
-	fiftyoneDegreesStatusCode invalidStatus = (fiftyoneDegreesStatusCode)-1;
-	const char *message = fiftyoneDegreesStatusGetMessage(invalidStatus, NULL);
+	const int invalidStatus = statusCodeNegative;
+	const char *message = testStatusGetMessageFromInteger(invalidStatus, NULL);
 	assertValidMessage(message);
 	Snprintf(code, 3, "%d", invalidStatus);
 	assertContains(message, code);
