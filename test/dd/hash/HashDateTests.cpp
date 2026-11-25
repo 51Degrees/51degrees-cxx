@@ -50,6 +50,18 @@ static const size_t publishedPosition =
 static const size_t nextUpdatePosition =
 	offsetof(fiftyoneDegreesDataSetHashHeader, nextUpdate);
 
+/**
+ * Where the published date starts in every Hash data file. The engine test
+ * reads the bytes there itself, so it does not rely on the header struct to
+ * find the date.
+ */
+static const size_t publishedFileOffset = 66;
+
+static_assert(
+	offsetof(fiftyoneDegreesDataSetHashHeader, published) ==
+		publishedFileOffset,
+	"The published date must be at offset 66 of the header.");
+
 /** The only property loaded, as the dates do not depend on any. */
 static const char requiredProperty[] = "IsMobile";
 
@@ -446,4 +458,120 @@ TEST_F(HashDateTests, FromFile_InvalidDate) {
 		expectDate(makeDate(0, 0, 0), date, invalid.name);
 		remove(fromFileName);
 	}
+}
+
+/**
+ * Gets the status the engine throws for a file that gives no published date,
+ * or fails the test when it gives a date instead.
+ */
+static fiftyoneDegreesStatusCode getEngineFromFileStatus(const char *path) {
+	try {
+		FiftyoneDegrees::DeviceDetection::Hash::EngineHash::
+			getPublishedTimeFromFile(path);
+	}
+	catch (const FiftyoneDegrees::Common::StatusCodeException &e) {
+		return e.getCode();
+	}
+	ADD_FAILURE() << "A date was given for '" << path << "'.";
+	return FIFTYONE_DEGREES_STATUS_SUCCESS;
+}
+
+/**
+ * Reads the published date from the bytes of a data file at its fixed offset,
+ * rather than through the header struct. The year is a 16 bit little-endian
+ * integer, followed by a byte for the month and a byte for the day.
+ */
+static void readPublishedBytes(
+	const std::string &path,
+	fiftyoneDegreesDate *date) {
+	unsigned char bytes[4];
+	FILE *file = nullptr;
+	fiftyoneDegreesFileOpen(path.c_str(), &file);
+	ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";
+	size_t read = 0;
+	if (fseek(file, (long)publishedFileOffset, SEEK_SET) == 0) {
+		read = fread(bytes, 1, sizeof(bytes), file);
+	}
+	fclose(file);
+	ASSERT_EQ(sizeof(bytes), read) << "Could not read '" << path << "'.";
+	int16_t year;
+	memcpy(&year, bytes, sizeof(year));
+	*date = makeDate(year, bytes[2], bytes[3]);
+}
+
+/**
+ * Test that the engine's date read from each data file found is the date in
+ * the bytes of its header, and the date an engine that loaded the same file
+ * gives.
+ */
+TEST_F(HashDateTests, Engine_FromFile_MatchesTheLoadedEngine) {
+	int found = 0;
+	for (int i = 0; i < _HashFileNamesLength; i++) {
+		const std::string path = GetFilePath(
+			_dataFolderName,
+			_HashFileNames[i]);
+		if (path.empty()) {
+			continue;
+		}
+		found++;
+		const FiftyoneDegrees::Common::Date fromFile =
+			FiftyoneDegrees::DeviceDetection::Hash::EngineHash::
+			getPublishedTimeFromFile(path);
+		fiftyoneDegreesDate onDisk = makeDate(1, 1, 1);
+		ASSERT_NO_FATAL_FAILURE(readPublishedBytes(path, &onDisk));
+		expectDate(onDisk, fromFile, _HashFileNames[i]);
+		FiftyoneDegrees::DeviceDetection::Hash::ConfigHash config;
+		FiftyoneDegrees::Common::RequiredPropertiesConfig properties(
+			requiredProperty);
+		FiftyoneDegrees::DeviceDetection::Hash::EngineHash engine(
+			path,
+			&config,
+			&properties);
+		const FiftyoneDegrees::Common::Date loaded =
+			engine.getPublishedTime();
+		EXPECT_NE(0, fromFile.getYear()) << _HashFileNames[i];
+		EXPECT_EQ(loaded.getYear(), fromFile.getYear()) << _HashFileNames[i];
+		EXPECT_EQ(loaded.getMonth(), fromFile.getMonth()) <<
+			_HashFileNames[i];
+		EXPECT_EQ(loaded.getDay(), fromFile.getDay()) << _HashFileNames[i];
+	}
+	EXPECT_LT(0, found) << "No data file was found.";
+}
+
+/**
+ * Test that the engine throws the status for a file that does not exist
+ * rather than giving a date.
+ */
+TEST_F(HashDateTests, Engine_FromFile_MissingFile) {
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_FILE_NOT_FOUND,
+		getEngineFromFileStatus("HashDateTests-NoSuchFile.hash"));
+}
+
+/**
+ * Test that the engine throws the status for a file shorter than the header
+ * rather than giving a date.
+ */
+TEST_F(HashDateTests, Engine_FromFile_ShorterThanTheHeader) {
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetHashHeader) - 1));
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+		getEngineFromFileStatus(fromFileName));
+	remove(fromFileName);
+}
+
+/**
+ * Test that the engine throws the corrupt data status for a file whose
+ * published date is zero rather than giving a date.
+ */
+TEST_F(HashDateTests, Engine_FromFile_ZeroDate) {
+	setDate(publishedPosition, makeDate(0, 0, 0));
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetHashHeader)));
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+		getEngineFromFileStatus(fromFileName));
+	remove(fromFileName);
 }

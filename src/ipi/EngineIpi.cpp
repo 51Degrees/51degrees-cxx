@@ -184,6 +184,19 @@ Date EngineIpi::getUpdateAvailableTime() const {
 	return Date(&date);
 }
 
+/**
+ * Throws a status other than success, as the engine's other file operations
+ * do, so a caller is never given a date of zeros to compare.
+ */
+Date EngineIpi::getPublishedTimeFromFile(const string &fileName) {
+	fiftyoneDegreesDate date;
+	StatusCode status = IpiGetPublishedFromFile(fileName.c_str(), &date);
+	if (status != SUCCESS) {
+		throw StatusCodeException(status, fileName.c_str());
+	}
+	return Date(&date);
+}
+
 string EngineIpi::getDataFilePath() const {
 	DataSetIpi *dataSet = DataSetIpiGet(manager.get());
 	string path = string(dataSet->b.b.masterFileName);
