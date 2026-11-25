@@ -305,6 +305,7 @@ static const char* getOrAddSharedString(
  */
 static void storeEvidence(KeyValuePair* pairs, uint16_t size, void* state) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	char* ptr;
 	performanceState* perfState = (performanceState*)state;
 

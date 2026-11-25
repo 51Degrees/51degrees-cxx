@@ -208,6 +208,7 @@ static void analyse(
  */
 static void process(KeyValuePair *pairs, uint16_t size, void *state) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	offlineProcessState *offline = (offlineProcessState*)state;
 	// Create an evidence collection and add the evidence to the collection
 	EvidenceKeyValuePairArray* evidenceArray = EvidenceCreate(size);

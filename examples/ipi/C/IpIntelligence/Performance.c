@@ -285,6 +285,7 @@ static const char* getOrAddSharedString(
  */
 static void storeEvidence(KeyValuePair* pairs, uint16_t size, void* state) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	char* ptr;
 	performanceState* perfState = (performanceState*)state;
 
@@ -453,6 +454,7 @@ static void runPass(
  */
 EXAMPLE_THREAD_RESULT runPerformanceThread(void* state) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	threadState *thisState = (threadState*)state;
 
 	// Create an instance of results to access the returned values.
