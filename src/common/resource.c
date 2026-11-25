@@ -28,18 +28,19 @@
 
 #ifndef FIFTYONE_DEGREES_NO_THREADING
 /*
- * Reads a handle's counter as one atomic load, as other threads change it
- * with compare and exchange at the same time. Visual Studio reads an aligned
- * volatile long in one access, so a plain read is atomic there. On x86 and
- * x64 it is also ordered after the interlocked operations, but on ARM64,
- * where /volatile:iso is the default, it isn't. The loops below don't depend
- * on that order: each value they read is checked by the compare and exchange
- * that follows, which fails and tries again if the value is stale.
+ * Reads a handle's counter as one atomic load, as other threads change it at
+ * the same time. The read needs no ordering of its own, so gcc and clang use
+ * a relaxed load. Visual Studio reads an aligned volatile long in one access,
+ * so a plain read is atomic there. The loop that reads it doesn't depend on
+ * order: a value it reads is either checked by the compare and exchange that
+ * follows, which fails and tries again if the value is stale, or makes it
+ * start again from the manager. GetUse only returns the value it reads,
+ * which may already be out of date.
  */
 #ifdef _MSC_VER
 #define COUNTER_READ(v) (v)
 #else
-#define COUNTER_READ(v) __atomic_load_n(&(v), __ATOMIC_SEQ_CST)
+#define COUNTER_READ(v) __atomic_load_n(&(v), __ATOMIC_RELAXED)
 #endif
 #endif
 
@@ -197,24 +198,18 @@ void fiftyoneDegreesResourceManagerFree(
 
 void fiftyoneDegreesResourceHandleDecUse(
 	fiftyoneDegreesResourceHandle *handle) {
-	// When modifying this method, it is important to note the reason for using
-	// two separate compare and swaps. The first compare and swap ensures that
-	// we are certain the handle is ready to be released i.e. the in use count
-	// is zero, and the handle is no longer active in the manager. The second
-	// compare and swap ensures that we are certain the handle can be freed by
-	// THIS thread. See below for an example of when this can happen.
+	// Releasing takes two atomic steps. The decrement, with a read of the
+	// active handle, finds whether this was the last user of a handle that is
+	// no longer active. The compare and exchange that claims the handle then
+	// makes sure only THIS thread frees it. See below for when more than one
+	// thread can get that far.
 	long decremented;
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-	long compare;
-	do {
-		compare = COUNTER_READ(handle->counter);
-		assert(getInUse(compare) > 0);
-		assert((compare & CLAIMED) == 0);
-		decremented = compare - 1;
-	} while (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(
-		handle->counter,
-		decremented,
-		compare) != compare);
+	// The caller holds a use, so the count is at least 1 and the handle
+	// cannot be claimed. The decrement therefore needs no compare, and cannot
+	// reach the claimed bit.
+	decremented = FIFTYONE_DEGREES_INTERLOCK_DEC(&handle->counter);
+	assert(decremented >= 0 && decremented < CLAIMED);
 #else
 	assert(getInUse(handle->counter) > 0);
 	handle->counter--;
@@ -255,14 +250,12 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 		// the exchange use the same handle.
 		active = ACTIVE_READ(manager);
 		compare = COUNTER_READ(active->counter);
-		// A claimed handle was replaced and its resource freed before it was
-		// read, so start again from the manager.
-		if ((compare & CLAIMED) != 0) {
-			continue;
-		}
-		// The count cannot go past its bits, so wait for another thread to
-		// release the handle.
-		if (getInUse(compare) == IN_USE_MAX) {
+		// The counter only holds 0 to IN_USE_MAX, or CLAIMED, which is
+		// greater, so one unsigned comparison finds both cases that cannot
+		// be taken. A claimed handle was replaced and its resource freed
+		// before it was read. A full handle needs another thread to release
+		// it first. Either way, start again from the manager.
+		if ((unsigned long)compare >= (unsigned long)IN_USE_MAX) {
 			continue;
 		}
 		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(
@@ -283,7 +276,11 @@ fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 int32_t fiftyoneDegreesResourceHandleGetUse(
 	fiftyoneDegreesResourceHandle *handle) {
 	if (handle != NULL) {
+#ifndef FIFTYONE_DEGREES_NO_THREADING
+		return getInUse(COUNTER_READ(handle->counter));
+#else
 		return getInUse(handle->counter);
+#endif
 	}
 	else {
 		return 0;
