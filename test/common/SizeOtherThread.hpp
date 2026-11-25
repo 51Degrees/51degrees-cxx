@@ -32,6 +32,16 @@
 #include "../../src/common/threading.h"
 
 /**
+ * Reads the allocation function pointer while the measuring thread stores it,
+ * the same way the library reads it to call it.
+ */
+static inline fiftyoneDegreesMallocFunction readMalloc() {
+	return FIFTYONE_DEGREES_ALLOCATOR_READ(
+		fiftyoneDegreesMalloc,
+		fiftyoneDegreesMallocFunction);
+}
+
+/**
  * Checks that a size function counts only the memory its own thread
  * allocates. The size is measured once alone, then again while another
  * thread allocates a block during the measurement and holds it until the
@@ -66,17 +76,17 @@ inline void expectSizeIgnoresOtherThread(
 		std::atomic<bool> spinning(false);
 		std::atomic<bool> measured(false);
 		std::thread other([&]() {
-			decltype(fiftyoneDegreesMalloc) volatile* current =
-				&fiftyoneDegreesMalloc;
 			spinning = true;
-			decltype(fiftyoneDegreesMalloc) allocate = *current;
+			fiftyoneDegreesMallocFunction allocate = readMalloc();
 			while (allocate != fiftyoneDegreesMemoryTrackingMalloc &&
 				measured == false) {
-				allocate = *current;
+				allocate = readMalloc();
 			}
 			if (allocate == fiftyoneDegreesMemoryTrackingMalloc) {
-				block = allocate(blockSize);
-				during = *current == fiftyoneDegreesMemoryTrackingMalloc;
+				// Allocates as the library does, through the allocation
+				// function's own name, so the test covers that read.
+				block = fiftyoneDegreesMalloc(blockSize);
+				during = readMalloc() == fiftyoneDegreesMemoryTrackingMalloc;
 			}
 		});
 		while (spinning == false) {
