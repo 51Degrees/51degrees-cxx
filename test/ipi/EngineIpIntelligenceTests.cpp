@@ -746,7 +746,7 @@ void EngineIpIntelligenceTests::randomWithEvidence(int count) {
 TEST_THREAD_RESULT EngineIpIntelligenceTests::multiThreadRandomRunThread(void* state) {
 	((EngineIpIntelligenceTests*)state)->randomWithIpAddress(200);
 	((EngineIpIntelligenceTests*)state)->randomWithEvidence(200);
-	FIFTYONE_DEGREES_THREAD_EXIT;
+	// Returning ends the thread, as FIFTYONE_DEGREES_THREAD_EXIT would.
 	return TEST_THREAD_DONE;
 }
 

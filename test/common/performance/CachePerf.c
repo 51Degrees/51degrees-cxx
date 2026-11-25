@@ -191,9 +191,7 @@ CACHE_PERF_THREAD_RESULT runPerformanceTest(void* state) {
 		executePerformanceTest(rand() % valuesCount, &threadState);
 	}
 
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_THREAD_EXIT;
-#endif
+	// Returning ends the thread, as FIFTYONE_DEGREES_THREAD_EXIT would.
 	return CACHE_PERF_THREAD_DONE;
 }
 
