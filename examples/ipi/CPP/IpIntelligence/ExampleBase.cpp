@@ -179,7 +179,7 @@ void ExampleBase::SharedState::processIpAddressesSingle() {
 void ExampleBase::SharedState::processIpAddressesMulti(void *state) {
 	SharedState *shared = (SharedState *)state;
 	shared->processIpAddressesSingle();
-	FIFTYONE_DEGREES_INTERLOCK_INC(&shared->threadsFinished);
+	shared->threadsFinished++;
 }
 
 void ExampleBase::SharedState::startThreads() {

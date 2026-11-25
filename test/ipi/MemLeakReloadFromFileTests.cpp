@@ -177,7 +177,11 @@ static void run(
 
 	if (ThreadingGetIsThreadSafe()) {
 		startThreads(&state);
-		while (state.threadsFinished < THREAD_COUNT) {
+		// The threads increment the count as it is read here, so it is
+		// read atomically: compare and exchange 0 for 0 returns the
+		// count and leaves it as it is.
+		while (INTERLOCK_EXCHANGE(state.threadsFinished, 0, 0) <
+			THREAD_COUNT) {
 			status = reload(manager, reader, fromFile, exception);
 			if (status == SUCCESS) {
 				numberOfReloads++;

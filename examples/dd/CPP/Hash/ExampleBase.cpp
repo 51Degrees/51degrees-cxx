@@ -182,7 +182,7 @@ void ExampleBase::SharedState::processUserAgentsSingle() {
 void ExampleBase::SharedState::processUserAgentsMulti(void *state) {
 	SharedState *shared = (SharedState*)state;
 	shared->processUserAgentsSingle();
-	FIFTYONE_DEGREES_INTERLOCK_INC(&shared->threadsFinished);
+	shared->threadsFinished++;
 }
 
 void ExampleBase::SharedState::startThreads() {

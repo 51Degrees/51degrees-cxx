@@ -324,7 +324,11 @@ static void run(
 	if (ThreadingGetIsThreadSafe()) {
 		printf("** Multi Threaded Reload Example **\r\n");
 		startThreads(&state);
-		while (state.threadsFinished < THREAD_COUNT) {
+		// The threads increment the count as it is read here, so it is
+		// read atomically: compare and exchange 0 for 0 returns the
+		// count and leaves it as it is.
+		while (INTERLOCK_EXCHANGE(state.threadsFinished, 0, 0) <
+			THREAD_COUNT) {
 			status = IpiReloadManagerFromMemory(
 				manager,
 				reader->startByte,
