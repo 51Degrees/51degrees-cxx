@@ -34,12 +34,13 @@ static const fiftyoneDegreesString* getString(
 	uint32_t offset,
 	Item *item,
 	Exception *exception) {
-	return &StoredBinaryValueGet(
+	const StoredBinaryValue * const stored = StoredBinaryValueGet(
 		stringsCollection,
 		offset,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // metadata are strings
 		item,
-		exception)->stringValue;
+		exception);
+	return stored == NULL ? NULL : &stored->stringValue;
 }
 #endif
 

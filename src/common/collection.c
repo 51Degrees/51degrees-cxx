@@ -669,12 +669,12 @@ fiftyoneDegreesCollectionHeader fiftyoneDegreesCollectionHeaderFromMemory(
 	}
 	if (isCount) {
 		// The next integer is the count of items in the data structure.
-		header.count = *(uint32_t*)reader->current;
+		header.count = UnalignedReadUint32(reader->current);
 		header.length = header.count * elementSize;
 	}
 	else {
 		// The next integer is the size of the data structure.
-		header.length = *(const uint32_t*)reader->current;
+		header.length = UnalignedReadUint32(reader->current);
 		header.count = elementSize > 0 ? header.length / elementSize : 0;
 	}
 
@@ -1236,7 +1236,7 @@ int32_t fiftyoneDegreesCollectionGetInteger32(
 		&itemKey,
 		&item,
 		exception) != NULL) {
-		value = *((int32_t*)item.data.ptr);
+		value = UnalignedReadInt32(item.data.ptr);
 		COLLECTION_RELEASE(collection, &item);
 	}
 	return value;

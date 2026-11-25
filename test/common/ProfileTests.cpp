@@ -30,6 +30,7 @@
 #include "StringCollection.hpp"
 #include "FixedSizeCollection.hpp"
 #include "VariableSizeCollection.hpp"
+#include "ShiftedCollection.hpp"
 #include <algorithm>
 
 constexpr int N_PROPERTIES = 15;
@@ -427,13 +428,18 @@ TEST_F(ProfileTests, DefaultValues) {
 void compareProfiles(ProfileContainer* expected, Profile* actual) {
     EXPECT_EQ(expected->profile.componentIndex, actual->componentIndex);
 #ifndef FIFTYONE_DEGREES_REDUCED_FILE
-    EXPECT_EQ(expected->profile.profileId, actual->profileId);
+    EXPECT_EQ(
+        (uint32_t)expected->profile.profileId,
+        (uint32_t)actual->profileId);
 #endif
     EXPECT_EQ((fiftyoneDegreesProfileValuesCountType)N_PROPERTIES,
-        actual->valueCount);
-    const uint32_t* actualValues = (const uint32_t*)(actual + 1);
+        (fiftyoneDegreesProfileValuesCountType)actual->valueCount);
+    const byte* actualValues = (const byte*)(actual + 1);
     for (int i=0; i<N_PROPERTIES; i++) {
-		EXPECT_EQ(expected->valueIndices[i], actualValues[i]);
+		EXPECT_EQ(
+			(uint32_t)expected->valueIndices[i],
+			fiftyoneDegreesUnalignedReadUint32(
+				actualValues + i * sizeof(uint32_t)));
 	}
 }
 
@@ -580,6 +586,42 @@ TEST_F(ProfileTests, profileIterateForPropertyAndValue) {
     profiles.clear();
     fiftyoneDegreesProfileIterateProfilesForPropertyAndValue(stringsCollection, propertiesCollection, valuesCollection, profilesCollection, profileOffsetsCollection, "Weight", "Moderate", &profiles, iterateProfiles, exception);
     compareProfiles(profilesCollectionHelper->getItem(4), profiles[0]);
+}
+
+/**
+ * The profile iteration IP Intelligence uses, with plain 32 bit profile
+ * offsets read through ProfileOffsetAsPureOffset, finds the same profiles
+ * when the offsets start at every byte offset.
+ */
+TEST_F(ProfileTests, profileIterateWithPlainOffsetsAtAnyOffset) {
+    const uint32_t *profileOffsets = profilesCollectionHelper->getState()->offsets;
+    std::vector<byte> records(N_PROFILES * sizeof(uint32_t));
+    memcpy(records.data(), profileOffsets, records.size());
+    for (size_t shift = 0; shift <= MAX_SHIFT_BYTES; shift++) {
+        // The shift is added to each message rather than with SCOPED_TRACE,
+        // whose memory the base class's memory check counts.
+        EXCEPTION_CREATE
+        ShiftedCollection offsets(records, sizeof(uint32_t), shift);
+        std::vector<fiftyoneDegreesProfile *> profiles;
+        const uint32_t count =
+            fiftyoneDegreesProfileIterateProfilesForPropertyWithTypeAndValueAndOffsetExtractor(
+                stringsCollection,
+                propertiesCollection,
+                NULL,
+                valuesCollection,
+                profilesCollection,
+                offsets.collection,
+                fiftyoneDegreesProfileOffsetAsPureOffset,
+                "Material",
+                "Metal",
+                &profiles,
+                iterateProfiles,
+                exception);
+        EXPECT_TRUE(EXCEPTION_OKAY) << "shift " << shift;
+        ASSERT_EQ(1u, count) << "shift " << shift;
+        compareProfiles(profilesCollectionHelper->getItem(2), profiles[0]);
+        ASSERT_FALSE(HasFailure()) << "shift " << shift;
+    }
 }
 
 // A profile with many values of one property. Its size is 9 + 4 * 40 = 169
@@ -745,8 +787,9 @@ void ProfileTests::indicesLookup(std::vector<std::string> &propertyNames) {
             //lookup property value Index within the profile with profileId for the available property indexed at j in the array of availableProperties
             uint32_t valueIdxIdxWithinProfile = fiftyoneDegreesIndicesPropertyProfileLookup(index, profileId, j);
             //convert valueIdxIdxWithinProfile to the valueIndex in the actual values collection by looking it up with the profile collection
-            uint32_t *first = (uint32_t*)(profile + 1);
-            uint32_t valueIdx = *(first + valueIdxIdxWithinProfile);
+            const byte *first = (const byte*)(profile + 1);
+            uint32_t valueIdx = fiftyoneDegreesUnalignedReadUint32(
+                first + valueIdxIdxWithinProfile * sizeof(uint32_t));
             //now retrieve value and check that it belongs to the property above
             const fiftyoneDegreesValue *value = fiftyoneDegreesValueGet(valuesCollection, valueIdx, &item, exception);
             ASSERT_GE(value->propertyIndex, 0);
@@ -796,9 +839,10 @@ void ProfileTests::iterateValueIndicesForEachAvailableProperty(std::vector<std::
             fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(valuesCollection, index, (uint32_t) j, profile, property, &values, collectValues, exception);
             EXPECT_EQ(values.size(), 1u);
             const fiftyoneDegreesValue *expectedValue = NULL;
-            const uint32_t *first = (uint32_t *) (profile + 1);
+            const byte *first = (const byte *) (profile + 1);
             for (uint32_t k=0;k<profile->valueCount;++k) {
-                uint32_t valueIdx = *(first + k);
+                uint32_t valueIdx = fiftyoneDegreesUnalignedReadUint32(
+                    first + k * sizeof(uint32_t));
                 const fiftyoneDegreesValue *candidate = fiftyoneDegreesValueGet(valuesCollection, valueIdx, &item, exception);
                 COLLECTION_RELEASE(item.collection, &item);
                 if ((uint32_t) candidate->propertyIndex == availableProperties->items[j].propertyIndex) {

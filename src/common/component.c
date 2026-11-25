@@ -73,12 +73,13 @@ const fiftyoneDegreesString* fiftyoneDegreesComponentGetName(
 	fiftyoneDegreesComponent *component,
 	fiftyoneDegreesCollectionItem *item,
 	fiftyoneDegreesException *exception) {
-	return &StoredBinaryValueGet(
+	const StoredBinaryValue * const stored = StoredBinaryValueGet(
 		stringsCollection, 
 		component->nameOffset,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // name is string
 		item,
-		exception)->stringValue;
+		exception);
+	return stored == NULL ? NULL : &stored->stringValue;
 }
 
 const fiftyoneDegreesComponentKeyValuePair* 

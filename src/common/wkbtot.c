@@ -60,23 +60,24 @@ static uint8_t readUByte(const byte ** const wkbBytes) {
     *wkbBytes += 1;
     return result;
 }
+// A number in WKB can start at any byte.
 static int16_t readShortMatchingByteOrder(const byte ** const wkbBytes) {
-    const int16_t result = *(int16_t *)(*wkbBytes);
+    const int16_t result = UnalignedReadInt16(*wkbBytes);
     *wkbBytes += 2;
     return result;
 }
 static uint16_t readUShortMatchingByteOrder(const byte ** const wkbBytes) {
-    const uint16_t result = *(uint16_t *)(*wkbBytes);
+    const uint16_t result = UnalignedReadUint16(*wkbBytes);
     *wkbBytes += 2;
     return result;
 }
 static uint32_t readIntMatchingByteOrder(const byte ** const wkbBytes) {
-    const uint32_t result = *(uint32_t *)(*wkbBytes);
+    const uint32_t result = UnalignedReadUint32(*wkbBytes);
     *wkbBytes += 4;
     return result;
 }
 static double readDoubleMatchingByteOrder(const byte ** const wkbBytes) {
-    const double result = *(double *)(*wkbBytes);
+    const double result = UnalignedReadDouble(*wkbBytes);
     *wkbBytes += 8;
     return result;
 }
@@ -87,7 +88,7 @@ static uint16_t readUShortMismatchingByteOrder(const byte ** const wkbBytes) {
         t[i] = (*wkbBytes)[1 - i];
     }
     *wkbBytes += 2;
-    return *(uint16_t *)t;
+    return UnalignedReadUint16(t);
 }
 static int16_t readShortMismatchingByteOrder(const byte ** const wkbBytes) {
     byte t[2];
@@ -95,7 +96,7 @@ static int16_t readShortMismatchingByteOrder(const byte ** const wkbBytes) {
         t[i] = (*wkbBytes)[1 - i];
     }
     *wkbBytes += 2;
-    return *(int16_t *)t;
+    return UnalignedReadInt16(t);
 }
 static uint32_t readIntMismatchingByteOrder(const byte ** const wkbBytes) {
     byte t[4];
@@ -103,7 +104,7 @@ static uint32_t readIntMismatchingByteOrder(const byte ** const wkbBytes) {
         t[i] = (*wkbBytes)[3 - i];
     }
     *wkbBytes += 4;
-    return *(uint32_t *)t;
+    return UnalignedReadUint32(t);
 }
 static double readDoubleMismatchingByteOrder(const byte ** const wkbBytes) {
     byte t[8];
@@ -111,7 +112,7 @@ static double readDoubleMismatchingByteOrder(const byte ** const wkbBytes) {
         t[i] = (*wkbBytes)[7 - i];
     }
     *wkbBytes += 8;
-    return *(double *)t;
+    return UnalignedReadDouble(t);
 }
 typedef struct {
     const char *name;
@@ -138,7 +139,7 @@ static const RawValueReader MISMATCHING_BYTE_ORDER_RAW_VALUE_READER = {
 
 static ByteOrder getMachineByteOrder() {
     byte buffer[4];
-    *(uint32_t *)buffer = 1;
+    UnalignedWriteUint32(buffer, 1);
     return buffer[0];
 }
 

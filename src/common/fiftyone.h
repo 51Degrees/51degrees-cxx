@@ -338,8 +338,6 @@ MAP_TYPE(WeightedItemList)
 #define UnalignedReadUint16 fiftyoneDegreesUnalignedReadUint16 /**< Synonym for #fiftyoneDegreesUnalignedReadUint16 function. */
 #define UnalignedReadInt32 fiftyoneDegreesUnalignedReadInt32 /**< Synonym for #fiftyoneDegreesUnalignedReadInt32 function. */
 #define UnalignedReadUint32 fiftyoneDegreesUnalignedReadUint32 /**< Synonym for #fiftyoneDegreesUnalignedReadUint32 function. */
-#define UnalignedReadUint64 fiftyoneDegreesUnalignedReadUint64 /**< Synonym for #fiftyoneDegreesUnalignedReadUint64 function. */
-#define UnalignedReadFloat fiftyoneDegreesUnalignedReadFloat /**< Synonym for #fiftyoneDegreesUnalignedReadFloat function. */
 #define UnalignedReadDouble fiftyoneDegreesUnalignedReadDouble /**< Synonym for #fiftyoneDegreesUnalignedReadDouble function. */
 #define UnalignedWriteUint32 fiftyoneDegreesUnalignedWriteUint32 /**< Synonym for #fiftyoneDegreesUnalignedWriteUint32 function. */
 #define PropertiesGetAvailableIndex fiftyoneDegreesPropertiesGetAvailableIndex /**< Synonym for #fiftyoneDegreesPropertiesGetAvailableIndex function. */

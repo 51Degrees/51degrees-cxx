@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\test\common\Base.cpp" />
+    <ClCompile Include="..\..\..\test\common\AnyOffsetTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CacheTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionConfigTests.cpp" />
     <ClCompile Include="..\..\..\test\common\CollectionExtentTests.cpp" />
@@ -76,6 +77,7 @@
     <ClInclude Include="..\..\..\test\common\FileHandle.hpp" />
     <ClInclude Include="..\..\..\test\common\pch.h" />
     <ClInclude Include="..\..\..\test\common\SizeOtherThread.hpp" />
+    <ClInclude Include="..\..\..\test\common\ShiftedCollection.hpp" />
     <ClInclude Include="..\..\..\test\common\StringCollection.hpp" />
     <ClInclude Include="..\..\..\test\common\TestStrings.hpp" />
     <ClInclude Include="..\..\..\test\common\FixedSizeCollection.hpp" />
