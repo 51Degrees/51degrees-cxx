@@ -80,6 +80,7 @@
     <ClInclude Include="..\..\..\test\ipi\EngineIpIntelligenceTests.hpp" />
     <ClInclude Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.hpp" />
     <ClInclude Include="..\..\..\test\ipi\IpiTestMemory.hpp" />
+    <ClInclude Include="..\..\..\test\ipi\pch.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Examples\Base\ExampleBase\ExampleBase.vcxproj">

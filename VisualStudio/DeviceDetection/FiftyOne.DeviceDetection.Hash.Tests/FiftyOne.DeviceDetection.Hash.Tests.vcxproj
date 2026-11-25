@@ -22,6 +22,7 @@
     <ClInclude Include="..\..\..\test\dd\EngineDeviceDetectionTests.hpp" />
     <ClInclude Include="..\..\..\test\dd\EngineDeviceDetectionTestsMacros.hpp" />
     <ClInclude Include="..\..\..\test\dd\ExampleDeviceDetectionTests.hpp" />
+    <ClInclude Include="..\..\..\test\dd\pch.h" />
     <ClInclude Include="..\..\..\test\dd\hash\HashTestMemory.hpp" />
     <ClInclude Include="..\..\..\test\dd\hash\SimpleEngineTestBase.hpp" />
   </ItemGroup>

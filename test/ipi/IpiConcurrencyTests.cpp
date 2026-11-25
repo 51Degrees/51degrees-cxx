@@ -101,13 +101,21 @@ static void expectBalanced(ConfigIpi &config) {
 	const fiftyoneDegreesConfigIpi &balanced =
 		fiftyoneDegreesIpiBalancedConfig;
 	EXPECT_EQ(balanced.b.allInMemory, config.getConfig().b.allInMemory);
-	EXPECT_EQ(balanced.strings.loaded, config.getStrings().getLoaded());
+	EXPECT_EQ(
+		static_cast<uint32_t>(balanced.strings.loaded),
+		config.getStrings().getLoaded());
 	EXPECT_EQ(balanced.strings.capacity, config.getStrings().getCapacity());
-	EXPECT_EQ(balanced.profiles.loaded, config.getProfiles().getLoaded());
+	EXPECT_EQ(
+		static_cast<uint32_t>(balanced.profiles.loaded),
+		config.getProfiles().getLoaded());
 	EXPECT_EQ(balanced.profiles.capacity, config.getProfiles().getCapacity());
-	EXPECT_EQ(balanced.graphs.loaded, config.getGraphs().getLoaded());
+	EXPECT_EQ(
+		static_cast<uint32_t>(balanced.graphs.loaded),
+		config.getGraphs().getLoaded());
 	EXPECT_EQ(balanced.graphs.capacity, config.getGraphs().getCapacity());
-	EXPECT_EQ(balanced.graph.loaded, config.getGraph().getLoaded());
+	EXPECT_EQ(
+		static_cast<uint32_t>(balanced.graph.loaded),
+		config.getGraph().getLoaded());
 	EXPECT_EQ(balanced.graph.capacity, config.getGraph().getCapacity());
 }
 

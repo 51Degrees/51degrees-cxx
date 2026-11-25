@@ -3,11 +3,11 @@
 Fails when a test file is missing from its Visual Studio test project.
 
 .DESCRIPTION
-CMake builds every .cpp and .hpp file in each test folder, while the Visual
-Studio test projects list their files by name, so a test added to a folder is
-left out of the Visual Studio build until it is added to the project. This
-fails on any test file that its project, or the project's .filters file, does
-not list.
+CMake builds every .c, .cpp, .h and .hpp file in each test folder, while the
+Visual Studio test projects list their files by name, so a test added to a
+folder is left out of the Visual Studio build until it is added to the project.
+This fails on any test file that its project, or the project's .filters file,
+does not list.
 
 main.cpp is not needed, because the googletest package supplies main.
 
@@ -69,7 +69,9 @@ foreach ($project in $Projects.Values | Sort-Object -Unique) {
 $problems = [Collections.Generic.List[string]]::new()
 $checked = 0
 $files = Get-ChildItem -LiteralPath (Join-Path $RepoPath 'test') -Recurse -File |
-    Where-Object { $_.Extension -in '.cpp', '.hpp' -and $_.Name -ne 'main.cpp' }
+    Where-Object {
+        $_.Extension -in '.c', '.cpp', '.h', '.hpp' -and $_.Name -ne 'main.cpp'
+    }
 foreach ($file in $files) {
     $relative = Get-RelativePath $file.FullName
     $folder = $relative.Substring(0, $relative.LastIndexOf('/'))

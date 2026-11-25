@@ -30,6 +30,7 @@
     <ClCompile Include="..\..\..\test\common\ComponentTests.cpp" />
     <ClCompile Include="..\..\..\test\common\DateTests.cpp" />
     <ClCompile Include="..\..\..\test\common\EngineTests.cpp" />
+    <ClCompile Include="..\..\..\test\common\EnumFromInteger.c" />
     <ClCompile Include="..\..\..\test\common\EvidenceTests.cpp" />
     <ClCompile Include="..\..\..\test\common\EvidenceWithHeadersTests_MultipleHeaders.cpp" />
     <ClCompile Include="..\..\..\test\common\EvidenceWithHeadersTests_NoHeaders.cpp" />
@@ -72,6 +73,7 @@
     <ClInclude Include="..\..\..\test\common\Base.hpp" />
     <ClInclude Include="..\..\..\test\common\DoubleText.hpp" />
     <ClInclude Include="..\..\..\test\common\EngineTests.hpp" />
+    <ClInclude Include="..\..\..\test\common\EnumFromInteger.h" />
     <ClInclude Include="..\..\..\test\common\EnvironmentVariable.hpp" />
     <ClInclude Include="..\..\..\test\common\EvidenceTests.hpp" />
     <ClInclude Include="..\..\..\test\common\ExampleTests.hpp" />
