@@ -203,6 +203,9 @@
     <ClInclude Include="..\..\..\test\ipi\IpiTestMemory.hpp">
       <Filter>Headers Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\test\ipi\pch.h">
+      <Filter>Headers Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\test\common\ExampleTests.hpp">
       <Filter>Headers Files</Filter>
     </ClInclude>
