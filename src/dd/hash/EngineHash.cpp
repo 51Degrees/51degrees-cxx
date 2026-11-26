@@ -218,6 +218,39 @@ Date EngineHash::getPublishedTimeFromFile(const string &fileName) {
 	return Date(&date);
 }
 
+/**
+ * Bytes given for the product name at first, which every product name
+ * 51Degrees uses fits in, so the file is read once.
+ */
+static const size_t productNameBytes = 64;
+
+/**
+ * Asks again with the bytes the C function says the name needs when it did
+ * not fit, and throws the status of any other failure, as
+ * getPublishedTimeFromFile does.
+ */
+string EngineHash::getProductFromFile(const string &fileName) {
+	vector<char> buffer(productNameBytes);
+	size_t needed = 0;
+	StatusCode status = HashGetProductFromFile(
+		fileName.c_str(),
+		buffer.data(),
+		buffer.size(),
+		&needed);
+	if (status == INSUFFICIENT_CAPACITY) {
+		buffer.resize(needed);
+		status = HashGetProductFromFile(
+			fileName.c_str(),
+			buffer.data(),
+			buffer.size(),
+			&needed);
+	}
+	if (status != SUCCESS) {
+		throw StatusCodeException(status, fileName.c_str());
+	}
+	return string(buffer.data());
+}
+
 string EngineHash::getDataFilePath() const {
 	DataSetHash *dataSet = DataSetHashGet(manager.get());
 	string path = string(dataSet->b.b.masterFileName);

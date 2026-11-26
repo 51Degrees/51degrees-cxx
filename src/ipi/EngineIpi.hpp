@@ -223,6 +223,21 @@ namespace FiftyoneDegrees {
 			static Date getPublishedTimeFromFile(const string &fileName);
 
 			/**
+			 * Gets the product name of an IP Intelligence data file from its
+			 * header, without loading the file, so that an update at
+			 * start-up can ask the Distributor for the product of the file
+			 * it has. The name is "IPIV4" followed by the tier, or the tier
+			 * alone when it already starts with "IPIV4", as IPIV4Enterprise
+			 * does.
+			 * @param fileName path to the data file
+			 * @return the product name the Distributor knows the file by
+			 * @throws StatusCodeException when the file cannot be opened,
+			 * ends before the name does, holds an empty tier, or is not of
+			 * the version this library reads
+			 */
+			static string getProductFromFile(const string &fileName);
+
+			/**
 			 * @}
 			 * @name Common::EngineBase Implementation
 			 * @{

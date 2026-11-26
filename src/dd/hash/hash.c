@@ -5242,6 +5242,119 @@ fiftyoneDegreesStatusCode fiftyoneDegreesHashGetPublishedFromFile(
 }
 
 /**
+ * The start of the product name of every Hash data file, before the tier.
+ */
+static const char hashProductPrefix[] = "V4";
+
+/**
+ * Reads the tier stored at the position in the file and writes the product
+ * name made from it to the buffer, as
+ * #fiftyoneDegreesHashGetProductFromFile describes. The stored tier is a 16
+ * bit size, counting the terminating null, then the characters.
+ */
+static StatusCode readProductName(
+	FILE *file,
+	uint64_t position,
+	char *buffer,
+	size_t length,
+	size_t *needed) {
+	const size_t prefixLength = sizeof(hashProductPrefix) - 1;
+	char start[sizeof(hashProductPrefix) - 1];
+	uint16_t size;
+	size_t tierLength, startLength, total;
+	bool hasPrefix;
+	char last;
+	const FileOffset offset = (FileOffset)position;
+	if (offset < 0 || (uint64_t)offset != position ||
+		FileSeek(file, offset, SEEK_SET) != 0 ||
+		fread(&size, sizeof(size), 1, file) != 1 ||
+		size < 2) {
+		return CORRUPT_DATA;
+	}
+	tierLength = (size_t)size - 1;
+	startLength = tierLength < prefixLength ? tierLength : prefixLength;
+	if (fread(start, 1, startLength, file) != startLength) {
+		return CORRUPT_DATA;
+	}
+	hasPrefix = startLength == prefixLength &&
+		StringCompareLength(start, hashProductPrefix, prefixLength) == 0;
+	total = (hasPrefix ? 0 : prefixLength) + tierLength + 1;
+	if (total > length) {
+		// The name is not written, but the file must still hold all of it.
+		if (FileSeek(file, (FileOffset)(size - 1 - startLength), SEEK_CUR)
+				!= 0 ||
+			fread(&last, 1, 1, file) != 1 ||
+			last != '\0') {
+			return CORRUPT_DATA;
+		}
+		if (needed != NULL) {
+			*needed = total;
+		}
+		return INSUFFICIENT_CAPACITY;
+	}
+	if (hasPrefix == false) {
+		memcpy(buffer, hashProductPrefix, prefixLength);
+	}
+	memcpy(buffer + total - 1 - tierLength, start, startLength);
+	if (fread(
+			buffer + total - 1 - tierLength + startLength,
+			1,
+			size - startLength,
+			file) != size - startLength ||
+		buffer[total - 1] != '\0' ||
+		strlen(buffer) != total - 1) {
+		buffer[0] = '\0';
+		return CORRUPT_DATA;
+	}
+	if (needed != NULL) {
+		*needed = total;
+	}
+	return SUCCESS;
+}
+
+fiftyoneDegreesStatusCode fiftyoneDegreesHashGetProductFromFile(
+	const char *fileName,
+	char *buffer,
+	size_t length,
+	size_t *needed) {
+	FILE *file = NULL;
+	StatusCode status;
+	// The header's members are constant, so it is read through the bytes it
+	// shares memory with.
+	union {
+		DataSetHashHeader header;
+		byte bytes[sizeof(DataSetHashHeader)];
+	} fromFile;
+	if (needed != NULL) {
+		*needed = 0;
+	}
+	if (length > 0) {
+		if (buffer == NULL) {
+			return NULL_POINTER;
+		}
+		buffer[0] = '\0';
+	}
+	status = FileOpen(fileName, &file);
+	if (status != SUCCESS) {
+		return status;
+	}
+	status = fread(fromFile.bytes, sizeof(fromFile.bytes), 1, file) == 1 ?
+		checkHeaderVersion(&fromFile.header) : CORRUPT_DATA;
+	if (status == SUCCESS) {
+		status = fromFile.header.nameOffset < 0 ? CORRUPT_DATA :
+			readProductName(
+				file,
+				(uint64_t)fromFile.header.strings.startPosition +
+					(uint64_t)fromFile.header.nameOffset,
+				buffer,
+				length,
+				needed);
+	}
+	fclose(file);
+	return status;
+}
+
+/**
  * Definition of the reload methods from the data set macro.
  */
 FIFTYONE_DEGREES_DATASET_RELOAD(Hash)

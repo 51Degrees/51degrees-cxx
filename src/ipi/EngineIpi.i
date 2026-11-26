@@ -48,6 +48,7 @@ public:
     Date getPublishedTime();
     Date getUpdateAvailableTime();
     static Date getPublishedTimeFromFile(const std::string &fileName);
+    static std::string getProductFromFile(const std::string &fileName);
     std::string getDataFilePath();
     std::string getDataFileTempPath();
     void refreshData();
