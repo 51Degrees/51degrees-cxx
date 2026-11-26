@@ -13,6 +13,7 @@ on:
       - 'src/**'
       - 'test/**'
       - 'CMakeLists.txt'
+      - 'cmake/**'
       - '.github/workflows/thread-sanitizer.yml'
   workflow_dispatch:
 
@@ -47,6 +48,9 @@ jobs:
             'assets/20000 Evidence Records.yml' -Destination data/device-detection
 
       - name: Build the tests with ThreadSanitizer
+        # A warning fails the build, as it does every build 51Degrees runs.
+        env:
+          _51DEGREES_WARNINGS_AS_ERRORS: 'true'
         shell: bash
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Debug -D_51DEGREES_WITH_TSAN=ON \

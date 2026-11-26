@@ -20,6 +20,10 @@ param(
 $ErrorActionPreference = "Stop"
 . $PSScriptRoot/products.ps1
 
+# A warning fails every CMake build this script runs, check-install.ps1's
+# included, as the default of the CMake option of the same name.
+$env:_51DEGREES_WARNINGS_AS_ERRORS = 'true'
+
 $Products = Get-Products -Products $Products -RepoPath $RepoName -Branch $Branch
 if (!$Products) {
     Write-Output "Nothing in '$Name' is affected by this change"

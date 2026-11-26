@@ -30,8 +30,8 @@ gtest_discover_tests(IpiTests DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST
 set_target_properties(IpiTests PROPERTIES FOLDER "Tests")
 
 if (MSVC)
-	target_compile_options(IpiTests PRIVATE "/W4" "/WX")
-	target_link_options(IpiTests PRIVATE "/WX")
+	target_compile_options(IpiTests PRIVATE "/W4" ${_51DEGREES_WX})
+	target_link_options(IpiTests PRIVATE ${_51DEGREES_WX})
 else()
-	target_compile_options(IpiTests PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
+	target_compile_options(IpiTests PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" ${_51DEGREES_WERROR})
 endif()

@@ -4,10 +4,10 @@
 add_executable(CachePerf ${CMAKE_CURRENT_LIST_DIR}/performance/CachePerf.c)
 target_link_libraries(CachePerf fiftyone-common-c)
 if (MSVC)
-	target_compile_options(CachePerf PRIVATE "/W4" "/WX")
-	target_link_options(CachePerf PRIVATE "/WX")
+	target_compile_options(CachePerf PRIVATE "/W4" ${_51DEGREES_WX})
+	target_link_options(CachePerf PRIVATE ${_51DEGREES_WX})
 else ()
-	target_compile_options(CachePerf PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
+	target_compile_options(CachePerf PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" ${_51DEGREES_WERROR})
 endif()
 set_target_properties(CachePerf PROPERTIES FOLDER "Examples/Common")
 
@@ -19,10 +19,10 @@ FILE(GLOB COM_TEST_H ${CMAKE_CURRENT_LIST_DIR}/*.hpp ${CMAKE_CURRENT_LIST_DIR}/*
 function(fiftyone_add_common_tests name suffix prefix)
 	add_executable(${name} ${COM_TEST_SRC} ${COM_TEST_H})
 	if (MSVC)
-		target_compile_options(${name} PRIVATE "/W4" "/WX")
-		target_link_options(${name} PRIVATE "/WX")
+		target_compile_options(${name} PRIVATE "/W4" ${_51DEGREES_WX})
+		target_link_options(${name} PRIVATE ${_51DEGREES_WX})
 	else ()
-		target_compile_options(${name} PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
+		target_compile_options(${name} PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" ${_51DEGREES_WERROR})
 		# The AddressSanitizer runtime can't be loaded beside the
 		# ThreadSanitizer one.
 		if (NOT MINGW AND NOT _51DEGREES_WITH_TSAN)

@@ -16,9 +16,9 @@ add_library(fiftyone-device-detection-test-base
 	${COMMON_TEST}/ExampleTests.cpp)
 target_link_libraries(fiftyone-device-detection-test-base gtest_main)
 if (MSVC)
-	target_compile_options(fiftyone-device-detection-test-base PRIVATE "/W4" "/WX")
+	target_compile_options(fiftyone-device-detection-test-base PRIVATE "/W4" ${_51DEGREES_WX})
 else()
-	target_compile_options(fiftyone-device-detection-test-base PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
+	target_compile_options(fiftyone-device-detection-test-base PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" ${_51DEGREES_WERROR})
 endif()
 
 set_target_properties(fiftyone-device-detection-test-base PROPERTIES FOLDER "Tests")
@@ -43,10 +43,10 @@ gtest_discover_tests(HashTests DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST
 set_target_properties(HashTests PROPERTIES FOLDER "Tests")
 
 if (MSVC)
-	target_compile_options(HashTests PRIVATE "/W4" "/WX")
-	target_link_options(HashTests PRIVATE "/WX")
+	target_compile_options(HashTests PRIVATE "/W4" ${_51DEGREES_WX})
+	target_link_options(HashTests PRIVATE ${_51DEGREES_WX})
 else ()
-	target_compile_options(HashTests PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
+	target_compile_options(HashTests PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" ${_51DEGREES_WERROR})
 endif()
 
 if (MINGW)

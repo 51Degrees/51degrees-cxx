@@ -184,10 +184,12 @@ describes.
   evidence files get Windows line endings. So do not build and test in WSL
   from a checkout made on Windows, because the Linux tests then read IP
   addresses ending in a carriage return and fail. Clone again inside WSL.
-- **Warnings are errors.** `CMakeLists.txt` sets
-  `CMAKE_COMPILE_WARNING_AS_ERROR`, and the Device Detection examples build
-  with `-Werror` or `/WX`, so a compiler newer than the one CI uses can stop the
-  build on a new warning.
+- **Warnings are errors in CI.** `_51DEGREES_WARNINGS_AS_ERRORS`, set as a
+  CMake option or as an environment variable holding `true`, turns on
+  `CMAKE_COMPILE_WARNING_AS_ERROR` and each target's own `-Werror` or `/WX`.
+  The CI scripts and workflows set it, so CI fails on a warning. A build
+  without it shows warnings and carries on. Every warning is still fixed, so
+  build with it on before pushing.
 - **Memory.** `GettingStartedC` loads the whole IP Intelligence data file into
   memory (`IpiInMemoryConfig`), so it needs about 0.5 GB free.
 - **What CI does not test.** CI builds IP Intelligence on Windows and Linux,
