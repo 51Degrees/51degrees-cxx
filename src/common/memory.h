@@ -178,6 +178,22 @@ EXTERNAL void fiftyoneDegreesSetUpMemoryTracking();
 EXTERNAL size_t fiftyoneDegreesUnsetMemoryTracking();
 
 /**
+ * Starts measuring the memory the calling thread allocates, as the size
+ * functions do. Resets the counts and points the allocation and free functions
+ * at the tracking ones. Until #fiftyoneDegreesMemoryTrackingStopMeasuring is
+ * called, memory that any other thread allocates is neither counted nor
+ * recorded, and memory another thread frees is not taken from the count.
+ */
+EXTERNAL void fiftyoneDegreesMemoryTrackingStartMeasuring();
+
+/**
+ * Stops the measurement #fiftyoneDegreesMemoryTrackingStartMeasuring started.
+ * Points the allocation and free functions at the standard ones and resets
+ * the counts, so read them first.
+ */
+EXTERNAL void fiftyoneDegreesMemoryTrackingStopMeasuring();
+
+/**
  * Pointer to the method used to allocate memory. By default this maps to
  * #fiftyoneDegreesMemoryStandardMalloc which calls the standard library malloc.
  * @param __size to allocate
@@ -211,6 +227,74 @@ EXTERNAL_VAR void (FIFTYONE_DEGREES_CALL_CONV *fiftyoneDegreesFree)(void *__ptr)
  * @param __ptr pointer to free
  */
 EXTERNAL_VAR void (FIFTYONE_DEGREES_CALL_CONV *fiftyoneDegreesFreeAligned)(void* __ptr);
+
+/** Type of #fiftyoneDegreesMalloc. */
+typedef void *(FIFTYONE_DEGREES_CALL_CONV *fiftyoneDegreesMallocFunction)(
+	size_t __size);
+
+/** Type of #fiftyoneDegreesMallocAligned. */
+typedef void *(FIFTYONE_DEGREES_CALL_CONV *fiftyoneDegreesMallocAlignedFunction)(
+	int alignment,
+	size_t __size);
+
+/** Type of #fiftyoneDegreesFree and #fiftyoneDegreesFreeAligned. */
+typedef void (FIFTYONE_DEGREES_CALL_CONV *fiftyoneDegreesFreeFunction)(
+	void *__ptr);
+
+/**
+ * Reads one of the pointers above in a single atomic access with acquire
+ * order, as the memory tracker changes them while other threads call through
+ * them. On x64 this is the same plain load as an ordinary read. Visual Studio
+ * reads an aligned pointer sized volatile in one access, with acquire order
+ * on x86 and x64.
+ * @param p the pointer to read
+ * @param t the type of the pointer
+ */
+#if defined(FIFTYONE_DEGREES_NO_THREADING)
+#define FIFTYONE_DEGREES_ALLOCATOR_READ(p, t) (p)
+#elif defined(_MSC_VER)
+#define FIFTYONE_DEGREES_ALLOCATOR_READ(p, t) (*(t volatile*)&(p))
+#else
+#define FIFTYONE_DEGREES_ALLOCATOR_READ(p, t) \
+	__atomic_load_n(&(p), __ATOMIC_ACQUIRE)
+#endif
+
+/*
+ * A call such as fiftyoneDegreesMalloc(size) reads the pointer with
+ * FIFTYONE_DEGREES_ALLOCATOR_READ. Each macro takes the pointer's name, so
+ * only calls are changed, and the name used elsewhere is still the pointer.
+ * Within its own expansion the name is not expanded again, so it refers to
+ * the pointer there. Builds that rename the linked names take the new name.
+ */
+#define FIFTYONE_DEGREES_MALLOC_CALL(s) \
+	FIFTYONE_DEGREES_ALLOCATOR_READ( \
+		fiftyoneDegreesMalloc, \
+		fiftyoneDegreesMallocFunction)(s)
+#define FIFTYONE_DEGREES_MALLOC_ALIGNED_CALL(a, s) \
+	FIFTYONE_DEGREES_ALLOCATOR_READ( \
+		fiftyoneDegreesMallocAligned, \
+		fiftyoneDegreesMallocAlignedFunction)(a, s)
+#define FIFTYONE_DEGREES_FREE_CALL(p) \
+	FIFTYONE_DEGREES_ALLOCATOR_READ( \
+		fiftyoneDegreesFree, \
+		fiftyoneDegreesFreeFunction)(p)
+#define FIFTYONE_DEGREES_FREE_ALIGNED_CALL(p) \
+	FIFTYONE_DEGREES_ALLOCATOR_READ( \
+		fiftyoneDegreesFreeAligned, \
+		fiftyoneDegreesFreeFunction)(p)
+#ifdef FIFTYONE_DEGREES_IPI_SYMBOLS
+#define ipi_fiftyoneDegreesMalloc(s) FIFTYONE_DEGREES_MALLOC_CALL(s)
+#define ipi_fiftyoneDegreesMallocAligned(a, s) \
+	FIFTYONE_DEGREES_MALLOC_ALIGNED_CALL(a, s)
+#define ipi_fiftyoneDegreesFree(p) FIFTYONE_DEGREES_FREE_CALL(p)
+#define ipi_fiftyoneDegreesFreeAligned(p) FIFTYONE_DEGREES_FREE_ALIGNED_CALL(p)
+#else
+#define fiftyoneDegreesMalloc(s) FIFTYONE_DEGREES_MALLOC_CALL(s)
+#define fiftyoneDegreesMallocAligned(a, s) \
+	FIFTYONE_DEGREES_MALLOC_ALIGNED_CALL(a, s)
+#define fiftyoneDegreesFree(p) FIFTYONE_DEGREES_FREE_CALL(p)
+#define fiftyoneDegreesFreeAligned(p) FIFTYONE_DEGREES_FREE_ALIGNED_CALL(p)
+#endif
 
 /**
  * @}

@@ -30,7 +30,9 @@
  * The tests hold a copy of the ASN data file in memory, change its dates where
  * a test needs other dates, and load the copy. CI downloads the ASN file and
  * never stands another file in for it. Nothing else in the data set reads the
- * dates, so any date loads.
+ * dates, so any date loads. The test that compares the engine with each IP
+ * Intelligence data file found needs only that file, so it runs without the
+ * ASN file.
  */
 
 #include "../common/Base.hpp"
@@ -51,6 +53,18 @@ static const size_t publishedPosition =
 
 static const size_t nextUpdatePosition =
 	offsetof(fiftyoneDegreesDataSetIpiHeader, nextUpdate);
+
+/**
+ * Where the published date starts in every IP Intelligence data file. The
+ * engine test reads the bytes there itself, so it does not rely on the header
+ * struct to find the date.
+ */
+static const size_t publishedFileOffset = 66;
+
+static_assert(
+	offsetof(fiftyoneDegreesDataSetIpiHeader, published) ==
+		publishedFileOffset,
+	"The published date must be at offset 66 of the header.");
 
 /**
  * A date that is not valid, and why.
@@ -122,7 +136,8 @@ protected:
 			GTEST_SKIP() << "The file '" << asnFileName << "' was not found. "
 				"Run data/get-data-files.sh or .ps1 to download it.";
 		}
-		FILE *file = fopen(dataFilePath.c_str(), "rb");
+		FILE *file = nullptr;
+		fiftyoneDegreesFileOpen(dataFilePath.c_str(), &file);
 		ASSERT_NE(nullptr, file) << "Could not open '" << dataFilePath << "'.";
 		fseek(file, 0, SEEK_END);
 		data.resize((size_t)ftell(file));
@@ -326,4 +341,237 @@ TEST_F(IpiDateTests, Engine_InvalidDate_GivesZeros) {
 		expectDate(zero, published, invalid.name);
 		expectDate(zero, nextUpdate, invalid.name);
 	}
+}
+
+/**
+ * Writes the first length bytes of the data file copy to a file of the given
+ * name, for the tests that read the published date from a file.
+ */
+static void writeFile(
+	const char *path,
+	const std::vector<unsigned char> &bytes,
+	size_t length) {
+	ASSERT_EQ(
+		FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileWrite(path, bytes.data(), length)) <<
+		"Could not write '" << path << "'.";
+}
+
+/** A file the tests below write and remove. */
+static const std::string fromFileNameValue =
+	testProcessName("IpiDateTests-FromFile") + ".ipi";
+static const char *fromFileName = fromFileNameValue.c_str();
+
+/**
+ * Test that the published date read from a data file without loading it is
+ * the date in its header.
+ */
+TEST_F(IpiDateTests, FromFile_GivesThePublishedDate) {
+	fiftyoneDegreesDate date = makeDate(1, 1, 1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesIpiGetPublishedFromFile(dataFilePath.c_str(), &date));
+	expectDate(getDate(publishedPosition), date, "published, from the file");
+}
+
+/**
+ * Test that only the header is read, as a file holding nothing but the
+ * header of the data file gives the same date.
+ */
+TEST_F(IpiDateTests, FromFile_ReadsOnlyTheHeader) {
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetIpiHeader)));
+	fiftyoneDegreesDate date = makeDate(1, 1, 1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesIpiGetPublishedFromFile(fromFileName, &date));
+	expectDate(getDate(publishedPosition), date, "published, from the header");
+	remove(fromFileName);
+}
+
+/**
+ * Test that a file that does not exist gives its status and a zero date.
+ */
+TEST_F(IpiDateTests, FromFile_MissingFile) {
+	fiftyoneDegreesDate date = makeDate(1, 1, 1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_FILE_NOT_FOUND,
+		fiftyoneDegreesIpiGetPublishedFromFile(
+			"IpiDateTests-NoSuchFile.ipi",
+			&date));
+	expectDate(makeDate(0, 0, 0), date, "a file that does not exist");
+}
+
+/**
+ * Test that a file shorter than the header is corrupt and gives a zero date.
+ */
+TEST_F(IpiDateTests, FromFile_ShorterThanTheHeader) {
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetIpiHeader) - 1));
+	fiftyoneDegreesDate date = makeDate(1, 1, 1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+		fiftyoneDegreesIpiGetPublishedFromFile(fromFileName, &date));
+	expectDate(makeDate(0, 0, 0), date, "a file shorter than the header");
+	remove(fromFileName);
+}
+
+/**
+ * Test that a file of another version is not read as an IP Intelligence data file.
+ */
+TEST_F(IpiDateTests, FromFile_OtherVersion) {
+	const int32_t major = 3;
+	memcpy(
+		data.data() + offsetof(fiftyoneDegreesDataSetIpiHeader, versionMajor),
+		&major,
+		sizeof(major));
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetIpiHeader)));
+	fiftyoneDegreesDate date = makeDate(1, 1, 1);
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_INCORRECT_VERSION,
+		fiftyoneDegreesIpiGetPublishedFromFile(fromFileName, &date));
+	expectDate(makeDate(0, 0, 0), date, "a file of version 3");
+	remove(fromFileName);
+}
+
+/**
+ * Test that a header whose published date is not valid is corrupt and gives
+ * a zero date, so a caller never compares an invalid date.
+ */
+TEST_F(IpiDateTests, FromFile_InvalidDate) {
+	for (const InvalidDate &invalid : invalidDates) {
+		setDate(
+			publishedPosition,
+			makeDate(invalid.year, invalid.month, invalid.day));
+		ASSERT_NO_FATAL_FAILURE(writeFile(
+			fromFileName,
+			data,
+			sizeof(fiftyoneDegreesDataSetIpiHeader)));
+		fiftyoneDegreesDate date = makeDate(1, 1, 1);
+		EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+			fiftyoneDegreesIpiGetPublishedFromFile(fromFileName, &date)) <<
+			invalid.name;
+		expectDate(makeDate(0, 0, 0), date, invalid.name);
+		remove(fromFileName);
+	}
+}
+
+/**
+ * Gets the status the engine throws for a file that gives no published date,
+ * or fails the test when it gives a date instead.
+ */
+static fiftyoneDegreesStatusCode getEngineFromFileStatus(const char *path) {
+	try {
+		FiftyoneDegrees::IpIntelligence::EngineIpi::getPublishedTimeFromFile(
+			path);
+	}
+	catch (const FiftyoneDegrees::Common::StatusCodeException &e) {
+		return e.getCode();
+	}
+	ADD_FAILURE() << "A date was given for '" << path << "'.";
+	return FIFTYONE_DEGREES_STATUS_SUCCESS;
+}
+
+/**
+ * Reads the published date from the bytes of a data file at its fixed offset,
+ * rather than through the header struct. The year is a 16 bit little-endian
+ * integer, followed by a byte for the month and a byte for the day.
+ */
+static void readPublishedBytes(
+	const std::string &path,
+	fiftyoneDegreesDate *date) {
+	unsigned char bytes[4];
+	FILE *file = nullptr;
+	fiftyoneDegreesFileOpen(path.c_str(), &file);
+	ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";
+	size_t read = 0;
+	if (fseek(file, (long)publishedFileOffset, SEEK_SET) == 0) {
+		read = fread(bytes, 1, sizeof(bytes), file);
+	}
+	fclose(file);
+	ASSERT_EQ(sizeof(bytes), read) << "Could not read '" << path << "'.";
+	int16_t year;
+	memcpy(&year, bytes, sizeof(year));
+	*date = makeDate(year, bytes[2], bytes[3]);
+}
+
+/**
+ * Tests that need only an IP Intelligence data file, the Lite or Enterprise
+ * one, and not the ASN file.
+ */
+class IpiDataFileDateTests : public Base {};
+
+/**
+ * Test that the engine's date read from each data file found is the date in
+ * the bytes of its header, and the date an engine that loaded the same file
+ * gives.
+ */
+TEST_F(IpiDataFileDateTests, Engine_FromFile_MatchesTheLoadedEngine) {
+	int found = 0;
+	for (int i = 0; i < _IpiFileNamesLength; i++) {
+		const std::string path = GetFilePath(_dataFolderName, _IpiFileNames[i]);
+		if (path.empty()) {
+			continue;
+		}
+		found++;
+		const FiftyoneDegrees::Common::Date fromFile =
+			FiftyoneDegrees::IpIntelligence::EngineIpi::
+			getPublishedTimeFromFile(path);
+		fiftyoneDegreesDate onDisk = makeDate(1, 1, 1);
+		ASSERT_NO_FATAL_FAILURE(readPublishedBytes(path, &onDisk));
+		expectDate(onDisk, fromFile, _IpiFileNames[i]);
+		FiftyoneDegrees::IpIntelligence::ConfigIpi config;
+		FiftyoneDegrees::Common::RequiredPropertiesConfig properties;
+		FiftyoneDegrees::IpIntelligence::EngineIpi engine(
+			path,
+			&config,
+			&properties);
+		const FiftyoneDegrees::Common::Date loaded =
+			engine.getPublishedTime();
+		EXPECT_NE(0, fromFile.getYear()) << _IpiFileNames[i];
+		EXPECT_EQ(loaded.getYear(), fromFile.getYear()) << _IpiFileNames[i];
+		EXPECT_EQ(loaded.getMonth(), fromFile.getMonth()) << _IpiFileNames[i];
+		EXPECT_EQ(loaded.getDay(), fromFile.getDay()) << _IpiFileNames[i];
+	}
+	EXPECT_LT(0, found) << "No data file was found.";
+}
+
+/**
+ * Test that the engine throws the status for a file that does not exist
+ * rather than giving a date.
+ */
+TEST_F(IpiDateTests, Engine_FromFile_MissingFile) {
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_FILE_NOT_FOUND,
+		getEngineFromFileStatus("IpiDateTests-NoSuchFile.ipi"));
+}
+
+/**
+ * Test that the engine throws the status for a file shorter than the header
+ * rather than giving a date.
+ */
+TEST_F(IpiDateTests, Engine_FromFile_ShorterThanTheHeader) {
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetIpiHeader) - 1));
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+		getEngineFromFileStatus(fromFileName));
+	remove(fromFileName);
+}
+
+/**
+ * Test that the engine throws the corrupt data status for a file whose
+ * published date is zero rather than giving a date.
+ */
+TEST_F(IpiDateTests, Engine_FromFile_ZeroDate) {
+	setDate(publishedPosition, makeDate(0, 0, 0));
+	ASSERT_NO_FATAL_FAILURE(writeFile(
+		fromFileName,
+		data,
+		sizeof(fiftyoneDegreesDataSetIpiHeader)));
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_CORRUPT_DATA,
+		getEngineFromFileStatus(fromFileName));
+	remove(fromFileName);
 }

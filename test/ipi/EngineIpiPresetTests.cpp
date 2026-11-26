@@ -240,6 +240,27 @@ static uint32_t presetCacheCapacity(const fiftyoneDegreesCollection* cached) {
 		->cache->capacity;
 }
 
+// The capacity that fiftyoneDegreesCacheCreate in src/common/cache.c gives a
+// cache asked for the capacity and concurrency given, by the same rule. It
+// makes one shard for each operation that can run at once, or fewer when the
+// capacity is too small, and gives each shard the remainder of the capacity
+// over the shards on top of its share, so the total is more than asked for
+// whenever the shards do not divide the capacity.
+static uint32_t presetExpectedCacheCapacity(
+	uint32_t capacity,
+	uint16_t concurrency) {
+	if (concurrency == 0) {
+		concurrency = 1;
+	}
+	if (capacity < concurrency) {
+		capacity = concurrency;
+	}
+	const uint32_t shards = capacity / concurrency < concurrency ?
+		capacity / concurrency :
+		concurrency;
+	return (capacity % shards + capacity / shards) * shards;
+}
+
 // The state of a held collection, laid out as collectionHeld in
 // src/common/collection.c, which the tests read to report and check what is
 // held.
@@ -908,9 +929,14 @@ TEST_F(IpiPresetTests, HighPerformanceKeepsStringsNeededInFullHeld) {
 }
 
 TEST_F(IpiPresetTests, NamingNothingKeepsThePreset) {
+	// The cache's capacity depends on the concurrency, which the preset leaves
+	// to the number of processors. A fixed concurrency of 64, which does not
+	// divide the capacity of 20000, gives the same answer on any machine.
+	fiftyoneDegreesConfigIpi config = fiftyoneDegreesIpiBalancedConfig;
+	config.profiles.concurrency = 64;
 	PresetManager manager(
 		dataFilePath,
-		fiftyoneDegreesIpiBalancedConfig,
+		config,
 		nullptr);
 	{
 		PresetDataSet dataSet(&manager.manager);
@@ -920,7 +946,9 @@ TEST_F(IpiPresetTests, NamingNothingKeepsThePreset) {
 		EXPECT_STREQ(presetHeldType, dataSet->values->typeName);
 		EXPECT_STREQ(presetCacheType, dataSet->profiles->typeName);
 		EXPECT_EQ(
-			fiftyoneDegreesIpiBalancedConfig.profiles.capacity,
+			presetExpectedCacheCapacity(
+				fiftyoneDegreesIpiBalancedConfig.profiles.capacity,
+				config.profiles.concurrency),
 			presetCacheCapacity(dataSet->profiles));
 		for (uint32_t g = 0; g < dataSet->graphsArray->count; g++) {
 			EXPECT_STREQ(
@@ -1795,13 +1823,14 @@ TEST_F(IpiPresetTests, EngineMetaDataMatches) {
  */
 class IpiPresetThreadTests : public IpiPresetTests {
 public:
-	static void runThread(void* state) {
+	static TEST_THREAD_RESULT runThread(void* state) {
 		IpiPresetThreadTests* const test = (IpiPresetThreadTests*)state;
 		if (presetAnswers(test->threadManager, test->threadAddresses) !=
 			test->threadExpected) {
 			test->threadFailures++;
 		}
-		FIFTYONE_DEGREES_THREAD_EXIT;
+		// Returning ends the thread, as FIFTYONE_DEGREES_THREAD_EXIT would.
+		return TEST_THREAD_DONE;
 	}
 	void TearDown() override {
 		vector<string>().swap(threadAddresses);
@@ -1828,7 +1857,7 @@ TEST_F(IpiPresetThreadTests, ThreadsGetTheSameAnswers) {
 	threadExpected = presetAnswers(threadManager, threadAddresses);
 	runThreads(
 		4,
-		(FIFTYONE_DEGREES_THREAD_ROUTINE)IpiPresetThreadTests::runThread);
+		IpiPresetThreadTests::runThread);
 	EXPECT_EQ(0, threadFailures.load());
 }
 
@@ -1874,7 +1903,8 @@ protected:
 	string tempFilePath;
 
 	void readSmallFile(const string& path) {
-		FILE* file = fopen(path.c_str(), "rb");
+		FILE* file = nullptr;
+		fiftyoneDegreesFileOpen(path.c_str(), &file);
 		ASSERT_NE(nullptr, file);
 		fseek(file, 0, SEEK_END);
 		data.resize((size_t)ftell(file));
@@ -1897,11 +1927,12 @@ protected:
 		close(descriptor);
 #endif
 		tempFilePath = path;
-		FILE* file = fopen(tempFilePath.c_str(), "wb");
-		ASSERT_NE(nullptr, file);
-		const size_t written = fwrite(data.data(), 1, data.size(), file);
-		fclose(file);
-		ASSERT_EQ(data.size(), written);
+		ASSERT_EQ(
+			FIFTYONE_DEGREES_STATUS_SUCCESS,
+			fiftyoneDegreesFileWrite(
+				tempFilePath.c_str(),
+				data.data(),
+				data.size()));
 	}
 
 	const fiftyoneDegreesDataSetIpiHeader* header() const {

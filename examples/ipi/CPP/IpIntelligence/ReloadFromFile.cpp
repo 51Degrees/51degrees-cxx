@@ -27,6 +27,12 @@
 #include "../../../../src/ipi/EngineIpi.hpp"
 #include "ExampleBase.hpp"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-cpp-ipintelligence-reloadfromfile.cpp"
+
 using namespace std;
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
@@ -111,7 +117,7 @@ namespace FiftyoneDegrees {
 			public:
 				/**
 				 * @copydoc ExampleBase::ExampleBase(string, IpIntelligence::ConfigIpi*)
-				 * @param ipAddressFilePath path to the CSV file containing the
+				 * @param ipAddressFilePath path to the YAML evidence file containing the
 				 * IP Addresses to process
 				 */
 				ReloadFromFile(
@@ -138,7 +144,7 @@ namespace FiftyoneDegrees {
 								engine->refreshData();
 								numberOfReloads++;
 							}
-							catch (StatusCodeException e) {
+							catch (const StatusCodeException &) {
 								numberOfReloadFails++;
 							}
 #ifdef _MSC_VER
@@ -156,7 +162,7 @@ namespace FiftyoneDegrees {
 							engine->refreshData();
 							numberOfReloads++;
 						}
-						catch (StatusCodeException e) {
+						catch (const StatusCodeException &) {
 							numberOfReloadFails++;
 						}
 						state.processIpAddressesSingle();
@@ -168,6 +174,7 @@ namespace FiftyoneDegrees {
 
 					// On a free data file, say what the Enterprise data file
 					// adds and where to ask for a copy.
+					reportEnterpriseProperties();
 					offerEnterprise(
 						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-ipintelligence-reloadfromfile.cpp&utm_term=free-data-file");
 					printf("Program execution complete. Press Return to exit.");
@@ -180,6 +187,8 @@ namespace FiftyoneDegrees {
 	}
 }
 
+#ifndef TEST
+
 /**
  * Main entry point.
  */
@@ -189,17 +198,18 @@ int main(int argc, char* argv[]) {
 	char ipAddressFilePath[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char* envDataFilePath = ExampleBase::getDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = ExampleBase::copyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = ExampleBase::copyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = ExampleBase::getFilePath(
@@ -217,7 +227,10 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (argc > 2) {
-		strcpy(ipAddressFilePath, argv[2]);
+		status = ExampleBase::copyPath(
+			argv[2],
+			ipAddressFilePath,
+			sizeof(ipAddressFilePath));
 	}
 	else {
 		status = ExampleBase::getFilePath(
@@ -234,11 +247,6 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-#ifdef _DEBUG
-#ifndef _MSC_VER
-	dmalloc_debug_setup("log-stats,log-non-free,check-fence,log=dmalloc.log");
-#endif
-#endif
 	auto const config = std::make_shared<ConfigIpi>();
 	config->setConcurrency(THREAD_COUNT);
 	try {
@@ -256,10 +264,11 @@ int main(int argc, char* argv[]) {
 #ifdef _DEBUG
 #ifdef _MSC_VER
 	_CrtDumpMemoryLeaks();
-#else
-	printf("Log file is %s\r\n", dmalloc_logpath);
 #endif
 #endif
+
+	// End with where to find out more.
+	ExampleBase::findOutMore(FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 #ifndef TEST
@@ -268,3 +277,5 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
+
+#endif

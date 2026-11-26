@@ -42,9 +42,15 @@ using namespace FiftyoneDegrees::DeviceDetection::Hash;
 
 class EngineHashInitTests : public Base {
 public:
-    const char* badVersionFileName = "badVersion.hash";
-    const char* badDataFileName = "badData.hash";
-    const char* smallDataFileName = "smallData.hash";
+    const std::string badVersionFileNameValue =
+        testProcessName("badVersion") + ".hash";
+    const std::string badDataFileNameValue =
+        testProcessName("badData") + ".hash";
+    const std::string smallDataFileNameValue =
+        testProcessName("smallData") + ".hash";
+    const char* badVersionFileName = badVersionFileNameValue.c_str();
+    const char* badDataFileName = badDataFileNameValue.c_str();
+    const char* smallDataFileName = smallDataFileNameValue.c_str();
     const int32_t badVersion[4] = { 1, 2, 3, 4 };
     const int32_t goodVersion[4] = { 4, 1, 0, 0 };
     virtual void SetUp() {

@@ -67,20 +67,19 @@ static const int valuesCount = sizeof(_values) / sizeof(char*);
  * Load the string value of an integer from zero to nineteen into the node data.
  * Frees old data if there is any.
  */
-#pragma warning(push)
-#pragma warning(disable: 4100)
 static void load(
-	const void *state, 
-	Data *data, 
-	const void *key, 
+	const void *state,
+	Data *data,
+	const void *key,
 	fiftyoneDegreesException *exception) {
+	(void)state;
+	(void)exception;
 	const char *value = _values[*(int32_t*)key];
 	size_t size = (strlen(value) + 1) * sizeof(char);
 	DataMalloc(data, size);
-	strcpy((char*)data->ptr, value);
+	memcpy(data->ptr, value, size);
 	data->used = (uint32_t)size;
 }
-#pragma warning(pop)
 
 // Used to control multi threaded performance.
 typedef struct t_performance_state {
@@ -168,7 +167,20 @@ static void executePerformanceTest(int key, void *state) {
 	}
 }
 
-void runPerformanceTest(void* state) {
+/*
+ * The return type of the thread routine, and the value it returns, so that it
+ * has the type FIFTYONE_DEGREES_THREAD_CREATE takes and is passed without a
+ * cast. On Windows that includes the calling convention CreateThread uses.
+ */
+#ifdef _MSC_VER
+#define CACHE_PERF_THREAD_RESULT DWORD WINAPI
+#define CACHE_PERF_THREAD_DONE 0
+#else
+#define CACHE_PERF_THREAD_RESULT void*
+#define CACHE_PERF_THREAD_DONE NULL
+#endif
+
+CACHE_PERF_THREAD_RESULT runPerformanceTest(void* state) {
 	int i;
 	performanceThreadState threadState;
 	threadState.state = (performanceState*)state;
@@ -179,9 +191,8 @@ void runPerformanceTest(void* state) {
 		executePerformanceTest(rand() % valuesCount, &threadState);
 	}
 
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-	FIFTYONE_DEGREES_THREAD_EXIT;
-#endif
+	// Returning ends the thread, as FIFTYONE_DEGREES_THREAD_EXIT would.
+	return CACHE_PERF_THREAD_DONE;
 }
 
 /**
@@ -202,7 +213,7 @@ void performanceTest(performanceState *state) {
 	for (thread = 0; thread < state->numberOfThreads; thread++) {
 		FIFTYONE_DEGREES_THREAD_CREATE(
 			threads[thread],
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)&runPerformanceTest,
+			runPerformanceTest,
 			state);
 	}
 
@@ -285,12 +296,19 @@ void printTime(performanceState *state, double totalSec) {
 void outputTime(performanceState *state, double totalSec, const char *outFile) {
 	double cps = (double)state->count / totalSec;
 
-	FILE *file = fopen(outFile, "w");
-	fprintf(file, "{\n");
-	fprintf(file, "  \"CacheFetchesPerSecond\": %.2f,\n", cps);
-	fprintf(file, "  \"CacheFetchesPerSecondPerThread\": %.2f\n", cps / (double)state->numberOfThreads);
-	fprintf(file, "}");
-	fclose(file);
+	char json[256];
+	const int length = Snprintf(
+		json,
+		sizeof(json),
+		"{\n"
+		"  \"CacheFetchesPerSecond\": %.2f,\n"
+		"  \"CacheFetchesPerSecondPerThread\": %.2f\n"
+		"}",
+		cps,
+		cps / (double)state->numberOfThreads);
+	if (length > 0 && (size_t)length < sizeof(json)) {
+		fiftyoneDegreesFileWrite(outFile, json, (size_t)length);
+	}
 }
 
 /**
@@ -366,8 +384,6 @@ void performance(int passes, const char* outFile) {
 /**
  * The main method used by the command line test routine.
  */
-#pragma warning(push)
-#pragma warning(disable: 4100)
 int main(int argc, char* argv[]) {
 	printf("\n");
 	printf("\t#############################################################\n");
@@ -394,4 +410,3 @@ int main(int argc, char* argv[]) {
 	
 	return 0;
 }
-#pragma warning(pop)

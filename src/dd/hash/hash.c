@@ -314,7 +314,7 @@ typedef struct find_data_set_header_state_t {
 #undef FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY
 #define FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY true
 fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig = {
-	FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX,
+	{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX },
 	{false,0,0}, // Strings
 	{false,0,0}, // Components
 	{false,0,0}, // Maps
@@ -336,7 +336,7 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashInMemoryConfig = {
 FIFTYONE_DEGREES_CONFIG_ALL_IN_MEMORY_DEFAULT
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig = {
-	FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX,
+	{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_WITH_INDEX },
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Strings
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Components
 	{ true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Maps
@@ -355,7 +355,7 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashHighPerformanceConfig = {
 };
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
-	FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX,
+	{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX },
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Strings
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Components
 	{ false, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, // Maps
@@ -374,7 +374,7 @@ fiftyoneDegreesConfigHash fiftyoneDegreesHashLowMemoryConfig = {
 };
 
 #define FIFTYONE_DEGREES_HASH_CONFIG_BALANCED \
-FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX, \
+{ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX }, \
 { false, 10000, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Strings */ \
 { true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Components */ \
 { true, 0, FIFTYONE_DEGREES_CACHE_CONCURRENCY }, /* Maps */ \
@@ -388,7 +388,8 @@ FIFTYONE_DEGREES_DEVICE_DETECTION_CONFIG_DEFAULT_NO_INDEX, \
 0, \
 false, /* Performance graph */ \
 true,  /* Predictive graph */ \
-false /* Trace */
+false, /* Trace */ \
+false /* Load required properties only */
 
 fiftyoneDegreesConfigHash fiftyoneDegreesHashBalancedConfig = {
 	FIFTYONE_DEGREES_HASH_CONFIG_BALANCED
@@ -605,7 +606,7 @@ static void setNextNode(detectionState *state, int32_t offset) {
 			state->dataSet->nodes,
 			(uint32_t)offset,
 			&state->node,
-			state->exception);
+			exception);
 
 		// Set the first and last indexes.
 		if (node != NULL && EXCEPTION_OKAY) {
@@ -1138,7 +1139,22 @@ static bool processFromRoot(
 		state->complete = false;
 	}
 
+	// A route through a valid graph visits each node at most once, so it is
+	// never longer than the number of nodes in the graph. A route that is
+	// longer has met a cycle, which only a corrupt node can make. A streaming
+	// profile reads nodes on demand, and where its file handles are shared,
+	// as they are with processes forked after the data set was created, a
+	// node can be read from the wrong place. Report corrupt data rather than
+	// follow the cycle forever.
+	const uint32_t maxSteps = dataSet->header.nodes.count;
+	uint32_t steps = 0;
 	do {
+		if (steps++ >= maxSteps) {
+			COLLECTION_RELEASE(dataSet->nodes, &state->node);
+			state->node.data.ptr = NULL;
+			EXCEPTION_SET(CORRUPT_DATA);
+			return false;
+		}
 		if (NODE(state)->hashesCount == 1) {
 			// If there is only 1 hash then it's a binary node.
 			evaluateBinaryNode(state);
@@ -1150,7 +1166,7 @@ static bool processFromRoot(
 		state->iterations++;
 		state->currentDepth++;
 	} while (state->complete == false && EXCEPTION_OKAY);
-	if (EXCEPTION_OKAY == false) {
+	if (EXCEPTION_FAILED) {
 		return false;
 	}
 	return state->matchedNodes > previouslyMatchedNodes;
@@ -1188,10 +1204,16 @@ static bool processRoot(
 	detectionState* state,
 	DataSetHash* dataSet,
 	uint32_t rootNodeOffset) {
-	
+	Exception *exception = state->exception;
+	(void)exception; // Not used when exceptions are disabled.
+
 	// Initial result without drift or difference being applied.
 	bool matched = processFromRoot(dataSet, rootNodeOffset, state);
 	if (matched) return true;
+
+	// A walk that failed, for example on a corrupt node, fails again from
+	// the same root, so do not repeat it with drift or difference.
+	if (EXCEPTION_FAILED) return false;
 
 	// Record the depth in case more attempts are needed.
 	int depth = state->currentDepth;
@@ -1200,7 +1222,7 @@ static bool processRoot(
 	if (dataSet->config.difference > 0) {
 		state->allowedDifference = dataSet->config.difference;
 		state->breakDepth = depth;
-		while (matched == false && state->breakDepth > 0) {
+		while (matched == false && state->breakDepth > 0 && EXCEPTION_OKAY) {
 			matched = processFromRoot(dataSet, rootNodeOffset, state);
 			state->breakDepth--;
 		}
@@ -1212,7 +1234,7 @@ static bool processRoot(
 	if (dataSet->config.drift > 0) {
 		state->allowedDrift = dataSet->config.drift;
 		state->breakDepth = depth;
-		while (matched == false && state->breakDepth > 0) {
+		while (matched == false && state->breakDepth > 0 && EXCEPTION_OKAY) {
 
 			matched = processFromRoot(dataSet, rootNodeOffset, state);
 			state->breakDepth--;
@@ -1227,7 +1249,7 @@ static bool processRoot(
 		state->allowedDifference = dataSet->config.difference;
 		state->allowedDrift = dataSet->config.drift;
 		state->breakDepth = depth;
-		while (matched == false && state->breakDepth > 0) {
+		while (matched == false && state->breakDepth > 0 && EXCEPTION_OKAY) {
 			matched = processFromRoot(dataSet, rootNodeOffset, state);
 			state->breakDepth--;
 		}
@@ -1243,7 +1265,9 @@ static bool processRoots(
 	uint32_t componentIndex,
 	Component *component,
 	HashRootNodes *rootNodes) {
+	Exception *exception = state->exception;
 	bool matched = false;
+	(void)exception; // Not used when exceptions are disabled.
 
 	// First try searching in the performance graph if it is enabled.
 	if (dataSet->config.usePerformanceGraph == true) {
@@ -1271,7 +1295,9 @@ static bool processRoots(
 
 	// Now try searching in the predictive graph if it is enabled and there was
 	// no match found in the performance graph.
-	if (matched == false && dataSet->config.usePredictiveGraph == true) {
+	if (matched == false &&
+		EXCEPTION_OKAY &&
+		dataSet->config.usePredictiveGraph == true) {
 #ifdef DEBUG
 		if (dataSet->config.traceRoute == true) {
 			// Add the start point to the trace if it is enabled (and we are in
@@ -1385,6 +1411,7 @@ static HashValueProfiles* valueProfilesCreateNames(
 	size_t length;
 	char *copy;
 	HashValueProfiles *index;
+	(void)exception; // Not used when exceptions are disabled.
 	for (i = 0; i < namesCount; i++) {
 		if (valueProfilesIsNewName(names, i)) {
 			chars += strlen(names[i]) + 1;
@@ -1527,8 +1554,8 @@ static StatusCode valueProfilesRead(
 	Exception *exception) {
 	Item item;
 	Profile *profile;
-	const uint32_t *values;
-	uint32_t i, position, key, r, v;
+	const byte *values;
+	uint32_t i, position, key, r, v, value;
 	const uint32_t count = CollectionGetCount(dataSet->profileOffsets);
 	DataReset(&item.data);
 	for (i = 0; i < count; i++) {
@@ -1548,20 +1575,23 @@ static StatusCode valueProfilesRead(
 
 		// The values of a profile and the ranges are both in ascending order
 		// of value index, so one walk along both finds each value with a key.
-		values = (const uint32_t*)(profile + 1);
+		// The value indexes follow the packed profile, so they can start at
+		// any byte.
+		values = (const byte*)(profile + 1);
 		r = 0;
 		v = 0;
 		while (v < profile->valueCount && r < rangesCount) {
-			if (values[v] < ranges[r].firstValueIndex) {
+			value = UnalignedReadUint32(values + (size_t)v * sizeof(uint32_t));
+			if (value < ranges[r].firstValueIndex) {
 				v++;
 			}
-			else if (values[v] - ranges[r].firstValueIndex >=
+			else if (value - ranges[r].firstValueIndex >=
 				ranges[r].valuesCount) {
 				r++;
 			}
 			else {
 				key = ranges[r].firstKey +
-					(values[v] - ranges[r].firstValueIndex);
+					(value - ranges[r].firstValueIndex);
 				if (fill == false) {
 					index->starts[key]++;
 				}
@@ -2351,7 +2381,7 @@ static void initGetHighEntropyValues(
 		exception);
 
 	// Clean up if an exception occurred, such as a failed allocation.
-	if (!EXCEPTION_OKAY) {
+	if (EXCEPTION_FAILED) {
 		if (dataSet->b.ghevHeaders != NULL) {
 			Free(dataSet->b.ghevHeaders);
 		}
@@ -2386,14 +2416,18 @@ static StatusCode readHeaderFromMemory(
 		SUCCESS : CORRUPT_DATA;
 }
 
-static StatusCode checkVersion(DataSetHash *dataSet) {
-	if (!(dataSet->header.versionMajor ==
+static StatusCode checkHeaderVersion(const DataSetHashHeader *header) {
+	if (!(header->versionMajor ==
 		FIFTYONE_DEGREES_HASH_TARGET_VERSION_MAJOR &&
-		dataSet->header.versionMinor ==
+		header->versionMinor ==
 		FIFTYONE_DEGREES_HASH_TARGET_VERSION_MINOR)) {
 		return INCORRECT_VERSION;
 	}
 	return SUCCESS;
+}
+
+static StatusCode checkVersion(DataSetHash *dataSet) {
+	return checkHeaderVersion(&dataSet->header);
 }
 
 /**
@@ -2478,31 +2512,33 @@ static StatusCode initWithMemory(
 
 	// Create each of the collections.
 	uint32_t stringsCount = dataSet->header.strings.count;
-	*(uint32_t*)(&dataSet->header.strings.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, 0);
 	COLLECTION_CREATE_MEMORY(strings)
-	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, stringsCount);
 
 	// Override the header count so that the variable collection can work.
 	uint32_t componentCount = dataSet->header.components.count;
-	*(uint32_t*)(&dataSet->header.components.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.components.count, 0);
 	COLLECTION_CREATE_MEMORY(components)
-	*(uint32_t*)(&dataSet->header.components.count) = componentCount;
+	UnalignedWriteUint32(
+		(void*)&dataSet->header.components.count,
+		componentCount);
 
 	COLLECTION_CREATE_MEMORY(maps)
 	COLLECTION_CREATE_MEMORY(properties)
 	COLLECTION_CREATE_MEMORY(values)
 		
 	uint32_t profileCount = dataSet->header.profiles.count;
-	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, 0);
 	COLLECTION_CREATE_MEMORY(profiles)
-	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, profileCount);
 		
 	COLLECTION_CREATE_MEMORY(rootNodes);
 
 	uint32_t nodesCount = dataSet->header.nodes.count;
-	*(uint32_t*)(&dataSet->header.nodes.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, 0);
 	COLLECTION_CREATE_MEMORY(nodes)
-	*(uint32_t*)(&dataSet->header.nodes.count) = nodesCount;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, nodesCount);
 
 	COLLECTION_CREATE_MEMORY(profileOffsets)
 
@@ -2535,8 +2571,6 @@ static StatusCode initInMemory(
 }
 
 static void initDataSet(DataSetHash *dataSet, ConfigHash **config) {
-	EXCEPTION_CREATE
-
 	// If no config has been provided then use the balanced configuration.
 	if (*config == NULL) {
 		*config = &HashBalancedConfig;
@@ -2905,18 +2939,20 @@ static StatusCode readDataSetFromFile(
 		}
 	}
 	uint32_t stringsCount = dataSet->header.strings.count;
-	*(uint32_t*)(&dataSet->header.strings.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, 0);
 	COLLECTION_CREATE_FILE_WITH_CONFIG(
 		strings,
 		fiftyoneDegreesStringRead,
 		heldConfig(&dataSet->config.strings, *hold));
-	*(uint32_t*)(&dataSet->header.strings.count) = stringsCount;
+	UnalignedWriteUint32((void*)&dataSet->header.strings.count, stringsCount);
 
 	// Override the header count so that the variable collection can work.
 	uint32_t componentCount = dataSet->header.components.count;
-	*(uint32_t*)(&dataSet->header.components.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.components.count, 0);
 	COLLECTION_CREATE_FILE(components, fiftyoneDegreesComponentReadFromFile);
-	*(uint32_t*)(&dataSet->header.components.count) = componentCount;
+	UnalignedWriteUint32(
+		(void*)&dataSet->header.components.count,
+		componentCount);
 	dataSet->components->count = componentCount;
 
 	COLLECTION_CREATE_FILE(maps, CollectionReadFileFixed);
@@ -2925,17 +2961,17 @@ static StatusCode readDataSetFromFile(
 
 	// Override the header count so that the variable collection can work.
 	uint32_t profileCount = dataSet->header.profiles.count;
-	*(uint32_t*)(&dataSet->header.profiles.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, 0);
 	COLLECTION_CREATE_FILE(profiles, fiftyoneDegreesProfileReadFromFile);
-	*(uint32_t*)(&dataSet->header.profiles.count) = profileCount;
+	UnalignedWriteUint32((void*)&dataSet->header.profiles.count, profileCount);
 	dataSet->profiles->count = profileCount;
 
 	COLLECTION_CREATE_FILE(rootNodes, CollectionReadFileFixed);
 
 	uint32_t nodesCount = dataSet->header.nodes.count;
-	*(uint32_t*)(&dataSet->header.nodes.count) = 0;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, 0);
 	COLLECTION_CREATE_FILE(nodes, fiftyoneDegreesGraphNodeReadFromFile);
-	*(uint32_t*)(&dataSet->header.nodes.count) = nodesCount;
+	UnalignedWriteUint32((void*)&dataSet->header.nodes.count, nodesCount);
 
 	COLLECTION_CREATE_FILE(profileOffsets, CollectionReadFileFixed);
 
@@ -2943,6 +2979,8 @@ static StatusCode readDataSetFromFile(
 }
 
 #endif
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
 /**
  * Calculates the highest concurrency value to ensure sufficient file reader
@@ -2964,8 +3002,6 @@ static uint16_t getMaxConcurrency(const ConfigHash *config) {
 	MAX_CONCURRENCY(profileOffsets);
 	return concurrency;
 }
-
-#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
 static StatusCode initWithFile(
 	DataSetHash *dataSet,
@@ -3251,12 +3287,8 @@ size_t fiftyoneDegreesHashSizeManagerFromFile(
 	ResourceManager manager;
 	StatusCode status;
 
-	// Set the memory allocation and free methods for tracking.
-	MemoryTrackingReset();
-	Malloc = MemoryTrackingMalloc;
-	MallocAligned = MemoryTrackingMallocAligned;
-	Free = MemoryTrackingFree;
-	FreeAligned = MemoryTrackingFreeAligned;
+	// Count the memory this thread allocates, and no other thread's.
+	MemoryTrackingStartMeasuring();
 
 	// Initialise the manager with the tracking methods in use to determine
 	// the amount of memory that is allocated. The init method has freed its
@@ -3283,11 +3315,7 @@ size_t fiftyoneDegreesHashSizeManagerFromFile(
 	assert(MemoryTrackingGetAllocated() == 0);
 
 	// Return the malloc and free methods to standard operation.
-	Malloc = MemoryStandardMalloc;
-	MallocAligned = MemoryStandardMallocAligned;
-	Free = MemoryStandardFree;
-	FreeAligned = MemoryStandardFreeAligned;
-	MemoryTrackingReset();
+	MemoryTrackingStopMeasuring();
 
 	return allocated;
 }
@@ -3313,6 +3341,12 @@ static StatusCode initDataSetFromMemoryIndexing(
 	// pointer to the memory location for future reference.
 	if (dataSet->config.b.b.freeData == true) {
 		dataSet->b.b.memoryToFree = memory;
+	}
+
+	// Missing memory cannot be read. Report it before the end of the memory
+	// is worked out, as no offset may be added to a null pointer.
+	if (memory == NULL) {
+		return NULL_POINTER;
 	}
 
 	// Set up the reader.
@@ -3491,12 +3525,8 @@ size_t fiftyoneDegreesHashSizeManagerFromMemory(
 	ResourceManager manager;
 	StatusCode status;
 
-	// Set the memory allocation and free methods for tracking.
-	MemoryTrackingReset();
-	Malloc = MemoryTrackingMalloc;
-	MallocAligned = MemoryTrackingMallocAligned;
-	Free = MemoryTrackingFree;
-	FreeAligned = MemoryTrackingFreeAligned;
+	// Count the memory this thread allocates, and no other thread's.
+	MemoryTrackingStartMeasuring();
 
 	// Ensure that the memory used is not freed with the data set. A null
 	// configuration means the balanced one, as it does in initDataSet.
@@ -3529,11 +3559,7 @@ size_t fiftyoneDegreesHashSizeManagerFromMemory(
 	assert(MemoryTrackingGetAllocated() == 0);
 
 	// Return the malloc and free methods to standard operation.
-	Malloc = MemoryStandardMalloc;
-	MallocAligned = MemoryStandardMallocAligned;
-	Free = MemoryStandardFree;
-	FreeAligned = MemoryStandardFreeAligned;
-	MemoryTrackingReset();
+	MemoryTrackingStopMeasuring();
 
 	return allocated;
 }
@@ -3817,7 +3843,8 @@ static bool setSpecialHeadersCallback(void *state, KeyValuePair header) {
 	detectionComponentState* componentState = (detectionComponentState*)state;
 
 	// Get the existing pair for the header with the same prefix.
-	setSpecialHeadersFindState findState = { &header, NULL };
+	setSpecialHeadersFindState findState = { NULL, NULL };
+	findState.header = &header;
 	EvidenceIterate(
 		componentState->evidence,
 		componentState->specialPrefix,
@@ -4288,6 +4315,7 @@ static void resultsHashFromEvidence_setSpecialHeaders(
 	detectionComponentState* state) {
 	Exception* exception = state->exception;
 	specialHeadersState special = { state, false };
+	(void)exception; // Not used when exceptions are disabled.
 	do {
 		EvidenceIterate(
 			state->evidence,
@@ -4515,6 +4543,7 @@ static void resultsHashFromEvidence_copyEvidence(
 	EvidenceKeyValuePairArray* array;
 	uint32_t pairs = 0, i;
 	size_t textBytes = 0;
+	(void)exception; // Not used when exceptions are disabled.
 	for (array = state->evidence; array != NULL; array = array->next) {
 		for (i = 0; i < array->count; i++) {
 			pairs++;
@@ -4760,7 +4789,9 @@ void fiftyoneDegreesResultsHashFromUserAgent(
 		dataSet->b.uniqueUserAgentHeaderIndex];
 	// Zero-initialise: EvidenceAddPair sets prefix, item, parsedValue and
 	// header but not parsedLength, which would otherwise be stack garbage.
-	EvidenceKeyValuePair pairStorage = { FIFTYONE_DEGREES_EVIDENCE_IGNORE };
+	EvidenceKeyValuePair pairStorage;
+	memset(&pairStorage, 0, sizeof(pairStorage));
+	pairStorage.prefix = FIFTYONE_DEGREES_EVIDENCE_IGNORE;
 	EvidenceKeyValuePairArray evidence;
 	evidence.count = 0;
 	evidence.capacity = 1;
@@ -5105,7 +5136,7 @@ size_t fiftyoneDegreesHashGetEvidenceKeys(
 	size_t added;
 	evidenceKey key, earlier;
 	const size_t separatorLength = separator == NULL ? 0 : strlen(separator);
-	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	for (i = 0; getEvidenceKey(dataSet, i, &key); i++) {
 		if (key.name == NULL) {
@@ -5172,6 +5203,155 @@ bool fiftyoneDegreesHashGetNextUpdate(
 	fiftyoneDegreesResourceManager *manager,
 	fiftyoneDegreesDate *date) {
 	return getHeaderDate(manager, true, date);
+}
+
+fiftyoneDegreesStatusCode fiftyoneDegreesHashGetPublishedFromFile(
+	const char *fileName,
+	fiftyoneDegreesDate *date) {
+	FILE *file = NULL;
+	fiftyoneDegreesDate published;
+	DataSetHashHeader *header;
+	StatusCode status;
+	date->year = 0;
+	date->month = 0;
+	date->day = 0;
+
+	// The header's members are constant, so it is read into allocated memory
+	// rather than into a local that would have to be initialised.
+	header = (DataSetHashHeader*)Malloc(sizeof(DataSetHashHeader));
+	if (header == NULL) {
+		return INSUFFICIENT_MEMORY;
+	}
+	status = FileOpen(fileName, &file);
+	if (status == SUCCESS) {
+		status = fread((void*)header, sizeof(DataSetHashHeader), 1, file) == 1 ?
+			checkHeaderVersion(header) : CORRUPT_DATA;
+		fclose(file);
+	}
+	if (status == SUCCESS) {
+		published = header->published;
+		if (DateIsValid(&published)) {
+			*date = published;
+		}
+		else {
+			status = CORRUPT_DATA;
+		}
+	}
+	Free(header);
+	return status;
+}
+
+/**
+ * The start of the product name of every Hash data file, before the tier.
+ */
+static const char hashProductPrefix[] = "V4";
+
+/**
+ * Reads the tier stored at the position in the file and writes the product
+ * name made from it to the buffer, as
+ * #fiftyoneDegreesHashGetProductFromFile describes. The stored tier is a 16
+ * bit size, counting the terminating null, then the characters.
+ */
+static StatusCode readProductName(
+	FILE *file,
+	uint64_t position,
+	char *buffer,
+	size_t length,
+	size_t *needed) {
+	const size_t prefixLength = sizeof(hashProductPrefix) - 1;
+	char start[sizeof(hashProductPrefix) - 1];
+	uint16_t size;
+	size_t tierLength, startLength, total;
+	bool hasPrefix;
+	char last;
+	const FileOffset offset = (FileOffset)position;
+	if (offset < 0 || (uint64_t)offset != position ||
+		FileSeek(file, offset, SEEK_SET) != 0 ||
+		fread(&size, sizeof(size), 1, file) != 1 ||
+		size < 2) {
+		return CORRUPT_DATA;
+	}
+	tierLength = (size_t)size - 1;
+	startLength = tierLength < prefixLength ? tierLength : prefixLength;
+	if (fread(start, 1, startLength, file) != startLength) {
+		return CORRUPT_DATA;
+	}
+	hasPrefix = startLength == prefixLength &&
+		StringCompareLength(start, hashProductPrefix, prefixLength) == 0;
+	total = (hasPrefix ? 0 : prefixLength) + tierLength + 1;
+	if (total > length) {
+		// The name is not written, but the file must still hold all of it.
+		if (FileSeek(file, (FileOffset)(size - 1 - startLength), SEEK_CUR)
+				!= 0 ||
+			fread(&last, 1, 1, file) != 1 ||
+			last != '\0') {
+			return CORRUPT_DATA;
+		}
+		if (needed != NULL) {
+			*needed = total;
+		}
+		return INSUFFICIENT_CAPACITY;
+	}
+	if (hasPrefix == false) {
+		memcpy(buffer, hashProductPrefix, prefixLength);
+	}
+	memcpy(buffer + total - 1 - tierLength, start, startLength);
+	if (fread(
+			buffer + total - 1 - tierLength + startLength,
+			1,
+			size - startLength,
+			file) != size - startLength ||
+		buffer[total - 1] != '\0' ||
+		strlen(buffer) != total - 1) {
+		buffer[0] = '\0';
+		return CORRUPT_DATA;
+	}
+	if (needed != NULL) {
+		*needed = total;
+	}
+	return SUCCESS;
+}
+
+fiftyoneDegreesStatusCode fiftyoneDegreesHashGetProductFromFile(
+	const char *fileName,
+	char *buffer,
+	size_t length,
+	size_t *needed) {
+	FILE *file = NULL;
+	StatusCode status;
+	// The header's members are constant, so it is read through the bytes it
+	// shares memory with.
+	union {
+		DataSetHashHeader header;
+		byte bytes[sizeof(DataSetHashHeader)];
+	} fromFile;
+	if (needed != NULL) {
+		*needed = 0;
+	}
+	if (length > 0) {
+		if (buffer == NULL) {
+			return NULL_POINTER;
+		}
+		buffer[0] = '\0';
+	}
+	status = FileOpen(fileName, &file);
+	if (status != SUCCESS) {
+		return status;
+	}
+	status = fread(fromFile.bytes, sizeof(fromFile.bytes), 1, file) == 1 ?
+		checkHeaderVersion(&fromFile.header) : CORRUPT_DATA;
+	if (status == SUCCESS) {
+		status = fromFile.header.nameOffset < 0 ? CORRUPT_DATA :
+			readProductName(
+				file,
+				(uint64_t)fromFile.header.strings.startPosition +
+					(uint64_t)fromFile.header.nameOffset,
+				buffer,
+				length,
+				needed);
+	}
+	fclose(file);
+	return status;
 }
 
 /**
@@ -5418,7 +5598,7 @@ static size_t getValuesStringForAvailableIndex(
 	size_t const length,
 	char* const separator,
 	fiftyoneDegreesException *exception) {
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	getValuesStringByAvailableIndex(
 		results,
@@ -5456,7 +5636,7 @@ size_t fiftyoneDegreesResultsHashGetValuesStringAllProperties(
 	size_t const length,
 	char* const separator,
 	fiftyoneDegreesException* exception) {
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	size_t const separatorLen = strlen(separator);
 	DataSetHash* dataSet = (DataSetHash*)results->b.b.dataSet;
@@ -5531,7 +5711,7 @@ size_t fiftyoneDegreesHashGetHardwareProfileScript(
 	char *buffer,
 	size_t length) {
 	size_t added;
-	StringBuilder builder = { buffer, buffer == NULL ? 0 : length };
+	StringBuilder builder = { buffer, buffer == NULL ? 0 : length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	StringBuilderAddChars(
 		&builder,
@@ -6234,6 +6414,358 @@ char* fiftyoneDegreesHashGetPropertyMapText(
 	return result;
 }
 
+/**
+ * Gets the value at `valueIndex` into `item` and returns it, or returns NULL,
+ * releasing a value read with an exception set.
+ */
+static const Value* hashMetaDataValue(
+	DataSetHash * const dataSet,
+	const uint32_t valueIndex,
+	Item * const item,
+	Exception * const exception) {
+	DataReset(&item->data);
+	const Value * const value = ValueGet(
+		dataSet->values,
+		valueIndex,
+		item,
+		exception);
+	if (value != NULL && EXCEPTION_FAILED) {
+		COLLECTION_RELEASE(dataSet->values, item);
+		return NULL;
+	}
+	return value;
+}
+
+bool fiftyoneDegreesHashGetValue(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	uint32_t *propertyIndex,
+	void *state,
+	fiftyoneDegreesValueTextMethod method,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = hashMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return false;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	if (propertyIndex != NULL) {
+		*propertyIndex = (uint32_t)value.propertyIndex;
+	}
+	if (method == NULL) {
+		return true;
+	}
+	for (int text = FIFTYONE_DEGREES_VALUE_TEXT_NAME;
+		text <= FIFTYONE_DEGREES_VALUE_TEXT_URL;
+		text++) {
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		// Every Hash value is stored as a string, so there are no property
+		// types and no decimal places.
+		char * const written = ValueGetMetaDataText(
+			dataSet->strings,
+			NULL,
+			&value,
+			(ValueText)text,
+			0,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (written == NULL) {
+			return false;
+		}
+		method(state, (ValueText)text, written);
+		if (written != buffer) {
+			Free(written);
+		}
+	}
+	return true;
+}
+
+long fiftyoneDegreesHashGetValueIndex(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t propertyIndex,
+	const char *valueName,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Property * const held = hashMetaDataProperty(
+		dataSet,
+		propertyIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return -1;
+	}
+	// A copy, so only one item is held at a time during the search.
+	const Property property = *held;
+	COLLECTION_RELEASE(dataSet->properties, &item);
+	if ((int32_t)property.firstValueIndex == -1) {
+		return -1;
+	}
+	// Every Hash value is stored as a string.
+	const long index = ValueGetIndexByNameAndType(
+		dataSet->values,
+		dataSet->strings,
+		&property,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		valueName,
+		exception);
+	if (index < 0 || EXCEPTION_FAILED) {
+		return -1;
+	}
+	// The search answers as found when it reads nothing for a value, so the
+	// value is only found when it can be read.
+	const Value * const value = hashMetaDataValue(
+		dataSet,
+		(uint32_t)index,
+		&item,
+		exception);
+	if (value == NULL) {
+		return -1;
+	}
+	COLLECTION_RELEASE(dataSet->values, &item);
+	return index;
+}
+
+char* fiftyoneDegreesHashGetValueText(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t valueIndex,
+	fiftyoneDegreesValueText text,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	const Value * const held = hashMetaDataValue(
+		dataSet,
+		valueIndex,
+		&item,
+		exception);
+	if (held == NULL) {
+		return NULL;
+	}
+	// A copy, so the value is released before its strings are read and only
+	// one item is held at a time.
+	const Value value = *held;
+	COLLECTION_RELEASE(dataSet->values, &item);
+	// Every Hash value is stored as a string, so there are no property types
+	// and no decimal places.
+	return ValueGetMetaDataText(
+		dataSet->strings,
+		NULL,
+		&value,
+		text,
+		0,
+		buffer,
+		bufferLength,
+		exception);
+}
+
+/**
+ * An empty string, which is the name of a component the strings collection
+ * gives nothing for. The size of a string counts its terminating null.
+ */
+static const StoredBinaryValue hashNoText = { { 1, '\0' } };
+
+/**
+ * Gets the component at `componentIndex` in the data set's list of
+ * components, or NULL when the index is not less than the count.
+ */
+static const Component* hashMetaDataComponent(
+	DataSetHash * const dataSet,
+	const uint32_t componentIndex) {
+	return componentIndex < dataSet->componentsList.count
+		? (const Component*)dataSet->componentsList.items[
+			componentIndex].data.ptr
+		: NULL;
+}
+
+uint32_t fiftyoneDegreesHashGetComponentCount(
+	fiftyoneDegreesDataSetHash *dataSet) {
+	return dataSet->componentsList.count;
+}
+
+bool fiftyoneDegreesHashGetComponent(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t componentIndex,
+	uint8_t *componentId,
+	uint32_t *defaultProfileId,
+	fiftyoneDegreesException *exception) {
+	const Component * const component = hashMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		return false;
+	}
+	if (defaultProfileId != NULL) {
+		Item item;
+		DataReset(&item.data);
+		const CollectionKey profileKey = {
+			{(uint32_t)component->defaultProfileOffset},
+			CollectionKeyType_Profile,
+		};
+		const Profile * const profile = (const Profile*)dataSet->profiles->get(
+			dataSet->profiles,
+			&profileKey,
+			&item,
+			exception);
+		if (profile == NULL) {
+			return false;
+		}
+		const bool read = EXCEPTION_OKAY;
+		if (read) {
+			*defaultProfileId = profile->profileId;
+		}
+		COLLECTION_RELEASE(dataSet->profiles, &item);
+		if (read == false) {
+			return false;
+		}
+	}
+	if (componentId != NULL) {
+		*componentId = component->componentId;
+	}
+	return true;
+}
+
+char* fiftyoneDegreesHashGetComponentName(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t componentIndex,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	const Component * const component = hashMetaDataComponent(
+		dataSet,
+		componentIndex);
+	if (component == NULL) {
+		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+		return NULL;
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const name = StoredBinaryValueGet(
+		dataSet->strings,
+		(uint32_t)component->nameOffset,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		&item,
+		exception);
+	if (name == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: StoredBinaryValueToText(
+				&hashNoText,
+				FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+				0,
+				buffer,
+				bufferLength,
+				exception);
+	}
+	char *text = NULL;
+	if (EXCEPTION_OKAY) {
+		// A string has no decimal places.
+		text = StoredBinaryValueToText(
+			name,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			0,
+			buffer,
+			bufferLength,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->strings, &item);
+	return text;
+}
+
+/**
+ * Sets `componentId` to the id of the component the profile belongs to and
+ * returns true, or sets the exception and returns false when the profile's
+ * component index is not less than the number of components.
+ */
+static bool hashMetaDataProfileComponentId(
+	DataSetHash * const dataSet,
+	const Profile * const profile,
+	uint8_t * const componentId,
+	Exception * const exception) {
+	const Component * const component = hashMetaDataComponent(
+		dataSet,
+		profile->componentIndex);
+	(void)exception; // Not used when exceptions are disabled.
+	if (component == NULL) {
+		EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
+		return false;
+	}
+	*componentId = component->componentId;
+	return true;
+}
+
+uint32_t fiftyoneDegreesHashGetProfileCount(
+	fiftyoneDegreesDataSetHash *dataSet) {
+	return CollectionGetCount(dataSet->profileOffsets);
+}
+
+bool fiftyoneDegreesHashGetProfile(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t profileIndex,
+	uint32_t *profileId,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	DataReset(&item.data);
+	const Profile * const profile = ProfileGetByIndex(
+		dataSet->profileOffsets,
+		dataSet->profiles,
+		profileIndex,
+		&item,
+		exception);
+	if (profile == NULL) {
+		return false;
+	}
+	bool read = EXCEPTION_OKAY;
+	if (read && profileId != NULL) {
+		*profileId = profile->profileId;
+	}
+	if (read && componentId != NULL) {
+		read = hashMetaDataProfileComponentId(
+			dataSet,
+			profile,
+			componentId,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->profiles, &item);
+	return read;
+}
+
+bool fiftyoneDegreesHashGetProfileById(
+	fiftyoneDegreesDataSetHash *dataSet,
+	uint32_t profileId,
+	uint8_t *componentId,
+	fiftyoneDegreesException *exception) {
+	Item item;
+	DataReset(&item.data);
+	const Profile * const profile = ProfileGetByProfileId(
+		dataSet->profileOffsets,
+		dataSet->profiles,
+		profileId,
+		&item,
+		exception);
+	if (profile == NULL) {
+		return false;
+	}
+	bool read = EXCEPTION_OKAY;
+	if (read && componentId != NULL) {
+		read = hashMetaDataProfileComponentId(
+			dataSet,
+			profile,
+			componentId,
+			exception);
+	}
+	COLLECTION_RELEASE(dataSet->profiles, &item);
+	return read;
+}
+
 char* fiftyoneDegreesHashGetDeviceIdFromResult(
 	fiftyoneDegreesDataSetHash *dataSet,
 	fiftyoneDegreesResultHash *result, 
@@ -6243,7 +6775,7 @@ char* fiftyoneDegreesHashGetDeviceIdFromResult(
 	uint32_t i, profileOffset;
 	Item item;
 	Profile *profile;
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	DataReset(&item.data);
 	for (i = 0; i < dataSet->componentsList.count; i++) {
@@ -6284,7 +6816,7 @@ char* fiftyoneDegreesHashGetDeviceIdFromResult(
 
 char *getNullDeviceId(DataSetHash *dataSet, char *buffer, size_t length) {
 	uint32_t i;
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	for (i = 0; i < dataSet->componentsList.count; i++) {
 		if (i != 0) {
@@ -6306,7 +6838,7 @@ char* fiftyoneDegreesHashGetDeviceIdFromResults(
 	Profile *profile;
 	Item profileItem;
 	uint32_t profileOffset;
-	StringBuilder builder = { buffer, length };
+	StringBuilder builder = { buffer, length, NULL, 0, 0, false };
 	StringBuilderInit(&builder);
 	DataReset(&profileItem.data);
 	DataSetHash *dataSet = (DataSetHash*)results->b.b.dataSet;
@@ -6529,12 +7061,14 @@ size_t fiftyoneDegreesResultsHashGetValuesJson(
 	DataReset(&propertyItem.data);
 
 	// Set the state used with the JSON methods.
-	Json s = { buffer, length };
-	s.exception = exception;
-	s.strings = dataSet->strings;
-	s.property = NULL;
-	s.values = NULL;
-	s.storedPropertyType = FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING; // only strings in device-detection
+	Json s = {
+		{ buffer, length, NULL, 0, 0, false },
+		dataSet->strings,
+		NULL,
+		NULL,
+		exception,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING // only strings in device-detection
+	};
 
 	// Ensure any previous uses of the results to get values are released.
 	resultsHashRelease(results);

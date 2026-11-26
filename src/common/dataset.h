@@ -296,7 +296,8 @@ void fiftyoneDegreesDataSetFree(fiftyoneDegreesDataSetBase *dataSet);
  *
  * If the data passed in is successfully initialised, the current data set is
  * replaced The old data will remain in memory until the last reference to it
- * is released.
+ * is released. The new data set keeps the master file name of the one it
+ * replaces, so a later reload from the original file reads that file.
  * @param manager pointer to the resource manager to reload the data set for
  * @param source pointer to the memory location where the new data file is
  * stored

@@ -41,14 +41,30 @@ namespace FiftyoneDegrees {
 		class ComponentMetaDataBuilderIpi : EntityMetaDataBuilder {
 		public:
 			/**
-			 * Build a new instance of ComponentMetaData from the
-			 * underlying component provided. The instance returned does
-			 * not hold a reference to the data set or component, and
-			 * contains a copy of all the meta data.
+			 * Build a new instance of ComponentMetaData from the component
+			 * at the index provided. The instance returned does not hold a
+			 * reference to the data set or component, and contains a copy of
+			 * all the meta data.
 			 * @param dataSet pointer to the data set containing the
 			 * component
-			 * @param component pointer to the underlying component to
-			 * create the meta data from
+			 * @param componentIndex index of the component in the data set's
+			 * list of components
+			 * @return the new instance, or nullptr when the index is not less
+			 * than the number of components
+			 */
+			static ComponentMetaData* build(
+				fiftyoneDegreesDataSetIpi *dataSet,
+				uint32_t componentIndex);
+
+			/**
+			 * Build a new instance of ComponentMetaData from the underlying
+			 * component provided.
+			 * @deprecated Use build(dataSet, componentIndex), which reads the
+			 * component in C. Kept for one release, as a public name.
+			 * @param dataSet pointer to the data set containing the component
+			 * @param component pointer to the underlying component to create
+			 * the meta data from
+			 * @return the new instance
 			 */
 			static ComponentMetaData* build(
 				fiftyoneDegreesDataSetIpi *dataSet,

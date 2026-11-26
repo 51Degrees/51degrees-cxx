@@ -45,22 +45,23 @@ EngineIpIntelligenceTests::EngineIpIntelligenceTests(
 	ConfigIpi *config,
 	RequiredPropertiesConfig *requiredProperties,
 	const char *directory,
-	const char **fileNames,
+	const char * const *fileNames,
 	int fileNamesLength,
-	const char *ipAddressesFileName)
+	const char *evidenceFileName)
 	: EngineTests(requiredProperties, directory, fileNames, fileNamesLength) {
-	char ipAddressesFullName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	char evidenceFullName[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	char ipAddress[500] = "";
 	fiftyoneDegreesFileGetPath(
 		directory,
-		ipAddressesFileName,
-		ipAddressesFullName,
-		sizeof(ipAddressesFullName));
-	fiftyoneDegreesTextFileIterate(
-		ipAddressesFullName, 
-		ipAddress, 
-		sizeof(ipAddress), 
-		this, 
+		evidenceFileName,
+		evidenceFullName,
+		sizeof(evidenceFullName));
+	// The IP address of each record of the evidence file.
+	fiftyoneDegreesEvidenceFileIterate(
+		evidenceFullName,
+		ipAddress,
+		sizeof(ipAddress),
+		this,
 		EngineIpIntelligenceTests::ipAddressRead);
 	this->config = config;
 	engine = nullptr;
@@ -716,9 +717,7 @@ void EngineIpIntelligenceTests::randomIpAddressPresent(int count) {
 }
 
 void EngineIpIntelligenceTests::randomWithIpAddress(int count) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(count);
-#	endif
+	(void)count;
 	// FIXME: Unstable on CI
 	// EngineIpi *engineIpi = (EngineIpi*)getEngine();
 	// for (int i = 0; i < count; i++) {
@@ -731,9 +730,7 @@ void EngineIpIntelligenceTests::randomWithIpAddress(int count) {
 }
 
 void EngineIpIntelligenceTests::randomWithEvidence(int count) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(count);
-#	endif
+	(void)count;
 	// FIXME: Unstable on CI
 	// string ipKey = "query.client-ip-51d";
 	// EngineIpi *engineIpi = (EngineIpi*)getEngine();
@@ -746,10 +743,11 @@ void EngineIpIntelligenceTests::randomWithEvidence(int count) {
 	// }
 }
 
-void EngineIpIntelligenceTests::multiThreadRandomRunThread(void* state) {
+TEST_THREAD_RESULT EngineIpIntelligenceTests::multiThreadRandomRunThread(void* state) {
 	((EngineIpIntelligenceTests*)state)->randomWithIpAddress(200);
 	((EngineIpIntelligenceTests*)state)->randomWithEvidence(200);
-	FIFTYONE_DEGREES_THREAD_EXIT;
+	// Returning ends the thread, as FIFTYONE_DEGREES_THREAD_EXIT would.
+	return TEST_THREAD_DONE;
 }
 
 /**
@@ -766,7 +764,7 @@ void EngineIpIntelligenceTests::multiThreadRandom(uint16_t concurrency) {
 	ASSERT_NE(nullptr, getEngine());
 	runThreads(
 		concurrency,
-		(FIFTYONE_DEGREES_THREAD_ROUTINE)multiThreadRandomRunThread);
+		multiThreadRandomRunThread);
 }
 
  void EngineIpIntelligenceTests::compareResults(
@@ -890,7 +888,9 @@ void EngineIpIntelligenceTests::reloadFileFailure() {
 	// Write a file which must fail to load to a temporary path.
 	unsigned char invalidData[sizeof(fiftyoneDegreesDataSetIpiHeader) + 64];
 	fillWithInvalidVersion(invalidData, sizeof(invalidData));
-	const char *invalidFileName = "invalid-version-reload.tmp";
+	const std::string invalidFileNameValue =
+		testProcessName("invalid-version-reload") + ".tmp";
+	const char *invalidFileName = invalidFileNameValue.c_str();
 	fiftyoneDegreesStatusCode status = fiftyoneDegreesFileWrite(
 		invalidFileName,
 		invalidData,

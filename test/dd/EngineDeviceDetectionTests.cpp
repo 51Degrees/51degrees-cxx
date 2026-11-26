@@ -31,29 +31,35 @@
 #endif
 #endif
 #include "../../src/common/fiftyone.h"
+#include "Constants.hpp"
 
 using std::ofstream;
 using std::endl;
 
+/** The file the reload tests write and every test's TearDown removes. */
+static const std::string reloadTestFileName =
+	testProcessName("reload-test-file") + ".dat";
+
 EngineDeviceDetectionTests::EngineDeviceDetectionTests(
 	RequiredPropertiesConfig *requiredProperties,
 	const char *directory,
-	const char **fileNames,
+	const char * const *fileNames,
 	int fileNamesLength,
-	const char *userAgentsFileName)
+	const char *evidenceFileName)
 	: EngineTests(requiredProperties, directory, fileNames, fileNamesLength) {
-	char userAgentsFullName[FIFTYONE_DEGREES_FILE_MAX_PATH];
+	char evidenceFullName[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	char userAgent[500] = "";
 	fiftyoneDegreesFileGetPath(
 		directory,
-		userAgentsFileName,
-		userAgentsFullName,
-		sizeof(userAgentsFullName));
-	fiftyoneDegreesTextFileIterate(
-		userAgentsFullName, 
-		userAgent, 
-		sizeof(userAgent), 
-		this, 
+		evidenceFileName,
+		evidenceFullName,
+		sizeof(evidenceFullName));
+	// The User-Agent of each record of the evidence file.
+	fiftyoneDegreesExampleUserAgentsIterate(
+		evidenceFullName,
+		userAgent,
+		sizeof(userAgent),
+		this,
 		EngineDeviceDetectionTests::userAgentRead);
 }
 
@@ -75,7 +81,7 @@ void EngineDeviceDetectionTests::TearDown() {
 	}
 	EngineTests::TearDown();
 	// Reload test use this file, so clean it
-	remove(_reloadTestFile);
+	remove(reloadTestFileName.c_str());
 }
 
 void EngineDeviceDetectionTests::userAgentRead(
@@ -408,10 +414,11 @@ void EngineDeviceDetectionTests::randomWithEvidence(int count) {
 	}
 }
 
-void EngineDeviceDetectionTests::multiThreadRandomRunThread(void* state) {
+TEST_THREAD_RESULT EngineDeviceDetectionTests::multiThreadRandomRunThread(void* state) {
 	((EngineDeviceDetectionTests*)state)->randomWithUserAgent(200);
 	((EngineDeviceDetectionTests*)state)->randomWithEvidence(200);
-	FIFTYONE_DEGREES_THREAD_EXIT;
+	// Returning ends the thread, as FIFTYONE_DEGREES_THREAD_EXIT would.
+	return TEST_THREAD_DONE;
 }
 
 /**
@@ -428,7 +435,7 @@ void EngineDeviceDetectionTests::multiThreadRandom(uint16_t concurrency) {
 	ASSERT_NE(nullptr, getEngine());
 	runThreads(
 		concurrency,
-		(FIFTYONE_DEGREES_THREAD_ROUTINE)multiThreadRandomRunThread);
+		multiThreadRandomRunThread);
 }
 
 void EngineDeviceDetectionTests::compareResults(
@@ -483,7 +490,7 @@ void EngineDeviceDetectionTests::reloadFileWithLock() {
 	OFSTRUCT lpReOpenBuff;
 
 	// Create a file to reload from
-	string targetFile = string(_reloadTestFile);
+	string targetFile = reloadTestFileName;
 	ofstream dst (targetFile.c_str());
 	dst << "test data" << endl;
 
@@ -503,21 +510,20 @@ void EngineDeviceDetectionTests::reloadFileWithLock() {
 		engine->refreshData(targetFile.c_str());
 		FAIL() << "No exception has been thrown.\n";
 	}
-	catch (StatusCodeException e) {
+	catch (const StatusCodeException &e) {
 		ASSERT_EQ(
 			FIFTYONE_DEGREES_STATUS_FILE_PERMISSION_DENIED, e.getCode()) <<
 			"Incorrect status code was returned.\n";
 	}
-	catch (exception e) {
+	catch (const exception &) {
 		FAIL() << "Incorrect exception was thrown.\n";
 	}
-// It is recommended to use CloseHandle to close the handle returned from
-// OpenFile so it is valid to suppress the warning generated due to casting
-// to pointer type here.
-#pragma warning (disable: 4312)
-	EXPECT_TRUE(CloseHandle(reinterpret_cast<HANDLE>(hFile))) <<
+	// It is recommended to use CloseHandle to close the handle returned from
+	// OpenFile. The HFILE is an int, so widen it to a pointer sized integer,
+	// sign extending as LongToHandle does, before casting to a handle.
+	EXPECT_TRUE(CloseHandle(
+		reinterpret_cast<HANDLE>(static_cast<intptr_t>(hFile)))) <<
 		"Failed to close the data file which was opened exclusively.\n";
-#pragma warning (default: 4312)
 
 	ResultsDeviceDetection* results2 = engine->processDeviceDetection(
 		mobileUserAgent);
@@ -543,7 +549,7 @@ void EngineDeviceDetectionTests::reloadFileWithBadData() {
 	// Create a file to reload from. The content is larger than any data
 	// file header so the reload fails on the content being wrong rather
 	// than the file being too short.
-	string targetFile = string(_reloadTestFile);
+	string targetFile = reloadTestFileName;
 	ofstream dst(targetFile.c_str());
 	for (i = 0; i < 4096; i++) {
 		dst << "bad data";
@@ -565,11 +571,11 @@ void EngineDeviceDetectionTests::reloadFileWithBadData() {
 		engine->refreshData(targetFile.c_str());
 		FAIL() << "No exception has been thrown.\n";
 	}
-	catch (StatusCodeException e) {
+	catch (const StatusCodeException &e) {
 		ASSERT_NE(FIFTYONE_DEGREES_STATUS_SUCCESS, e.getCode()) <<
 			"A success status was returned for a bad data file.\n";
 	}
-	catch (exception e) {
+	catch (const exception &) {
 		FAIL() << "Incorrect exception was thrown.\n";
 	}
 	EXPECT_EQ((size_t)0, fiftyoneDegreesUnsetMemoryTracking()) << "The "
@@ -614,11 +620,11 @@ void EngineDeviceDetectionTests::reloadMemoryWithBadData() {
 		engine->refreshData((void*)badData, badLength);
 		FAIL() << "No exception has been thrown.\n";
 	}
-	catch (StatusCodeException e) {
+	catch (const StatusCodeException &e) {
 		ASSERT_NE(FIFTYONE_DEGREES_STATUS_SUCCESS, e.getCode()) <<
 			"A success status was returned for bad data.\n";
 	}
-	catch (exception e) {
+	catch (const exception &) {
 		FAIL() << "Incorrect exception was thrown.\n";
 	}
 	EXPECT_EQ((size_t)0, fiftyoneDegreesUnsetMemoryTracking()) << "The "

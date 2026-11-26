@@ -26,7 +26,13 @@
     <ClCompile Include="..\..\..\test\ipi\EngineIpiProcessTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsFile.cpp" />
     <ClCompile Include="..\..\..\test\ipi\EngineIpiTestsMemory.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPGettingStartedTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPMetaDataTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPReloadFromFileTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPReloadFromMemoryTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPStronglyTypedTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleCountryOverlapTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\ExampleEnvironmentVariableTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleFindProfilesTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleGettingStartedTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.cpp" />
@@ -43,11 +49,13 @@
     <ClCompile Include="..\..\..\test\ipi\IpiEvidenceKeysTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiDefaultValueTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiValueTextsTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiAnyAlignmentTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiMetaDataTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiDefaultValueReloadTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiConcurrencyTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiConcurrentReadTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiDateTests.cpp" />
+    <ClCompile Include="..\..\..\test\ipi\IpiProductTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiFailedReadTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadFileTests.cpp" />
     <ClCompile Include="..\..\..\test\ipi\IpiFirstReadRuleTests.cpp" />
@@ -73,10 +81,14 @@
     <ClInclude Include="..\..\..\test\ipi\EngineIpIntelligenceTests.hpp" />
     <ClInclude Include="..\..\..\test\ipi\ExampleIpIntelligenceTests.hpp" />
     <ClInclude Include="..\..\..\test\ipi\IpiTestMemory.hpp" />
+    <ClInclude Include="..\..\..\test\ipi\pch.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Examples\Base\ExampleBase\ExampleBase.vcxproj">
       <Project>{24a02087-1038-47c2-953e-de2ff5a520fb}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Examples\CPP\ExampleBase\ExampleBase.vcxproj">
+      <Project>{f56d1795-93b0-4480-aebd-ff2f1a70e4d3}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Examples\CPP\Meta Data\Meta Data.vcxproj">
       <Project>{fb4580bd-7ace-48c7-ba82-31e218758f58}</Project>

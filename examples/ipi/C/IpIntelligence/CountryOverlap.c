@@ -150,6 +150,12 @@ CountryOverlap <data file> --probe <ip> [ip...]
 #include "../../../../src/ipi/fiftyone.h"
 #include "../../../../src/ipi/ipi_weighted_results.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-countryoverlap.c"
+
 /** Properties the analysis needs. */
 #define PROPERTY_COUNTRY_CODE "CountryCode"
 #define PROPERTY_COUNTRY "Country"
@@ -212,9 +218,10 @@ small part of the address space in seconds. */
 
 /** Addresses between progress counter updates, and the mask that spots
 them. Measured from the start of a chunk rather than from the start of
-the address space, so the total a chunk reports is exactly its size
-whatever the chunk size. */
-#define PROGRESS_INTERVAL ((uint64_t)1 << 20)
+the address space, and never more than a chunk. Both are powers of two,
+so every chunk reports a whole number of intervals. */
+#define PROGRESS_INTERVAL (CHUNK_SIZE < ((uint64_t)1 << 20) ? \
+	CHUNK_SIZE : ((uint64_t)1 << 20))
 #define PROGRESS_MASK (PROGRESS_INTERVAL - 1)
 
 /** Addresses between checks for an early stop request. Shorter than the
@@ -384,7 +391,9 @@ typedef struct country_overlap_thread_state_t {
 	char* countryNames[COUNTRY_SLOTS];
 	ValueTable confidence;
 	ValueTable connection;
-	volatile uint64_t addressesDone;
+	volatile long intervalsDone; /**< Progress intervals swept, raised by
+								 the worker and read by the main thread
+								 while it runs */
 	uint64_t evaluations;
 	uint64_t resolutions;
 	uint64_t failures;
@@ -949,22 +958,20 @@ static void sweepChunk(ThreadState* state, uint32_t chunk) {
 		// Stop part way through the chunk when asked, so that a failed
 		// start does not wait for a whole chunk to finish, and update the
 		// progress counter on a longer interval. Both intervals count from
-		// the start of the chunk. Counting from the start of the address
-		// space meant a chunk shorter than the progress interval reported
-		// a whole interval whenever it happened to contain an aligned
-		// address, and its own size again below.
+		// the start of the chunk. The main thread sets the stop request
+		// and reads the progress counter while this runs, so both are
+		// accessed atomically: compare and exchange 0 for 0 returns the
+		// value and leaves it as it is.
 		const uint64_t covered = ip - start + 1;
 		if ((covered & STOP_CHECK_MASK) == 0 &&
-			state->shared->stopRequested != 0) {
+			FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(
+				state->shared->stopRequested, 0, 0) != 0) {
 			return;
 		}
 		if ((covered & PROGRESS_MASK) == 0) {
-			state->addressesDone += PROGRESS_INTERVAL;
+			FIFTYONE_DEGREES_INTERLOCK_INC(&state->intervalsDone);
 		}
 	}
-	// Count the addresses left over when the chunk is not a whole number
-	// of progress intervals.
-	state->addressesDone += CHUNK_SIZE & PROGRESS_MASK;
 	if (segmentValid == true) {
 		completeSegment(
 			state,
@@ -1065,11 +1072,13 @@ static bool spotCheck(ThreadState* state, uint32_t address) {
 }
 
 /** Worker thread claiming chunks until none remain. */
-static void sweepThread(void* statePointer) {
+static EXAMPLE_THREAD_RESULT sweepThread(void* statePointer) {
 	ThreadState* state = (ThreadState*)statePointer;
 	SharedState* shared = state->shared;
 	for (;;) {
-		if (shared->stopRequested != 0) {
+		// The main thread sets the stop request while the workers run.
+		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(
+			shared->stopRequested, 0, 0) != 0) {
 			break;
 		}
 		long chunk =
@@ -1080,6 +1089,7 @@ static void sweepThread(void* statePointer) {
 		sweepChunk(state, (uint32_t)chunk);
 	}
 	FIFTYONE_DEGREES_INTERLOCK_INC(&shared->threadsDone);
+	return EXAMPLE_THREAD_DONE;
 }
 
 /**
@@ -1092,13 +1102,13 @@ static bool threadStart(FIFTYONE_DEGREES_THREAD* thread, ThreadState* state) {
 #ifdef _MSC_VER
 	FIFTYONE_DEGREES_THREAD_CREATE(
 		*thread,
-		(FIFTYONE_DEGREES_THREAD_ROUTINE)&sweepThread,
+		sweepThread,
 		state);
 	return *thread != NULL;
 #else
 	return FIFTYONE_DEGREES_THREAD_CREATE(
 		*thread,
-		(FIFTYONE_DEGREES_THREAD_ROUTINE)&sweepThread,
+		sweepThread,
 		state) == 0;
 #endif
 }
@@ -1731,9 +1741,9 @@ int fiftyoneDegreesIpiCountryOverlap(
 		if (status == REQ_PROP_NOT_PRESENT) {
 			printf(
 				"Measuring how often IP addresses overlap country "
-				"borders needs properties only the Enterprise data file "
-				"has (%s), and the data file in use has none of them, so "
-				"the example stops here. Contact us for a copy of the "
+				"borders needs the properties %s, which need the "
+				"Enterprise data file. The data file in use has none of "
+				"them, so the example stops here. Contact us for a copy of the "
 				"Enterprise data file at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-c-ipintelligence-countryoverlap.c&utm_term=properties-missing\n",
 				countryOverlapProperties);
 			return COUNTRY_OVERLAP_PROPERTIES_MISSING;
@@ -1811,7 +1821,7 @@ int fiftyoneDegreesIpiCountryOverlap(
 
 	// Open the output before the sweep so that a path that cannot be
 	// written fails at once rather than after an hour of work.
-	FILE* file = fopen(outputPath, "w");
+	FILE* file = fiftyoneDegreesExampleFileOpenWrite(outputPath);
 	if (file == NULL) {
 		printf("Could not open '%s' for writing.\n", outputPath);
 		DataSetIpiRelease(dataSet);
@@ -1899,19 +1909,26 @@ int fiftyoneDegreesIpiCountryOverlap(
 	// finished. The wait is taken one second at a time so that a short
 	// sweep, such as the one the tests run, is not held up for the full
 	// reporting interval.
+	// The threads increment the count as it is read here, so it is read
+	// atomically: compare and exchange 0 for 0 returns the count and leaves
+	// it as it is.
 	int secondsSinceReport = 0;
-	while (shared.threadsDone < threadCount) {
+	while (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(shared.threadsDone, 0, 0) <
+		threadCount) {
 		sleepOneSecond();
 		secondsSinceReport++;
-		if (shared.threadsDone >= threadCount || secondsSinceReport < 30) {
+		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(shared.threadsDone, 0, 0) >=
+			threadCount || secondsSinceReport < 30) {
 			continue;
 		}
 		secondsSinceReport = 0;
-		uint64_t done = 0;
+		// Each worker raises its own count as it is read here.
+		double done = 0;
 		for (int t = 0; t < threadCount; t++) {
-			done += states[t].addressesDone;
+			done += (double)FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(
+				states[t].intervalsDone, 0, 0);
 		}
-		double progress = (double)done /
+		double progress = done * (double)PROGRESS_INTERVAL /
 			((double)CHUNK_SIZE * totalChunks);
 		double elapsed = difftime(time(NULL), started);
 		double remaining = progress > 0 ?
@@ -2357,7 +2374,9 @@ int main(int argc, char* argv[]) {
 				"CountryOverlap <data file> --probe <ip> [ip...]\n");
 			return COUNTRY_OVERLAP_FAILED;
 		}
-		return runProbe(dataFilePath, argc, argv);
+		const int probed = runProbe(dataFilePath, argc, argv);
+		fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
+		return probed;
 	}
 
 	const char* outputPath = argc > 2 ? argv[2] :
@@ -2375,6 +2394,9 @@ int main(int argc, char* argv[]) {
 		0,
 		totalChunks,
 		minSecondaryPercent);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// A data file without the properties is explained, not a failure.
 	return result == COUNTRY_OVERLAP_PROPERTIES_MISSING ?

@@ -28,6 +28,12 @@
 #include "ExampleBase.h"
 
 /**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-performance.c"
+
+/**
  * @example Hash/Performance.c
  * The example illustrates a "clock-time" benchmark for assessing detection speed.
  *
@@ -65,6 +71,7 @@ static bool detectionOnly = false;
 #define SIZE_OF_VALUE 1000
 #define MAX_EVIDENCE 20
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 // The device detection data folder from the sub module with lite device data.
 static const char* dataDir = "data/device-detection";
 
@@ -82,6 +89,7 @@ static const char* dataFileName = "51Degrees-LiteV4.1.hash";
 // values that are relevant to device detection. For example, User-Agent and 
 // UA-CH headers.
 static const char* evidenceFileName = "20000 Evidence Records.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -268,9 +276,7 @@ static const char* getOrAddSharedString(
 	if (node->value == NULL) {
 		return NULL;
 	}
-	if (strncpy((char*)node->value, target, length) == NULL) {
-		return NULL;
-	}
+	memcpy((char*)node->value, target, length);
 
 	// Add to the insertion-ordered list, which freeSharedStrings walks to free
 	// every node.
@@ -299,6 +305,7 @@ static const char* getOrAddSharedString(
  */
 static void storeEvidence(KeyValuePair* pairs, uint16_t size, void* state) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	char* ptr;
 	performanceState* perfState = (performanceState*)state;
 
@@ -360,13 +367,11 @@ static void storeEvidence(KeyValuePair* pairs, uint16_t size, void* state) {
 				strlen(pairs[i].value);
 			evidence->items[i].item.value = (const char*)Malloc(
 				sizeof(char) * (evidence->items[i].item.valueLength + 1));
-			ptr = strncpy(
-				(char*)evidence->items[i].item.value,
-				pairs[i].value,
-				evidence->items[i].item.valueLength);
+			ptr = (char*)evidence->items[i].item.value;
 			if (ptr == NULL) {
 				EXCEPTION_THROW
 			}
+			memcpy(ptr, pairs[i].value, evidence->items[i].item.valueLength);
 			*(ptr + evidence->items[i].item.valueLength) = '\0';
 			evidence->items[i].parsedValue = evidence->items[i].item.value;
 		}
@@ -410,7 +415,7 @@ static void storeEvidence(KeyValuePair* pairs, uint16_t size, void* state) {
  * Run detections using the evidence on a single thread.
  * @param state pointer to the thread state
  */
-void runPerformanceThread(void* state) {
+EXAMPLE_THREAD_RESULT runPerformanceThread(void* state) {
 	EXCEPTION_CREATE;
 	String* value;
 	threadState *thisState = (threadState*)state;
@@ -499,6 +504,7 @@ void runPerformanceThread(void* state) {
 	if (ThreadingGetIsThreadSafe()) {
 		THREAD_EXIT;
 	}
+	return EXAMPLE_THREAD_DONE;
 }
 /**
  * Execute detections on specified number of threads.
@@ -524,7 +530,7 @@ double runTests(performanceState *state) {
 		for (thread = 0; thread < state->numberOfThreads; thread++) {
 			THREAD_CREATE(
 				state->threads[thread],
-				(THREAD_ROUTINE)&runPerformanceThread,
+				runPerformanceThread,
 				&state->threadStates[thread]);
 		}
 
@@ -657,7 +663,11 @@ void executeBenchmark(
 	// Check data file
 	DataSetHash* dataset = DataSetHashGet(&state->manager);
 	state->availableProperties = (int)dataset->b.b.available->count;
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stdout,
+		dataset,
+		properties.string);
+	fiftyoneDegreesExampleCheckDataFile(dataset, FIFTYONE_DEGREES_EXAMPLE_FILE);
 	DataSetHashRelease(dataset);
 
 	// Normally the benchmark is run twice, the first pass warming the caches.
@@ -946,12 +956,22 @@ int main(int argc, char* argv[]) {
 		if (strcmp(argv[i], DATA_OPTION) == 0 ||
 			strcmp(argv[i], DATA_OPTION_SHORT) == 0) {
 			// Set data file path
-			strcpy(dataFilePath, argv[i + 1]);
+			if (fiftyoneDegreesExampleCopyPath(
+				argv[i + 1],
+				dataFilePath,
+				sizeof(dataFilePath)) != SUCCESS) {
+				return 1;
+			}
 		}
 		else if (strcmp(argv[i], UA_OPTION) == 0 ||
 			strcmp(argv[i], UA_OPTION_SHORT) == 0) {
 			// Set evidence file path
-			strcpy(evidenceFilePath, argv[i + 1]);
+			if (fiftyoneDegreesExampleCopyPath(
+				argv[i + 1],
+				evidenceFilePath,
+				sizeof(evidenceFilePath)) != SUCCESS) {
+				return 1;
+			}
 		}
 		else if (strcmp(argv[i], THREAD_OPTION) == 0 ||
 			strcmp(argv[i], THREAD_OPTION_SHORT) == 0) {
@@ -975,6 +995,7 @@ int main(int argc, char* argv[]) {
 			strcmp(argv[i], HELP_OPTION_SHORT) == 0) {
 			// Print the help options
 			printHelp();
+			fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 			return 0;
 		}
 		else if (argv[i][0] == '-') {
@@ -1030,7 +1051,7 @@ int main(int argc, char* argv[]) {
 	params.iterations = iterations;
 	params.output = stdout;
 	if (outFile != NULL) {
-		params.resultsOutput = fopen(outFile, "w");
+		params.resultsOutput = fiftyoneDegreesExampleFileOpenWrite(outFile);
 	}
 	else {
 		params.resultsOutput = NULL;
@@ -1043,6 +1064,9 @@ int main(int argc, char* argv[]) {
 	if (outFile != NULL) {
 		fclose(params.resultsOutput);
 	}
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	return exitCode;
 }

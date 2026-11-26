@@ -81,11 +81,7 @@ typedef void*(*FIFTYONE_DEGREES_THREAD_ROUTINE)(void*);
 #endif
 
 #ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 5105) 
 #include <windows.h>
-#pragma warning (default: 5105) 
-#pragma warning (pop)
 #include <intrin.h>
 #pragma intrinsic (_InterlockedIncrement)
 #pragma intrinsic (_InterlockedDecrement)
@@ -192,6 +188,33 @@ void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
 #define FIFTYONE_DEGREES_THREAD HANDLE
 #else
 #define FIFTYONE_DEGREES_THREAD pthread_t
+#endif
+
+/**
+ * The identity of a thread, as #FIFTYONE_DEGREES_THREAD_ID_CURRENT gives it.
+ */
+#ifdef _MSC_VER
+#define FIFTYONE_DEGREES_THREAD_ID DWORD
+#else
+#define FIFTYONE_DEGREES_THREAD_ID pthread_t
+#endif
+
+/**
+ * Gets the identity of the calling thread.
+ */
+#ifdef _MSC_VER
+#define FIFTYONE_DEGREES_THREAD_ID_CURRENT() GetCurrentThreadId()
+#else
+#define FIFTYONE_DEGREES_THREAD_ID_CURRENT() pthread_self()
+#endif
+
+/**
+ * True when two thread identities are the same thread.
+ */
+#ifdef _MSC_VER
+#define FIFTYONE_DEGREES_THREAD_ID_EQUAL(a, b) ((a) == (b))
+#else
+#define FIFTYONE_DEGREES_THREAD_ID_EQUAL(a, b) (pthread_equal((a), (b)) != 0)
 #endif
 
 /**
@@ -386,84 +409,6 @@ supported. */
 #else
 #define FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_PTR(d,e,c) \
     FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(d,e,c)
-#endif
-
-/**
- * Double width (64 or 128 depending on the architecture) compare and exchange.
- * Replaces the destination value with the exchange value, only if the
- * destination value matched the comparand. Returns true if the value was
- * exchanged.
- * 
- * Windows: Either InterlockedCompareExchange128 or InterlockedCompareExchange64
- * is used, depending on whether the source is compiled in 32 or 64 bit.
- * InterlockedCompareExchange128 will use the cmpxchg16b instruction on modern
- * Intel and AMD CPUs.
- * 
- * see: https://docs.microsoft.com/en-us/cpp/intrinsics/interlockedcompareexchange128?view=msvc-160
- *
- * Linux: __atomic_compare_exchange is used regardless of architecture. The size
- * of fiftyoneDegreesInterlockDoubleWidth dictates whether
- * __atomic_compare_exchange_8 or __atomic_compare_exchange_16 will be called.
- * The underlying implementation will depend on the hardware - either the compiler
- * intrinsic will be used, or a library function if that is not available.
- *
- * __atomic_compare_exchange_16 will use the cmpxchg16b on modern Intel and AMD CPUs.
- * However, most ARM chips will not support this, so the fallback library function
- * may not offer the same performance. Falling back to a library function may mean
- * that the operation is not lock free. To check, see the
- * FIFTYONE_DEGREES_IS_LOCK_FREE macro.
- *
- * see: https://gcc.gnu.org/onlinedocs/libstdc++/manual/ext_concurrency_impl.html
- * 
- * @param d the destination to swap
- * @param e the exchange value
- * @param c the comparand
- */
-#ifdef _MSC_VER
-#ifdef _WIN64
-typedef struct fiftyone_degrees_interlock_dw_type_t {
-    LONG64 low;
-    LONG64 high;
-} fiftyoneDegreesInterlockDoubleWidth;
-#define FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(d,e,c) \
-    InterlockedCompareExchange128(&d.low, e.high, e.low, &c.low)
-#else // _WIN64
-typedef struct fiftyone_degrees_interlock_dw_type_t {
-    LONG64 value;
-} fiftyoneDegreesInterlockDoubleWidth;
-#define FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(d,e,c) \
-    InterlockedCompareExchange64(&d.value, e.value, c.value) == c.value
-#endif // _WIN64
-#else // _MSC_VER
-#if (defined(_LP64) || defined(__MINGW64__))
-typedef struct fiftyone_degrees_interlock_dw_type_t {
-    int64_t low;
-    int64_t high;
-} __attribute__((aligned(16),packed)) fiftyoneDegreesInterlockDoubleWidth;
-#else // _LP64
-typedef struct fiftyone_degrees_interlock_dw_type_t {
-    int64_t value;
-} fiftyoneDegreesInterlockDoubleWidth;
-#endif //_LP64
-#define FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(d,e,c) \
-    (__atomic_compare_exchange( \
-        (fiftyoneDegreesInterlockDoubleWidth*)&d, \
-        (fiftyoneDegreesInterlockDoubleWidth*)&c, \
-        (fiftyoneDegreesInterlockDoubleWidth*)&e, \
-        false, \
-        __ATOMIC_SEQ_CST, \
-        __ATOMIC_SEQ_CST))
-#endif // _MSC_VER
-
-
-#ifdef _MSC_VER
-#ifdef _WIN64
-#define FIFTYONE_DEGREES_IS_LOCK_FREE IsProcessorFeaturePresent(PF_COMPARE_EXCHANGE128)
-#else
-#define FIFTYONE_DEGREES_IS_LOCK_FREE true
-#endif
-#else
-#define FIFTYONE_DEGREES_IS_LOCK_FREE __atomic_is_lock_free(sizeof(fiftyoneDegreesInterlockDoubleWidth), NULL)
 #endif
 
 /**

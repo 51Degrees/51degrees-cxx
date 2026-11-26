@@ -31,8 +31,7 @@ private:
         while (evidenceFilePath[i] != '.' && evidenceFilePath[i] != '\0') {
             output << evidenceFilePath[i++];
         }
-        output << ".processed.csv";
-        return output.str();
+        return testProcessName(output.str().c_str()) + ".processed.csv";
     }
 
 public:

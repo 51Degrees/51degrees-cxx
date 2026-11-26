@@ -333,8 +333,9 @@ vector<string> listOf(const char * const (&keys)[N]) {
 /** The bytes of the file, or none if it cannot be read. */
 vector<unsigned char> readFile(const string &path) {
 	vector<unsigned char> data;
-	FILE *file = fopen(path.c_str(), "rb");
-	if (file != nullptr) {
+	FILE *file = nullptr;
+	if (fiftyoneDegreesFileOpen(path.c_str(), &file) ==
+		FIFTYONE_DEGREES_STATUS_SUCCESS) {
 		fseek(file, 0, SEEK_END);
 		data.resize((size_t)ftell(file));
 		rewind(file);

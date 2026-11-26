@@ -97,11 +97,7 @@ TEST_F(Evidence, Add_MultipleStrings)
 	assertStringHeaderAdded(&evidence->items[1], "some-other-header-name", "some-header-value");
 }
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
-bool onMatchIterateString(void *state, fiftyoneDegreesEvidenceKeyValuePair *pair)
+bool onMatchIterateString(void * /*state*/, fiftyoneDegreesEvidenceKeyValuePair *pair)
 {
 	if (strcmp((const char*)pair->item.key, "some-header-name") == 0) {
 		EXPECT_TRUE(strcmp((const char*)pair->item.value, (const char*)pair->parsedValue) == 0) <<
@@ -110,9 +106,6 @@ bool onMatchIterateString(void *state, fiftyoneDegreesEvidenceKeyValuePair *pair
 	}
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 /*
  *Check that the parsed version of a string evidence value will be the same string.
@@ -135,28 +128,22 @@ TEST_F(Evidence, Iterate_String)
 
 
 const char* parsedValue = "already-parsed";
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
-bool onMatchIterateStringAlreadyParsed(void *state, fiftyoneDegreesEvidenceKeyValuePair *pair)
+bool onMatchIterateStringAlreadyParsed(void * /*state*/, fiftyoneDegreesEvidenceKeyValuePair *pair)
 {
 	EXPECT_TRUE(strcmp(parsedValue, (const char*)pair->parsedValue) == 0) <<
 		L"Expected parsed value to be '" << parsedValue << "' not '" <<
 		(const char*)pair->parsedValue << "'";
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 /*
  * Check that an evidence value is not parsed again if it has already been parsed.
  */
 TEST_F(Evidence, Iterate_String_AlreadyParsed) {
 	CreateEvidence(1);
-	char* parsed = (char*)malloc(sizeof(char) * (strlen(parsedValue) + 1));
-	strcpy(parsed, parsedValue);
+	const size_t parsedSize = sizeof(char) * (strlen(parsedValue) + 1);
+	char* parsed = (char*)malloc(parsedSize);
+	memcpy(parsed, parsedValue, parsedSize);
 	fiftyoneDegreesEvidenceAddString(
 		evidence,
 		FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
@@ -171,19 +158,13 @@ TEST_F(Evidence, Iterate_String_AlreadyParsed) {
 	free(parsed);
 }
 
-#ifdef _MSC_VER
 // This is mock implementation of the method so not all arguments are used
-#pragma warning (disable: 4100)
-#endif
 static bool countEvidence(
 	void* state,
-	fiftyoneDegreesEvidenceKeyValuePair* pair) {
+	fiftyoneDegreesEvidenceKeyValuePair* /*pair*/) {
 	(*(int*)state)++;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4100)
-#endif
 
 /*
  * Check that the iteration API only iterate through the main evidence list
@@ -226,8 +207,40 @@ TEST_F(Evidence, MapPrefix) {
     EXPECT_EQ(map, nullptr);
     map = fiftyoneDegreesEvidenceMapPrefix("nonsense");
     EXPECT_EQ(map, nullptr);
-    map = fiftyoneDegreesEvidenceMapPrefix("HEADER.something"); // case-sensitivity of the prefixes
+    map = fiftyoneDegreesEvidenceMapPrefix("HEADER."); // nor in another case
     EXPECT_EQ(map, nullptr);
+}
+
+// Evidence keys are case-insensitive, so a prefix is found whatever its case.
+TEST_F(Evidence, MapPrefix_IgnoresCase) {
+    const struct {
+        const char *key;
+        fiftyoneDegreesEvidencePrefix prefix;
+    } keys[] = {
+        { "HEADER.User-Agent", FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING },
+        { "Header.user-agent", FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING },
+        { "SERVER.client-ip", FIFTYONE_DEGREES_EVIDENCE_SERVER },
+        { "Query.param", FIFTYONE_DEGREES_EVIDENCE_QUERY },
+        { "COOKIE.name", FIFTYONE_DEGREES_EVIDENCE_COOKIE },
+    };
+    for (const auto &key : keys) {
+        auto map = fiftyoneDegreesEvidenceMapPrefix(key.key);
+        ASSERT_NE(nullptr, map) << key.key << " has no prefix";
+        EXPECT_EQ(key.prefix, map->prefixEnum) << key.key;
+    }
+}
+
+// Evidence given under a key whose prefix is not in lower case reaches the
+// evidence the engines read, with the field as it was given.
+TEST_F(Evidence, EvidenceBase_PrefixIgnoresCase) {
+    EvidenceBase given;
+    given["Header.User-Agent"] = "Mozilla/5.0";
+    fiftyoneDegreesEvidenceKeyValuePairArray *pairs = given.get();
+    ASSERT_NE(nullptr, pairs);
+    ASSERT_EQ(1u, pairs->count) << "Header.User-Agent was dropped";
+    EXPECT_EQ(FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        pairs->items[0].prefix);
+    EXPECT_STREQ("User-Agent", pairs->items[0].item.key);
 }
                                                           
 TEST_F(Evidence, IterateForHeaders_Order) {
@@ -268,7 +281,7 @@ TEST_F(Evidence, IterateForHeaders_NoMatchingPrefix) {
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, headersContainer.headerPointers, buffer, bufferSize, &results, callback1);
     EXPECT_FALSE(res);
     EXPECT_EQ(results[0], "Green"); // only Color is the header string
-    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results.size(), 1u);
 }
 
 TEST_F(Evidence, IterateForHeaders_PrefixPrecedence) {
@@ -295,7 +308,7 @@ TEST_F(Evidence, IterateForHeaders_PrefixPrecedence) {
     uint32_t prefixMask = FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING | FIFTYONE_DEGREES_EVIDENCE_QUERY | FIFTYONE_DEGREES_EVIDENCE_COOKIE;
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, prefixMask, headersContainer.headerPointers, buffer, bufferSize, &results, callback1);
     EXPECT_FALSE(res);
-    EXPECT_EQ(results.size(), 3);
+    EXPECT_EQ(results.size(), 3u);
     EXPECT_EQ(results[0], "AppleQuery"); // only Color is the header string
     EXPECT_EQ(results[1], "BigHeader"); // only Color is the header string
     EXPECT_EQ(results[2], "Green"); // only Color is the header string
@@ -338,7 +351,7 @@ TEST_F(Evidence, IterateForHeaders_ConstructPseudoHeader) {
     std::vector<std::string> results;
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, headersContainer.headerPointers, buffer, bufferSize, &results, callback1);
     EXPECT_FALSE(res);
-    EXPECT_EQ(results.size(), 3);
+    EXPECT_EQ(results.size(), 3u);
     EXPECT_EQ(results[0], "Apple");
     EXPECT_EQ(results[1], "Big\x1FGreen");
     EXPECT_EQ(results[2], "Big\x1FGreen\x1F""Apple");
@@ -360,7 +373,7 @@ TEST_F(Evidence, IterateForHeaders_ConstructPseudoHeader_Missing_or_Empty) {
     std::vector<std::string> results;
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, headersContainer.headerPointers, buffer, bufferSize, &results, callback1);
     EXPECT_FALSE(res);
-    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(results.size(), 2u);
     EXPECT_EQ(results[0], "\x1FGreen");
     EXPECT_EQ(results[1], "\x1FGreen\x1F""Apple");
 }
@@ -387,7 +400,7 @@ TEST_F(Evidence, IterateForHeaders_CallbackSignalsEarlyExit) {
     std::vector<std::string> results;
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, headersContainer.headerPointers, buffer, bufferSize, &results, callback2);
     EXPECT_TRUE(res);
-    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(results.size(), 2u);
     EXPECT_EQ(results[0], "Apple");
     EXPECT_EQ(results[1], "Big\x1FGreen");
 }
@@ -427,7 +440,7 @@ TEST_F(Evidence, IterateForHeaders_SmallBuffer) {
     char *buf = (char *) fiftyoneDegreesMalloc(length);
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, headersContainer.headerPointers, buf, length, &results, callback1);
     EXPECT_FALSE(res);
-    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results.size(), 1u);
     EXPECT_EQ(results[0], "Big\x1F""Green");
     fiftyoneDegreesFree(buf);
     
@@ -437,7 +450,7 @@ TEST_F(Evidence, IterateForHeaders_SmallBuffer) {
     buf = (char *) fiftyoneDegreesMalloc(length);
     res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, headersContainer.headerPointers, buf, length, &results, callback1);
     EXPECT_FALSE(res);
-    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(results.size(), 2u);
     EXPECT_EQ(results[1], "Big\x1F""Green\x1F""Apple");
     fiftyoneDegreesFree(buf);
 }
@@ -458,7 +471,7 @@ TEST_F(Evidence, emptyEvidence) {
     auto iterations = EvidenceIterate(emptyEvidenceKVPA, FIFTYONE_DEGREES_EVIDENCE_QUERY,
      &results, callback1);
 
-    EXPECT_EQ(iterations, 0);
+    EXPECT_EQ(iterations, 0u);
 }
 
 struct PseudoHeaderLengthResult {
@@ -493,14 +506,14 @@ TEST_F(Evidence, IterateForHeaders_PseudoHeader_Lengths) {
     fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
         headersContainer.headerPointers, buffer, bufferSize, &results, callbackValidateLengths);
 
-    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results.size(), 1u);
     // "Big\x1FGreen" = 9 characters
     EXPECT_EQ(results[0].value, "Big\x1FGreen");
     EXPECT_EQ(results[0].valueLength, strlen(results[0].value.c_str()));
-    EXPECT_EQ(results[0].valueLength, 9);
+    EXPECT_EQ(results[0].valueLength, 9u);
     EXPECT_EQ(results[0].parsedValue, "Big\x1FGreen");
     EXPECT_EQ(results[0].parsedLength, strlen(results[0].parsedValue.c_str()));
-    EXPECT_EQ(results[0].parsedLength, 9);
+    EXPECT_EQ(results[0].parsedLength, 9u);
 }
 
 // A pseudo header longer than the buffer is ignored, so the callback is not
@@ -526,12 +539,12 @@ TEST_F(Evidence, IterateForHeaders_PseudoHeader_LongerThanBuffer) {
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
         headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
     EXPECT_FALSE(res);
-    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(results.size(), 2u);
     EXPECT_EQ(results[0].value, "Apple");
-    EXPECT_EQ(results[0].valueLength, 5);
+    EXPECT_EQ(results[0].valueLength, 5u);
     EXPECT_EQ(results[1].value, "Big\x1F""Apple");
-    EXPECT_EQ(results[1].valueLength, 9);
-    EXPECT_EQ(results[1].parsedLength, 9);
+    EXPECT_EQ(results[1].valueLength, 9u);
+    EXPECT_EQ(results[1].parsedLength, 9u);
     fiftyoneDegreesFree(buf);
 }
 
@@ -554,7 +567,7 @@ TEST_F(Evidence, IterateForHeaders_PseudoHeader_FirstSegmentLongerThanBuffer) {
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
         headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
     EXPECT_FALSE(res);
-    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results.size(), 1u);
     EXPECT_EQ(results[0].value, "Tin");
     fiftyoneDegreesFree(buf);
 }
@@ -575,11 +588,11 @@ TEST_F(Evidence, IterateForHeaders_PseudoHeader_ExactlyFitsBuffer) {
     std::vector<PseudoHeaderLengthResult> results;
     fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
         headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
-    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results.size(), 1u);
     EXPECT_EQ(results[0].value, "Big\x1FGreen");
-    EXPECT_EQ(results[0].valueLength, 9);
+    EXPECT_EQ(results[0].valueLength, 9u);
     EXPECT_EQ(results[0].parsedValue, "Big\x1FGreen");
-    EXPECT_EQ(results[0].parsedLength, 9);
+    EXPECT_EQ(results[0].parsedLength, 9u);
     fiftyoneDegreesFree(buf);
 }
 
@@ -682,9 +695,9 @@ TEST_F(Evidence, IterateForHeaders_SingleHeader_AtLimit) {
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
         headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
     EXPECT_FALSE(res);
-    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results.size(), 1u);
     EXPECT_EQ(results[0].value, "Apple");
-    EXPECT_EQ(results[0].valueLength, 5);
+    EXPECT_EQ(results[0].valueLength, 5u);
     fiftyoneDegreesFree(buf);
 }
 
@@ -706,7 +719,7 @@ TEST_F(Evidence, IterateForHeaders_SingleHeader_OneByteOverLimit) {
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
         headersContainer.headerPointers, buf, length, &results, callbackValidateLengths);
     EXPECT_FALSE(res);
-    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results.size(), 1u);
     EXPECT_EQ(results[0].value, "Big");
     fiftyoneDegreesFree(buf);
 }
@@ -725,6 +738,6 @@ TEST_F(Evidence, IterateForHeaders_SingleHeader_NullBuffer) {
     bool res = fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
         headersContainer.headerPointers, NULL, 0, &results, callbackValidateLengths);
     EXPECT_FALSE(res);
-    EXPECT_EQ(results.size(), 1);
+    EXPECT_EQ(results.size(), 1u);
     EXPECT_EQ(results[0].value, "AppleAndPear");
 }

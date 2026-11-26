@@ -137,7 +137,9 @@ void* EngineIpi::copyData(void * const data, const FileOffset length) const {
 	if (dataCopy == nullptr) {
 		throw StatusCodeException(INSUFFICIENT_MEMORY);
 	}
-	memcpy(dataCopy, data, lengthAsSize);
+	if (lengthAsSize > 0) {
+		memcpy(dataCopy, data, lengthAsSize);
+	}
 	return dataCopy;
 }
 
@@ -182,6 +184,52 @@ Date EngineIpi::getUpdateAvailableTime() const {
 	fiftyoneDegreesDate date;
 	IpiGetNextUpdate(manager.get(), &date);
 	return Date(&date);
+}
+
+/**
+ * Throws a status other than success, as the engine's other file operations
+ * do, so a caller is never given a date of zeros to compare.
+ */
+Date EngineIpi::getPublishedTimeFromFile(const string &fileName) {
+	fiftyoneDegreesDate date;
+	StatusCode status = IpiGetPublishedFromFile(fileName.c_str(), &date);
+	if (status != SUCCESS) {
+		throw StatusCodeException(status, fileName.c_str());
+	}
+	return Date(&date);
+}
+
+/**
+ * Bytes given for the product name at first, which every product name
+ * 51Degrees uses fits in, so the file is read once.
+ */
+static const size_t productNameBytes = 64;
+
+/**
+ * Asks again with the bytes the C function says the name needs when it did
+ * not fit, and throws the status of any other failure, as
+ * getPublishedTimeFromFile does.
+ */
+string EngineIpi::getProductFromFile(const string &fileName) {
+	vector<char> buffer(productNameBytes);
+	size_t needed = 0;
+	StatusCode status = IpiGetProductFromFile(
+		fileName.c_str(),
+		buffer.data(),
+		buffer.size(),
+		&needed);
+	if (status == INSUFFICIENT_CAPACITY) {
+		buffer.resize(needed);
+		status = IpiGetProductFromFile(
+			fileName.c_str(),
+			buffer.data(),
+			buffer.size(),
+			&needed);
+	}
+	if (status != SUCCESS) {
+		throw StatusCodeException(status, fileName.c_str());
+	}
+	return string(buffer.data());
 }
 
 string EngineIpi::getDataFilePath() const {
@@ -282,6 +330,7 @@ typedef std::unique_ptr<
 // them.
 static OwnedResults createResults(fiftyoneDegreesResourceManager *manager) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	OwnedResults results(
 		ResultsIpiCreate(manager),
 		fiftyoneDegreesResultsIpiFree);
@@ -303,6 +352,20 @@ static IpIntelligence::ResultsIpi* giveResults(
 	return given;
 }
 
+// Throws for any failure except an IP address in the wrong format, which gives
+// empty results instead. Does nothing where exceptions are disabled, as there
+// is no status to read.
+static void throwUnlessIncorrectFormat(fiftyoneDegreesException *exception) {
+#ifdef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
+	(void)exception;
+#else
+	if (exception->status !=
+		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) {
+		EXCEPTION_THROW;
+	}
+#endif
+}
+
 // As in EngineHash, a set of results is created for each call rather than taken
 // from a pool made at startup, because of the complexity that would add.
 IpIntelligence::ResultsIpi* EngineIpi::process(
@@ -313,10 +376,7 @@ IpIntelligence::ResultsIpi* EngineIpi::process(
 		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
 		exception);
-	if (EXCEPTION_CHECK(
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
-		EXCEPTION_THROW;
-	}
+	throwUnlessIncorrectFormat(exception);
 	return giveResults(results, manager);
 }
 
@@ -329,10 +389,7 @@ IpIntelligence::ResultsIpi* EngineIpi::process(
 		ipAddress,
 		ipAddress == nullptr ? 0 : strlen(ipAddress),
 		exception);
-	if (EXCEPTION_CHECK(
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
-		EXCEPTION_THROW;
-	}
+	throwUnlessIncorrectFormat(exception);
 	return giveResults(results, manager);
 }
 
@@ -348,10 +405,7 @@ IpIntelligence::ResultsIpi *EngineIpi::process(
 		length,
 		type,
 		exception);
-	if (EXCEPTION_CHECK(
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
-		EXCEPTION_THROW;
-	}
+	throwUnlessIncorrectFormat(exception);
 	return giveResults(results, manager);
 }
 
@@ -363,10 +417,7 @@ Common::ResultsBase* EngineIpi::processBase(
 		results.get(),
 		evidence == nullptr ? nullptr : evidence->get(),
 		exception);
-	if (EXCEPTION_CHECK(
-		FIFTYONE_DEGREES_STATUS_INCORRECT_IP_ADDRESS_FORMAT) == false) {
-		EXCEPTION_THROW;
-	}
+	throwUnlessIncorrectFormat(exception);
 	return giveResults(results, manager);
 }
 

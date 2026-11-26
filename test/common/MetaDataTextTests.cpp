@@ -22,8 +22,8 @@
 
 /**
  * @file MetaDataTextTests.cpp
- * @brief Checks the texts the metadata gives for properties, the rules for a
- * description, category or URL that is absent, the names of the
+ * @brief Checks the texts the metadata gives for properties and values, the
+ * rules for a description, category or URL that is absent, the names of the
  * maps a property is in, a property found by name and the number of values
  * a property has.
  */
@@ -34,12 +34,19 @@
 #include "Base.hpp"
 #include "StringCollection.hpp"
 #include "FixedSizeCollection.hpp"
+#include "EnumFromInteger.h"
 
 using std::string;
 using std::vector;
 
 /** A weighted value's URL offset, being the mask with a weight of half. */
 static const int32_t metaDataTextWeighted = (int32_t)0xFF008000u;
+
+/**
+ * A text number that is none of the property or value texts. It is outside
+ * the range of either enum, so it is passed to the library as an integer.
+ */
+static const int metaDataTextNotKnown = 99;
 
 class MetaDataTextTests : public Base {
 public:
@@ -57,6 +64,12 @@ protected:
 	string propertyText(
 		uint32_t index,
 		fiftyoneDegreesPropertyText text,
+		size_t length);
+
+	/** A text of the value at the index, as propertyText writes it. */
+	string valueText(
+		uint32_t index,
+		int text,
 		size_t length);
 
 	/** The property at the index. */
@@ -216,6 +229,39 @@ string MetaDataTextTests::propertyText(
 	return copy;
 }
 
+string MetaDataTextTests::valueText(
+	uint32_t index,
+	int text,
+	size_t length) {
+	EXCEPTION_CREATE;
+	const fiftyoneDegreesValue *value = fiftyoneDegreesValueGet(
+		values,
+		index,
+		&item,
+		exception);
+	EXCEPTION_THROW;
+	vector<char> buffer(length);
+	char *result = testValueGetMetaDataTextFromInteger(
+		stringsCollection,
+		nullptr,
+		value,
+		text,
+		0,
+		buffer.data(),
+		buffer.size(),
+		exception);
+	FIFTYONE_DEGREES_COLLECTION_RELEASE(values, &item);
+	if (result == nullptr) {
+		return "<null>";
+	}
+	EXPECT_TRUE(EXCEPTION_OKAY);
+	const string copy(result);
+	if (result != buffer.data()) {
+		fiftyoneDegreesFree(result);
+	}
+	return copy;
+}
+
 /**
  * A property's texts are its strings, written in place when they fit and
  * otherwise into memory the caller frees.
@@ -260,12 +306,12 @@ TEST_F(MetaDataTextTests, PropertyTextsAbsent) {
 TEST_F(MetaDataTextTests, PropertyTextNotKnown) {
 	EXCEPTION_CREATE;
 	char buffer[16];
-	EXPECT_EQ(nullptr, fiftyoneDegreesPropertyGetText(
+	EXPECT_EQ(nullptr, testPropertyGetTextFromInteger(
 		values,
 		stringsCollection,
 		nullptr,
 		property(0),
-		(fiftyoneDegreesPropertyText)99,
+		metaDataTextNotKnown,
 		buffer,
 		sizeof(buffer),
 		exception));
@@ -346,4 +392,34 @@ TEST_F(MetaDataTextTests, PropertyValueCount) {
 	EXPECT_EQ(0u, fiftyoneDegreesPropertyGetValueCount(values, property(1)));
 	EXPECT_EQ(0u, fiftyoneDegreesPropertyGetValueCount(values, property(2)));
 	EXPECT_EQ(0u, fiftyoneDegreesPropertyGetValueCount(values, property(3)));
+}
+
+/**
+ * A value's texts are its strings, and a value with no description or URL,
+ * or a weighted one, has empty ones rather than the first string in the
+ * file.
+ */
+TEST_F(MetaDataTextTests, ValueTexts) {
+	for (size_t length : { (size_t)64, (size_t)2 }) {
+		for (uint32_t v = 0; v < 3; v++) {
+			EXPECT_EQ("ValueName", valueText(
+				v, FIFTYONE_DEGREES_VALUE_TEXT_NAME, length));
+		}
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+		EXPECT_EQ("ValueDescription", valueText(
+			0, FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION, length));
+#endif
+		EXPECT_EQ("https://51degrees.com/value", valueText(
+			0, FIFTYONE_DEGREES_VALUE_TEXT_URL, length));
+		EXPECT_EQ("", valueText(
+			1, FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION, length));
+		EXPECT_EQ("", valueText(
+			1, FIFTYONE_DEGREES_VALUE_TEXT_URL, length));
+		EXPECT_EQ("", valueText(
+			2, FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION, length));
+		EXPECT_EQ("", valueText(
+			2, FIFTYONE_DEGREES_VALUE_TEXT_URL, length));
+		EXPECT_EQ("<null>", valueText(
+			0, metaDataTextNotKnown, length));
+	}
 }

@@ -27,12 +27,12 @@
 #include <cstdlib>
 #include "Constants.hpp"
 #include "../common/EngineTests.hpp"
+#include "../common/EnvironmentVariable.hpp"
 
 // Helper to check if running on CI and config uses temp file (skip to save disk space)
 #define SKIP_TEMP_FILE_TESTS_ON_CI() \
 	do { \
-		const char* ci = std::getenv("CI"); \
-		if (ci != nullptr && std::string(ci) == "true" && \
+		if (isRunningOnCI() && \
 			config != nullptr && config->getConfig().b.useTempFile) { \
 			GTEST_SKIP() << "Skipping temp file test on CI (large temp file)"; \
 		} \
@@ -47,8 +47,7 @@
 // LowMemory and Balanced configs use file-backed access and are not affected.
 #define SKIP_IN_MEMORY_RELOAD_TESTS_ON_CI() \
 	do { \
-		const char* ci = std::getenv("CI"); \
-		if (ci != nullptr && std::string(ci) == "true" && config != nullptr) { \
+		if (isRunningOnCI() && config != nullptr) { \
 			const auto &ipiConfig = config->getConfig(); \
 			if (ipiConfig.b.allInMemory || ipiConfig.strings.loaded) { \
 				GTEST_SKIP() << "Skipping MetaDataReload on CI for in-memory " \
@@ -63,16 +62,16 @@ using namespace FiftyoneDegrees::IpIntelligence;
 
 #define ENGINE_PROPERTIES_STRING(n,v) \
 static const string n = v; \
-static const string *n##Pointer = &n;
+static const string * const n##Pointer = &n;
 #define ENGINE_PROPERTIES_ARRAY_ONE(n,v) \
 static const vector<string> n = { v }; \
-static const vector<string> *n##Pointer = &n;
+static const vector<string> * const n##Pointer = &n;
 #define ENGINE_PROPERTIES_ARRAY_TWO(n,v1,v2) \
 static const vector<string> n = { v1, v2 }; \
-static const vector<string> *n##Pointer = &n;
+static const vector<string> * const n##Pointer = &n;
 #define ENGINE_PROPERTIES_ARRAY_THREE(n,v1,v2,v3) \
 static const vector<string> n = { v1, v2, v3 }; \
-static const vector<string> *n##Pointer = &n;
+static const vector<string> * const n##Pointer = &n;
 
 // Common IP intelligence properties in arrays and strings.
 ENGINE_PROPERTIES_STRING(OnePropertyString, "RegisteredCountry")
@@ -87,37 +86,37 @@ ENGINE_PROPERTIES_ARRAY_TWO(DuplicatePropertyArray, "RegisteredCountry", "Regist
 ENGINE_PROPERTIES_ARRAY_TWO(InvalidPropertyArray, "INVALID1", "INVALID2")
 ENGINE_PROPERTIES_ARRAY_TWO(MixedPropertyArray, "RegisteredCountry", "Invalid")
 ENGINE_PROPERTIES_ARRAY_THREE(AllEdgePropertyArray, "RegisteredName", "RegisteredOwner", "AccuracyRadiusMin")
-static const string *NullPointer = nullptr;
+static const string * const NullPointer = nullptr;
 
 // An ipv4 address string.
-static const char* ipv4Address = "8.8.8.8";
+static const char* const ipv4Address = "8.8.8.8";
 
 // An ipv6 address string.
-static const char* ipv6Address = "2001:4860:4860::8888";
+static const char* const ipv6Address = "2001:4860:4860::8888";
 
 // An invalid ipv4 address
-static const char* badIpv4Address = "a.b.c.d";
+static const char* const badIpv4Address = "a.b.c.d";
 
 // An lower bound ipv4 address
-static const char* lowerBoundIpv4Address = "0.0.0.0";
+static const char* const lowerBoundIpv4Address = "0.0.0.0";
 
 // An upper bound ipv4 address
-static const char* upperBoundIpv4Address = "255.255.255.255";
+static const char* const upperBoundIpv4Address = "255.255.255.255";
 
 // An ouput of range ipv4 address
-static const char* outOfRangeIpv4Address = "555.0.0.0";
+static const char* const outOfRangeIpv4Address = "555.0.0.0";
 
 // An invalid ipv6 address
-static const char* badIpv6Address = "mmmm:nnnn:mmmm:nnnn:mmmm:nnnn:mmmm:nnnn";
+static const char* const badIpv6Address = "mmmm:nnnn:mmmm:nnnn:mmmm:nnnn:mmmm:nnnn";
 
 // An lower bound ipv6 address
-static const char* lowerBoundIpv6Address = "0000:0000:0000:0000:0000:0000:0000:0000";
+static const char* const lowerBoundIpv6Address = "0000:0000:0000:0000:0000:0000:0000:0000";
 
 // An upper bound ipv6 address
-static const char* upperBoundIpv6Address = "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff";
+static const char* const upperBoundIpv6Address = "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff";
 
 // An ouput of range ipv6 address
-static const char* outOfRangeIpv6Address = "mmmm:nnnn:mmmm:nnnn:mmmm:nnnn:mmmm:nnnn";
+static const char* const outOfRangeIpv6Address = "mmmm:nnnn:mmmm:nnnn:mmmm:nnnn:mmmm:nnnn";
 
 class EngineIpIntelligenceTests : public EngineTests {
 public:
@@ -125,9 +124,9 @@ public:
 		IpIntelligence::ConfigIpi *config,
 		RequiredPropertiesConfig *requiredProperties,
 		const char *directory,
-		const char **fileNames,
+		const char * const *fileNames,
 		int fileNamesLength,
-		const char *ipAddressesFileName);
+		const char *evidenceFileName);
 	~EngineIpIntelligenceTests() override;
 	void SetUp() override;
 	void TearDown() override;
@@ -161,7 +160,7 @@ public:
 	void verifyWithNullIpAddress();
 	void verifyWithNullEvidence();
 	void verifyWithEmptyEvidence();
-	static void multiThreadRandomRunThread(void* state);
+	static TEST_THREAD_RESULT multiThreadRandomRunThread(void* state);
 	void multiThreadRandom(uint16_t concurrency);
 	void reloadMemory();
 	void reloadFile();
@@ -192,7 +191,7 @@ protected:
 		MetaData *metaData,
 		ComponentMetaData *component) 
 		override;
-	fiftyoneDegreesMemoryReader data = { nullptr, nullptr, 0L };
+	fiftyoneDegreesMemoryReader data = { nullptr, nullptr, nullptr, 0 };
 private:
 	bool validateIpAddressInternal(IpIntelligence::IpAddress ipAddress, int length);
 	bool validateIpAddress(IpIntelligence::IpAddress ipAddress);
@@ -229,7 +228,7 @@ public: \
 		_dataFolderName, \
 		_##e##FileNames, \
 		_##e##FileNamesLength, \
-		_ipAddressesFileName) {} \
+		_evidenceFileName) {} \
 	void SetUp() { SKIP_TEMP_FILE_TESTS_ON_CI(); ENGINE_CLASS_NAME_BASE(e,t)::SetUp(); } \
 	void TearDown() { ENGINE_CLASS_NAME_BASE(e,t)::TearDown(); } \
 }; \
@@ -262,7 +261,7 @@ public: \
 		_dataFolderName, \
 		_##e##FileNames, \
 		_##e##FileNamesLength, \
-		_ipAddressesFileName) {} \
+		_evidenceFileName) {} \
 	void SetUp() { SKIP_TEMP_FILE_TESTS_ON_CI(); ENGINE_CLASS_NAME_BASE(e,t)::SetUp(); } \
 	void TearDown() { ENGINE_CLASS_NAME_BASE(e,t)::TearDown(); } \
 }; \

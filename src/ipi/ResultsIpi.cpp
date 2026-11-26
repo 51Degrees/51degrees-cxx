@@ -334,7 +334,7 @@ IpIntelligence::ResultsIpi::valuesAsWeightedStringListAt(
     stringstream stream;
     iterateWeightedValues(
         requiredPropertyIndex,
-        [this, &result](const fiftyoneDegreesResultsNoValueReason reason, const char * const reasonStr) {
+        [&result](const fiftyoneDegreesResultsNoValueReason reason, const char * const reasonStr) {
             result.setNoValueReason(reason, reasonStr);
         },
         [&values](const uint32_t count) {
@@ -553,11 +553,8 @@ IpIntelligence::ResultsIpi::valueAsUTF8StringAt(
         [&itemsCount, &stream, &byteVector](
             const StoredBinaryValue * const binaryValue,
             const PropertyValueType storedValueType,
-            const uint32_t rawWeighting,
+            const uint32_t /* rawWeighting */,
             Exception * const exception) {
-#       	ifdef _MSC_VER
-            UNREFERENCED_PARAMETER(rawWeighting);
-#       	endif
             if (itemsCount != 1) {
                 return;
             }
@@ -661,6 +658,18 @@ IpIntelligence::ResultsIpi::valuesAsWeightedWKTStringListAt(
                 throw NoValuesAvailableException();
             }
 
+            // Each value is written from the type it is stored as, so full
+            // and reduced WKB both give WKT, as every other getter here does.
+            const DataSetIpi * const dataSet = (DataSetIpi*)results->b.dataSet;
+            const int propertyIndex = PropertiesGetPropertyIndexFromRequiredIndex(
+                dataSet->b.b.available,
+                requiredPropertyIndex);
+            const PropertyValueType storedValueType = PropertyGetStoredTypeByIndex(
+                dataSet->propertyTypes,
+                propertyIndex,
+                exception);
+            EXCEPTION_THROW;
+
             // Set enough space in the vector for all the strings that will be
             // inserted.
             values.reserve(results->values.count);
@@ -674,7 +683,7 @@ IpIntelligence::ResultsIpi::valuesAsWeightedWKTStringListAt(
                 const StoredBinaryValue * const binaryValue = (StoredBinaryValue *)valuesItems[i].item.data.ptr;
                 writeStoredBinaryValueToStringStream(
                     binaryValue,
-                    FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+                    storedValueType,
                     stream,
                     decimalPlaces,
                     exception);
@@ -851,13 +860,15 @@ IpIntelligence::ResultsIpi::valuesAsWeightedDoubleListAt(
             // inserted.
             values.reserve(results->values.count);
 
-            // Add the values in their original form to the result.
+            // Add each value as the number its text reads as.
             for (i = 0; i < results->values.count; i++) {
                 WeightedValue<double> weightedDouble;
-                weightedDouble.setValue(StoredBinaryValueToDoubleOrDefault(
-                    (const StoredBinaryValue *)valuesItems[i].item.data.ptr,
-                    storedValueType,
-                    0));
+                weightedDouble.setValue(
+                    StoredBinaryValueToRoundedDoubleOrDefault(
+                        (const StoredBinaryValue *)valuesItems[i].item.data.ptr,
+                        storedValueType,
+                        DefaultWktDecimalPlaces,
+                        0));
                 weightedDouble.setRawWeight(valuesItems[i].rawWeighting);
                 values.push_back(weightedDouble);
             }

@@ -130,9 +130,17 @@ fiftyoneDegreesResourceManagerFree(&manager);
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-matchmetrics.c"
+
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -148,7 +156,7 @@ static const char* getPropertyValueAsString(
 		propertyName,
 		valueBuffer,
 		sizeof(valueBuffer),
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW;
 	return valueBuffer;
@@ -294,7 +302,10 @@ void fiftyoneDegreesHashMatchMetrics(
 	outputMatchMetrics(results);
 
 	// Say what the Enterprise data file adds, on a free data file.
-	fiftyoneDegreesExampleOfferEnterprise(&manager);
+	fiftyoneDegreesExampleOfferEnterpriseProperties(
+		&manager,
+		properties.string,
+		FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Ensure the results are freed to avoid memory leaks.
 	ResultsHashFree(results);
@@ -320,7 +331,10 @@ int main(int argc, char* argv[]) {
 	ConfigHash config = HashDefaultConfig;
 	char dataFilePath[FILE_MAX_PATH];
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -345,6 +359,9 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesExampleMemCheck(
 		&params,
 		fiftyoneDegreesExampleCMatchMetricsRun);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

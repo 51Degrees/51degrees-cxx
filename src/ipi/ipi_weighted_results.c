@@ -110,15 +110,24 @@ typedef struct {
 /**
  * @brief Initializes a PropValues structure.
  * 
- * Allocates memory for the specified number of property value chunks.
+ * Allocates memory for the specified number of property value chunks. When
+ * the allocation fails, the structure is left with no chunks.
  * 
  * @param values Pointer to the PropValues structure to initialize
  * @param count Number of chunks to allocate
+ * @return false if the memory could not be allocated
  */
-static void PropValuesInit(PropValues * const values, const uint32_t count) {
-    values->count = count;
+static bool PropValuesInit(PropValues * const values, const uint32_t count) {
+    values->count = 0;
+    values->items = NULL;
     DataReset(&values->data);
-    DataMalloc(&values->data, count * sizeof(PropValuesChunk));
+    if (count == 0) {
+        return true;
+    }
+    if (DataMalloc(&values->data, count * sizeof(PropValuesChunk)) == NULL) {
+        return false;
+    }
+    values->count = count;
     values->data.used = values->data.allocated;
     values->items = (PropValuesChunk *)values->data.ptr;
     for (uint32_t i = 0, n = values->count; i < n; i++) {
@@ -128,6 +137,7 @@ static void PropValuesInit(PropValues * const values, const uint32_t count) {
         values->items[i].count = 0;
         values->items[i].converter = NULL;
     }
+    return true;
 }
 
 /**
@@ -185,9 +195,7 @@ static void SaveInt(
     const PropertyValueType propertyValueType,
     void * const converterState,
     Exception * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 
     ((WeightedInt*)header)->value = StoredBinaryValueToIntOrDefault(
         storedBinaryValue, propertyValueType, *(int*)converterState);
@@ -223,9 +231,7 @@ static void SaveBool(
     const PropertyValueType propertyValueType,
     void * const converterState,
     Exception * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 
     ((WeightedBool*)header)->value = StoredBinaryValueToBoolOrDefault(
         storedBinaryValue, propertyValueType, *(bool*)converterState);
@@ -247,7 +253,9 @@ static void InitDouble(
 /**
  * @brief Saves a double value from a stored binary value.
  * 
- * Converts the stored binary value to a double and saves it in the weighted value.
+ * Converts the stored binary value to a double and saves it in the weighted
+ * value. A value stored as an azimuth or a declination is rounded to
+ * #fiftyoneDegreesDefaultWktDecimalPlaces places, as its text is.
  * 
  * @param header Pointer to the weighted value header
  * @param storedBinaryValue Pointer to the stored binary value
@@ -261,12 +269,14 @@ static void SaveDouble(
     const PropertyValueType propertyValueType,
     void * const converterState,
     Exception * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 
-    ((WeightedDouble*)header)->value = StoredBinaryValueToDoubleOrDefault(
-        storedBinaryValue, propertyValueType, *(double*)converterState);
+    ((WeightedDouble*)header)->value =
+        StoredBinaryValueToRoundedDoubleOrDefault(
+            storedBinaryValue,
+            propertyValueType,
+            DefaultWktDecimalPlaces,
+            *(double*)converterState);
 }
 
 /**
@@ -299,9 +309,7 @@ static void SaveByte(
     const PropertyValueType propertyValueType,
     void * const converterState,
     Exception * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 
     ((WeightedByte*)header)->value = (byte)StoredBinaryValueToIntOrDefault(
         storedBinaryValue, propertyValueType, *(uint8_t*)converterState);
@@ -318,9 +326,7 @@ static void SaveByte(
 static void InitString(
     WeightedValueHeader * const header,
     void * const converterState) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(converterState);
-#	endif
+    (void)converterState;
     WeightedString * const wString = (WeightedString*)header;
     DataReset(&wString->stringData);
     wString->value = NULL;
@@ -399,6 +405,10 @@ static void SaveString(
     StringBuilder builder = {
         (char *)state->tempData->ptr,
         state->tempData->allocated,
+        NULL,
+        0,
+        0,
+        false
     };
     StringBuilderInit(&builder);
     StringBuilderAddStringValue(
@@ -416,6 +426,10 @@ static void SaveString(
         StringBuilder builder2 = {
             (char *)state->tempData->ptr,
             state->tempData->allocated,
+            NULL,
+            0,
+            0,
+            false
         };
         StringBuilderInit(&builder2);
         StringBuilderAddStringValue(
@@ -543,6 +557,8 @@ typedef struct {
  * @brief Populates a property values chunk with values.
  * 
  * Allocates memory for the chunk data and initializes all values in the chunk.
+ * When the allocation fails, the chunk is left with no values and the
+ * exception is set to insufficient memory.
  * 
  * @param context Pointer to the chunk context
  * @param converter Pointer to the converter for the value type
@@ -556,9 +572,16 @@ static void PropValuesChunkPopulate(
     Exception * const exception = context->exception;
 
     context->chunk->converter = converter;
-    DataMalloc(
+    if (context->valuesCount == 0) {
+        return;
+    }
+    if (DataMalloc(
         &context->chunk->data,
-        context->chunk->count * converter->itemSize);
+        context->valuesCount * converter->itemSize) == NULL) {
+        context->chunk->count = 0;
+        EXCEPTION_SET(INSUFFICIENT_MEMORY);
+        return;
+    }
     context->chunk->data.used = context->chunk->data.allocated;
     uint8_t * const chunkDataPtr = context->chunk->data.ptr;
 
@@ -809,16 +832,40 @@ static void PropValuesPopulate(
 }
 
 /**
+ * @brief Frees what each value still held in the chunks owns.
+ *
+ * Used when the values cannot be moved to the collection, which would
+ * otherwise free them. The chunks' own data is freed by PropValuesRelease.
+ *
+ * @param values Pointer to the PropValues structure containing the values
+ */
+static void PropValuesFreeItems(const PropValues * const values) {
+    for (uint32_t i = 0, n = values->count; i < n; i++) {
+        const PropValuesChunk * const chunk = &(values->items[i]);
+        if (chunk->count == 0 || chunk->converter->itemFreeFunc == NULL) {
+            continue;
+        }
+        uint8_t *nextHeader = (uint8_t *)chunk->data.ptr;
+        for (uint32_t j = 0, m = chunk->count; j < m; j++) {
+            chunk->converter->itemFreeFunc((WeightedValueHeader *)nextHeader);
+            nextHeader += chunk->converter->itemSize;
+        }
+    }
+}
+
+/**
  * @brief Moves items from PropValues to a WeightedValuesCollection.
  * 
  * Allocates memory in the result collection and copies all values from the
  * PropValues structure to the collection. This function also builds the
- * table of contents for the collection.
+ * table of contents for the collection. If either allocation fails, the
+ * values are freed and the collection is left empty.
  * 
  * @param values Pointer to the PropValues structure containing the values
  * @param result Pointer to the WeightedValuesCollection to populate
+ * @return false if the memory could not be allocated
  */
-static void PropValuesMoveItems(
+static bool PropValuesMoveItems(
     const PropValues * const values,
     WeightedValuesCollection * const result) {
 
@@ -828,19 +875,31 @@ static void PropValuesMoveItems(
         totalSize += values->items[i].data.allocated;
         totalCount += values->items[i].count;
     }
-    DataMalloc(&result->valuesData, totalSize);
-    DataMalloc(
-        &result->itemsData,
-        totalCount * sizeof(WeightedValueHeader*));
+    // Nothing is allocated for a size of zero.
+    const bool valuesFailed =
+        totalSize > 0 &&
+        DataMalloc(&result->valuesData, totalSize) == NULL;
+    const bool itemsFailed =
+        totalCount > 0 &&
+        DataMalloc(
+            &result->itemsData,
+            totalCount * sizeof(WeightedValueHeader*)) == NULL;
+    if (valuesFailed || itemsFailed) {
+        PropValuesFreeItems(values);
+        fiftyoneDegreesWeightedValuesCollectionRelease(result);
+        return false;
+    }
     result->items = (WeightedValueHeader**)result->itemsData.ptr;
     uint8_t *nextChunkNew = (uint8_t *)result->valuesData.ptr;
     for (uint32_t i = 0, n = values->count; i < n; i++) {
         PropValuesChunk * const nextChunk = &(values->items[i]);
         const uint8_t *nextHeaderStart = (const uint8_t *)nextChunkNew;
-        memcpy(nextChunkNew, nextChunk->data.ptr, nextChunk->data.allocated);
-        result->valuesData.used += nextChunk->data.allocated;
-        nextChunkNew += nextChunk->data.allocated;
+        // A chunk with no values has no data, so there is nothing to copy
+        // and its pointer may be null.
         if (nextChunk->data.allocated) {
+            memcpy(nextChunkNew, nextChunk->data.ptr, nextChunk->data.allocated);
+            result->valuesData.used += nextChunk->data.allocated;
+            nextChunkNew += nextChunk->data.allocated;
             Free(nextChunk->data.ptr);
             DataReset(&nextChunk->data);
         }
@@ -852,6 +911,7 @@ static void PropValuesMoveItems(
             result->itemsCount++;
         }
     }
+    return true;
 }
 
 /* Implementation of the function declared in the header file */
@@ -884,14 +944,20 @@ WeightedValuesCollection fiftyoneDegreesResultsIpiGetValuesCollection(
             EXCEPTION_SET(INVALID_INPUT);
             return result;
         }
-        PropValuesInit(&values, requiredPropertyIndexesLength);
+        if (!PropValuesInit(&values, requiredPropertyIndexesLength)) {
+            EXCEPTION_SET(INSUFFICIENT_MEMORY);
+            return result;
+        }
         for (uint32_t i = 0; i < requiredPropertyIndexesLength; i++) {
             values.items[i].requiredPropertyIndex = requiredPropertyIndexes[i];
         }
     } else {
         const uint32_t propsCount = PropertiesGetRequiredPropertyCount(
             dataSet->b.b.available);
-        PropValuesInit(&values, propsCount);
+        if (!PropValuesInit(&values, propsCount)) {
+            EXCEPTION_SET(INSUFFICIENT_MEMORY);
+            return result;
+        }
         for (uint32_t i = 0; i < propsCount; i++) {
             values.items[i].requiredPropertyIndex = (int)i;
         }
@@ -907,7 +973,9 @@ WeightedValuesCollection fiftyoneDegreesResultsIpiGetValuesCollection(
             DataReset(&myTempData);
         }
     }
-    PropValuesMoveItems(&values, &result);
+    if (!PropValuesMoveItems(&values, &result)) {
+        EXCEPTION_SET(INSUFFICIENT_MEMORY);
+    }
     PropValuesRelease(&values);
     if (EXCEPTION_FAILED) {
         fiftyoneDegreesWeightedValuesCollectionRelease(&result);

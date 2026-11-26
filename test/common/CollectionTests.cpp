@@ -21,6 +21,7 @@
  * ********************************************************************* */
 
 #include "pch.h"
+#include "gtest/gtest-spi.h"
 #include <sstream>
 #include "Base.hpp"
 #include "FileHandle.hpp"
@@ -52,13 +53,7 @@ public:
 			data = nullptr;
 		}
 	}
-#ifdef _MSC_VER
-#pragma warning (disable: 4100) 
-#endif
-	virtual void verify(fiftyoneDegreesData *itemData, int index) {}
-#ifdef _MSC_VER
-#pragma warning (default: 4100) 
-#endif
+	virtual void verify(fiftyoneDegreesData * /*itemData*/, int /*index*/) {}
 	virtual uint32_t outOfRange() { return 0; }
 	fiftyoneDegreesCollectionItemComparer itemComparer;
 	const uint32_t count;
@@ -94,10 +89,8 @@ public:
 		fiftyoneDegreesCollectionItem *item,
 		fiftyoneDegreesCollectionKey key,
 		fiftyoneDegreesException *exception) {
-#		ifdef _MSC_VER
-		UNREFERENCED_PARAMETER(key);
-		UNREFERENCED_PARAMETER(exception);
-#		endif
+		(void)key;
+		(void)exception;
 		const uint32_t * const itemValue = (const uint32_t*)item->data.ptr;
 		const uint32_t * const stateValue = (const uint32_t*)state;
 		return *itemValue - *stateValue;
@@ -115,9 +108,10 @@ public:
 		byte *current = data + sizeof(uint32_t);
 		for (uint32_t i = 0; i < count; i++) {
 			map[i] = (uint32_t)(current - data - sizeof(uint32_t));
-			strcpy((char*)current, TEST_STRINGS[i]);
-			current += strlen(TEST_STRINGS[i]);
-			current++;
+			// Copy the string and its null terminator.
+			const size_t length = strlen(TEST_STRINGS[i]) + 1;
+			memcpy(current, TEST_STRINGS[i], length);
+			current += length;
 		}
 		elementSize = 0;
 		itemComparer = itemComparerString;
@@ -134,10 +128,8 @@ public:
 		fiftyoneDegreesCollectionItem *item,
 		fiftyoneDegreesCollectionKey key,
 		fiftyoneDegreesException *exception) {
-#		ifdef _MSC_VER
-		UNREFERENCED_PARAMETER(key);
-		UNREFERENCED_PARAMETER(exception);
-#		endif
+		(void)key;
+		(void)exception;
 		const char *itemString = FIFTYONE_DEGREES_STRING(item->data.ptr);
 		const char *targetString = (const char *)state;
 		return strcmp(itemString, targetString);
@@ -203,7 +195,7 @@ public:
 		fiftyoneDegreesDataReset(&item.data);
 		for (uint32_t i = 0; i < data->count; i++) {
 			const fiftyoneDegreesCollectionKey key {
-				data->map[i],
+				{ data->map[i] },
 				&data->keyType,
 			};
 			collection->get(
@@ -232,7 +224,7 @@ public:
 
 			for (uint32_t i = 0; i < data->count; i++) {
 				const fiftyoneDegreesCollectionKey key {
-					data->map[i],
+					{ data->map[i] },
 					&data->keyType,
 				};
 				auto const theValue = (const uint32_t *)collection->get(
@@ -240,9 +232,7 @@ public:
 					&key,
 					&targetItem,
 					exception);
-#				ifdef _MSC_VER
-				UNREFERENCED_PARAMETER(theValue);
-#				endif
+				(void)theValue;
 				FIFTYONE_DEGREES_EXCEPTION_THROW;
 				const fiftyoneDegreesCollectionIndexOrOffset end = {data->count - 1};
 				const long index = fiftyoneDegreesCollectionBinarySearch(
@@ -301,7 +291,7 @@ public:
 		fiftyoneDegreesCollectionItem item;
 		fiftyoneDegreesDataReset(&item.data);
 		const fiftyoneDegreesCollectionKey key {
-			data->outOfRange(),
+			{ data->outOfRange() },
 			&data->keyType,
 		};
 		EXPECT_EQ(collection->get(
@@ -313,9 +303,9 @@ public:
 		EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_FAILED);
 		EXPECT_EQ(item.data.ptr, nullptr) << "Item data pointer should be "
 			"null when an invalid index or offset is provided";
-		EXPECT_EQ(item.data.allocated, 0) << "Item data allocation should be "
+		EXPECT_EQ(item.data.allocated, 0u) << "Item data allocation should be "
 			"0 when an invalid index or offset is provided";
-		EXPECT_EQ(item.data.used, 0) << "Item data usage should be 0 when an "
+		EXPECT_EQ(item.data.used, 0u) <<"Item data usage should be 0 when an "
 			"invalid index or offset is provided";
 		if (fiftyoneDegreesCollectionGetIsMemoryOnly() == false) {
 			FIFTYONE_DEGREES_COLLECTION_RELEASE(collection, &item);
@@ -331,7 +321,7 @@ public:
 			ASSERT_LT(index, data->count) << "Random index must be less than "
 			"the count of available test data items";
 			const fiftyoneDegreesCollectionKey key {
-					data->map[index],
+					{ data->map[index] },
 				&data->keyType,
 			};
 			EXPECT_NE(collection->get(
@@ -360,7 +350,7 @@ public:
 			fiftyoneDegreesCollectionItem item;
 			fiftyoneDegreesDataReset(&item.data);
 			const fiftyoneDegreesCollectionKey key {
-				data->map[i],
+				{ data->map[i] },
 				&data->keyType,
 			};
 			EXPECT_NE(collection->get(
@@ -388,9 +378,10 @@ public:
 		fiftyoneDegreesListFree(&list);
 	}
 
-	static void randomMultiThreadedRunThread(void* state) {
+	static TEST_THREAD_RESULT randomMultiThreadedRunThread(void* state) {
 		((CollectionTest*)state)->random();
-		FIFTYONE_DEGREES_THREAD_EXIT;
+		// Returning ends the thread, as FIFTYONE_DEGREES_THREAD_EXIT would.
+		return TEST_THREAD_DONE;
 	}
 
 
@@ -400,7 +391,6 @@ public:
 		}
 		runThreads(
 			config->getConcurrency(),
-			(FIFTYONE_DEGREES_THREAD_ROUTINE)
 			CollectionTest::randomMultiThreadedRunThread);
 	}
 
@@ -484,6 +474,8 @@ public:
 				data->count / config->getConcurrency()) <<
 				"Number of threads are too high for a successful test.";
 		}
+		ASSERT_TRUE(fileHandle->isOpen()) << "The test data file " <<
+			fileHandle->getFileName() << " is not open.";
 		fseek(fileHandle->getFile(), 0, SEEK_SET);
 		collection = fiftyoneDegreesCollectionCreateFromFile(
 			fileHandle->getFile(),
@@ -562,8 +554,9 @@ public:
 			return NULL;
 		}
 
-		// Copy from the stream to the data pointer.
-		strcpy((char*)data->ptr, stream.str().c_str());
+		// Copy from the stream to the data pointer. The length includes the
+		// null terminator.
+		memcpy(data->ptr, stream.str().c_str(), length);
 		data->used = length;
 
 		// Release the handle to the pool.
@@ -572,6 +565,31 @@ public:
 		return data->ptr;
 	}
 };
+
+/**
+ * Creates the file helper for a file in a folder that does not exist, so the
+ * file cannot be written.
+ */
+static void createFileHandleInMissingFolder() {
+	static byte data[] = { 1, 2, 3, 4 };
+	FileHandle fileHandle(
+		"missing-folder/collection-test",
+		data,
+		sizeof(data),
+		1);
+	EXPECT_FALSE(fileHandle.isOpen());
+}
+
+/**
+ * Check that the file helper reports a file it cannot write as a test failure
+ * which names the file, and has nothing to close afterwards.
+ */
+TEST(CollectionTestFileHandle, FileThatCannotBeWritten) {
+	EXPECT_FATAL_FAILURE(
+		createFileHandleInMissingFolder(),
+		testProcessName("missing-folder/collection-test") +
+			" could not be written");
+}
 
 class CollectionTestFileVariableLimits : public Base {
 public:
@@ -587,9 +605,7 @@ public:
 static uint32_t getIntArraySize(
 	const void *initial,
     fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-    UNREFERENCED_PARAMETER(exception);
-#	endif
+    (void)exception;
 	return (uint32_t)(sizeof(int32_t) * ((*(int32_t*)initial) + 1));
 }
 
@@ -674,6 +690,12 @@ TEST_F(CollectionTestFileVariableLimits, OnlyElementHeader) {
 		data,
 		size + sizeof(uint32_t),
 		1);
+	if (fileHandle->isOpen() == false) {
+		delete fileHandle;
+		delete[] data;
+		delete[] offsets;
+		FAIL() << "The test data file could not be created.";
+	}
 	fseek(fileHandle->getFile(), 0, SEEK_SET);
 
 	// Create the collection.
@@ -701,7 +723,7 @@ TEST_F(CollectionTestFileVariableLimits, OnlyElementHeader) {
 	};
 	for (uint32_t i = 0; i < count; i++) {
 		const fiftyoneDegreesCollectionKey key {
-			offsets[i],
+			{ offsets[i] },
 			&keyType,
 		};
 		value = (uint32_t*)collection->get(

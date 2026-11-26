@@ -87,11 +87,7 @@ https://51degrees.com/Support/Documentation/APIs/C-V32/Benchmarks?utm_source=cod
 #include <stdlib.h>
 
 #ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 5105) 
 #include <windows.h>
-#pragma warning (default: 5105) 
-#pragma warning (pop)
 #else
 #include <unistd.h>
 #endif
@@ -100,17 +96,27 @@ https://51degrees.com/Support/Documentation/APIs/C-V32/Benchmarks?utm_source=cod
 // which requires to be included before 'malloc.h'.
 #include "ExampleBase.h"
 
-#include "../../../../src/common/textfile.h"
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-reloadfrommemory.c"
+
 #define THREAD_COUNT 4
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 
-static const char *userAgentFileName = "20000 User Agents.csv";
+// This file contains the 20,000 most commonly seen combinations of header
+// values that are relevant to device detection. This example reads the
+// User-Agent of each record.
+static const char *userAgentFileName = "20000 Evidence Records.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -196,8 +202,8 @@ static unsigned long getHashCode(ResultsHash *results) {
 }
 
 /**
- * Runs the performance test for the User-Agent provided. Called from the text
- * file iterator.
+ * Runs the performance test for the User-Agent provided. Called with the
+ * User-Agent of each record of the evidence file.
  * @param userAgent to be used for the test
  * @param state instance of performanceThreadState
  */
@@ -224,7 +230,7 @@ static void runRequestsSingle(sharedState *state) {
 	threadState thread;
 	thread.hashCode = 0;
 	thread.manager = shared->manager;
-	TextFileIterate(
+	fiftyoneDegreesExampleUserAgentsIterate(
 		shared->userAgentFilePath,
 		userAgent,
 		sizeof(userAgent),
@@ -233,10 +239,11 @@ static void runRequestsSingle(sharedState *state) {
 	printf("Finished with hashcode '%i'\r\n", thread.hashCode);
 }
 
-static void runRequestsMulti(void *state) {
+static EXAMPLE_THREAD_RESULT runRequestsMulti(void *state) {
 	sharedState *shared = (sharedState*)state;
 	runRequestsSingle(shared);
 	INTERLOCK_INC(&shared->threadsFinished);
+	return EXAMPLE_THREAD_DONE;
 }
 
 /**
@@ -248,7 +255,7 @@ static void startThreads(sharedState *state) {
 	for (thread = 0; thread < THREAD_COUNT; thread++) {
 		THREAD_CREATE(
 			state->threads[thread],
-			(THREAD_ROUTINE)&runRequestsMulti,
+			runRequestsMulti,
 			state);
 	}
 }
@@ -293,7 +300,11 @@ static void run(
 	if (ThreadingGetIsThreadSafe()) {
 		printf("** Multi Threaded Reload Example **\r\n");
 		startThreads(&state);
-		while (state.threadsFinished < THREAD_COUNT) {
+		// The threads increment the count as it is read here, so it is
+		// read atomically: compare and exchange 0 for 0 returns the
+		// count and leaves it as it is.
+		while (INTERLOCK_EXCHANGE(state.threadsFinished, 0, 0) <
+			THREAD_COUNT) {
 			status = HashReloadManagerFromMemory(
 				manager,
 				reader->startByte,
@@ -386,7 +397,10 @@ void fiftyoneDegreesHashReloadFromMemoryRun(
 		run(&manager, userAgentFilePath, &reader);
 
 		// Say what the Enterprise data file adds, on a free data file.
-		fiftyoneDegreesExampleOfferEnterprise(&manager);
+		fiftyoneDegreesExampleOfferEnterpriseProperties(
+			&manager,
+			requiredProperties,
+			FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		// Free the memory used by the manager.
 		ResourceManagerFree(&manager);
@@ -413,9 +427,12 @@ void fiftyoneDegreesExampleCReloadFromMemoryRun(ExampleParameters *params) {
 int main(int argc, char* argv[]) {
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
-	char userAgentFilePath[FILE_MAX_PATH];
+	char userAgentFilePath[FILE_MAX_PATH] = "";
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -430,7 +447,10 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	if (argc > 2) {
-		strcpy(userAgentFilePath, argv[2]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[2],
+			userAgentFilePath,
+			sizeof(userAgentFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -456,6 +476,9 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesExampleMemCheck(
 		&params,
 		fiftyoneDegreesExampleCReloadFromMemoryRun);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

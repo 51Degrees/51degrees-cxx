@@ -23,96 +23,54 @@
 #include "resource.h"
 #include "fiftyone.h"
 
-/**
- * Macro used to ensure that local variables are aligned to memory boundaries
- * to support interlocked operations that require double width data structures
- * and pointers to be aligned.
+#define ACTIVE FIFTYONE_DEGREES_RESOURCE_ACTIVE
+#define IN_USE_MAX FIFTYONE_DEGREES_RESOURCE_IN_USE_MAX
+
+#ifdef FIFTYONE_DEGREES_NO_THREADING
+#define COUNTER_READ(v) (v)
+#else
+/*
+ * Reads a handle's counter as one atomic load, as other threads change it at
+ * the same time. The read needs no ordering of its own, so gcc and clang use
+ * a relaxed load. Visual Studio reads an aligned volatile long in one access,
+ * so a plain read is atomic there. The loop that reads it doesn't depend on
+ * order: a value it reads is either checked by the compare and exchange that
+ * follows, which fails and tries again if the value is stale, or makes it
+ * start again from the manager. GetUse only returns the value it reads,
+ * which may already be out of date.
  */
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-#define VOLATILE volatile
-#if ((defined(_MSC_VER) && defined(_WIN64)) \
-    || (!defined(_MSC_VER) && (defined(_LP64) || defined(__MINGW64__))))
-#define ALIGN_SIZE 16
-typedef struct counter_t {
-	ResourceHandle* handle;
-	int32_t inUse;
-	int32_t padding;
-} Counter;
-static InterlockDoubleWidth emptyCounter() {
-	InterlockDoubleWidth empty = { 0, 0 };
-	((Counter*)&empty)->handle = NULL;
-	((Counter*)&empty)->padding = 0;
-	((Counter*)&empty)->inUse = 0;
-	return empty;
-}
-#else
-#define ALIGN_SIZE 8
-typedef struct counter_t {
-	ResourceHandle* handle;
-	int32_t inUse;
-} Counter;
-static InterlockDoubleWidth emptyCounter() {
-	InterlockDoubleWidth empty = { 0 };
-	((Counter*)&empty)->handle = NULL;
-	((Counter*)&empty)->inUse = 0;
-	return empty;
-}
-#endif
-
 #ifdef _MSC_VER
-// These types' variables in most cases are involved in atomic operations,
-// mainly the compare and swap exchange. As it is observed in Windows SDK
-// 10.0.18362.0 (VS2017), when being compiled with /Og flag, the optimized code 
-// incorrectly update the value held in the destination just prior to the 
-// atomic operation of the compare and swap. This appears to be undesired 
-// behaviour when optmization is performed on local variables. Thus, to ensure
-// that the compare and swap operation is performed correctly, compiler
-// optimization should be switch off on the involved variables. To do so
-// variables of these types should always be marked with 'volatile' qualifier.
-#define COUNTER __declspec(align(ALIGN_SIZE)) volatile InterlockDoubleWidth
-#define FIFTYONE_DEGREES_RESOURCE_HANDLE \
-	__declspec(align(ALIGN_SIZE)) volatile ResourceHandle
+#define COUNTER_READ(v) (v)
 #else
-typedef InterlockDoubleWidth AlignedInterlockDoubleWidth
-	__attribute__ ((aligned (ALIGN_SIZE)));
-#define COUNTER AlignedInterlockDoubleWidth
-
-typedef ResourceHandle AlignedResourceHandle
-	__attribute__ ((aligned (ALIGN_SIZE)));
-#define FIFTYONE_DEGREES_RESOURCE_HANDLE AlignedResourceHandle
+#define COUNTER_READ(v) __atomic_load_n(&(v), __ATOMIC_RELAXED)
 #endif
-#else
-#define VOLATILE
-typedef struct counter_t {
-	ResourceHandle* handle;
-	int32_t inUse;
-} Counter;
-static InterlockDoubleWidth emptyCounter() {
-	InterlockDoubleWidth empty;
-	((Counter*)&empty)->handle = NULL;
-	((Counter*)&empty)->inUse = 0;
-	return empty;
-}
-#define COUNTER InterlockDoubleWidth
-#define FIFTYONE_DEGREES_RESOURCE_HANDLE ResourceHandle
 #endif
 
-static void add(VOLATILE InterlockDoubleWidth* counter, int32_t value) {
-	((Counter*)counter)->inUse += value;
-}
+/*
+ * Reads the manager's active handle as one atomic load, as another thread can
+ * replace it with compare and exchange at the same time. The load also orders
+ * the reads of the handle after the writes that set it up, which a plain read
+ * of the pointer doesn't. Visual Studio reads it with an interlocked compare
+ * and exchange of NULL for NULL, which changes nothing and is a full barrier
+ * on every target. A volatile read is not enough, as it has no acquire
+ * semantics under /volatile:iso, the default on ARM64.
+ */
+#ifdef FIFTYONE_DEGREES_NO_THREADING
+#define ACTIVE_READ(m) ((m)->active)
+#elif defined(_MSC_VER)
+#define ACTIVE_READ(m) \
+	((volatile ResourceHandle*)INTERLOCK_EXCHANGE_PTR((m)->active, NULL, NULL))
+#else
+#define ACTIVE_READ(m) __atomic_load_n(&(m)->active, __ATOMIC_SEQ_CST)
+#endif
 
-static int32_t getInUse(VOLATILE InterlockDoubleWidth* counter) {
-	return ((Counter*)counter)->inUse;
-}
-
-static ResourceHandle* getHandle(VOLATILE InterlockDoubleWidth* counter) {
-	return ((Counter*)counter)->handle;
-}
-
-static void setHandle(
-	VOLATILE InterlockDoubleWidth* counter,
-	ResourceHandle* handle) {
-	((Counter*)counter)->handle = handle;
+/**
+ * Returns the number of users a counter holds, without the active bit.
+ * @param counter value read from a handle
+ * @return the number of users
+ */
+static int32_t getInUse(long counter) {
+	return (int32_t)(counter & IN_USE_MAX);
 }
 
 /**
@@ -120,7 +78,8 @@ static void setHandle(
  * handle from the manager just before another thread replaces it, then read
  * the handle after its last reference has gone. So the resource is freed with
  * the last reference, but the memory of the handle stays until the manager is
- * freed as well, which costs one of these for each replacement.
+ * freed as well, which costs one of these for each replacement. The memory
+ * also stays until the release of the last reference has finished with it.
  *
  * Nothing limits how long a thread can pause between reading the active handle
  * and adding to its counter, so a handle can still be read after several more
@@ -162,26 +121,19 @@ static void setupResource(
 	ResourceHandle **resourceHandle,
 	void(*freeResource)(void*)) {
 
-	// Needed to verify that the counters size is the same as two pointers.
-	assert(sizeof(void*) * 2 == sizeof(InterlockDoubleWidth));
-
-	// Create a new active handle for the manager. Align this to double
-	// architecture's bus size to enable double width atomic operations.
+	// Create a new active handle for the manager.
 	RetainedHandle *retained = (RetainedHandle*)
 		MallocAligned(
-			sizeof(InterlockDoubleWidth),
+			sizeof(void*),
 			sizeof(RetainedHandle));
 	ResourceHandle *handle = &retained->handle;
 	retained->replaced = NULL;
 	retained->owners = HANDLE_MEMORY_OWNERS;
 
-	// Set the handle and the number of users of the resource to zero.
-	handle->counter = emptyCounter();
-	setHandle(&handle->counter, handle);
-	
-	// Set a link between the new active resource and the manager. Used to
-	// check if the resource can be freed when the last thread has finished
-	// using it.
+	// The handle has no users, and the active bit holds it for the manager.
+	handle->counter = ACTIVE;
+
+	// Set a link between the new active resource and the manager.
 	handle->manager = manager;
 
 	// Set the resource that the new handle manages to the one provided.
@@ -215,12 +167,10 @@ void fiftyoneDegreesResourceManagerInit(
 
 void fiftyoneDegreesResourceManagerFree(
 	fiftyoneDegreesResourceManager *manager) {
-	// Unlike IncUse and DecUse, Free should not be
-	// called at the same time as a reload so the 
-	// active handle won't change at this point.
-	// Thus, it is safe to perform assertion directly
-	// to the active handle here. 
-	assert(getInUse(&manager->active->counter) >= 0);
+	// Free must not run at the same time as a take or a replace, so the
+	// active handle cannot change here. Releases can run at any time.
+	assert(manager->active == NULL ||
+		(COUNTER_READ(manager->active->counter) & ACTIVE) != 0);
 	if (manager->active != NULL) {
 
 		ResourceHandle* newHandlePointer;
@@ -231,9 +181,9 @@ void fiftyoneDegreesResourceManagerFree(
 			NULL,
 			&newHandlePointer);
 
-		// Nothing may read from a manager being freed, so it can let go of
-		// every handle it has replaced. A handle still in use is freed when
-		// its last reference goes.
+		// Nothing may take a handle from a manager being freed, so it can let
+		// go of every handle it has replaced. The memory of a handle still in
+		// use is freed when its last reference goes.
 		for (handle = ((RetainedHandle*)newHandlePointer)->replaced;
 			handle != NULL;
 			handle = replaced) {
@@ -246,173 +196,114 @@ void fiftyoneDegreesResourceManagerFree(
 
 void fiftyoneDegreesResourceHandleDecUse(
 	fiftyoneDegreesResourceHandle *handle) {
-	// When modifying this method, it is important to note the reason for using
-	// two separate compareand swaps. The first compare and swap ensures that
-	// we are certain the handle is ready to be released i.e. the inUse counter
-	// is zero, and the handle is no longer active in the manager. The second
-	// compare and swap ensures that we are certain the handle can be freed by
-	// THIS thread. See below for an example of when this can happen.
-	COUNTER decremented;
+	// The active bit counts as a use, so the counter reaches zero only at the
+	// last release of a handle that has been replaced. A handle at zero is
+	// never taken again, so only one release sees zero, and the handle's
+	// memory is kept until that release has freed the resource. Nothing here
+	// reads the manager, which may already have been freed.
+	long decremented;
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-	COUNTER compare;
-	do {
-		compare = handle->counter;
-		assert(getInUse(&compare) > 0);
-		decremented = compare;
-		add(&decremented, -1);
-		assert((uintptr_t)&handle->counter % ALIGN_SIZE == 0);
-		assert((uintptr_t)&decremented % ALIGN_SIZE == 0);
-		assert((uintptr_t)&compare % ALIGN_SIZE == 0);
-#ifdef _MSC_VER
-// Disable warning against the difference in the use of 'volatile' qualifier.
-// Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
-#pragma warning (disable: 4090)
-#endif
-	} while (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
-		handle->counter, 
-		decremented,
-		compare) == false);
-#ifdef _MSC_VER
-#pragma warning (default: 4090)
-#endif
+	decremented = FIFTYONE_DEGREES_INTERLOCK_DEC(&handle->counter);
 #else
-	add(&handle->counter, -1);
-	decremented = handle->counter;
+	assert(getInUse(handle->counter) > 0);
+	decremented = --handle->counter;
 #endif
-	assert(getInUse(&decremented) >= 0);
-	if (getInUse(&decremented) == 0 &&  // Am I the last user of the handle?
-		handle->manager->active != getHandle(&decremented)) { // Is the handle still active?
-#ifndef FIFTYONE_DEGREES_NO_THREADING
-		// Atomically set the handle's self pointer to null to ensure only
-		// one thread can get into the freeHandle method.
-		// Consider the scenario where between the decrement this if statement:
-		// 1. another thread increments and decrements the counter, then
-		// 2. the active handle is replaced.
-		// In this case, both threads will make it into here, so access to
-		// the freeHandle method must be limted to one by atomically nulling
-		// the self pointer. We will still have access to the pointer for
-		// freeing through the decremented copy.
-		COUNTER empty = emptyCounter();
-		assert((uintptr_t)&getHandle(&decremented)->counter % ALIGN_SIZE == 0);
-		assert((uintptr_t)&empty % ALIGN_SIZE == 0);
-		assert((uintptr_t)&decremented % ALIGN_SIZE == 0);
-#ifdef _MSC_VER
-// Disable warning against the difference in the use of 'volatile' qualifier.
-// Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
-#pragma warning (disable: 4090)
-#endif
-		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
-			getHandle(&decremented)->counter,
-			empty,
-			decremented)) {
-#ifdef _MSC_VER
-#pragma warning (default: 4090)
-#endif
-			assert(handle != handle->manager->active);
-			freeHandle(getHandle(&decremented));
-		}
-#else
-		freeHandle(getHandle(&decremented));
-#endif
+	assert(decremented >= 0);
+	if (decremented == 0) {
+		freeHandle(handle);
 	}
 }
 
 fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 	fiftyoneDegreesResourceManager *manager) {
-	COUNTER incremented;
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-	COUNTER compare;
+	long compare;
 	volatile ResourceHandle* active;
-	do {
+	for (;;) {
 		// Read the active handle once for each attempt, so the counter and
-		// the exchange use the same handle. The cast forces a new read, as
-		// the pointer itself is not volatile.
-		active = *(volatile ResourceHandle* volatile*)&manager->active;
-		compare = active->counter;
-		assert(getInUse(&compare) >= 0);
-		incremented = compare;
-		add(&incremented, 1);
-		assert((uintptr_t)&active->counter % ALIGN_SIZE == 0);
-		assert((uintptr_t)&incremented % ALIGN_SIZE == 0);
-		assert((uintptr_t)&compare % ALIGN_SIZE == 0);
-#ifdef _MSC_VER
-// Disable warning against the difference in the use of 'volatile' qualifier.
-// Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
-#pragma warning (disable: 4090)
-#endif
-		// A null self pointer means the handle was replaced and its resource
-		// freed before it was read, so start again from the manager.
-	} while (getHandle(&compare) == NULL ||
-		FIFTYONE_DEGREES_INTERLOCK_EXCHANGE_DW(
+		// the exchange use the same handle.
+		active = ACTIVE_READ(manager);
+		compare = COUNTER_READ(active->counter);
+		// Only a handle with the active bit set, and fewer than IN_USE_MAX
+		// users, can be taken, which is one unsigned comparison. A handle
+		// without the bit was replaced after it was read. A full handle needs
+		// another thread to release it first. Either way, start again from
+		// the manager. The exchange fails if the bit is cleared meanwhile.
+		if ((unsigned long)(compare - ACTIVE) >= (unsigned long)IN_USE_MAX) {
+			continue;
+		}
+		if (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(
 			active->counter,
-			incremented,
-			compare) == false);
-#ifdef _MSC_VER
-#pragma warning (default: 4090)
-#endif
+			compare + 1,
+			compare) == compare) {
+			return (ResourceHandle*)active;
+		}
+	}
 #else
-	add(&manager->active->counter, 1);
-	incremented = manager->active->counter;
+	// A single thread cannot wait for itself to release the handle.
+	assert((manager->active->counter & ACTIVE) != 0 &&
+		getInUse(manager->active->counter) < IN_USE_MAX);
+	manager->active->counter++;
+	return manager->active;
 #endif
-	assert(getInUse(&incremented) > 0);
-	return getHandle(&incremented);
 }
 
 int32_t fiftyoneDegreesResourceHandleGetUse(
 	fiftyoneDegreesResourceHandle *handle) {
 	if (handle != NULL) {
-		return getInUse(&handle->counter);
+		return getInUse(COUNTER_READ(handle->counter));
 	}
 	else {
 		return 0;
 	}
 }
 
-#ifdef _MSC_VER
-// Disable warning against the difference in the use of 'volatile' qualifier.
-// Casting won't resolve the issue which is described above with the definitions 
-// of COUNTER and FIFTYONE_DEGREES_RESOURCE_HANDLE macros.
-#pragma warning (disable: 4090)
-#endif
 void fiftyoneDegreesResourceReplace(
 	fiftyoneDegreesResourceManager *manager,
 	void *newResource,
 	fiftyoneDegreesResourceHandle **newResourceHandle) {
-	FIFTYONE_DEGREES_RESOURCE_HANDLE* oldHandle = NULL;
-	
+	ResourceHandle* oldHandle;
+	long counter;
+
 	// Add the new resource to the manager replacing the existing one.
 	setupResource(
 		manager,
 		newResource,
 		newResourceHandle,
-		manager->active->freeResource);
-	assert(getInUse(&(*newResourceHandle)->counter) == 0);
-	assert(getHandle(&(*newResourceHandle)->counter) == *newResourceHandle);
+		ACTIVE_READ(manager)->freeResource);
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-	// Switch the active handle for the manager to the newly created one.
+	// Switch the active handle for the manager to the newly created one. If
+	// another thread switched it first, the swap fails, so try again with the
+	// handle that is now active.
 	do {
-		if (oldHandle != NULL) {
-			ResourceHandleDecUse(oldHandle);
-		}
-		oldHandle = ResourceHandleIncUse(manager);
-		((RetainedHandle*)*newResourceHandle)->replaced =
-			(ResourceHandle*)oldHandle;
+		oldHandle = (ResourceHandle*)ACTIVE_READ(manager);
+		((RetainedHandle*)*newResourceHandle)->replaced = oldHandle;
 	} while (INTERLOCK_EXCHANGE_PTR(
 		manager->active,
 		*newResourceHandle,
-		oldHandle) == false);
+		oldHandle) != oldHandle);
+
+	// Only the thread whose swap removed the old handle clears its active
+	// bit. Users can take and release it until then, so retry if the counter
+	// changes.
+	do {
+		counter = COUNTER_READ(oldHandle->counter);
+	} while (FIFTYONE_DEGREES_INTERLOCK_EXCHANGE(
+		oldHandle->counter,
+		counter - ACTIVE,
+		counter) != counter);
 #else
-	oldHandle = ResourceHandleIncUse(manager);
+	oldHandle = manager->active;
 	((RetainedHandle*)*newResourceHandle)->replaced = oldHandle;
 	manager->active = *newResourceHandle;
+	counter = oldHandle->counter;
+	oldHandle->counter -= ACTIVE;
 #endif
-	// Release the existing resource can be freed. If nothing else is
-	// holding onto a reference to it then free it will be freed.
-	ResourceHandleDecUse(oldHandle);
+	assert((counter & ACTIVE) != 0);
+
+	// Free the replaced resource if it has no users. Otherwise its last
+	// release frees it.
+	if (counter == ACTIVE) {
+		freeHandle(oldHandle);
+	}
 }
-#ifdef _MSC_VER
-#pragma warning (default: 4090)
-#endif

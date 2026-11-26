@@ -59,9 +59,7 @@ static int compareValueByName(
 	Item *item,
 	CollectionKey key,
 	Exception *exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(key);
-#	endif
+	(void)key;
 	int result = 0;
 	Item name;
 	const StoredBinaryValue *value;
@@ -103,12 +101,13 @@ const String* fiftyoneDegreesValueGetName(
 	const Value *value,
 	CollectionItem *item,
 	Exception *exception) {
-	return &StoredBinaryValueGet(
+	const StoredBinaryValue * const stored = StoredBinaryValueGet(
 		strings,
 		value->nameOffset,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // legacy contract
 		item,
-		exception)->stringValue;
+		exception);
+	return stored == NULL ? NULL : &stored->stringValue;
 }
 
 const String* fiftyoneDegreesValueGetDescription(
@@ -119,23 +118,23 @@ const String* fiftyoneDegreesValueGetDescription(
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
 	// A reduced size data file does not contain value descriptions, so this
 	// method cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(strings);
-	UNREFERENCED_PARAMETER(value);
-	UNREFERENCED_PARAMETER(item);
-#endif
+	(void)strings;
+	(void)value;
+	(void)item;
+	(void)exception; // Not used when exceptions are disabled.
 	EXCEPTION_SET(NOT_IMPLEMENTED)
 	return NULL;
 #else
 	if (value->descriptionOffset <= 0) {
 		return getNoString(strings, item);
 	}
-	return &StoredBinaryValueGet(
+	const StoredBinaryValue * const stored = StoredBinaryValueGet(
 		strings,
 		value->descriptionOffset,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // description is string
 		item,
-		exception)->stringValue;
+		exception);
+	return stored == NULL ? NULL : &stored->stringValue;
 #endif
 }
 
@@ -151,12 +150,13 @@ const String* fiftyoneDegreesValueGetUrl(
 	if (value->urlOffsetOrWeight == 0) {
 		return getNoString(strings, item);
 	}
-	return &StoredBinaryValueGet(
+	const StoredBinaryValue * const stored = StoredBinaryValueGet(
 		strings,
 		value->urlOffsetOrWeight,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // URL is string
 		item,
-		exception)->stringValue;
+		exception);
+	return stored == NULL ? NULL : &stored->stringValue;
 }
 
 const Value* fiftyoneDegreesValueGet(
@@ -165,7 +165,7 @@ const Value* fiftyoneDegreesValueGet(
 	CollectionItem *item,
 	Exception *exception) {
 	const CollectionKey valueKey = {
-		valueIndex,
+		{ valueIndex },
 		CollectionKeyType_Value,
 	};
 	return (const Value*)values->get(
@@ -215,7 +215,7 @@ static long searchByNameAndType(
 		storedValueType == FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING;
 	const size_t requiredSize = strlen(valueName) + 3;
 	char * const buffer = isString ? NULL : Malloc(requiredSize);
-	StringBuilder tempBuilder = { buffer, requiredSize };
+	StringBuilder tempBuilder = { buffer, requiredSize, NULL, 0, 0, false };
 	search.tempBuilder = isString ? NULL : &tempBuilder;
 
 	const long index = CollectionBinarySearch(
@@ -310,6 +310,7 @@ static char* emptyText(
 	char * const text = buffer != NULL && bufferLength > 0
 		? buffer
 		: (char*)Malloc(1);
+	(void)exception; // Not used when exceptions are disabled.
 	if (text == NULL) {
 		EXCEPTION_SET(INSUFFICIENT_MEMORY);
 		return NULL;
@@ -505,4 +506,92 @@ uint16_t fiftyoneDegreesValueGetWeight(
 		return (uint16_t)(value->urlOffsetOrWeight & 0xFFFF);
 	}
 	return 0;
+}
+
+/**
+ * Writes the string at `offset` in the strings collection as text, or an
+ * empty text when the offset is not above 0. A value with no description or
+ * URL points at offset 0, which holds the first string in the file, and a
+ * weighted value's URL offset holds its weight, which is negative. A string
+ * the collection gives nothing for is also an empty text.
+ */
+static char* getValueStringText(
+	const Collection * const strings,
+	const int32_t offset,
+	char * const buffer,
+	const size_t bufferLength,
+	Exception * const exception) {
+	if (offset <= 0) {
+		return emptyText(buffer, bufferLength, exception);
+	}
+	Item item;
+	DataReset(&item.data);
+	const StoredBinaryValue * const value = StoredBinaryValueGet(
+		strings,
+		(uint32_t)offset,
+		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+		&item,
+		exception);
+	if (value == NULL) {
+		return EXCEPTION_FAILED
+			? NULL
+			: emptyText(buffer, bufferLength, exception);
+	}
+	char *text = NULL;
+	if (EXCEPTION_OKAY) {
+		// A string has no decimal places.
+		text = StoredBinaryValueToText(
+			value,
+			FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+			0,
+			buffer,
+			bufferLength,
+			exception);
+	}
+	COLLECTION_RELEASE(strings, &item);
+	return text;
+}
+
+char* fiftyoneDegreesValueGetMetaDataText(
+	const fiftyoneDegreesCollection *strings,
+	const fiftyoneDegreesCollection *propertyTypes,
+	const fiftyoneDegreesValue *value,
+	fiftyoneDegreesValueText text,
+	uint8_t decimalPlaces,
+	char *buffer,
+	size_t bufferLength,
+	fiftyoneDegreesException *exception) {
+	switch (text) {
+	case FIFTYONE_DEGREES_VALUE_TEXT_NAME:
+		return ValueGetText(
+			strings,
+			propertyTypes,
+			value,
+			decimalPlaces,
+			buffer,
+			bufferLength,
+			exception);
+	case FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION:
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+		// A reduced size data file does not contain value descriptions.
+		return emptyText(buffer, bufferLength, exception);
+#else
+		return getValueStringText(
+			strings,
+			value->descriptionOffset,
+			buffer,
+			bufferLength,
+			exception);
+#endif
+	case FIFTYONE_DEGREES_VALUE_TEXT_URL:
+		return getValueStringText(
+			strings,
+			value->urlOffsetOrWeight,
+			buffer,
+			bufferLength,
+			exception);
+	default:
+		EXCEPTION_SET(INVALID_INPUT);
+		return NULL;
+	}
 }

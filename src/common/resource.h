@@ -76,11 +76,15 @@
  * ## Free
  *
  * A resource manager is freed, along with its resource, using the
- * #fiftyoneDegreesResourceManagerFree method. This prevents any new handles
- * from being acquired, and frees the resource being managed.
- * If the resource has active handles, then a free method does not block.
- * Instead it prevents new handles from being acquired and sets the manager
- * to free the resource once the last handle has been released.
+ * #fiftyoneDegreesResourceManagerFree method. This frees the resource being
+ * managed. If the resource has active handles, then a free method does not
+ * block. Instead the resource is freed when the last handle is released.
+ *
+ * No handle may be taken from the manager, and the resource may not be
+ * replaced, once the free has started. Handles taken before then can be
+ * released at any time, during or after the free, on any thread. A release
+ * reads only the handle, so the memory of the manager structure itself can
+ * be freed once #fiftyoneDegreesResourceManagerFree has returned.
  *
  *
  * ## Replace
@@ -153,17 +157,33 @@ typedef struct fiftyone_degrees_resource_handle_t
 /** @endcond */
 
 /**
- * Handle for a shared resource. The first data structure counter tracks use
- * of the resource and free resources that are not longer active.
- * Counter must be the first member to ensure correct memory aligned for 
- * interlocked operations.
+ * The bit of a handle's counter that is set while the handle is the manager's
+ * active handle. It counts as a use held by the manager, so the counter only
+ * reaches zero at the last release of a handle that has been replaced. Only a
+ * handle with the bit set is given to a new user.
+ */
+#define FIFTYONE_DEGREES_RESOURCE_ACTIVE 0x40000000L
+
+/**
+ * The most users a handle can have at once. The count is held in the bits
+ * below #FIFTYONE_DEGREES_RESOURCE_ACTIVE, so a thread that would go past it
+ * waits until another releases the handle.
+ */
+#define FIFTYONE_DEGREES_RESOURCE_IN_USE_MAX \
+    (FIFTYONE_DEGREES_RESOURCE_ACTIVE - 1)
+
+/**
+ * Handle for a shared resource. The counter tracks the use of the resource,
+ * so that a resource which is no longer active is freed when its last user
+ * releases it.
  */
 typedef struct fiftyone_degrees_resource_handle_t {
 #ifndef FIFTYONE_DEGREES_NO_THREADING
-    volatile 
-#endif 
-    fiftyoneDegreesInterlockDoubleWidth counter; /**< Counter for this 
-                                                 handle. */
+    volatile
+#endif
+    long counter; /**< The number of users of the handle, with
+                  #FIFTYONE_DEGREES_RESOURCE_ACTIVE set while the handle is
+                  active. */
     const void* resource; /**< Pointer to the resource being managed. */
     const fiftyoneDegreesResourceManager* manager; /**< Pointer to the manager
                                                    the handle relates to. */
@@ -205,8 +225,11 @@ EXTERNAL void fiftyoneDegreesResourceManagerInit(
 	void(*freeResource)(void*));
 
 /**
- * Frees any data associated with the manager and releases the manager. All 
- * memory is released after this operation.
+ * Frees any data associated with the manager and releases the manager. The
+ * resource, and the memory of a handle still in use, are freed when the last
+ * use is released. It must not run at the same time as
+ * #fiftyoneDegreesResourceHandleIncUse or #fiftyoneDegreesResourceReplace
+ * for the same manager, and neither may be called after it.
  *
  * @param manager the resource manager to be freed
  */
@@ -225,9 +248,10 @@ EXTERNAL fiftyoneDegreesResourceHandle* fiftyoneDegreesResourceHandleIncUse(
 	fiftyoneDegreesResourceManager *manager);
 
 /**
- * Decrements the usage counter. If the count reaches zero then resource will
- * become eligible to be freed either when the manager replaces it or when the
- * manager is freed.
+ * Decrements the usage counter. If the handle has been replaced, or the
+ * manager freed, and this was the last use, the resource is freed. A release
+ * reads only the handle, not the manager, so it is safe during or after
+ * #fiftyoneDegreesResourceManagerFree.
  * @param handle to the resource which should be released by the manager
  */
 EXTERNAL void fiftyoneDegreesResourceHandleDecUse(
@@ -235,8 +259,8 @@ EXTERNAL void fiftyoneDegreesResourceHandleDecUse(
 
 /**
  * Return the current usage counter.
- * WARNING: This call is not thread-safe and is suitable for using in
- * testing only.
+ * WARNING: Other threads can change the count as soon as it is read, so this
+ * call is suitable for using in testing only.
  * @param handle to the resource which should be released by the manager
  * @return the current usage counter
  */

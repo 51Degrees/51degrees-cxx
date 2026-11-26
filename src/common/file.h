@@ -158,11 +158,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 5105) 
 #include <windows.h>
-#pragma warning (default: 5105) 
-#pragma warning (pop)
 #include <direct.h>
 #include <tchar.h>
 #else
@@ -187,11 +183,7 @@
  */
 #ifdef _MSC_FULL_VER
 #define GET_CURRENT_DIR _getcwd
-#pragma warning (push)
-#pragma warning (disable: 5105) 
 #include <windows.h>
-#pragma warning (default: 5105) 
-#pragma warning (pop)
 #include <direct.h>
 #include <tchar.h>
 #else
@@ -356,7 +348,8 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesFileGetPath(
  * @param count number of paths in the array
  * @param bytesToCompare number of from the start of the file to compare for
  * equality with the master file, or -1 to compare the whole file
- * @param destination memory to write the found file path to
+ * @param destination memory to write the found file path to, which must hold
+ * at least #FIFTYONE_DEGREES_FILE_MAX_PATH characters
  * @return true if a copy of the master file was found, and its path written to
  * destination
  */
@@ -434,7 +427,8 @@ EXTERNAL fiftyoneDegreesStatusCode fiftyoneDegreesFileNewTempFile(
  * @param masterFile full path to the file containing the master data to copy
  * @param paths list of paths to use in order of preference
  * @param count number of paths in the array
- * @param destination memory to write the new file path to
+ * @param destination memory to write the new file path to, which must hold
+ * at least #FIFTYONE_DEGREES_FILE_MAX_PATH characters
  * @return the result of the create operation
  */
 EXTERNAL DEPRECATED fiftyoneDegreesStatusCode fiftyoneDegreesFileCreateTempFile(

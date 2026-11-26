@@ -61,6 +61,7 @@ void fiftyoneDegreesWeightedItemListExtend(
 	WeightedItemList * const list,
 	const uint32_t newCapacity,
 	Exception * const exception) {
+	(void)exception; // Not used when exceptions are disabled.
 	// Allocate new list
 	if (newCapacity > list->capacity) {
 		const size_t newSize = newCapacity * sizeof(WeightedItem);

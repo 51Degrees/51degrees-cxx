@@ -21,8 +21,17 @@
  * ********************************************************************* */
 
 #include "ExampleHashTests.hpp"
+#include <fstream>
 #include "../../../examples/dd/C/Hash/ProcHash.c"
 
+/**
+ * Writes the User-Agent as a line of the file.
+ * @param userAgent to write
+ * @param state the std::ofstream to write to
+ */
+static void writeUserAgent(const char *userAgent, void *state) {
+	*(std::ofstream*)state << userAgent << "\n";
+}
 
 class ExampleTestHashProc : public ExampleHashTest {
 public:
@@ -30,8 +39,32 @@ public:
 		string line;
 		int lines = 0;
 
+		// The example reads one User-Agent from each line of stdin, so
+		// write the User-Agents of the evidence file to a file of lines.
+		const string userAgentsPath = testing::TempDir() +
+			"51degrees-prochash-" +
+			testing::UnitTest::GetInstance()->current_test_info()->name() +
+			".txt";
+		{
+			char userAgent[1000] = "";
+			std::ofstream userAgents(userAgentsPath);
+			fiftyoneDegreesExampleUserAgentsIterate(
+				evidenceFilePath.c_str(),
+				userAgent,
+				sizeof(userAgent),
+				&userAgents,
+				writeUserAgent);
+		}
+
 		// Associate the file of User-Agents with stdin.
-		freopen(this->userAgentFilePath.c_str(), "r", stdin);
+#ifdef _MSC_VER
+		FILE *input = nullptr;
+		ASSERT_EQ(0, freopen_s(&input, userAgentsPath.c_str(), "r", stdin))
+			<< userAgentsPath;
+#else
+		ASSERT_NE(nullptr, freopen(userAgentsPath.c_str(), "r", stdin))
+			<< userAgentsPath;
+#endif
 
 		// Capture stdout for the test.
 		testing::internal::CaptureStdout();
@@ -51,8 +84,9 @@ public:
 			lines++;
 		}
 
-		// Check lines in and out are the same.
+		// Check lines in and out are the same, and that there were some.
 		EXPECT_EQ(count, lines) << "Same number of User-Agents in and out required";
+		EXPECT_GT(count, 0) << "No User-Agents were read from " << evidenceFilePath;
 	}
 };
 

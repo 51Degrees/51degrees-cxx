@@ -124,8 +124,15 @@ Failed to reload '0' times.
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-reloadfrommemory.c"
+
 #define THREAD_COUNT 4
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/ip-intelligence";
 
 // The free ASN data file is used by default, as any data file will do for
@@ -134,6 +141,7 @@ static const char *dataDir = "data/ip-intelligence";
 static const char *dataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 static const char *ipAddressFileName = "evidence.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -258,10 +266,11 @@ static void runRequestsSingle(sharedState *state) {
 		(unsigned long)ipsCount, (unsigned long)thread.hashCode);
 }
 
-static void runRequestsMulti(void *state) {
+static EXAMPLE_THREAD_RESULT runRequestsMulti(void *state) {
 	sharedState *shared = (sharedState*)state;
 	runRequestsSingle(shared);
 	INTERLOCK_INC(&shared->threadsFinished);
+	return EXAMPLE_THREAD_DONE;
 }
 
 /**
@@ -273,7 +282,7 @@ static void startThreads(sharedState *state) {
 	for (thread = 0; thread < THREAD_COUNT; thread++) {
 		THREAD_CREATE(
 			state->threads[thread],
-			(THREAD_ROUTINE)&runRequestsMulti,
+			runRequestsMulti,
 			state);
 	}
 }
@@ -318,7 +327,11 @@ static void run(
 	if (ThreadingGetIsThreadSafe()) {
 		printf("** Multi Threaded Reload Example **\r\n");
 		startThreads(&state);
-		while (state.threadsFinished < THREAD_COUNT) {
+		// The threads increment the count as it is read here, so it is
+		// read atomically: compare and exchange 0 for 0 returns the
+		// count and leaves it as it is.
+		while (INTERLOCK_EXCHANGE(state.threadsFinished, 0, 0) <
+			THREAD_COUNT) {
 			status = IpiReloadManagerFromMemory(
 				manager,
 				reader->startByte,
@@ -406,7 +419,10 @@ void fiftyoneDegreesIpiReloadFromMemoryRun(
 		run(&manager, ipAddressFilePath, &reader);
 
 		// Say what the Enterprise data file adds, on a free data file.
-		fiftyoneDegreesExampleOfferEnterprise(&manager);
+		fiftyoneDegreesExampleOfferEnterpriseProperties(
+			&manager,
+			requiredProperties,
+			FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		// Free the memory used by the manager.
 		ResourceManagerFree(&manager);
@@ -430,20 +446,22 @@ int main(int argc, char* argv[]) {
 
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
-	char ipAddressFilePath[FILE_MAX_PATH];
+	char ipAddressFilePath[FILE_MAX_PATH] = "";
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char *envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char *envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = fiftyoneDegreesExampleCopyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -458,7 +476,10 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	if (argc > 2) {
-		strcpy(ipAddressFilePath, argv[2]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[2],
+			ipAddressFilePath,
+			sizeof(ipAddressFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -485,6 +506,9 @@ int main(int argc, char* argv[]) {
 	_CrtDumpMemoryLeaks();
 #endif
 #endif
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

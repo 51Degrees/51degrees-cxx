@@ -123,7 +123,8 @@ protected:
 			path = GetFilePath(_dataFolderName, _HashFileNames[i]);
 		}
 		ASSERT_FALSE(path.empty()) << "No data file was found.";
-		FILE *file = fopen(path.c_str(), "rb");
+		FILE *file = nullptr;
+		fiftyoneDegreesFileOpen(path.c_str(), &file);
 		ASSERT_NE(nullptr, file) << "Could not open '" << path << "'.";
 		fseek(file, 0, SEEK_END);
 		good.resize((size_t)ftell(file));
@@ -236,7 +237,7 @@ protected:
 				i,
 				buffer,
 				sizeof(buffer),
-				(char* const)"|",
+				(char*)"|",
 				exception);
 			EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
 			values.append(buffer).append("\n");
@@ -435,6 +436,60 @@ protected:
 		EXPECT_EQ(path, engine.getDataFilePath());
 		EXPECT_EQ(expected, engineLookup(&engine));
 	}
+
+	/**
+	 * A data set read from a file is replaced from memory and then reloaded
+	 * from the original file, which must still be the file it was first read
+	 * from.
+	 */
+	void expectOriginalFileAfterMemory(fiftyoneDegreesConfigHash config) {
+		fiftyoneDegreesSetUpMemoryTracking();
+		ASSERT_NO_FATAL_FAILURE(initManager(config, nullptr));
+		const std::string expected = lookup();
+		expectAnswers(expected);
+		{
+			FIFTYONE_DEGREES_EXCEPTION_CREATE;
+			EXPECT_EQ(
+				FIFTYONE_DEGREES_STATUS_SUCCESS,
+				reload(Route::Memory, good, exception));
+			EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+		}
+		const void *fromMemory = active();
+		{
+			FIFTYONE_DEGREES_EXCEPTION_CREATE;
+			EXPECT_EQ(
+				FIFTYONE_DEGREES_STATUS_SUCCESS,
+				reload(Route::OriginalFile, good, exception)) <<
+				"The reload from memory lost the name of the data file.";
+			EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_OKAY);
+		}
+		EXPECT_NE(fromMemory, active());
+		EXPECT_EQ(expected, lookup());
+		finish();
+	}
+
+	/**
+	 * The same through refreshData on an engine, the route every language
+	 * built on SWIG takes. The engine also keeps giving the path of the data
+	 * file it was built from.
+	 */
+	void expectEngineOriginalFileAfterMemory(ConfigHash &config) {
+		// The engine is built and freed without tracking.
+		fiftyoneDegreesUnsetMemoryTracking();
+		RequiredPropertiesConfig properties;
+		EngineHash engine(masterPath.c_str(), &config, &properties);
+		const std::string expected = engineLookup(&engine);
+		expectAnswers(expected);
+		const std::string path = engine.getDataFilePath();
+		EXPECT_FALSE(path.empty());
+		engine.refreshData((void*)good.data(), (long)good.size());
+		EXPECT_EQ(path, engine.getDataFilePath()) <<
+			"The refresh from memory lost the name of the data file.";
+		EXPECT_NO_THROW(engine.refreshData()) <<
+			"The engine could not refresh from the file it was built from.";
+		EXPECT_EQ(path, engine.getDataFilePath());
+		EXPECT_EQ(expected, engineLookup(&engine));
+	}
 };
 
 /**
@@ -518,3 +573,29 @@ TEST_F(HashReloadTests, r##_Engine_Balanced_KeepsData) { \
 HASH_RELOAD_EXCEPTION_TESTS(File)
 HASH_RELOAD_EXCEPTION_TESTS(OriginalFile)
 HASH_RELOAD_EXCEPTION_TESTS(Memory)
+
+/**
+ * A reload from the original file after a reload from memory, in a profile
+ * that reads from memory, one that reads from the file and one that reads from
+ * a temporary copy of it, and through an engine.
+ */
+#define HASH_RELOAD_AFTER_MEMORY_TESTS(p) \
+TEST_F(HashReloadTests, OriginalFile_AfterMemory_##p##_Replaces) { \
+	expectOriginalFileAfterMemory(fiftyoneDegreesHash##p##Config); \
+}
+
+HASH_RELOAD_AFTER_MEMORY_TESTS(InMemory)
+HASH_RELOAD_AFTER_MEMORY_TESTS(Balanced)
+HASH_RELOAD_AFTER_MEMORY_TESTS(BalancedTemp)
+
+TEST_F(HashReloadTests, OriginalFile_AfterMemory_Engine_InMemory_Replaces) {
+	ConfigHash config;
+	config.setMaxPerformance();
+	expectEngineOriginalFileAfterMemory(config);
+}
+
+TEST_F(HashReloadTests, OriginalFile_AfterMemory_Engine_Balanced_Replaces) {
+	ConfigHash config;
+	config.setBalanced();
+	expectEngineOriginalFileAfterMemory(config);
+}

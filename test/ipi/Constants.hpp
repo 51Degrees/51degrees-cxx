@@ -25,16 +25,27 @@
 
 const static char _dataFolderName[] = "data/ip-intelligence";
 
-const static char* _IpiFileNames[] = {"51Degrees-EnterpriseIpiV41.ipi", "51Degrees-LiteV41.ipi"};
+static const char* const _IpiFileNames[] = {"51Degrees-EnterpriseIpiV41.ipi", "51Degrees-LiteV41.ipi"};
 
 const static int _IpiFileNamesLength = 2;
 
 const static char _IpiProduct[] = "IPIV41";
 
-const static char _ipAddressesFileName[] = "evidence.csv";
-
 const static char _evidenceFileName[] = "evidence.yml";
 
-const static char* _fileTypes[] = {"Enterprise", "Lite"};
+/**
+ * Calls the callback with the IP address of each record of a YAML evidence
+ * file. Defined in examples/ipi/Base/ExampleBase.c, and declared here for
+ * the tests that do not include the examples' header, which also defines
+ * short names for the C types.
+ */
+extern "C" void fiftyoneDegreesEvidenceFileIterate(
+	const char *fileName,
+	char *buffer,
+	int length,
+	void *state,
+	void(*callback)(const char*, void *));
+
+static const char* const _fileTypes[] = {"Enterprise", "Lite"};
 
 #endif

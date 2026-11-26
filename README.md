@@ -50,7 +50,6 @@ cmake --build . --config Release
 | `tools/dd` | Command line tools, such as `js-snippet-export`, which exports the JavaScript snippets in a data file |
 | `VisualStudio` | Visual Studio solutions for each product |
 | `data` | The [data](https://github.com/51Degrees/data) submodule, whose `device-detection` and `ip-intelligence` folders hold the data files the tests and examples use |
-| `device-detection-data`, `ip-intelligence-data` | The earlier data submodules, kept for the other language APIs until they read `data`. Nothing here uses them |
 | `ci` | The scripts the shared 51Degrees CI workflows call |
 
 ## Getting the code and data
@@ -122,16 +121,20 @@ These options choose what is built:
 
 | Option | Default | Effect |
 | --- | --- | --- |
-| `FIFTYONE_BUILD_DEVICE_DETECTION` | `ON` | Device Detection libraries, examples and tests |
-| `FIFTYONE_BUILD_IP_INTELLIGENCE` | `ON` | IP Intelligence libraries, examples and tests |
+| `_51DEGREES_BUILD_DEVICE_DETECTION` | `ON` | Device Detection libraries, examples and tests |
+| `_51DEGREES_BUILD_IP_INTELLIGENCE` | `ON` | IP Intelligence libraries, examples and tests |
 | `BUILD_TESTING` | `ON` | All tests. Turn it off when cross compiling, for example arm64 on an x64 Mac, as the tests cannot run |
-| `FIFTYONE_COMMON_CXX_BUILD_TESTING` | `ON` | The common library's own tests |
-| `FIFTYONE_BUILD_EXAMPLES` | `ON` | The examples and the `js-snippet-export` tool. The tests use them, so they are built whenever `BUILD_TESTING` is on |
-| `FIFTYONE_INSTALL` | `ON` when this repository is the top level build | The install rules described in [Installing](#installing) |
-| `FIFTYONE_VERSION` | The nearest version tag in a Git clone, otherwise `0.0.0` | The version the installed package reports |
+| `_51DEGREES_COMMON_CXX_BUILD_TESTING` | `ON` | The common library's own tests |
+| `_51DEGREES_BUILD_EXAMPLES` | `ON` | The examples and the `js-snippet-export` tool. The tests use them, so they are built whenever `BUILD_TESTING` is on |
+| `_51DEGREES_INSTALL` | `ON` when this repository is the top level build | The install rules described in [Installing](#installing) |
+| `_51DEGREES_VERSION` | The nearest version tag in a Git clone, otherwise `0.0.0` | The version the installed package reports |
 
-The compile options of the common library, `MemoryOnly`, `NoThreading` and
-`ExceptionsDisabled`, apply to the whole build and are described in the
+[`docs/names.md`](docs/names.md) lists every CMake option, environment
+variable and secret this repository reads or defines.
+
+The compile options of the common library, `_51DEGREES_MEMORY_ONLY`,
+`_51DEGREES_NO_THREADING` and `_51DEGREES_EXCEPTIONS_DISABLED`, apply to the
+whole build and are described in the
 [common library README](src/common/README.md#build-options). IP Intelligence
 always builds its own copy of common with large data file support and the
 reduced file layout, so its libraries link `fiftyone-common-c-ipi` and
@@ -141,7 +144,7 @@ When this repository is the top level build, that copy also has its own linked
 C names, so one C program can link both products, and
 [`test/both`](test/both) is the smallest example. A project that includes this
 CMake file keeps the original names unless it sets
-`-DFIFTYONE_IPI_SYMBOLS=ON`.
+`-D_51DEGREES_IPI_SYMBOLS=ON`.
 
 Another CMake project can build these libraries as part of its own build by
 including this repository's `CMakeLists.txt`, with the options above set
@@ -155,7 +158,7 @@ the data files nor the network, so a source archive without the submodules is
 enough. A source archive has no Git history, so give it the version.
 
 ```
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DFIFTYONE_BUILD_EXAMPLES=OFF -DFIFTYONE_VERSION=<version>
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -D_51DEGREES_BUILD_EXAMPLES=OFF -D_51DEGREES_VERSION=<version>
 cmake --build build --config Release
 cmake --install build --config Release --prefix <install folder>
 ```
@@ -177,9 +180,11 @@ The headers are installed under `include/51degrees` with the layout of `src`,
 so a program includes, for example, `<51degrees/dd/hash/hash.h>` or
 `<51degrees/ipi/EngineIpi.hpp>`. The IP Intelligence targets carry the
 definitions their copy of common is compiled with. A program that uses both
-products in C++ needs libraries built with `-DFIFTYONE_CXX_BOTH_PRODUCTS=ON`.
+products in C++ needs libraries built with `-D_51DEGREES_CXX_BOTH_PRODUCTS=ON`.
 [`test/install`](test/install) is a small project that builds against an
 install, and `ci/check-install.ps1` runs it in CI.
+[`test/install/examples`](test/install/examples) builds the examples against
+an install in the same way.
 
 ## Building with Visual Studio
 
@@ -236,11 +241,20 @@ So small changes merge into `rc` rather than `main`. Pull requests target `rc`,
 and when a release is wanted one pull request merges `rc` into `main`, so the
 languages update once for all of them.
 
-- The nightly builds and merges any pull request into `rc` that is not a draft
-  and has no review requested, so a pull request stays a draft until it has
-  been reviewed. To build a draft, use common-ci's
+- The nightly build and the Pull Requests workflow build each pull request into
+  `rc` on the configurations its changes need, which
+  [`ci/select-options.ps1`](ci/select-options.ps1) chooses, and merge one that
+  passes when it is not a draft and has no review requested, so a pull request
+  stays a draft until it has been reviewed. A change to documentation alone
+  builds nothing. To build a draft, use common-ci's
   [`nightly-pull-request.yml`](https://github.com/51Degrees/common-ci/blob/main/.github/workflows/nightly-pull-request.yml)
-  started with `dryrun: 'true'` and `branch: rc`.
+  started with `dryrun: 'true'` and `branch: rc`. It builds the entries
+  `ci/select-options.ps1` chooses unless `full-matrix` is `true`, which
+  builds every entry, macOS included.
+- The release pull request from `rc` into `main` is built on every
+  configuration by
+  [`release-pull-request.yml`](.github/workflows/release-pull-request.yml).
+  Wait for it to pass before merging.
 - Data file updates still reach `main` every night. Merge `main` into
   `rc` before opening the release pull request.
 - GitHub closes an issue only when its fix reaches `main`, so the release pull

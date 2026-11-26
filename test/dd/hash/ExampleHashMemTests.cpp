@@ -31,7 +31,7 @@ public:
 
 		fiftyoneDegreesMemHashRun(
 			dataFilePath.c_str(),
-			userAgentFilePath.c_str(),
+			evidenceFilePath.c_str(),
 			config);
 
 		// Don't print the stdout

@@ -79,14 +79,20 @@ namespace FiftyoneDegrees {
 			 * @}
 			 */
 		private:
+			/** Name of the property the values relate to */
+			std::string propertyName;
+
 			/**
-			 * Get the underlying property which the values all relate to.
-			 * @return pointer to the property
+			 * Index of the property in the data set, or -1 when the data set
+			 * has no property of that name
 			 */
-			fiftyoneDegreesProperty* getProperty() const;
-			
-			/** The underlying property collection item */
-			fiftyoneDegreesCollectionItem propertyItem;
+			int propertyIndex;
+
+			/** Index of the property's first value */
+			uint32_t firstValueIndex;
+
+			/** Number of values the property has */
+			uint32_t valueCount;
 		};
 	}
 }

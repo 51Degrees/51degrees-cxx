@@ -27,6 +27,7 @@
 #include "ipiSymbols.h"
 #endif
 
+#include <stdint.h>
 #include "common.h"
 
 /**

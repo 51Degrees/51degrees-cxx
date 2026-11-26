@@ -128,7 +128,7 @@ TEST(CollectionOffsetShift, ShiftedRecordsReadBack) {
 		fiftyoneDegreesCollectionItem item;
 		fiftyoneDegreesDataReset(&item.data);
 		const fiftyoneDegreesCollectionKey key = {
-			c.offsets[i],
+			{ c.offsets[i] },
 			CollectionKeyType_Byte,
 		};
 		const byte * const ptr = (const byte*)c.collection->get(

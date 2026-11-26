@@ -29,10 +29,10 @@
 #include <unistd.h>
 #endif
 
-#include "../../../src/common/textfile.h"
 #include "../../../src/dd/hash/hash.h"
 #include "../../../src/dd/hash/fiftyone.h"
 #include "ExampleHashTests.hpp"
+#include "../../../examples/dd/C/Hash/ExampleBase.h"
 
 #define THREAD_COUNT 4
 
@@ -57,8 +57,8 @@ typedef struct thread_state_t {
 } threadState;
 
 /*
- * Runs the performance test for the User-Agent provided. Called from the text
- * file iterator.
+ * Runs the performance test for the User-Agent provided. Called with the
+ * User-Agent of each record of the evidence file.
  * @param userAgent to be used for the test
  * @param state instance of performanceThreadState
  */
@@ -83,7 +83,7 @@ static void runRequestsSingle(sharedState *state) {
 	sharedState *shared = (sharedState*)state;
 	threadState thread;
 	thread.manager = shared->manager;
-	TextFileIterateWithLimit(
+	fiftyoneDegreesExampleUserAgentsIterateWithLimit(
 		shared->userAgentFilePath,
 		userAgent,
 		sizeof(userAgent),
@@ -92,10 +92,11 @@ static void runRequestsSingle(sharedState *state) {
 		executeTest);
 }
 
-static void runRequestsMulti(void *state) {
+static EXAMPLE_THREAD_RESULT runRequestsMulti(void *state) {
 	sharedState *shared = (sharedState*)state;
 	runRequestsSingle(shared);
 	INTERLOCK_INC(&shared->threadsFinished);
+	return EXAMPLE_THREAD_DONE;
 }
 
 /*
@@ -107,7 +108,7 @@ static void startThreads(sharedState *state) {
 	for (thread = 0; thread < THREAD_COUNT; thread++) {
 		THREAD_CREATE(
 			state->threads[thread],
-			(THREAD_ROUTINE)&runRequestsMulti,
+			runRequestsMulti,
 			state);
 	}
 }
@@ -159,7 +160,6 @@ static void run(
 	MemoryReader *reader,
 	bool fromFile) {
 	StatusCode status;
-	int numberOfReloads = 0;
 	int numberOfReloadFails = 0;
 	sharedState state;
 	state.manager = manager;
@@ -169,12 +169,13 @@ static void run(
 
 	if (ThreadingGetIsThreadSafe()) {
 		startThreads(&state);
-		while (state.threadsFinished < THREAD_COUNT) {
+		// The threads increment the count as it is read here, so it is
+		// read atomically: compare and exchange 0 for 0 returns the
+		// count and leaves it as it is.
+		while (INTERLOCK_EXCHANGE(state.threadsFinished, 0, 0) <
+			THREAD_COUNT) {
 			status = reload(manager, reader, fromFile, exception);
-			if (status == SUCCESS) {
-				numberOfReloads++;
-			}
-			else {
+			if (status != SUCCESS) {
 				numberOfReloadFails++;
 			}
 #ifdef _MSC_VER
@@ -188,14 +189,13 @@ static void run(
 	else {
 		runRequestsSingle(&state);
 		status = reload(manager, reader, fromFile, exception);
-		if (status == SUCCESS) {
-			numberOfReloads++;
-		}
-		else {
+		if (status != SUCCESS) {
 			numberOfReloadFails++;
 		}
 		runRequestsSingle(&state);
 	}
+	EXPECT_EQ(0, numberOfReloadFails) <<
+		"Every reload of the data should succeed.";
 }
 
 void hashMemReloadRun(
@@ -287,7 +287,7 @@ public:	\
 	void run(fiftyoneDegreesConfigHash config) {	\
 		hashMemReloadRun(	\
 			dataFilePath.c_str(),	\
-			userAgentFilePath.c_str(),	\
+			evidenceFilePath.c_str(),	\
 			requiredProperties,	\
 			config,	\
 			f);	\

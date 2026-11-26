@@ -28,6 +28,7 @@
 %include "../common/ip.i"
 
 %newobject process;
+%newobject getPublishedTimeFromFile;
 
 %nodefaultctor EngineIpi;
 
@@ -46,6 +47,8 @@ public:
         RequiredPropertiesConfig *properties);
     Date getPublishedTime();
     Date getUpdateAvailableTime();
+    static Date getPublishedTimeFromFile(const std::string &fileName);
+    static std::string getProductFromFile(const std::string &fileName);
     std::string getDataFilePath();
     std::string getDataFileTempPath();
     void refreshData();

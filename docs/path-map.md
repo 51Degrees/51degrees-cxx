@@ -18,7 +18,6 @@ not listed moved with its parent. Deleted: each repository's `ci/` and
 | `device-detection-cxx/docs/` | `docs/dd/` |
 | `device-detection-cxx/examples/C/Hash/` | `examples/dd/C/Hash/` |
 | `device-detection-cxx/examples/CPP/Hash/` | `examples/dd/CPP/Hash/` |
-| `device-detection-cxx/scripts/` | `scripts/` |
 | `device-detection-cxx/src/` | `src/dd/` |
 | `device-detection-cxx/test/` | `test/dd/` |
 | `ip-graph-cxx/` | `src/ipi/graph/` |
@@ -38,8 +37,8 @@ not listed moved with its parent. Deleted: each repository's `ci/` and
 | `ip-intelligence-cxx/Directory.Build.props` | `VisualStudio/IpIntelligence/Directory.Build.props` |
 | `ip-intelligence-cxx/README.md` | `docs/ipi/README.md` |
 | `ip-intelligence-cxx/STORED_WEIGHTED_VALUE_DESIGN_PROPOSAL.md` | `docs/ipi/STORED_WEIGHTED_VALUE_DESIGN_PROPOSAL.md` |
-| `device-detection-cxx/device-detection-data` (submodule) | `data/device-detection`, in the `data` submodule, and `device-detection-data` (submodule) until the languages move |
-| `ip-intelligence-cxx/ip-intelligence-data` (submodule) | `data/ip-intelligence`, in the `data` submodule, and `ip-intelligence-data` (submodule) until the languages move |
+| `device-detection-cxx/device-detection-data` (submodule) | `data/device-detection`, in the `data` submodule |
+| `ip-intelligence-cxx/ip-intelligence-data` (submodule) | `data/ip-intelligence`, in the `data` submodule |
 | `device-detection-cxx/src/common-cxx/` (submodule) | the `common-cxx` rows above |
 | `ip-intelligence-cxx/src/common-cxx/` (submodule) | the `common-cxx` rows above |
 | `ip-intelligence-cxx/src/ip-graph-cxx/` (submodule) | the `ip-graph-cxx` rows above |
@@ -51,13 +50,11 @@ root.
 
 - A native build includes `cxx/CMakeLists.txt`. `src/dd/CMakeLists.txt` and
   `src/ipi/CMakeLists.txt` only work when the root includes them. To leave out
-  the product a package does not use, set `FIFTYONE_BUILD_DEVICE_DETECTION` or
-  `FIFTYONE_BUILD_IP_INTELLIGENCE` to `OFF`.
+  the product a package does not use, set `_51DEGREES_BUILD_DEVICE_DETECTION` or
+  `_51DEGREES_BUILD_IP_INTELLIGENCE` to `OFF`.
 - The SWIG interface files include `cxx/src/...`, so a generated wrapper needs
   the folder that holds `cxx/` on its include path. A wrapper already committed
   includes the old path, so it needs the same change or generating again.
 - The data files are in `cxx/data/device-detection` and
   `cxx/data/ip-intelligence`, once `cxx/data/get-data-files.ps1` or
-  `cxx/data/get-data-files.sh` has downloaded them. `cxx/device-detection-data`
-  and `cxx/ip-intelligence-data` stay until every language reads the files from
-  `cxx/data`.
+  `cxx/data/get-data-files.sh` has downloaded them.

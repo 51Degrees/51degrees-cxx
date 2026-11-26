@@ -53,9 +53,15 @@ This example is available in full on [GitHub](https://github.com/51Degrees/51deg
 // which requires to be included before 'malloc.h'.
 #include "ExampleBase.h"
 #include "../../../../src/dd/hash/hash.h"
-#include "../../../../src/common/textfile.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-offlineprocessing.c"
+
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 // In this example, by default, the 51degrees "Lite" file needs to be somewhere in the
@@ -68,6 +74,7 @@ static const char *dataFileName = "51Degrees-LiteV4.1.hash";
 // This file contains the 20,000 most commonly seen combinations of header values 
 // that are relevant to device detection. For example, User-Agent and UA-CH headers.
 static const char *evidenceFileName = "20000 Evidence Records.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -132,7 +139,7 @@ static void outputValue(
 			propertyName,
 			valueBuffer,
 			valueBufferLength,
-			(char* const)",",
+			(char*)",",
 			exception);
 		EXCEPTION_THROW;
 	}
@@ -195,12 +202,13 @@ static void analyse(
 
 /**
  * Processes the User-Agent provided, writing the results to the output file.
- * Called from the text file iterator.
+ * Called with each record of the evidence file.
  * @param userAgent to be used for the test
  * @param state instance of offlineProcessState
  */
 static void process(KeyValuePair *pairs, uint16_t size, void *state) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	offlineProcessState *offline = (offlineProcessState*)state;
 	// Create an evidence collection and add the evidence to the collection
 	EvidenceKeyValuePairArray* evidenceArray = EvidenceCreate(size);
@@ -228,13 +236,14 @@ void run(
 	ResourceManager *manager, 
 	const char *evidenceFilePath, 
 	const char *outputFilePath,
+	const char *requiredProperties,
 	FILE *output) {
 	char buffer[1000];
 	offlineProcessState state;
 
 	// Open a fresh data file for writing the output to.
 	FileDelete(outputFilePath);
-	state.outputFile = fopen(outputFilePath, "w");
+	state.outputFile = fiftyoneDegreesExampleFileOpenWrite(outputFilePath);
 	if (state.outputFile == NULL) {
 		fprintf(output, "Could not open file %s for write\n", outputFilePath);
 		return;
@@ -273,7 +282,11 @@ void run(
 	fprintf(output, "Output Written to %s\n", outputFilePath);
 
 	DataSetHash* dataset = (DataSetHash *)state.results->b.b.dataSet;
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		output,
+		dataset,
+		requiredProperties);
+	fiftyoneDegreesExampleCheckDataFile(dataset, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Free the memory used by the results instance.
 	ResultsHashFree(state.results);
@@ -344,7 +357,12 @@ void fiftyoneDegreesOfflineProcessingRun(
 	else {
 
 		// Process the evidence writing the results to the output path.
-		run(&manager, evidenceFilePath, outputFilePath, output);
+		run(
+			&manager,
+			evidenceFilePath,
+			outputFilePath,
+			requiredProperties,
+			output);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);
@@ -370,13 +388,13 @@ void fiftyoneDegreesExampleCOfflineProcessingRun(ExampleParameters *params) {
 #ifndef TEST
 
 static const char* getBaseName(const char* path) {
-	for (size_t i = strlen(path) - 1; i >= 0; i--) {
-		if (path[i] == '\\' || path[i] == '/') {
+	for (size_t i = strlen(path); i > 0; i--) {
+		if (path[i - 1] == '\\' || path[i - 1] == '/') {
 			// Check if there is a basename
-			if (i == (strlen(path) - 1)) {
+			if (i == strlen(path)) {
 				return NULL;
 			}
-			return path + i + 1;
+			return path + i;
 		}
 	}
 	return path;
@@ -396,7 +414,13 @@ int main(int argc, char* argv[]) {
 
 	// Set data file path
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		if (fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath)) != SUCCESS) {
+			fgetc(stdin);
+			return 1;
+		}
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -416,7 +440,13 @@ int main(int argc, char* argv[]) {
 
 	// Set evidence file path
 	if (argc > 2) {
-		strcpy(evidenceFilePath, argv[2]);
+		if (fiftyoneDegreesExampleCopyPath(
+			argv[2],
+			evidenceFilePath,
+			sizeof(evidenceFilePath)) != SUCCESS) {
+			fgetc(stdin);
+			return 1;
+		}
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -433,7 +463,13 @@ int main(int argc, char* argv[]) {
 	
 	// Set output file path
 	if (argc > 3) {
-		strcpy(outputFilePath, argv[3]);
+		if (fiftyoneDegreesExampleCopyPath(
+			argv[3],
+			outputFilePath,
+			sizeof(outputFilePath)) != SUCCESS) {
+			fgetc(stdin);
+			return 1;
+		}
 	}
 	else {
 		const char* baseName = getBaseName(evidenceFilePath);
@@ -442,9 +478,17 @@ int main(int argc, char* argv[]) {
 			fgetc(stdin);
 			return 1;
 		}
-		size_t cpySize = baseName - evidenceFilePath;
-		strncpy(outputFilePath, evidenceFilePath, cpySize);
-		strcpy(outputFilePath + cpySize, "offline-processing-output.yml");
+		int written = Snprintf(
+			outputFilePath,
+			sizeof(outputFilePath),
+			"%.*soffline-processing-output.yml",
+			(int)(baseName - evidenceFilePath),
+			evidenceFilePath);
+		if (written < 0 || (size_t)written >= sizeof(outputFilePath)) {
+			printf("The output file path is too long.\n");
+			fgetc(stdin);
+			return 1;
+		}
 	}
 
 	ConfigHash config = CONFIG;
@@ -459,6 +503,9 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesExampleMemCheck(
 		&params,
 		fiftyoneDegreesExampleCOfflineProcessingRun);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

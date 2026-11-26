@@ -52,11 +52,7 @@
 
 #include <stdint.h>
 #ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 5105) 
 #include <windows.h>
-#pragma warning (default: 5105) 
-#pragma warning (pop)
 #endif
 #include "data.h"
 #include "exceptions.h"
@@ -70,11 +66,14 @@
  * Key value pair contained in each component. This can point to anything. For
  * example, in the Hash device detection API, the key is the unique id of an
  * HTTP header, and the value is the index of the set of root nodes to use.
+ * The pairs follow the packed component structure, so they are packed too.
  */
+#pragma pack(push, 1)
 typedef struct fiftyoneDegrees_component_keyvaluepair_t {
 	uint32_t key; /**< Integer key */
 	uint32_t value; /**< Integer value */
 } fiftyoneDegreesComponentKeyValuePair;
+#pragma pack(pop)
 
 /**
  * A component of a data set. For example a hardware component contains
@@ -130,7 +129,7 @@ EXTERNAL const fiftyoneDegreesString* fiftyoneDegreesComponentGetName(
  * exception occurs. See exceptions.h
  * @return pointer to a key value pair
  */
-const fiftyoneDegreesComponentKeyValuePair* 
+EXTERNAL const fiftyoneDegreesComponentKeyValuePair*
 fiftyoneDegreesComponentGetKeyValuePair(
 	fiftyoneDegreesComponent *component,
 	uint16_t index,

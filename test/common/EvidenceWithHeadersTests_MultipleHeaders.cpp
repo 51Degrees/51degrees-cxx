@@ -84,20 +84,12 @@ protected:
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_mh_se_sm[2];
 int intersection_mh_se_sm_count = 0;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
-bool evidenceHeaderIntersection_mh_se_sm(void *state,
+bool evidenceHeaderIntersection_mh_se_sm(void * /*state*/,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_mh_se_sm[intersection_mh_se_sm_count] = *pair;
 	intersection_mh_se_sm_count++;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#pragma warning(disable : 4100)
-#endif
 
 TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_se_sm) {
 	CreateEvidence(1);
@@ -126,19 +118,12 @@ TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_se_sm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_mh_me_mm[2];
 int intersection_multiple_mh_me_mm_count = 0;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
-bool evidenceHeaderIntersection_mh_me_mm(void *state,
+bool evidenceHeaderIntersection_mh_me_mm(void * /*state*/,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_mh_me_mm[intersection_multiple_mh_me_mm_count] = *pair;
 	intersection_multiple_mh_me_mm_count++;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_me_mm) {
 	CreateEvidence(2);
@@ -213,19 +198,12 @@ TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_me_nm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_mh_ne_nm[2];
 int intersection_mh_ne_nm_count = 0;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
-bool evidenceHeaderIntersection_mh_ne_nm(void *state,
+bool evidenceHeaderIntersection_mh_ne_nm(void * /*state*/,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_mh_ne_nm[intersection_mh_ne_nm_count] = *pair;
 	intersection_mh_ne_nm_count++;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_ne_nm) {
 	CreateEvidence(2);

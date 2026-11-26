@@ -20,6 +20,7 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+#include <utility>
 #include "ValueMetaData.hpp"
 #include "PropertyMetaData.hpp"
 #include "fiftyone.h"
@@ -33,8 +34,8 @@ ValueMetaDataKey::ValueMetaDataKey()
     ) { }
 
 ValueMetaDataKey::ValueMetaDataKey(string propertyName, string valueName) {
-	this->propertyName = propertyName;
-	this->valueName = valueName;
+	this->propertyName = std::move(propertyName);
+	this->valueName = std::move(valueName);
 }
 
 ValueMetaDataKey::ValueMetaDataKey(
@@ -67,7 +68,7 @@ const string ValueMetaDataKey::getValueName() const {
  * @param other key to compare
  * @return true if the other key comes before this one
  */
-const bool ValueMetaDataKey::operator< (ValueMetaDataKey other) const {
+bool ValueMetaDataKey::operator< (ValueMetaDataKey other) const {
 	if (other.getPropertyName() == getPropertyName()) {
 		// Keys are the same property, so compare the secondary key (value)
 		return other.getValueName() < getValueName();
@@ -81,7 +82,7 @@ const bool ValueMetaDataKey::operator< (ValueMetaDataKey other) const {
  * @param other key to compare
  * @return true if equal
  */
-const bool ValueMetaDataKey::operator== (ValueMetaDataKey other) const {
+bool ValueMetaDataKey::operator== (ValueMetaDataKey other) const {
 	return (other.getPropertyName() == getPropertyName()) &&
 		(other.getValueName() == getValueName());
 }
@@ -102,9 +103,9 @@ ValueMetaData::ValueMetaData(ValueMetaData *value)
 ValueMetaData::ValueMetaData(
 	ValueMetaDataKey key,
 	string description,
-	string url) : EntityMetaData(key) {
-	this->description = description;
-	this->url = url;
+	string url) : EntityMetaData(std::move(key)) {
+	this->description = std::move(description);
+	this->url = std::move(url);
 }
 
 string ValueMetaData::getName() const {

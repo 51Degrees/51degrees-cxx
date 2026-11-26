@@ -28,6 +28,14 @@ sh data/get-data-files.sh 51Degrees-LiteV4.1.hash
 ./data/get-data-files.ps1 51Degrees-LiteV4.1.hash
 ```
 
+The examples find the data file in this order:
+
+1. A path given as the example's first argument.
+2. A path in the `_51DEGREES_DD_PATH` environment variable, for example
+   `export _51DEGREES_DD_PATH=/path/to/file.hash`.
+3. The example's default file in `data/device-detection`, downloaded first
+   when it is missing.
+
 ## Building and testing
 
 Cloning, building with CMake or Visual Studio, and running the tests are the
@@ -153,7 +161,7 @@ writes into the results and, when no properties were named, the first read of
 a property of a component walks the component's graph. A program that detects
 on several threads uses a set of results for each thread. The resource
 manager, or in C++ the engine, can be shared by every thread, unless the
-library is built with the `NoThreading` option described in the
+library is built with the `_51DEGREES_NO_THREADING` option described in the
 [common library README](../../src/common/README.md#nothreading).
 
 # Examples

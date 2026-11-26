@@ -21,11 +21,14 @@
  * ********************************************************************* */
 
 #include "../../common/pch.h"
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
 #include "../Constants.hpp"
 #include "../../common/Base.hpp"
+#include "../../common/SizeOtherThread.hpp"
 #include "../../../src/dd/hash/PropertyMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/ValueMetaDataBuilderHash.hpp"
 #include "../../../src/dd/hash/fiftyone.h"
@@ -133,7 +136,7 @@ static char* getPropertyValueAsString(
 		propertyName,
 		buffer,
 		bufferSize,
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW;
 	return buffer;
@@ -199,7 +202,7 @@ TEST_F (HashCTests, ResultsHashFromDeviceIdTest) {
 	EXCEPTION_THROW;
 
 	memset(isMobile, 0, sizeof(isMobile));
-	EXPECT_EQ(1, resultsDeviceId->count) << "Only one results should be "
+	EXPECT_EQ(1u, resultsDeviceId->count) << "Only one results should be "
 		<< "returned from detection using device ID.\n";
 	EXPECT_EQ(true, ResultsHashGetHasValues(
 		resultsDeviceId,
@@ -382,7 +385,6 @@ TEST_F(HashCTests, ResultsHashGetValuesStringTest) {
 	ResultsHash* resultsUserAgents;
 	ResultsHash* resultsDeviceId;
 
-	char deviceId[40] = "";
 	char isMobile[40] = "";
 
 	resultsUserAgents = ResultsHashCreate(&manager, 0);
@@ -398,12 +400,12 @@ TEST_F(HashCTests, ResultsHashGetValuesStringTest) {
 		"isMobile",
 		isMobile,
 		sizeof(isMobile),
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW;
     
     //StringBuilder adds 1 char which is a null-terminator
-	EXPECT_EQ(1, charsAdded) << "No result should have been found where "
+	EXPECT_EQ(1u, charsAdded) << "No result should have been found where "
 		<< "uniqueHttpHeaderIndex is "
 		<< resultsDeviceId->items[0].b.uniqueHttpHeaderIndex
 		<< "\n";
@@ -419,11 +421,11 @@ TEST_F(HashCTests, ResultsHashGetValuesStringTest) {
 		"isMobile",
 		isMobile,
 		sizeof(isMobile),
-		(char* const)",",
+		(char*)",",
 		exception);
 	EXCEPTION_THROW;
     //StringBuilder adds 1 char which is a null-terminator
-	EXPECT_EQ(1, charsAdded) << "No result should have been found where "
+	EXPECT_EQ(1u, charsAdded) << "No result should have been found where "
 		<< "uniqueHttpHeaderIndex is "
 		<< resultsDeviceId->items[0].b.uniqueHttpHeaderIndex
 		<< "\n";
@@ -488,7 +490,7 @@ TEST_F(HashCTests, GraphTraceGetTests) {
 		length,
 		resultsUserAgents->items[0].trace,
 		mobileUserAgent);
-	EXPECT_EQ(strlen(fullBuffer), written) <<
+	EXPECT_EQ(strlen(fullBuffer), (size_t)written) <<
 		"Failed to write the full graph trace.\n";
 	EXPECT_EQ(potentiallyWritten, written) <<
 		"Failed to return corrent number of written characters.\n";
@@ -601,11 +603,83 @@ TEST_F(HashCTests, ResultsHashGetValuesStringNoTrailingSeparator) {
 
 	char buffer[100] = "";
 	ResultsHashGetValuesString(
-		results, "IsMobile", buffer, 100, (char* const)",", exception);
+		results, "IsMobile", buffer, 100, (char*)",", exception);
 	ResultsHashFree(results);
 
 	EXPECT_STREQ("True", buffer) <<
 		"Buffer should only contain a string without separator.\n";
+}
+
+/** A reload that the allocation function starts inside another reload. */
+static struct {
+	ResourceManager *manager;
+	const char *fileName;
+	decltype(fiftyoneDegreesMalloc) previous;
+	bool started;
+	StatusCode status;
+} innerReload;
+
+/**
+ * Puts the allocation function back, reloads the manager the first time it
+ * is called, and then allocates.
+ */
+static void* reloadOnFirstAllocation(size_t size) {
+	fiftyoneDegreesMalloc = innerReload.previous;
+	if (innerReload.started == false) {
+		innerReload.started = true;
+		EXCEPTION_CREATE;
+		innerReload.status = HashReloadManagerFromFile(
+			innerReload.manager,
+			innerReload.fileName,
+			exception);
+	}
+	return innerReload.previous(size);
+}
+
+/*
+ * A reload reads the properties and configuration of the data set in use to
+ * make the replacement. Another reload of the same manager can replace and
+ * free that data set meanwhile, so here a second reload runs, with nothing
+ * else holding the data set, as the first allocates its replacement. The
+ * first reload must still read the data set it began with.
+ */
+TEST_F(HashCTests, ReloadFromFile_AnotherReloadMeanwhile) {
+	innerReload.manager = &manager;
+	innerReload.fileName = dataFilePath.c_str();
+	innerReload.previous = fiftyoneDegreesMalloc;
+	innerReload.started = false;
+	innerReload.status = NOT_SET;
+
+	EXCEPTION_CREATE;
+	fiftyoneDegreesMalloc = reloadOnFirstAllocation;
+	StatusCode status = HashReloadManagerFromFile(
+		&manager,
+		dataFilePath.c_str(),
+		exception);
+	fiftyoneDegreesMalloc = innerReload.previous;
+
+	ASSERT_TRUE(innerReload.started);
+	EXPECT_EQ(SUCCESS, innerReload.status);
+	EXPECT_EQ(SUCCESS, status);
+
+	// The data set the first reload made is in use and works.
+	OwnedResults results(ResultsHashCreate(&manager, 0), &ResultsHashFree);
+	ResultsHashFromUserAgent(
+		results.get(),
+		mobileUserAgent,
+		strlen(mobileUserAgent),
+		exception);
+	EXCEPTION_THROW;
+	char isMobile[40] = "";
+	ResultsHashGetValuesString(
+		results.get(),
+		"IsMobile",
+		isMobile,
+		sizeof(isMobile),
+		(char*)",",
+		exception);
+	EXCEPTION_THROW;
+	EXPECT_STREQ("True", isMobile);
 }
 
 /*
@@ -658,6 +732,52 @@ TEST_F(HashCTests, HashSizeManagerFromFileNullConfig) {
 	EXPECT_GT(size, (size_t)0);
 	EXPECT_EQ(balanced, size);
 
+	internalSetUp();
+}
+
+/*
+ * Check that the size from a file counts only the memory of the thread that
+ * measures it, and keeps no record of memory another thread allocates.
+ */
+TEST_F(HashCTests, HashSizeManagerFromFileOtherThread) {
+	internalTearDown();
+	expectSizeIgnoresOtherThread([&]() {
+		EXCEPTION_CREATE;
+		const size_t size = fiftyoneDegreesHashSizeManagerFromFile(
+			&fiftyoneDegreesHashInMemoryConfig,
+			&this->properties,
+			dataFilePath.c_str(),
+			exception);
+		EXPECT_TRUE(EXCEPTION_OKAY);
+		return size;
+	});
+	internalSetUp();
+}
+
+/*
+ * Check that the size from memory counts only the memory of the thread that
+ * measures it, and keeps no record of memory another thread allocates.
+ */
+TEST_F(HashCTests, HashSizeManagerFromMemoryOtherThread) {
+	internalTearDown();
+	std::ifstream file(dataFilePath, std::ios::binary);
+	ASSERT_TRUE(file.good()) << "Could not open '" << dataFilePath << "'.";
+	std::vector<char> data(
+		(std::istreambuf_iterator<char>(file)),
+		std::istreambuf_iterator<char>());
+	ASSERT_FALSE(data.empty());
+	expectSizeIgnoresOtherThread([&]() {
+		EXCEPTION_CREATE;
+		const size_t size = fiftyoneDegreesHashSizeManagerFromMemory(
+			&fiftyoneDegreesHashInMemoryConfig,
+			&this->properties,
+			data.data(),
+			(long)data.size(),
+			exception);
+		EXPECT_TRUE(EXCEPTION_OKAY);
+		return size;
+	});
+	std::vector<char>().swap(data);
 	internalSetUp();
 }
 
@@ -736,11 +856,9 @@ static void* getFail(
 	const CollectionKey * const key,
 	fiftyoneDegreesCollectionItem * const item,
 	fiftyoneDegreesException * const exception) {
-#	ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(collection);
-	UNREFERENCED_PARAMETER(key);
-	UNREFERENCED_PARAMETER(item);
-#	endif
+	(void)collection;
+	(void)key;
+	(void)item;
 	EXCEPTION_SET(CORRUPT_DATA);
 	return nullptr;
 }
@@ -784,6 +902,9 @@ TEST_F(HashCTests, HashResultsGetValuesNoProfileValues) {
  * JavaScript properties which measure them, are all available.
  */
 #ifndef FIFTYONE_DEGREES_REDUCED_FILE
+/** Values whose metadata the deprecated builder taking a value builds. */
+static const uint32_t deprecatedBuilderValues = 1000;
+
 /*
  * Reads the description and URL of every value in the data file, through the
  * C functions and through the meta data the language wrappers use, and the URL
@@ -819,7 +940,7 @@ static void checkValueDescriptions(const char *fileName, ConfigHash config) {
 			dataSet->strings, value, &stringItem, exception);
 		ASSERT_TRUE(EXCEPTION_OKAY);
 		ASSERT_NE(nullptr, description);
-		auto metaData = ValueMetaDataBuilderHash::build(dataSet, value);
+		auto metaData = ValueMetaDataBuilderHash::build(dataSet, i);
 		ASSERT_NE(nullptr, metaData);
 		EXPECT_STREQ(&description->value, metaData->getDescription().c_str());
 		if (value->descriptionOffset <= 0) {
@@ -833,6 +954,19 @@ static void checkValueDescriptions(const char *fileName, ConfigHash config) {
 		ASSERT_TRUE(EXCEPTION_OKAY);
 		ASSERT_NE(nullptr, url);
 		EXPECT_STREQ(&url->value, metaData->getUrl().c_str());
+		// The deprecated builder taking the value gives the same, checked on
+		// the first values only, as every value is read twice otherwise.
+		if (i < deprecatedBuilderValues) {
+			auto fromValue = ValueMetaDataBuilderHash::build(dataSet, value);
+			ASSERT_NE(nullptr, fromValue);
+			EXPECT_EQ(metaData->getKey().getPropertyName(),
+				fromValue->getKey().getPropertyName());
+			EXPECT_EQ(metaData->getName(), fromValue->getName());
+			EXPECT_EQ(metaData->getDescription(),
+				fromValue->getDescription());
+			EXPECT_EQ(metaData->getUrl(), fromValue->getUrl());
+			delete fromValue;
+		}
 		if (value->urlOffsetOrWeight == 0) {
 			ASSERT_STREQ("", &url->value) <<
 				"The value at index " << i << " has no URL.";
@@ -1084,7 +1218,7 @@ TEST_F(HashCOverridesTests, OverrideListIsSizedFromTheDataSet) {
 	// A caller asking for no overrides still gets none, which is how
 	// overrides are turned off.
 	ResultsHash* none = ResultsHashCreate(&manager, 0);
-	EXPECT_EQ(0, none->b.b.overrides->capacity) <<
+	EXPECT_EQ(0u, none->b.b.overrides->capacity) <<
 		"A capacity of zero should still turn overrides off.\n";
 
 	ResultsHashFree(results);

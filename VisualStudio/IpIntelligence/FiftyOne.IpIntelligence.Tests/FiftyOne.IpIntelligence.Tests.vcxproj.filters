@@ -45,7 +45,25 @@
     <ClCompile Include="..\..\..\test\ipi\EngineIpiProcessTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPGettingStartedTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPMetaDataTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPReloadFromFileTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPReloadFromMemoryTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleCPPStronglyTypedTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\ExampleCountryOverlapTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\ExampleEnvironmentVariableTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\HeaderStatusTests.cpp">
@@ -120,6 +138,9 @@
     <ClCompile Include="..\..\..\test\ipi\IpiDateTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiProductTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\IpiFailedReadTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -148,6 +169,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\IpiValueTextsTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\test\ipi\IpiAnyAlignmentTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\test\ipi\IpiMetaDataTests.cpp">
@@ -180,6 +204,9 @@
       <Filter>Headers Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\test\ipi\IpiTestMemory.hpp">
+      <Filter>Headers Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\test\ipi\pch.h">
       <Filter>Headers Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\test\common\ExampleTests.hpp">

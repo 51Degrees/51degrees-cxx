@@ -1159,9 +1159,7 @@ static uint32_t mainParsingBody(const char* json,
         return 0;
     }
 	KeyValuePair cache[KEY_UNDEFINED];
-	char *begin = builder->current;
-	// define buffer range
-	
+
 	// write keys to buffer, init cache and skip to the first key
 	json = initParsing(json, builder, cache, status);
 	if (*status == INVALID_INPUT) {
@@ -1194,8 +1192,6 @@ static uint32_t mainParsingBody(const char* json,
 		}
 		
 		if (ptr != NULL) {
-			begin = ptr;
-			
 			++iterations;
 			if (!callback(ctx, cache[key])) {
 				break;
@@ -1226,6 +1222,7 @@ TransformIterateGhevFromJsonPrivate
   fiftyoneDegreesException* const exception) {
 	StatusCode status = NOT_SET;
 	uint32_t result = mainParsingBody(json, builder, &status, 0, callback, ctx);
+	(void)exception; // Not used when exceptions are disabled.
 	if (status != NOT_SET) {
 		EXCEPTION_SET(status);
 	}
@@ -1237,7 +1234,7 @@ fiftyoneDegreesTransformIterateGhevFromJson
  (const char* json, char *buffer, size_t length,
   fiftyoneDegreesTransformCallback callback, void* ctx,
   fiftyoneDegreesException* const exception) {
-	StringBuilder builder = {buffer, length};
+	StringBuilder builder = {buffer, length, NULL, 0, 0, false};
 	StringBuilderInit(&builder);
 	uint32_t iterations = TransformIterateGhevFromJsonPrivate(json, &builder, callback, ctx, exception);
 	StringBuilderComplete(&builder);
@@ -1251,7 +1248,7 @@ fiftyoneDegreesTransformIterateGhevFromBase64
   fiftyoneDegreesTransformCallback callback, void* ctx,
   fiftyoneDegreesException* const exception) {
 	StatusCode status = NOT_SET;
-	StringBuilder builder = {buffer, length};
+	StringBuilder builder = {buffer, length, NULL, 0, 0, false};
 	StringBuilderInit(&builder);
 	base64Decode(base64, &builder, &status);
 	fiftyoneDegreesTransformIterateResult result = {0, builder.added,
@@ -1275,12 +1272,13 @@ fiftyoneDegreesTransformIterateSua
  (const char* json, char *buffer, size_t length,
   fiftyoneDegreesTransformCallback callback, void* ctx,
   fiftyoneDegreesException* const exception) {
-	StringBuilder builder = {buffer, length};
+	StringBuilder builder = {buffer, length, NULL, 0, 0, false};
 	StringBuilderInit(&builder);
 	StatusCode status = NOT_SET;
 	uint32_t iterations = mainParsingBody(json, &builder, &status, 1, callback, ctx);
 	StringBuilderComplete(&builder);
 	fiftyoneDegreesTransformIterateResult result = {iterations, builder.added, builder.added > builder.length};
+	(void)exception; // Not used when exceptions are disabled.
 	if (status != NOT_SET) {
 		EXCEPTION_SET(status);
 	}

@@ -30,16 +30,19 @@
 #include <string>
 #include <iostream>
 #include <memory>
+#include <atomic>
 #include <thread>
-#include "../../../../src/common/textfile.h"
 
 #define THREAD_COUNT 4
 
-static const char *dataDir = "data/device-detection";
+static const char * const dataDir = "data/device-detection";
 
-static const char *dataFileName = "51Degrees-LiteV4.1.hash";
+static const char * const dataFileName = "51Degrees-LiteV4.1.hash";
 
-static const char *userAgentFileName = "20000 User Agents.csv";
+// This file contains the 20,000 most commonly seen combinations of header
+// values that are relevant to device detection. This example reads the
+// User-Agent of each record.
+static const char * const userAgentFileName = "20000 Evidence Records.yml";
 
 using std::cout;
 using std::thread;
@@ -151,6 +154,13 @@ namespace FiftyoneDegrees {
 				bool hasProperty(const char *name) const;
 
 				/**
+				 * Says of each property the engine was asked for that the data
+				 * file does not have that it needs the Enterprise data file, one
+				 * line each.
+				 */
+				void reportEnterpriseProperties() const;
+
+				/**
 				 * On the free Lite data file, says what the Enterprise data
 				 * file adds and where to ask for a copy.
 				 * @param contactUs link to the contact page, tagged with the
@@ -168,7 +178,7 @@ namespace FiftyoneDegrees {
 					 * Construct a new shared state instance.
 					 * @param engine pointer to the engine the threads should
 					 * use
-					 * @param userAgentFilePath path to the User-Agents CSV
+					 * @param userAgentFilePath path to the YAML evidence file
 					 */
 					SharedState(EngineHash *engine, string userAgentFilePath);
 
@@ -201,9 +211,9 @@ namespace FiftyoneDegrees {
 					static void processUserAgentsMulti(void *state);
 
 					EngineHash *engine; /**< Pointer to the engine */
-					volatile long threadsFinished; /**< Number of threads that
-												   have finished their
-												   processing */
+					/** Number of threads that have finished their processing,
+					counted atomically as the threads finish at the same time */
+					std::atomic<long> threadsFinished{0};
 					string userAgentFilePath; /**< Path to the User-Agents to
 											  process */
 					thread threads[THREAD_COUNT]; /**< Pointers to the running

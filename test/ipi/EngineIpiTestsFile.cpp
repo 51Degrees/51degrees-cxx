@@ -28,16 +28,16 @@ public:
 		ConfigIpi *config,
 		RequiredPropertiesConfig *properties,
 		const char *dataDirectory,
-		const char **ipiFileNames,
+		const char * const *ipiFileNames,
 		int ipiFileNamesLength,
-		const char *ipAddressesFileName)
+		const char *evidenceFileName)
 		: EngineIpIntelligenceTests(
 			config, 
 			properties, 
 			dataDirectory,
 			ipiFileNames, 
 			ipiFileNamesLength,
-			ipAddressesFileName) {
+			evidenceFileName) {
 	};
 	void SetUp() override {
 		EngineIpIntelligenceTests::SetUp();

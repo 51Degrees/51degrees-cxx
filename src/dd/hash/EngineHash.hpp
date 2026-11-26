@@ -183,6 +183,35 @@ namespace FiftyoneDegrees {
 					const std::string &valueName) const;
 
 				/**
+				 * Gets the date that 51Degrees published a Hash data file
+				 * from its header, without loading the file, so that an
+				 * update can tell whether a new file is newer before loading
+				 * it.
+				 * @param fileName path to the data file
+				 * @return the published date in the file's header
+				 * @throws StatusCodeException when the file cannot be opened,
+				 * is shorter than the header, is not of the version this
+				 * library reads, holds a date that is not valid, or there is
+				 * no memory to read the header
+				 */
+				static Date getPublishedTimeFromFile(const string &fileName);
+
+				/**
+				 * Gets the product name of a Hash data file from its header,
+				 * without loading the file, so that an update at start-up can
+				 * ask the Distributor for the product of the file it has. The
+				 * name is "V4" followed by the tier, for example V4TAC, where
+				 * getProduct() of an engine that loaded the file gives the
+				 * tier alone.
+				 * @param fileName path to the data file
+				 * @return the product name the Distributor knows the file by
+				 * @throws StatusCodeException when the file cannot be opened,
+				 * ends before the name does, holds an empty tier, or is not of
+				 * the version this library reads
+				 */
+				static string getProductFromFile(const string &fileName);
+
+				/**
 				 * @}
 				 * @name Common::EngineBase Implementation
 				 * @{

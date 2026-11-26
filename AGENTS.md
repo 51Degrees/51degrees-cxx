@@ -67,7 +67,7 @@ downloads every free file, and keeps a file that is already there.
 Build in a folder named `build`. `-DBUILD_TESTING=OFF` leaves out the tests
 and the Google Test download, so the build is quicker, and every example is
 still built. To build one product only, also add
-`-DFIFTYONE_BUILD_IP_INTELLIGENCE=OFF` or `-DFIFTYONE_BUILD_DEVICE_DETECTION=OFF`
+`-D_51DEGREES_BUILD_IP_INTELLIGENCE=OFF` or `-D_51DEGREES_BUILD_DEVICE_DETECTION=OFF`
 to the first `cmake` command.
 
 On Linux and macOS, build with these commands.
@@ -154,6 +154,14 @@ file has RegisteredCountry, RegisteredName and RegisteredOwner, so the lines
 for the properties it does not have, such as `Longitude`, are empty. The exit
 code is 0.
 
+Every example ends with a `Find out more` section, which links to the
+product's pages on 51degrees.com and to this repository. `ProcHash.c` and
+`ProcIpi.c` write their results to standard output, so they print the section
+to standard error. Every link an example prints carries the example's own
+source file as `utm_content`, which each example gives the base functions as
+`FIFTYONE_DEGREES_EXAMPLE_FILE`, and the examples workflow fails an example
+whose links name any other file.
+
 The C++ examples print the same kind of values in a different layout. The paid
 data files have many more properties, as the
 [pricing page](https://51degrees.com/pricing?utm_source=github&utm_medium=docs&utm_campaign=51degrees-cxx&utm_content=agents.md&utm_term=correct-output)
@@ -183,10 +191,21 @@ describes.
 - **Memory.** `GettingStartedC` loads the whole IP Intelligence data file into
   memory (`IpiInMemoryConfig`), so it needs about 0.5 GB free.
 - **What CI does not test.** CI builds IP Intelligence on Windows and Linux,
-  not macOS (`ci/options.json`). It never runs the example programs, only the
-  tests that call each example's code. For IP Intelligence it links a paid data
-  file under the Lite file's name (`ci/fetch-assets.ps1`), so the Lite IP
-  Intelligence file itself is never used in CI.
+  not macOS (`ci/options.json`). The builds that run the tests call each
+  example's code and never run the example programs, and for IP Intelligence
+  they link a paid data file under the Lite file's name
+  (`ci/fetch-assets.ps1`). Only the examples workflow, described under
+  [CI](#ci), runs the example programs and uses the Lite IP Intelligence file.
+
+## Names
+
+[`docs/names.md`](docs/names.md) lists every environment variable, secret and
+CMake option this repository reads or defines, with what each holds. Every
+name 51Degrees defines starts `_51DEGREES_`. When a change reads a new name,
+add it to the list in the same change. The test in
+`test/ipi/EnvironmentVariableNameTests.cpp` fails when a tracked file reads a
+name the list does not have. A job that calls a shared workflow of common-ci
+passes `secrets: inherit` and names no secret, and the same test checks that.
 
 ## The two copies of common
 
@@ -211,7 +230,7 @@ every common function and global and renames them with an `ipi_` prefix. Common
 headers include it first when `FIFTYONE_DEGREES_IPI_SYMBOLS` is defined.
 
 That define must never change anything for a language wrapper. CMake sets it on
-the IP Intelligence copy through the `FIFTYONE_IPI_SYMBOLS` option, which is on
+the IP Intelligence copy through the `_51DEGREES_IPI_SYMBOLS` option, which is on
 only when this repository is the top level project. A project that includes this
 CMake file, and any build that compiles the sources itself, keeps the original
 names and doesn't need the list. `Ubuntu_arm64_Release` in `ci/options.json`
@@ -226,7 +245,7 @@ The common C++ classes have the same problem, so each common C++ header opens
 `FIFTYONE_DEGREES_COMMON_CXX_BEGIN` inside its namespace. That expands to nothing
 unless `FIFTYONE_DEGREES_IPI_CXX_SYMBOLS` is defined, which makes it an inline
 namespace, changing linked names and not source names. The CMake option
-`FIFTYONE_CXX_BOTH_PRODUCTS` turns it on, and it stays off by default until the
+`_51DEGREES_CXX_BOTH_PRODUCTS` turns it on, and it stays off by default until the
 wrappers SWIG generates have been checked. The
 `Ubuntu_x64_Release_CxxBothProducts` entry in `ci/options.json` builds and tests
 with it on.
@@ -246,7 +265,7 @@ of `src`, which the relative includes need. A new library that an installed
 library links has to be added to its list, or the install fails to export the
 targets. Package managers build from a source archive, which has neither the
 submodules nor the Git history, so a build with `BUILD_TESTING` and
-`FIFTYONE_BUILD_EXAMPLES` off must not read `data` or download anything.
+`_51DEGREES_BUILD_EXAMPLES` off must not read `data` or download anything.
 
 ## HighPerformance and required properties
 
@@ -263,14 +282,11 @@ directory for the folder `data/device-detection` or `data/ip-intelligence`.
 Those names are fixed. `data` is the data repository, a submodule at the root,
 which holds a `<file>.link` for each free data file rather than the file.
 `data/get-data-files.ps1` and `data/get-data-files.sh` download them, and an
-example whose file is missing runs the script for it. The
-`device-detection-data` and `ip-intelligence-data` submodules are kept only
-until the other language APIs read `data`, so nothing here uses them. The
-enterprise files used in CI are fetched by `ci/fetch-assets.ps1` and are never
-committed. CI takes every data file from common-ci's assets, which each run
-caches once, so no test job downloads one. A file added to the data
-repository needs an entry in common-ci's `steps/fetch-assets.ps1` before CI
-can use it.
+example whose file is missing runs the script for it. The enterprise files used
+in CI are fetched by `ci/fetch-assets.ps1` and are never committed. CI takes
+every data file from common-ci's assets, which each run caches once, so no test
+job downloads one. A file added to the data repository needs an entry in
+common-ci's `steps/fetch-assets.ps1` before CI can use it.
 
 ## CI
 
@@ -281,9 +297,38 @@ tests. On a pull request, `ci/products.ps1` skips a product the change does
 not touch. A change outside `src/dd`, `src/ipi` and their tests, examples,
 docs and tools counts as touching every product.
 
+`ci/select-options.ps1` chooses the entries a pull request runs. The standard
+set builds the products a change touches with GCC and MSVC, without the IP
+Intelligence tests unless an IP Intelligence file changed in more than its
+comments. A change to a product's source adds that product's other entries.
+The repeated Debug builds and macOS run only when `rc` itself or the release
+pull request is built, which `.github/workflows/release-pull-request.yml`
+does on every entry.
+
+Each build and test job gets 170 minutes, set by `build-test-timeout-minutes`
+in the workflows that build pull requests, because the sanitizer build takes
+up to 135 minutes and common-ci gives 120 unless told otherwise.
+
 An entry with `InstallCheck` also runs `ci/check-install.ps1` after its build.
 It builds an archive of the commit with the tests and examples off, offline on
 Linux, installs it, and builds and runs `test/install` against the install.
+It then builds every example against the install with `test/install/examples`,
+and runs the getting started examples.
+
+`.github/workflows/examples.yml` builds the examples from a fresh clone and
+runs each one from the root with no settings, on Ubuntu and Windows, so each
+finds or downloads the free data file it needs. The Ubuntu job downloads them,
+which tests the download, and saves them to a cache keyed on the data links.
+The other jobs restore them when the cache has an entry they can read, which a
+pull request has once one of its own runs or a run on the default branch has
+saved it, and download them otherwise. It fails an example that exits
+with an error or whose output does not end with the `Find out more` section.
+It is the only check of what a
+fresh clone does, as the other builds give the tests the Enterprise files. It
+runs on a pull request that changes the examples, the sources, the CMake files
+or the data pin. The Nightly Pipeline, the release pull request into `main`
+and a manual run also run it, and add macOS with the Device Detection examples
+only, as CI builds only Device Detection there.
 
 Pull requests target `rc`, not `main`, because every language takes
 each commit on `main` at its next nightly. The README's "Making changes" says
@@ -301,6 +346,15 @@ projects list theirs by name, so add a new test file to its `.vcxproj` and
 `.vcxproj.filters`. `ci/check-visual-studio-tests.ps1` fails the Visual Studio
 builds when one is missing. Those builds run the common and Device Detection
 tests, and build the IP Intelligence tests without running them.
+
+`ci/cxx/run-unit-tests.ps1` runs each Visual Studio test program under the
+console debugger, cdb. When one crashes or aborts in a way GoogleTest does not
+catch, in any thread, the job log shows the stack of every thread after "Stacks
+of every thread", with the faulting thread marked `#`. The dump the stacks come
+from holds the whole of the program's memory, so it stays on the runner and is
+deleted. Windows Error Reporting cannot replace the debugger, because the
+programs run with `SEM_NOGPFAULTERRORBOX`, which the runner passes down and
+GoogleTest sets again, and with it set Windows Error Reporting writes no dump.
 
 ## Releases
 
@@ -324,3 +378,11 @@ The history of `common-cxx`, `device-detection-cxx`, `ip-intelligence-cxx`
 and `ip-graph-cxx` was brought in with `git subtree add`, so commit SHAs match
 the original repositories. Use `git log --follow` to trace a file back through
 its move into this layout.
+
+## Tests that fail on timing
+
+A test that fails on a time limit, a performance threshold or a timeout is
+fixed, not run again until it passes. Either the limit is set to fit the
+slowest runner the test runs on, with each runner's measurement behind it, or
+the reason it takes too long is found and fixed. A failure that comes and goes
+costs everyone who meets it the time to look into it.

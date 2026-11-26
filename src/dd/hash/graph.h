@@ -113,10 +113,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 5105)
 #include <windows.h>
-#pragma warning(pop)
 #endif
 #include "../../common/common.h"
 #include "../../common/data.h"
@@ -138,8 +135,11 @@
  * A substring which hashes to zero therefore cannot be matched in a hash table
  * node. The ordered list and single record layouts do not use markers, so a
  * hash code of zero is a genuine value in those.
+ *
+ * The records follow a packed node, so they are packed too, and their members
+ * can be read at any address.
  */
-#pragma pack(push, 4)
+#pragma pack(push, 1)
 typedef struct fiftyoneDegrees_graph_node_hash_t {
 	uint32_t hashCode; /**< Hash code to compare. */
 	int32_t nodeOffset; /**< Offset of the node to use if this hash code is a

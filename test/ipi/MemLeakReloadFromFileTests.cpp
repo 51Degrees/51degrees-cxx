@@ -37,7 +37,6 @@
 #endif
 
 #include "../../examples/ipi/Base/ExampleBase.h"
-#include "../../src/common/textfile.h"
 #include "../../src/ipi/ipi.h"
 #include "../../src/ipi/fiftyone.h"
 #include "ExampleIpIntelligenceTests.hpp"
@@ -92,7 +91,7 @@ static void runRequestsSingle(sharedState *state) {
 	sharedState *shared = (sharedState*)state;
 	threadState thread;
 	thread.manager = shared->manager;
-	TextFileIterateWithLimit(
+	fiftyoneDegreesEvidenceFileIterateWithLimit(
 		shared->ipAddressFilePath,
 		ipAddress,
 		sizeof(ipAddress),
@@ -101,10 +100,11 @@ static void runRequestsSingle(sharedState *state) {
 		executeTest);
 }
 
-static void runRequestsMulti(void *state) {
+static EXAMPLE_THREAD_RESULT runRequestsMulti(void *state) {
 	sharedState *shared = (sharedState*)state;
 	runRequestsSingle(shared);
 	INTERLOCK_INC(&shared->threadsFinished);
+	return EXAMPLE_THREAD_DONE;
 }
 
 /*
@@ -116,7 +116,7 @@ static void startThreads(sharedState *state) {
 	for (thread = 0; thread < THREAD_COUNT; thread++) {
 		THREAD_CREATE(
 			state->threads[thread],
-			(THREAD_ROUTINE)&runRequestsMulti,
+			runRequestsMulti,
 			state);
 	}
 }
@@ -168,7 +168,6 @@ static void run(
 	MemoryReader *reader,
 	bool fromFile) {
 	StatusCode status;
-	int numberOfReloads = 0;
 	int numberOfReloadFails = 0;
 	sharedState state;
 	state.manager = manager;
@@ -178,12 +177,13 @@ static void run(
 
 	if (ThreadingGetIsThreadSafe()) {
 		startThreads(&state);
-		while (state.threadsFinished < THREAD_COUNT) {
+		// The threads increment the count as it is read here, so it is
+		// read atomically: compare and exchange 0 for 0 returns the
+		// count and leaves it as it is.
+		while (INTERLOCK_EXCHANGE(state.threadsFinished, 0, 0) <
+			THREAD_COUNT) {
 			status = reload(manager, reader, fromFile, exception);
-			if (status == SUCCESS) {
-				numberOfReloads++;
-			}
-			else {
+			if (status != SUCCESS) {
 				numberOfReloadFails++;
 			}
 #ifdef _MSC_VER
@@ -197,14 +197,13 @@ static void run(
 	else {
 		runRequestsSingle(&state);
 		status = reload(manager, reader, fromFile, exception);
-		if (status == SUCCESS) {
-			numberOfReloads++;
-		}
-		else {
+		if (status != SUCCESS) {
 			numberOfReloadFails++;
 		}
 		runRequestsSingle(&state);
 	}
+	EXPECT_EQ(0, numberOfReloadFails) <<
+		"Every reload of the data should succeed.";
 }
 
 void memReloadRun(
@@ -297,12 +296,12 @@ public:	\
 \
 		memReloadRun(	\
 			dataFilePath.c_str(),	\
-			ipAddressFilePath.c_str(),	\
+			evidenceFilePath.c_str(),	\
 			requiredProperties,	\
 			config,	\
 			f);	\
 \
-		EXPECT_EQ(0, MemoryTrackingGetAllocated()) <<	\
+		EXPECT_EQ(0u, MemoryTrackingGetAllocated()) <<	\
 			"There is memory leak. All allocated memory should "	\
 			"be freed at the end of this test.";	\
 \

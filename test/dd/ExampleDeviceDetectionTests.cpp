@@ -23,9 +23,8 @@
 #include "ExampleDeviceDetectionTests.hpp"
 
 ExampleDeviceDetectionTest::ExampleDeviceDetectionTest(
-	const char **dataFileNames,
+	const char * const *dataFileNames,
     int dataFileNamesLength,
-	const char *userAgentFileName,
     const char *evidenceFileName) : ExampleTests() {
     dataFilePath = "";
     for (int i = 0;
@@ -34,7 +33,10 @@ ExampleDeviceDetectionTest::ExampleDeviceDetectionTest(
         dataFilePath = GetFilePath(_dataFolderName, dataFileNames[i]);
     }
 
-	userAgentFilePath = GetFilePath(_dataFolderName, userAgentFileName);
+    // Room for any data file path, so a test can point at another data file
+    // without allocating memory the leak check would count.
+    dataFilePath.reserve(FIFTYONE_DEGREES_FILE_MAX_PATH);
+
     evidenceFilePath = GetFilePath(_dataFolderName, evidenceFileName);
 	requiredProperties = "Id,IsMobile,BrowserName,DeviceType";
 };

@@ -30,6 +30,7 @@
 #include "StringCollection.hpp"
 #include "FixedSizeCollection.hpp"
 #include "VariableSizeCollection.hpp"
+#include "ShiftedCollection.hpp"
 #include <algorithm>
 
 constexpr int N_PROPERTIES = 15;
@@ -427,12 +428,18 @@ TEST_F(ProfileTests, DefaultValues) {
 void compareProfiles(ProfileContainer* expected, Profile* actual) {
     EXPECT_EQ(expected->profile.componentIndex, actual->componentIndex);
 #ifndef FIFTYONE_DEGREES_REDUCED_FILE
-    EXPECT_EQ(expected->profile.profileId, actual->profileId);
+    EXPECT_EQ(
+        (uint32_t)expected->profile.profileId,
+        (uint32_t)actual->profileId);
 #endif
-    EXPECT_EQ(N_PROPERTIES, actual->valueCount);
-    const uint32_t* actualValues = (const uint32_t*)(actual + 1);
+    EXPECT_EQ((fiftyoneDegreesProfileValuesCountType)N_PROPERTIES,
+        (fiftyoneDegreesProfileValuesCountType)actual->valueCount);
+    const byte* actualValues = (const byte*)(actual + 1);
     for (int i=0; i<N_PROPERTIES; i++) {
-		EXPECT_EQ(expected->valueIndices[i], actualValues[i]);
+		EXPECT_EQ(
+			(uint32_t)expected->valueIndices[i],
+			fiftyoneDegreesUnalignedReadUint32(
+				actualValues + i * sizeof(uint32_t)));
 	}
 }
 
@@ -581,6 +588,191 @@ TEST_F(ProfileTests, profileIterateForPropertyAndValue) {
     compareProfiles(profilesCollectionHelper->getItem(4), profiles[0]);
 }
 
+/**
+ * The profile iteration IP Intelligence uses, with plain 32 bit profile
+ * offsets read through ProfileOffsetAsPureOffset, finds the same profiles
+ * when the offsets start at every byte offset.
+ */
+TEST_F(ProfileTests, profileIterateWithPlainOffsetsAtAnyOffset) {
+    const uint32_t *profileOffsets = profilesCollectionHelper->getState()->offsets;
+    std::vector<byte> records(N_PROFILES * sizeof(uint32_t));
+    memcpy(records.data(), profileOffsets, records.size());
+    for (size_t shift = 0; shift <= MAX_SHIFT_BYTES; shift++) {
+        // The shift is added to each message rather than with SCOPED_TRACE,
+        // whose memory the base class's memory check counts.
+        EXCEPTION_CREATE
+        ShiftedCollection offsets(records, sizeof(uint32_t), shift);
+        std::vector<fiftyoneDegreesProfile *> profiles;
+        const uint32_t count =
+            fiftyoneDegreesProfileIterateProfilesForPropertyWithTypeAndValueAndOffsetExtractor(
+                stringsCollection,
+                propertiesCollection,
+                NULL,
+                valuesCollection,
+                profilesCollection,
+                offsets.collection,
+                fiftyoneDegreesProfileOffsetAsPureOffset,
+                "Material",
+                "Metal",
+                &profiles,
+                iterateProfiles,
+                exception);
+        EXPECT_TRUE(EXCEPTION_OKAY) << "shift " << shift;
+        ASSERT_EQ(1u, count) << "shift " << shift;
+        compareProfiles(profilesCollectionHelper->getItem(2), profiles[0]);
+        ASSERT_FALSE(HasFailure()) << "shift " << shift;
+    }
+}
+
+// A profile with many values of one property. Its size is 9 + 4 * 40 = 169
+// bytes, or 3 + 4 * 40 = 163 bytes in a reduced file. Both are odd, so 16 of
+// them one after another put their value indexes at every byte position
+// modulo 16.
+constexpr int N_WIDE_VALUES = 40;
+constexpr int N_WIDE_PROFILES = 16;
+#pragma pack(push, 1)
+typedef struct {
+    fiftyoneDegreesProfile profile;
+    uint32_t valueIndices[N_WIDE_VALUES];
+} WideProfileContainer;
+#pragma pack(pop)
+
+static bool countItems(void *state, fiftyoneDegreesCollectionItem *item) {
+    (void)item;
+    (*(int*)state)++;
+    return true;
+}
+
+/**
+ * The value indexes of a profile follow the packed profile structure, so
+ * they can be at any byte. Profiles whose value indexes are at every byte
+ * position modulo 16 are searched for the first, a middle and the last value
+ * of a property with many values, which runs the binary search, the walk back
+ * to the property's first value and the scan forward over the values. A build
+ * that reads the value indexes as 4 byte aligned faults here when the compiler
+ * vectorizes those loops, as GCC 15 does for x86-64-v2 and later.
+ */
+TEST_F(ProfileTests, profileValuesAtAnyAlignment) {
+    EXCEPTION_CREATE
+    std::vector<std::string> names;
+    names.push_back("Many");
+    for (int i = 0; i < N_WIDE_VALUES; i++) {
+        names.push_back("v" + std::to_string(100 + i));
+    }
+    std::vector<const char*> namePointers;
+    for (const std::string &name : names) {
+        namePointers.push_back(name.c_str());
+    }
+    StringCollection wideStrings(namePointers.data(), (int)namePointers.size());
+    const uint32_t *offsets = wideStrings.getState()->offsets;
+
+    std::vector<fiftyoneDegreesValue> wideValues;
+    for (int i = 0; i < N_WIDE_VALUES; i++) {
+        wideValues.push_back({
+            (int16_t)0, // propertyIndex
+            (int32_t)offsets[i + 1], // nameOffset
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+            (int32_t)offsets[i + 1], // descriptionOffset
+#endif
+            (int32_t)offsets[i + 1], // urlOffset
+        });
+    }
+    FixedSizeCollection<fiftyoneDegreesValue> valuesHelper(wideValues);
+
+    std::vector<fiftyoneDegreesProperty> wideProperties;
+    wideProperties.push_back({
+        0, // componentIndex
+        0, // displayOrder
+        1, // isMandatory
+        1, // isList
+        1, // showValues
+        0, // isObsolete
+        1, // show
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // valueType
+        0, // defaultValueIndex
+        offsets[0], // nameOffset
+        offsets[0], // descriptionOffset
+        offsets[0], // categoryOffset
+        offsets[0], // urlOffset
+        0, // firstValueIndex
+        N_WIDE_VALUES - 1, // lastValueIndex
+        0, // mapCount
+        0 // firstMapIndex
+    });
+    FixedSizeCollection<fiftyoneDegreesProperty> propertiesHelper(
+        wideProperties);
+
+    std::vector<WideProfileContainer> wideProfiles;
+    for (int i = 0; i < N_WIDE_PROFILES; i++) {
+        WideProfileContainer container = {{
+            0, // componentIndex
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+            (uint32_t)(i + 1), // profileId
+#endif
+            N_WIDE_VALUES
+        }, {}};
+        for (int j = 0; j < N_WIDE_VALUES; j++) {
+            container.valueIndices[j] = (uint32_t)j;
+        }
+        wideProfiles.push_back(container);
+    }
+    VariableSizeCollection<WideProfileContainer> profilesHelper(wideProfiles);
+    const uint32_t *profileOffsets = profilesHelper.getState()->offsets;
+
+    // Check the value indexes really are at every position modulo 16.
+    std::vector<bool> positions(16, false);
+    for (int i = 0; i < N_WIDE_PROFILES; i++) {
+        const fiftyoneDegreesProfile *profile =
+            &profilesHelper.getItem(i)->profile;
+        positions[(uintptr_t)(profile + 1) % 16] = true;
+    }
+    EXPECT_EQ(16, std::count(positions.begin(), positions.end(), true));
+
+    std::vector<fiftyoneDegreesProfileOffset> wideOffsets;
+    for (int i = 0; i < N_WIDE_PROFILES; i++) {
+        wideOffsets.push_back({
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+            (uint32_t)(i + 1),
+#endif
+            profileOffsets[i]
+        });
+    }
+    FixedSizeCollection<fiftyoneDegreesProfileOffset> offsetsHelper(
+        wideOffsets);
+
+    for (int i : { 0, N_WIDE_VALUES / 2, N_WIDE_VALUES - 1 }) {
+        int found = 0;
+        fiftyoneDegreesProfileIterateProfilesForPropertyAndValue(
+            wideStrings.getState()->collection,
+            propertiesHelper.getState()->collection,
+            valuesHelper.getState()->collection,
+            profilesHelper.getState()->collection,
+            offsetsHelper.getState()->collection,
+            "Many",
+            names[i + 1].c_str(),
+            &found,
+            countItems,
+            exception);
+        EXPECT_TRUE(EXCEPTION_OKAY);
+        EXPECT_EQ(N_WIDE_PROFILES, found) << names[i + 1];
+    }
+
+    // Every value of the property is returned for every profile.
+    const fiftyoneDegreesProperty *property = &wideProperties[0];
+    for (int i = 0; i < N_WIDE_PROFILES; i++) {
+        int found = 0;
+        fiftyoneDegreesProfileIterateValuesForProperty(
+            valuesHelper.getState()->collection,
+            &profilesHelper.getItem(i)->profile,
+            property,
+            &found,
+            countItems,
+            exception);
+        EXPECT_TRUE(EXCEPTION_OKAY);
+        EXPECT_EQ(N_WIDE_VALUES, found) << "profile " << i;
+    }
+}
+
 void ProfileTests::indicesLookup(std::vector<std::string> &propertyNames) {
     EXCEPTION_CREATE
     fiftyoneDegreesPropertiesAvailable *availableProperties = createAvailableProperties(propertyNames);
@@ -595,12 +787,16 @@ void ProfileTests::indicesLookup(std::vector<std::string> &propertyNames) {
             //lookup property value Index within the profile with profileId for the available property indexed at j in the array of availableProperties
             uint32_t valueIdxIdxWithinProfile = fiftyoneDegreesIndicesPropertyProfileLookup(index, profileId, j);
             //convert valueIdxIdxWithinProfile to the valueIndex in the actual values collection by looking it up with the profile collection
-            uint32_t *first = (uint32_t*)(profile + 1);
-            uint32_t valueIdx = *(first + valueIdxIdxWithinProfile);
+            const byte *first = (const byte*)(profile + 1);
+            uint32_t valueIdx = fiftyoneDegreesUnalignedReadUint32(
+                first + valueIdxIdxWithinProfile * sizeof(uint32_t));
             //now retrieve value and check that it belongs to the property above
             const fiftyoneDegreesValue *value = fiftyoneDegreesValueGet(valuesCollection, valueIdx, &item, exception);
+            ASSERT_GE(value->propertyIndex, 0);
+            EXPECT_EQ(
+                (uint32_t)value->propertyIndex,
+                property.propertyIndex);
             COLLECTION_RELEASE(item.collection, &item);
-            EXPECT_EQ(value->propertyIndex, property.propertyIndex);
         }
     }
 
@@ -641,11 +837,12 @@ void ProfileTests::iterateValueIndicesForEachAvailableProperty(std::vector<std::
             
             std::vector<fiftyoneDegreesValue *> values;
             fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(valuesCollection, index, (uint32_t) j, profile, property, &values, collectValues, exception);
-            EXPECT_EQ(values.size(), 1);
+            EXPECT_EQ(values.size(), 1u);
             const fiftyoneDegreesValue *expectedValue = NULL;
-            const uint32_t *first = (uint32_t *) (profile + 1);
+            const byte *first = (const byte *) (profile + 1);
             for (uint32_t k=0;k<profile->valueCount;++k) {
-                uint32_t valueIdx = *(first + k);
+                uint32_t valueIdx = fiftyoneDegreesUnalignedReadUint32(
+                    first + k * sizeof(uint32_t));
                 const fiftyoneDegreesValue *candidate = fiftyoneDegreesValueGet(valuesCollection, valueIdx, &item, exception);
                 COLLECTION_RELEASE(item.collection, &item);
                 if ((uint32_t) candidate->propertyIndex == availableProperties->items[j].propertyIndex) {
@@ -675,6 +872,19 @@ TEST_F(ProfileTests, unhappyPaths) {
     uint32_t profileOffset;
     EXCEPTION_CREATE
     uint32_t *profileOffsetPtr = fiftyoneDegreesProfileGetOffsetForProfileId(profileOffsetsCollection, 0, &profileOffset, exception);
+    EXPECT_FALSE(EXCEPTION_OKAY);
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+    EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_NOT_IMPLEMENTED));
+#else
+    EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_PROFILE_EMPTY));
+#endif
+    // No offset is written for profile id 0, so no pointer to it is returned.
+    EXPECT_EQ(profileOffsetPtr, (uint32_t *) NULL);
+
+    // NULL profileId through the profile lookup
+    EXCEPTION_CLEAR
+    fiftyoneDegreesProfile *profile = fiftyoneDegreesProfileGetByProfileId(profileOffsetsCollection, profilesCollection, 0, &item, exception);
+    EXPECT_EQ(profile, (fiftyoneDegreesProfile *) NULL);
     EXPECT_FALSE(EXCEPTION_OKAY);
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
     EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_NOT_IMPLEMENTED));

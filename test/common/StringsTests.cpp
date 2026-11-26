@@ -42,7 +42,7 @@ public:
 
 void Strings::SetUp() {
     builder = (StringBuilder *) fiftyoneDegreesMalloc(sizeof(StringBuilder));
-    StringBuilder local_builder = {(char *)fiftyoneDegreesMalloc(bufferSize), bufferSize};
+    StringBuilder local_builder = {(char *)fiftyoneDegreesMalloc(bufferSize), bufferSize, nullptr, 0, 0, false};
     memcpy((void *) builder, &local_builder, sizeof(StringBuilder));
 }
 
@@ -54,17 +54,17 @@ void Strings::TearDown() {
 TEST_F(Strings, StringBuilder_AddChar) {
     fiftyoneDegreesStringBuilderInit(builder);
     fiftyoneDegreesStringBuilderAddChar(builder, 'a');
-    ASSERT_EQ(builder->added, 1);
+    ASSERT_EQ(builder->added, 1u);
     ASSERT_EQ(builder->remaining, bufferSize - 1);
 
     fiftyoneDegreesStringBuilderAddChar(builder, 'b');
-    ASSERT_EQ(builder->added, 2);
+    ASSERT_EQ(builder->added, 2u);
     ASSERT_EQ(builder->remaining, bufferSize - 2);
     ASSERT_FALSE(builder->full);
 
     fiftyoneDegreesStringBuilderComplete(builder);
     ASSERT_STREQ(builder->ptr, "ab");
-    ASSERT_EQ(builder->added, 3);
+    ASSERT_EQ(builder->added, 3u);
     ASSERT_EQ(builder->remaining, bufferSize - 3);
     ASSERT_EQ(builder->length, bufferSize);
     ASSERT_FALSE(builder->full);
@@ -75,10 +75,10 @@ TEST_F(Strings, StringBuilder_AddChar) {
     fiftyoneDegreesStringBuilderAddChar(builder, 'c');
     fiftyoneDegreesStringBuilderAddChar(builder, 'd');
     ASSERT_STREQ(builder->ptr, "ab");
-    ASSERT_EQ(builder->added, 5);
+    ASSERT_EQ(builder->added, 5u);
     ASSERT_EQ(builder->remaining, bufferSize - 5);
     StringBuilderComplete(builder);
-    ASSERT_EQ(builder->added, 6);
+    ASSERT_EQ(builder->added, 6u);
     ASSERT_EQ(builder->remaining, bufferSize - 6);
     ASSERT_STREQ(builder->ptr, "ab");
     ASSERT_STREQ(current, "cd");
@@ -96,7 +96,7 @@ TEST_F(Strings, StringBuilder_AddCharPastTheEnd) {
     
     ASSERT_EQ(builder->added, bufferSize + 3);
     ASSERT_EQ(builder->length, bufferSize);
-    ASSERT_EQ(builder->remaining, 1);
+    ASSERT_EQ(builder->remaining, 1u);
     fiftyoneDegreesStringBuilderComplete(builder);
     ASSERT_EQ(strlen(builder->ptr), bufferSize - 1);
     ASSERT_TRUE(builder->full);
@@ -130,7 +130,7 @@ TEST_F(Strings, StringBuilder_AddCharsPastEnd) {
     ASSERT_EQ(builder->length, bufferSize);
     
     // all available space filled, except last byte reserved for NUL-terminator
-    ASSERT_EQ(builder->remaining, 1);
+    ASSERT_EQ(builder->remaining, 1u);
     
     // is marked as full when could not add stuff.
     ASSERT_TRUE(builder->full);
@@ -188,10 +188,10 @@ TEST_F(Strings, StringBuilder_AddInteger64Limits) {
 
 TEST_F(Strings, StringBuilder_NullBuffer) {
     StringBuilder *prev = builder;
-    StringBuilder local = {nullptr, 0};
+    StringBuilder local = {nullptr, 0, nullptr, 0, 0, false};
     builder = &local;
     fiftyoneDegreesStringBuilderInit(builder);
-    EXPECT_EQ(builder->remaining, 0);
+    EXPECT_EQ(builder->remaining, 0u);
     fiftyoneDegreesStringBuilderAddChars(builder, (char *) "asdf", 4);
     fiftyoneDegreesStringBuilderComplete(builder);
     EXPECT_EQ(builder->full, true);
@@ -200,11 +200,11 @@ TEST_F(Strings, StringBuilder_NullBuffer) {
 
 TEST_F(Strings, StringBuilder_OneChar) {
     StringBuilder *prev = builder;
-    StringBuilder local = {(char *) fiftyoneDegreesMalloc(1), 1};
+    StringBuilder local = {(char *) fiftyoneDegreesMalloc(1), 1, nullptr, 0, 0, false};
     builder = &local;
     
     fiftyoneDegreesStringBuilderInit(builder);
-    EXPECT_EQ(builder->remaining, 1);
+    EXPECT_EQ(builder->remaining, 1u);
     EXPECT_EQ(builder->full, false);
     fiftyoneDegreesStringBuilderAddChars(builder, (char *) "a", 1);
     EXPECT_EQ(builder->full, true);

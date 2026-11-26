@@ -42,73 +42,48 @@ ValueMetaDataCollectionBaseHash::~ValueMetaDataCollectionBaseHash() {
 ValueMetaData* ValueMetaDataCollectionBaseHash::getByKey(
 	ValueMetaDataKey key) const {
 	EXCEPTION_CREATE;
-	Item propertyItem, valueItem;
-	const Value *value;
-	const Property *property;
-	ValueMetaData *result = nullptr;
-	DataReset(&propertyItem.data);
-	property = PropertyGetByName(
-		dataSet->properties,
-		dataSet->strings,
+	const int propertyIndex = HashGetPropertyIndex(
+		dataSet,
 		key.getPropertyName().c_str(),
-		&propertyItem,
 		exception);
 	EXCEPTION_THROW;
-	if (property != nullptr) {
-		DataReset(&valueItem.data);
-		value = ValueGetByName(
-			dataSet->values,
-			dataSet->strings,
-			property,
-			key.getValueName().c_str(),
-			&valueItem,
-			exception);
-		EXCEPTION_THROW;
-		if (value != nullptr) {
-			result = ValueMetaDataBuilderHash::build(dataSet, value);
-			COLLECTION_RELEASE(dataSet->values, &valueItem);
-		}
-		COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+	if (propertyIndex < 0) {
+		return nullptr;
 	}
-	return result;
+	const long valueIndex = HashGetValueIndex(
+		dataSet,
+		(uint32_t)propertyIndex,
+		key.getValueName().c_str(),
+		exception);
+	EXCEPTION_THROW;
+	return valueIndex < 0
+		? nullptr
+		: ValueMetaDataBuilderHash::build(dataSet, (uint32_t)valueIndex);
 }
 
 ValueMetaData* ValueMetaDataCollectionBaseHash::getDefaultForProperty(
 	const std::string &propertyName) const {
 	EXCEPTION_CREATE;
-	Item propertyItem, valueItem;
-	ValueMetaData *result = nullptr;
-	DataReset(&propertyItem.data);
-	const Property *property = PropertyGetByName(
-		dataSet->properties,
-		dataSet->strings,
+	const int propertyIndex = HashGetPropertyIndex(
+		dataSet,
 		propertyName.c_str(),
-		&propertyItem,
 		exception);
 	EXCEPTION_THROW;
-	if (property != nullptr) {
-		// Every Hash value is a string, so there are no property types.
-		const long index = ValueGetDefaultIndex(
-			dataSet->values,
-			dataSet->strings,
-			nullptr,
-			property,
-			exception);
-		COLLECTION_RELEASE(dataSet->properties, &propertyItem);
-		EXCEPTION_THROW;
-		if (index >= 0) {
-			DataReset(&valueItem.data);
-			const Value *value = ValueGet(
-				dataSet->values,
-				(uint32_t)index,
-				&valueItem,
-				exception);
-			EXCEPTION_THROW;
-			if (value != nullptr) {
-				result = ValueMetaDataBuilderHash::build(dataSet, value);
-				COLLECTION_RELEASE(dataSet->values, &valueItem);
-			}
-		}
+	if (propertyIndex < 0) {
+		return nullptr;
 	}
-	return result;
+	long defaultValueIndex = -1;
+	HashGetPropertyValueIndexes(
+		dataSet,
+		(uint32_t)propertyIndex,
+		nullptr,
+		nullptr,
+		&defaultValueIndex,
+		exception);
+	EXCEPTION_THROW;
+	return defaultValueIndex < 0
+		? nullptr
+		: ValueMetaDataBuilderHash::build(
+			dataSet,
+			(uint32_t)defaultValueIndex);
 }

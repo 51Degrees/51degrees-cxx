@@ -25,18 +25,27 @@
 
 const static char _dataFolderName[] = "data/device-detection";
 
-const static char* _HashFileNames[] = { "TAC-HashV41.hash", "51Degrees-EnterpriseV4.1.hash", "51Degrees-LiteV4.1.hash" };
+static const char* const _HashFileNames[] = { "TAC-HashV41.hash", "51Degrees-EnterpriseV4.1.hash", "51Degrees-LiteV4.1.hash" };
 
 const static int _HashFileNamesLength = 3;
 
 const static char _HashProduct[] = "HashV41";
 
-const static char _userAgentsFileName[] = "20000 User Agents.csv";
-
 const static char _evidenceFileName[] = "20000 Evidence Records.yml";
 
-const static char* _fileTypes[] = { "TAC", "Enterprise", "Lite" };
+/**
+ * Calls the callback with the User-Agent of each record of a YAML evidence
+ * file. Defined in examples/dd/C/Hash/ExampleBase.c, and declared here for
+ * the tests that do not include the examples' header, which also defines
+ * short names for the C types.
+ */
+extern "C" void fiftyoneDegreesExampleUserAgentsIterate(
+	const char *fileName,
+	char *buffer,
+	int length,
+	void *state,
+	void(*callback)(const char*, void*));
 
-const static char _reloadTestFile[] = "reload-test-file.dat";
+static const char* const _fileTypes[] = { "TAC", "Enterprise", "Lite" };
 
 #endif

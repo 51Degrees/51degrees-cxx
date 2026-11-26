@@ -9,9 +9,10 @@ FILE(GLOB IPIC_H ${IPI}/*.h ${IPI_GRAPH}/*.h)
 add_library(fiftyone-ip-intelligence-c ${IPIC_SRC} ${IPIC_H})
 if (MSVC)
 	target_link_libraries(fiftyone-ip-intelligence-c fiftyone-common-c-ipi)
-	target_compile_options(fiftyone-ip-intelligence-c PRIVATE "/D_CRT_SECURE_NO_WARNINGS")
+	target_compile_options(fiftyone-ip-intelligence-c PRIVATE "/W4" "/WX")
 else()
 	target_link_libraries(fiftyone-ip-intelligence-c fiftyone-common-c-ipi m)
+	target_compile_options(fiftyone-ip-intelligence-c PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
 endif()
 
 FILE(GLOB IPICPP_SRC ${IPI}/*.cpp)
@@ -20,15 +21,20 @@ add_library(fiftyone-ip-intelligence-cxx ${IPICPP_SRC} ${IPICPP_H})
 target_link_libraries(fiftyone-ip-intelligence-cxx
 	fiftyone-ip-intelligence-c
 	fiftyone-common-cxx-ipi)
+if (MSVC)
+	target_compile_options(fiftyone-ip-intelligence-cxx PRIVATE "/W4" "/WX")
+else()
+	target_compile_options(fiftyone-ip-intelligence-cxx PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
+endif()
 
 if (TESTCOVERAGE_ENABLED)
 	message("-- fiftyone-ip-intelligence-c(xx)-cov adding targets with code coverage")
 	add_library(fiftyone-ip-intelligence-c-cov ${IPIC_SRC} ${IPIC_H})
 	if (MSVC)
 		target_link_libraries(fiftyone-ip-intelligence-c-cov fiftyone-common-c-ipi-cov)
-		target_compile_options(fiftyone-ip-intelligence-c-cov PRIVATE "/D_CRT_SECURE_NO_WARNINGS")
 	else()
 		target_link_libraries(fiftyone-ip-intelligence-c-cov fiftyone-common-c-ipi-cov m)
+		target_compile_options(fiftyone-ip-intelligence-c-cov PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
 	endif()
 	target_compile_options(fiftyone-ip-intelligence-c-cov PRIVATE "--coverage")
 
@@ -36,6 +42,9 @@ if (TESTCOVERAGE_ENABLED)
 	target_link_libraries(fiftyone-ip-intelligence-cxx-cov
 		fiftyone-ip-intelligence-c-cov
 		fiftyone-common-cxx-ipi-cov)
+	if (NOT MSVC)
+		target_compile_options(fiftyone-ip-intelligence-cxx-cov PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
+	endif()
 	target_compile_options(fiftyone-ip-intelligence-cxx-cov PRIVATE "--coverage")
 
 	set_target_properties(fiftyone-ip-intelligence-c-cov fiftyone-ip-intelligence-cxx-cov

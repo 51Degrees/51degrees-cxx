@@ -21,7 +21,17 @@
  * ********************************************************************* */
 
 #include "ExampleIpIntelligenceTests.hpp"
+#include <fstream>
 #include "../../examples/ipi/C/IpIntelligence/ProcIpi.c"
+
+/**
+ * Writes the IP address as a line of the file.
+ * @param ipAddress to write
+ * @param state the std::ofstream to write to
+ */
+static void writeIpAddress(const char *ipAddress, void *state) {
+    *(std::ofstream*)state << ipAddress << "\n";
+}
 
 class ExampleTestProc : public ExampleIpIntelligenceTest {
 public:
@@ -29,8 +39,32 @@ public:
         string line;
         int lines = 0;
 
+        // The example reads one IP address from each line of stdin, so
+        // write the IP addresses of the evidence file to a file of lines.
+        const string ipAddressesPath = testing::TempDir() +
+            "51degrees-procipi-" +
+            testing::UnitTest::GetInstance()->current_test_info()->name() +
+            ".txt";
+        {
+            char ipAddress[500] = "";
+            std::ofstream ipAddresses(ipAddressesPath);
+            fiftyoneDegreesEvidenceFileIterate(
+                evidenceFilePath.c_str(),
+                ipAddress,
+                sizeof(ipAddress),
+                &ipAddresses,
+                writeIpAddress);
+        }
+
         // Associate the file of Ip Addresses with stdin.
-        freopen(this->ipAddressFilePath.c_str(), "r", stdin);
+#ifdef _MSC_VER
+        FILE *input = nullptr;
+        ASSERT_EQ(0, freopen_s(&input, ipAddressesPath.c_str(), "r", stdin))
+            << ipAddressesPath;
+#else
+        ASSERT_NE(nullptr, freopen(ipAddressesPath.c_str(), "r", stdin))
+            << ipAddressesPath;
+#endif
 
         // Capture stdout for the test.
         testing::internal::CaptureStdout();
@@ -49,8 +83,9 @@ public:
             }
         }
 
-        // Check lines in and out are the same.
+        // Check lines in and out are the same, and that there were some.
         EXPECT_EQ(count, lines) << "Same number of IP addresses in and out required";
+        EXPECT_GT(count, 0) << "No IP addresses were read from " << evidenceFilePath;
     }
 };
 

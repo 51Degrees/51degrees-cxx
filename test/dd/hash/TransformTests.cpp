@@ -167,7 +167,7 @@ TEST_F(Transform, GHEVIterativeJSON) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 7);
+	EXPECT_EQ(result.iterations, 7u);
 	EXPECT_EQ(results->count, result.iterations);
 	EXPECT_FALSE(result.bufferTooSmall);
 	EXPECT_TRUE(result.written < bufferLength);
@@ -476,7 +476,7 @@ TEST_F(Transform, GHEVIterativeNULLBrandJSON) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 6);
+	EXPECT_EQ(result.iterations, 6u);
 	EXPECT_EQ(results->count, result.iterations);
 	
 	checkFieldValue("sec-ch-ua-arch", "\"x86\"");
@@ -514,7 +514,7 @@ TEST_F(Transform, GHEVIterativeNULLBrandVersionJSON) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 6);
+	EXPECT_EQ(result.iterations, 6u);
 	EXPECT_EQ(results->count, result.iterations);
 	
 	checkFieldValue("sec-ch-ua-arch", "\"x86\"");
@@ -553,7 +553,7 @@ TEST_F(Transform, GHEVIterativeBase64) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 6);
+	EXPECT_EQ(result.iterations, 6u);
 	EXPECT_EQ(results->count, result.iterations);
 	
 	checkFieldAbsent("sec-ch-ua-arch");
@@ -675,7 +675,7 @@ TEST_F(Transform, GHEVIterativeSua) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 7);
+	EXPECT_EQ(result.iterations, 7u);
 	EXPECT_EQ(results->count, result.iterations);
 	
 	checkFieldValue("sec-ch-ua-arch", "\"x86\"");
@@ -721,7 +721,7 @@ TEST_F(Transform, SuaWeirdPlatformVersion) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 7);
+	EXPECT_EQ(result.iterations, 7u);
 	EXPECT_EQ(results->count, result.iterations);
 	
 	checkFieldValue("sec-ch-ua-arch", "\"x86\"");
@@ -768,7 +768,7 @@ TEST_F(Transform, SuaNullBrandPlatform) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 5);
+	EXPECT_EQ(result.iterations, 5u);
 	EXPECT_EQ(results->count, result.iterations);
 	
 	checkFieldValue("sec-ch-ua-arch", "\"x86\"");
@@ -808,7 +808,7 @@ TEST_F(Transform, GHEVArrayJSON) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 7);
+	EXPECT_EQ(result.iterations, 7u);
 	EXPECT_EQ(results->count, result.iterations);
 	
 	checkFieldValue("sec-ch-ua-arch", "\"x86\"");
@@ -851,7 +851,7 @@ TEST_F(Transform, GHEVArrayInsufficientCapacity) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 2);
+	EXPECT_EQ(result.iterations, 2u);
 	EXPECT_EQ(headers->count, result.iterations);
 	
 	// ---
@@ -860,7 +860,7 @@ TEST_F(Transform, GHEVArrayInsufficientCapacity) {
 												  ghev, buffer, bufferLength, empty_headers, exception);
 	
 	EXPECT_TRUE(EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_CAPACITY));
-	EXPECT_EQ(result.iterations, 1);
+	EXPECT_EQ(result.iterations, 1u);
 	
 	fiftyoneDegreesFree(buffer);
 	fiftyoneDegreesFree(headers);
@@ -891,7 +891,7 @@ TEST_F(Transform, GHEVBase64InsufficientCapacity) {
 	 ghev, buffer, bufferLength, empty_headers, exception);
 	
 	EXPECT_TRUE(EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_CAPACITY));
-	EXPECT_EQ(result.iterations, 1);
+	EXPECT_EQ(result.iterations, 1u);
 	
 	fiftyoneDegreesFree(buffer);
 	fiftyoneDegreesFree(empty_headers);
@@ -920,7 +920,7 @@ TEST_F(Transform, SUAInsufficientCapacity) {
 	 sua, buffer, bufferLength, empty_headers, exception);
 	
 	EXPECT_TRUE(EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_CAPACITY));
-	EXPECT_EQ(result.iterations, 1);
+	EXPECT_EQ(result.iterations, 1u);
 	
 	fiftyoneDegreesKeyValuePairArray *headers = NULL;
 	FIFTYONE_DEGREES_ARRAY_CREATE(fiftyoneDegreesKeyValuePair, headers, 3);
@@ -930,7 +930,7 @@ TEST_F(Transform, SUAInsufficientCapacity) {
 										 exception);
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
-	EXPECT_EQ(result.iterations, 3);
+	EXPECT_EQ(result.iterations, 3u);
 	
 	fiftyoneDegreesFree(headers);
 	fiftyoneDegreesFree(empty_headers);
@@ -961,7 +961,7 @@ TEST_F(Transform, GHEVBase64) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 6);
+	EXPECT_EQ(result.iterations, 6u);
 	EXPECT_EQ(results->count, result.iterations);
 	
 	checkFieldAbsent("sec-ch-ua-arch");
@@ -1067,7 +1067,7 @@ TEST_F(Transform, GHEVArraySua) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 6);
+	EXPECT_EQ(result.iterations, 6u);
 	EXPECT_EQ(results->count, result.iterations);
 	
 	checkFieldValue("sec-ch-ua-arch", "\"x86\"");
@@ -1130,7 +1130,7 @@ TEST_F(Transform, GHEVPartial) {
 	(
 	 ghev, buffer, bufferLength, fillResultsCallback, Transform::results,
 	 exception);
-	EXPECT_EQ(result.iterations, 4);
+	EXPECT_EQ(result.iterations, 4u);
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
 	// we expect to see these headers detected:
@@ -1185,7 +1185,7 @@ TEST_F(Transform, GHEVIgnoreUnused) {
 	 ghev, buffer, bufferLength, fillResultsCallback, Transform::results,
 	 exception);
 	
-	EXPECT_EQ(result.iterations, 8);
+	EXPECT_EQ(result.iterations, 8u);
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
 	// we expect to see these headers detected:
@@ -1319,7 +1319,7 @@ TEST_F(Transform, SUAHappyPath) {
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 7);
+	EXPECT_EQ(result.iterations, 7u);
 	// we expect to see these headers detected:
 	// low entropy: sec-ch-ua, sec-ch-ua-mobile, sec-ch-ua-platform
 	// high entropy: sec-ch-ua-platform-version, sec-ch-ua-model, sec-ch-ua-arch,
@@ -1370,7 +1370,7 @@ TEST_F(Transform, SUAPlatformExt) {
 	(
 	 sua, buffer, bufferLength, fillResultsCallback, Transform::results,
 	 exception);
-	EXPECT_EQ(result.iterations, 5);
+	EXPECT_EQ(result.iterations, 5u);
 	// we expect to see these headers detected:
 	// low entropy: sec-ch-ua, sec-ch-ua-mobile, sec-ch-ua-platform
 	// high entropy: sec-ch-ua-platform-version, sec-ch-ua-model, sec-ch-ua-arch,
@@ -1411,7 +1411,7 @@ TEST_F(Transform, SUAPartial1) {
 	(
 	 sua, buffer, bufferLength, fillResultsCallback, Transform::results,
 	 exception);
-	EXPECT_EQ(result.iterations, 4);
+	EXPECT_EQ(result.iterations, 4u);
 	// we expect to see these headers detected:
 	// low entropy: sec-ch-ua-mobile, sec-ch-ua-platform
 	// high entropy: sec-ch-ua-model, sec-ch-ua-arch,
@@ -1450,7 +1450,7 @@ TEST_F(Transform, SUAPartial2) {
 	(
 	 sua, buffer, bufferLength, fillResultsCallback, Transform::results,
 	 exception);
-	EXPECT_EQ(result.iterations, 5);
+	EXPECT_EQ(result.iterations, 5u);
 	
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	// we expect to see these headers detected:
@@ -1489,7 +1489,7 @@ TEST_F(Transform, SUATolerableCorrupt) {
 	 exception);
 	EXPECT_TRUE(EXCEPTION_OKAY);
 	
-	EXPECT_EQ(result.iterations, 5);
+	EXPECT_EQ(result.iterations, 5u);
 	EXPECT_EQ(results->count, result.iterations);
 	
 	checkFieldAbsent("sec-ch-ua");
@@ -1611,7 +1611,7 @@ TEST_F(Transform, CPPWrapperGHEV) {
 	 "Chrome\",\"version\":\"126.0.6478.61\"}],\"mobile\":false,\"model\":"
 	 "\"\",\"platform\":null}");
 	
-	EXPECT_EQ(h.size(), 4);
+	EXPECT_EQ(h.size(), 4u);
 	
 	EXPECT_TRUE(h.find("sec-ch-ua") != h.end());
 	EXPECT_TRUE(h.find("sec-ch-ua-full-version-list") != h.end());
@@ -1648,7 +1648,7 @@ TEST_F(Transform, CPPWrapperBase64) {
 	 "aW9uIjoiMTI2LjAuNjQ3OC4xMjcifV0sIm1vYmlsZSI6ZmFsc2UsIm1vZGVsIjoiIiwicGxh"
 	 "dGZvcm0iOiJtYWNPUyIsInBsYXRmb3JtVmVyc2lvbiI6IjE0LjUuMCJ9");
 	
-	EXPECT_EQ(h.size(), 6);
+	EXPECT_EQ(h.size(), 6u);
 	
 	EXPECT_TRUE(h.find("sec-ch-ua") != h.end());
 	EXPECT_TRUE(h.find("sec-ch-ua-full-version-list") != h.end());
@@ -1687,7 +1687,7 @@ TEST_F(Transform, CPPWrapperBase64InsufficientMemory) {
 	 "aW9uIjoiMTI2LjAuNjQ3OC4xMjcifV0sIm1vYmlsZSI6ZmFsc2UsIm1vZGVsIjoiIiwicGxh"
 	 "dGZvcm0iOiJtYWNPUyIsInBsYXRmb3JtVmVyc2lvbiI6IjE0LjUuMCJ9");
 	
-	EXPECT_EQ(h.size(), 6);
+	EXPECT_EQ(h.size(), 6u);
 	
 	EXPECT_TRUE(h.find("sec-ch-ua") != h.end());
 	EXPECT_TRUE(h.find("sec-ch-ua-full-version-list") != h.end());
@@ -1726,7 +1726,7 @@ TEST_F(Transform, CPPWrapperSUA) {
 	 "Chrome\",\"version\":[\"126\",\"0\",\"6478\",\"127\"]}],\"mobile\":1,"
 	 "\"model\":\"MacBook\",\"architecture\":\"x86\"}");
 	
-	EXPECT_EQ(h.size(), 6);
+	EXPECT_EQ(h.size(), 6u);
 	
 	EXPECT_TRUE(h.find("sec-ch-ua-arch") != h.end());
 	EXPECT_TRUE(h.find("sec-ch-ua-model") != h.end());
@@ -1753,7 +1753,7 @@ TEST_F(Transform, CPPWrapperSUA) {
 TEST_F(Transform, emptycases) {
 	FiftyoneDegrees::DeviceDetection::Transform t;
 	auto result = t.fromJsonGHEV("{}");
-	EXPECT_EQ(result.size(), 0);
+	EXPECT_EQ(result.size(), 0u);
 	bool thrown = false;
 	try {
 		t.fromJsonGHEV("");
@@ -1770,7 +1770,7 @@ TEST_F(Transform, CPPWrapperBase64Corrupt) {
 	bool thrown = false;
 	try {
 		auto result = t.fromBase64GHEV("base64 invalid string");
-		EXPECT_EQ(result.size(), 0);
+		EXPECT_EQ(result.size(), 0u);
 	} catch (const FiftyoneDegrees::Common::FatalException &e) {
 		EXPECT_EQ(e.getCode(), FIFTYONE_DEGREES_STATUS_INVALID_INPUT);
 		thrown = true;
@@ -1784,7 +1784,7 @@ TEST_F(Transform, CPPWrapper0Size) {
 	try {
 		auto result = t.fromJsonGHEV
 		("{\"architecture\":\"x86\", \"bitness\":\"32\", \"new\":\"ignored\"}");
-		EXPECT_EQ(result.size(), 2);
+		EXPECT_EQ(result.size(), 2u);
 	} catch (const FiftyoneDegrees::Common::FatalException &) {
 		thrown = true;
 	}

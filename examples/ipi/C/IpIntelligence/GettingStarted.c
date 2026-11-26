@@ -150,9 +150,17 @@ Areas: "POLYGON EMPTY":1
 #include "../../../../src/ipi/fiftyone.h"
 #include "../../../../src/ipi/ipi_weighted_results.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-gettingstarted.c"
+
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -241,7 +249,8 @@ static void printPropertyValueFromResults2(ResultsIpi *results) {
 						requiredPropertyIndex);
 				const char * const propName = &propNameRaw->value;
 				const double weight =
-					(float)(nextHeader->rawWeighting) / (float)(UINT16_MAX);
+					(double)nextHeader->rawWeighting /
+					(double)FIFTYONE_DEGREES_WEIGHTED_ITEM_MAX_WEIGHT;
 				switch (nextHeader->valueType) {
 					case FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER: {
 						printf("- [%s] (int) <x%g> %d\n",
@@ -360,7 +369,7 @@ void fiftyoneDegreesIpiGettingStarted(
 	// Report the data file, and on a free one what the Enterprise data file
 	// adds and where to ask for a copy.
 	printf("\n");
-	fiftyoneDegreesExampleCheckDataFile((DataSetIpi*)results->b.dataSet);
+	fiftyoneDegreesExampleCheckDataFile((DataSetIpi*)results->b.dataSet, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Ensure the results are freed to avoid memory leaks.
 	ResultsIpiFree(results);
@@ -381,17 +390,19 @@ int main(int argc, char* argv[]) {
 	char dataFilePath[FILE_MAX_PATH];
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char* envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = fiftyoneDegreesExampleCopyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -416,6 +427,9 @@ int main(int argc, char* argv[]) {
 	_CrtDumpMemoryLeaks();
 #endif
 #endif
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

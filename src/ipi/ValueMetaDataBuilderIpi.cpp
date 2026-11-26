@@ -20,82 +20,129 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+#include <utility>
 #include "ValueMetaDataBuilderIpi.hpp"
 #include "../common/Exceptions.hpp"
-#include "constantsIpi.h"
 #include "fiftyone.h"
 
 using namespace std;
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
 
-/* Maximum buffer length to hold an IP address string */
-#define IP_ADDRESS_STRING_MAX_LENGTH 50
-/* Coordinate floating point precision */
-#define COORDINATE_PRECISION 7
-
-/**
- * Get the text of the value's name, read as the type its property is stored
- * as and with numbers written to DefaultWktDecimalPlaces, as
- * fiftyoneDegreesValueGetText gives it. A name that is read but cannot be
- * written is an empty string.
- * @param dataSet the data set the value is from
- * @param value the value to get the name of
- */
-static string getDynamicString(
+ValueMetaData* ValueMetaDataBuilderIpi::build(
 	fiftyoneDegreesDataSetIpi *dataSet,
-	const fiftyoneDegreesValue *value) {
-	EXCEPTION_CREATE;
-	char buffer[REASONABLE_WKT_STRING_LENGTH];
-	char * const text = ValueGetText(
-		dataSet->strings,
-		dataSet->propertyTypes,
-		value,
-		DefaultWktDecimalPlaces,
-		buffer,
-		sizeof(buffer),
-		exception);
-	string result;
-	if (text != nullptr) {
-		result = text;
-		if (text != buffer) {
-			Free(text);
-		}
-	}
-	EXCEPTION_THROW;
-	return result;
+	uint32_t valueIndex) {
+	return buildValue(dataSet, valueIndex, nullptr, nullptr);
 }
 
+ValueMetaData* ValueMetaDataBuilderIpi::build(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	const string &propertyName) {
+	return buildValue(dataSet, valueIndex, &propertyName, nullptr);
+}
 
+ValueMetaData* ValueMetaDataBuilderIpi::build(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	const std::vector<std::string> &propertyNames) {
+	return buildValue(dataSet, valueIndex, nullptr, &propertyNames);
+}
+
+ValueMetaData* ValueMetaDataBuilderIpi::buildValue(
+	fiftyoneDegreesDataSetIpi *dataSet,
+	uint32_t valueIndex,
+	const string *propertyName,
+	const std::vector<std::string> *propertyNames) {
+	EXCEPTION_CREATE;
+	uint32_t propertyIndex = 0;
+	ValueTexts texts;
+	if (IpiGetValue(
+		dataSet,
+		valueIndex,
+		&propertyIndex,
+		&texts,
+		addValueText,
+		exception) == false) {
+		EXCEPTION_THROW;
+		return nullptr;
+	}
+	if (texts.failed) {
+		throw StatusCodeException(INSUFFICIENT_MEMORY);
+	}
+	string name;
+	if (propertyName != nullptr) {
+		name = *propertyName;
+	}
+	else if (propertyNames != nullptr &&
+		propertyIndex < propertyNames->size()) {
+		name = (*propertyNames)[propertyIndex];
+	}
+	else {
+		char buffer[REASONABLE_WKT_STRING_LENGTH];
+		char * const text = IpiGetPropertyText(
+			dataSet,
+			propertyIndex,
+			FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (text == nullptr) {
+			EXCEPTION_THROW;
+			return nullptr;
+		}
+		name = takeText(text, buffer, exception);
+	}
+	// Moved rather than copied, as a text can be long.
+	return new ValueMetaData(
+		ValueMetaDataKey(std::move(name), std::move(texts.name)),
+		std::move(texts.description),
+		std::move(texts.url));
+}
 
 ValueMetaData* ValueMetaDataBuilderIpi::build(
 	fiftyoneDegreesDataSetIpi *dataSet,
 	const fiftyoneDegreesValue *value) {
 	EXCEPTION_CREATE;
-	ValueMetaData *result = nullptr;
-	Item item;
-	Property *property;
-	DataReset(&item.data);
-	property = PropertyGet(
-		dataSet->properties,
-		value->propertyIndex, 
-		&item,
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	char *text = IpiGetPropertyText(
+		dataSet,
+		value->propertyIndex,
+		FIFTYONE_DEGREES_PROPERTY_TEXT_NAME,
+		buffer,
+		sizeof(buffer),
 		exception);
-	EXCEPTION_THROW;
-	if (property != nullptr) {
-		// Get URL only if not weighted (weighted values use urlOffsetOrWeight for weight)
-		// and if there is one, as offset 0 holds the first string in the file.
-		string url;
-		if (!ValueIsWeighted(value) && value->urlOffsetOrWeight > 0) {
-			url = getString(dataSet->strings, value->urlOffsetOrWeight);
-		}
-		result = new ValueMetaData(
-			ValueMetaDataKey(
-				getString(dataSet->strings, property->nameOffset),
-				getDynamicString(dataSet, value)),
-			"",
-			url);
-		COLLECTION_RELEASE(dataSet->properties, &item);
+	if (text == nullptr) {
+		EXCEPTION_THROW;
+		return nullptr;
 	}
-	return result;
+	string propertyName = takeText(text, buffer, exception);
+	string texts[3];
+	const fiftyoneDegreesValueText which[3] = {
+		FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+		FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION,
+		FIFTYONE_DEGREES_VALUE_TEXT_URL };
+	for (int i = 0; i < 3; i++) {
+		// The metadata gives no description for an IP Intelligence
+		// value.
+		if (which[i] == FIFTYONE_DEGREES_VALUE_TEXT_DESCRIPTION) {
+			continue;
+		}
+		texts[i] = takeText(
+			ValueGetMetaDataText(
+				dataSet->strings,
+				dataSet->propertyTypes,
+				value,
+				which[i],
+				DefaultWktDecimalPlaces,
+				buffer,
+				sizeof(buffer),
+				exception),
+			buffer,
+			exception);
+	}
+	return new ValueMetaData(
+		ValueMetaDataKey(std::move(propertyName), std::move(texts[0])),
+		std::move(texts[1]),
+		std::move(texts[2]));
 }

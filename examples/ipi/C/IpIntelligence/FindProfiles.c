@@ -102,9 +102,17 @@ There are '1' countries in the data set with code 'gb'.
 #include "../../../../src/ipi/ipi.h"
 #include "../../../../src/ipi/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-findprofiles.c"
+
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -120,16 +128,11 @@ static int exitCode = 0;
 // #define CONFIG fiftyoneDegreesIpiBalancedConfig
 // #define CONFIG fiftyoneDegreesIpiBalancedTempConfig
 
-#ifdef _MSC_VER
-#pragma warning (disable:4100)
-#endif
 static bool count(void* state, Item* item) {
+	(void)item;
 	(*(uint32_t*)state) += 1;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning (default:4100) 
-#endif
 
 void run(ResourceManager* manager) {
 	EXCEPTION_CREATE;
@@ -200,7 +203,10 @@ void fiftyoneDegreesIpiFindProfiles(
 	run(&manager);
 
 	// Say what the Enterprise data file adds, on a free data file.
-	fiftyoneDegreesExampleOfferEnterprise(&manager);
+	fiftyoneDegreesExampleOfferEnterpriseProperties(
+		&manager,
+		properties.string,
+		FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Free the manager and related data structures.
 	ResourceManagerFree(&manager);
@@ -221,17 +227,19 @@ int main(int argc, char* argv[]) {
 	char dataFilePath[FILE_MAX_PATH];
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char* envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = fiftyoneDegreesExampleCopyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -254,6 +262,9 @@ int main(int argc, char* argv[]) {
 	_CrtDumpMemoryLeaks();
 #endif
 #endif
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

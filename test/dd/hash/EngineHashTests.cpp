@@ -36,15 +36,15 @@ public:
 		ConfigHash *config,
 		RequiredPropertiesConfig *properties,
 		const char *dataDirectory,
-		const char **hashFileNames,
+		const char * const *hashFileNames,
 		int hashFileNamesLength,
-		const char *userAgentsFileName) 
+		const char *evidenceFileName) 
 		: EngineDeviceDetectionTests(
 			properties, 
 			dataDirectory, 
 			hashFileNames,
 			hashFileNamesLength,
-			userAgentsFileName) {
+			evidenceFileName) {
 		this->config = config;
 		// Unset allow unmatched nodes as the tests for this will explicitly set it.
 		this->config->setAllowUnmatched(true);
@@ -221,8 +221,6 @@ public:
 		verifyMatchForLowerPrecedence();
 	}
 	void verifyNoMatchedNodes() {
-		vector<string>::iterator it;
-
 		// Disable unmatched-result defaults BEFORE detection. The unified
 		// evidence-driven detection fills components that have no matched
 		// profile with each component's default profile (flagged as
@@ -725,14 +723,9 @@ public:
 		evidence["query.51D_ProfileIds"] = string("2147483646|2147483647");
 		ResultsHash *highResults =
 			((EngineHash*)getEngine())->process(&evidence);
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4566)
-#endif
-		evidence["query.51D_ProfileIds"] = string("!�*&:@~{}_+");
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+		// The non ASCII character is U+FFFD written as its UTF-8 bytes, so
+		// the evidence is the same whatever the compiler's code page.
+		evidence["query.51D_ProfileIds"] = string("!\xEF\xBF\xBD*&:@~{}_+");
 		ResultsHash *wrongResults =
 			((EngineHash*)getEngine())->process(&evidence);
 		EXPECT_EQ(emptyResults->getDeviceId(), goodResults->getDeviceId());
@@ -884,16 +877,16 @@ public:
 		ConfigHash *config,
 		RequiredPropertiesConfig *properties,
 		const char *dataDirectory,
-		const char **hashFileNames,
+		const char * const *hashFileNames,
 		int hashFileNamesLength,
-		const char *userAgentsFileName)
+		const char *evidenceFileName)
 		: EngineHashTests(
 			config, 
 			properties, 
 			dataDirectory,
 			hashFileNames, 
 			hashFileNamesLength,
-			userAgentsFileName) {
+			evidenceFileName) {
 	};
 	void SetUp() {
 		EngineHashTests::SetUp();
@@ -939,16 +932,16 @@ public:
 		ConfigHash *config,
 		RequiredPropertiesConfig *properties,
 		const char *dataDirectory,
-		const char **hashFileNames,
+		const char * const *hashFileNames,
 		int hashFileNamesLength,
-		const char *userAgentsFileName)
+		const char *evidenceFileName)
 		: EngineHashTests(
 			config,
 			properties,
 			dataDirectory,
 			hashFileNames,
 			hashFileNamesLength,
-			userAgentsFileName) {
+			evidenceFileName) {
 	};
 	void SetUp() {
 		EngineHashTests::SetUp();

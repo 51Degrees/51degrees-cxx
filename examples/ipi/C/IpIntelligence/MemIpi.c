@@ -36,22 +36,28 @@
 #include "../../../../src/ipi/fiftyone.h"
 #include "../../../../src/common/textfile.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-memipi.c"
+
 // Number of marks to make when showing process.
 #define PROGRESS_MARKS 40
 
 // Number of threads to start for performance analysis.
 #define THREAD_COUNT 4
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char* dataDir = "data/ip-intelligence";
 
 static const char* dataFileName = "51Degrees-LiteV41.ipi";
 
 static const char* ipAddressFileName = "evidence.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
-
-static char valueBuffer[1024] = "";
 
 /**
  * CHOOSE THE DEFAULT MEMORY CONFIGURATION BY UNCOMMENTING ONE OF THE FOLLOWING
@@ -66,7 +72,7 @@ static char valueBuffer[1024] = "";
 
 /**
  * Shared test state. All members are immutable except runningThreads
- * which is updated via an interlocked compare and exchange.
+ * which is updated via an interlocked increment.
  */
 typedef struct t_memory_state {
 	int ipAddressesCount; // Total number of IP Addresses
@@ -195,19 +201,20 @@ static void executeTest(const char* ipAddress, void* state) {
  * ensure the single managed resource is being used.
  * @param mainState state information about the main test
  */
-static void runMemoryThread(void* mainState) {
+static EXAMPLE_THREAD_RESULT runMemoryThread(void* mainState) {
 	char ipAddress[500] = "";
 	memoryThreadState threadState;
 	threadState.main = (memoryState*)mainState;
 
 	// Ensure that only on thread reports progress. Avoids keeping a running
 	// total and synchronising performance test threads.
-	long initialRunning = threadState.main->runningThreads;
 	if (ThreadingGetIsThreadSafe()) {
-		threadState.reportProgress = INTERLOCK_EXCHANGE(
-			threadState.main->runningThreads,
-			initialRunning + 1,
-			initialRunning) == threadState.main->numberOfThreads - 1;
+		// Count this thread in with one atomic increment, so that no
+		// start is lost when threads start together. The thread that
+		// takes the count to the number of threads reports progress.
+		threadState.reportProgress = INTERLOCK_INC(
+			&threadState.main->runningThreads) ==
+			threadState.main->numberOfThreads;
 	}
 	else {
 		threadState.reportProgress = 1;
@@ -232,6 +239,7 @@ static void runMemoryThread(void* mainState) {
 	if (ThreadingGetIsThreadSafe()) {
 		THREAD_EXIT;
 	}
+	return EXAMPLE_THREAD_DONE;
 }
 
 /**
@@ -247,7 +255,7 @@ static void runMemoryTests(memoryState* state) {
 		for (thread = 0; thread < state->numberOfThreads; thread++) {
 			THREAD_CREATE(
 				state->threads[thread],
-				(THREAD_ROUTINE)&runMemoryThread,
+				runMemoryThread,
 				state);
 		}
 
@@ -264,30 +272,24 @@ static void runMemoryTests(memoryState* state) {
 	printf("\n\n");
 }
 
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4100)
-#endif
 /**
  * Increments the state counter to work out the number of IP Addresses.
  */
 static void ipAddressCount(const char* ipAddress, void* state) {
+	(void)ipAddress;
 	(*(int*)state)++;
 }
-#ifdef _MSC_VER
-#pragma warning (pop)
-#endif
 
 /**
- * Iterate the IP Address source file and count the number of lines it
+ * Iterate the evidence file and count the number of IP addresses it
  * contains. Used to determine progress during the test.
  * @param ipAddressFilePath
- * @param number of lines the file contains
+ * @param number of IP addresses the file contains
  */
 static int getIpAddressesCount(const char* ipAddressFilePath) {
 	int count = 0;
 	char ipAddress[50];
-	TextFileIterate(
+	fiftyoneDegreesEvidenceFileIterate(
 		ipAddressFilePath,
 		ipAddress,
 		sizeof(ipAddress),
@@ -323,7 +325,7 @@ void run(
 	runMemoryTests(&state);
 
 	// Report the maximum memory usage.
-	printf("Maximum allocated memory %.2fMBs",
+	printf("Maximum allocated memory %.2fMBs\n",
 		(double)MemoryTrackingGetMax() / (double)(1024 * 1024));
 }
 
@@ -390,7 +392,10 @@ void fiftyoneDegreesMemIpiRun(
 		run(&manager, ipAddressFilePath);
 
 		// Say what the Enterprise data file adds, on a free data file.
-		fiftyoneDegreesExampleOfferEnterprise(&manager);
+		fiftyoneDegreesExampleOfferEnterpriseProperties(
+			&manager,
+			properties.string,
+			FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 		// Free the memory used by the data set.
 		ResourceManagerFree(&manager);
@@ -442,20 +447,22 @@ int main(int argc, char* argv[]) {
 
 	StatusCode status = SUCCESS;
 	char dataFilePath[FILE_MAX_PATH];
-	char ipAddressFilePath[FILE_MAX_PATH];
+	char ipAddressFilePath[FILE_MAX_PATH] = "";
 	// An explicit data file path can be supplied in the _51DEGREES_IPI_PATH
 	// environment variable, otherwise the parent folder structure is searched.
-	const char* envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char* envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else if (envDataFilePath != NULL && envDataFilePath[0] != '\0') {
-		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			status = INSUFFICIENT_MEMORY;
-		}
-		else {
-			strcpy(dataFilePath, envDataFilePath);
-		}
+		status = fiftyoneDegreesExampleCopyPath(
+			envDataFilePath,
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -470,7 +477,10 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	if (argc > 2) {
-		strcpy(ipAddressFilePath, argv[2]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[2],
+			ipAddressFilePath,
+			sizeof(ipAddressFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -506,6 +516,9 @@ int main(int argc, char* argv[]) {
 #else
 #endif
 #endif
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

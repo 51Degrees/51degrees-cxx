@@ -205,6 +205,52 @@ Date EngineHash::getUpdateAvailableTime() const {
 	return Date(&date);
 }
 
+/**
+ * Throws the status of reading the header, as the engine's other file
+ * operations do, so a file that gives no valid date never gives a date.
+ */
+Date EngineHash::getPublishedTimeFromFile(const string &fileName) {
+	fiftyoneDegreesDate date;
+	StatusCode status = HashGetPublishedFromFile(fileName.c_str(), &date);
+	if (status != SUCCESS) {
+		throw StatusCodeException(status, fileName.c_str());
+	}
+	return Date(&date);
+}
+
+/**
+ * Bytes given for the product name at first, which every product name
+ * 51Degrees uses fits in, so the file is read once.
+ */
+static const size_t productNameBytes = 64;
+
+/**
+ * Asks again with the bytes the C function says the name needs when it did
+ * not fit, and throws the status of any other failure, as
+ * getPublishedTimeFromFile does.
+ */
+string EngineHash::getProductFromFile(const string &fileName) {
+	vector<char> buffer(productNameBytes);
+	size_t needed = 0;
+	StatusCode status = HashGetProductFromFile(
+		fileName.c_str(),
+		buffer.data(),
+		buffer.size(),
+		&needed);
+	if (status == INSUFFICIENT_CAPACITY) {
+		buffer.resize(needed);
+		status = HashGetProductFromFile(
+			fileName.c_str(),
+			buffer.data(),
+			buffer.size(),
+			&needed);
+	}
+	if (status != SUCCESS) {
+		throw StatusCodeException(status, fileName.c_str());
+	}
+	return string(buffer.data());
+}
+
 string EngineHash::getDataFilePath() const {
 	DataSetHash *dataSet = DataSetHashGet(manager.get());
 	string path = string(dataSet->b.b.masterFileName);
@@ -307,6 +353,7 @@ static OwnedResults createResults(
 	fiftyoneDegreesResourceManager *manager,
 	uint32_t overridesCapacity) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	OwnedResults results(
 		ResultsHashCreate(manager, overridesCapacity),
 		fiftyoneDegreesResultsHashFree);
@@ -398,8 +445,10 @@ namespace {
 static bool addProfileId(void *state, fiftyoneDegreesCollectionItem *item) {
 	ProfileIdsState *profileIds = (ProfileIdsState*)state;
 	try {
-		profileIds->ids.push_back(
-			((fiftyoneDegreesProfile*)item->data.ptr)->profileId);
+		// The profile is packed, so its id is copied rather than referenced.
+		const uint32_t profileId =
+			((fiftyoneDegreesProfile*)item->data.ptr)->profileId;
+		profileIds->ids.push_back(profileId);
 	}
 	catch (...) {
 		profileIds->failed = true;

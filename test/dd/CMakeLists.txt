@@ -15,8 +15,10 @@ add_library(fiftyone-device-detection-test-base
 	${COMMON_TEST}/EngineTests.cpp
 	${COMMON_TEST}/ExampleTests.cpp)
 target_link_libraries(fiftyone-device-detection-test-base gtest_main)
-if (NOT MSVC)
-	target_compile_options(fiftyone-device-detection-test-base PRIVATE ${COMPILE_OPTION_DEBUG})
+if (MSVC)
+	target_compile_options(fiftyone-device-detection-test-base PRIVATE "/W4" "/WX")
+else()
+	target_compile_options(fiftyone-device-detection-test-base PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
 endif()
 
 set_target_properties(fiftyone-device-detection-test-base PROPERTIES FOLDER "Tests")
@@ -41,17 +43,14 @@ gtest_discover_tests(HashTests DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST
 set_target_properties(HashTests PROPERTIES FOLDER "Tests")
 
 if (MSVC)
-	target_compile_options(HashTests PRIVATE "/D_CRT_SECURE_NO_WARNINGS" "/W4" "/WX")
+	target_compile_options(HashTests PRIVATE "/W4" "/WX")
 	target_link_options(HashTests PRIVATE "/WX")
 else ()
-	target_compile_options(HashTests PRIVATE ${COMPILE_OPTION_DEBUG})
+	target_compile_options(HashTests PRIVATE ${COMPILE_OPTION_DEBUG} "-Wall" "-Wextra" "-Werror")
 endif()
 
-if (CMAKE_COMPILER_IS_GNUCC)
-	target_compile_options(HashTests PRIVATE "-Wall" "-Werror" "-Wno-unused-variable" "-Wno-unused-result" "-Wno-unused-but-set-variable")
-	if (MINGW)
-		target_compile_options(HashTests PRIVATE "-Wa,-mbig-obj")
-	endif()
+if (MINGW)
+	target_compile_options(HashTests PRIVATE "-Wa,-mbig-obj")
 endif()
 
 # Runs the real tool against the Lite data file and checks what it writes.

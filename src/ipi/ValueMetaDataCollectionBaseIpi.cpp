@@ -43,78 +43,48 @@ ValueMetaDataCollectionBaseIpi::~ValueMetaDataCollectionBaseIpi() {
 ValueMetaData* ValueMetaDataCollectionBaseIpi::getByKey(
 	ValueMetaDataKey key) const {
 	EXCEPTION_CREATE;
-	Item propertyItem, valueItem;
-	const Value *value;
-	const Property *property;
-	ValueMetaData *result = nullptr;
-	DataReset(&propertyItem.data);
-	property = PropertyGetByName(
-		dataSet->properties,
-		dataSet->strings,
+	const int propertyIndex = IpiGetPropertyIndex(
+		dataSet,
 		key.getPropertyName().c_str(),
-		&propertyItem,
 		exception);
 	EXCEPTION_THROW;
-	if (property != nullptr) {
-		PropertyValueType const storedValueType = PropertyGetStoredType(
-			dataSet->propertyTypes,
-			property,
-			exception);
-		EXCEPTION_THROW;
-		DataReset(&valueItem.data);
-		value = ValueGetByNameAndType(
-			dataSet->values,
-			dataSet->strings,
-			property,
-			storedValueType,
-			key.getValueName().c_str(),
-			&valueItem,
-			exception);
-		EXCEPTION_THROW;
-		if (value != nullptr) {
-			result = ValueMetaDataBuilderIpi::build(dataSet, value);
-			COLLECTION_RELEASE(dataSet->values, &valueItem);
-		}
-		COLLECTION_RELEASE(dataSet->properties, &propertyItem);
+	if (propertyIndex < 0) {
+		return nullptr;
 	}
-	return result;
+	const long valueIndex = IpiGetValueIndex(
+		dataSet,
+		(uint32_t)propertyIndex,
+		key.getValueName().c_str(),
+		exception);
+	EXCEPTION_THROW;
+	return valueIndex < 0
+		? nullptr
+		: ValueMetaDataBuilderIpi::build(dataSet, (uint32_t)valueIndex);
 }
 
 ValueMetaData* ValueMetaDataCollectionBaseIpi::getDefaultForProperty(
-	const string &propertyName) const {
+	const std::string &propertyName) const {
 	EXCEPTION_CREATE;
-	Item propertyItem, valueItem;
-	ValueMetaData *result = nullptr;
-	DataReset(&propertyItem.data);
-	const Property *property = PropertyGetByName(
-		dataSet->properties,
-		dataSet->strings,
+	const int propertyIndex = IpiGetPropertyIndex(
+		dataSet,
 		propertyName.c_str(),
-		&propertyItem,
 		exception);
 	EXCEPTION_THROW;
-	if (property != nullptr) {
-		const long index = ValueGetDefaultIndex(
-			dataSet->values,
-			dataSet->strings,
-			dataSet->propertyTypes,
-			property,
-			exception);
-		COLLECTION_RELEASE(dataSet->properties, &propertyItem);
-		EXCEPTION_THROW;
-		if (index >= 0) {
-			DataReset(&valueItem.data);
-			const Value *value = ValueGet(
-				dataSet->values,
-				(uint32_t)index,
-				&valueItem,
-				exception);
-			EXCEPTION_THROW;
-			if (value != nullptr) {
-				result = ValueMetaDataBuilderIpi::build(dataSet, value);
-				COLLECTION_RELEASE(dataSet->values, &valueItem);
-			}
-		}
+	if (propertyIndex < 0) {
+		return nullptr;
 	}
-	return result;
+	long defaultValueIndex = -1;
+	IpiGetPropertyValueIndexes(
+		dataSet,
+		(uint32_t)propertyIndex,
+		nullptr,
+		nullptr,
+		&defaultValueIndex,
+		exception);
+	EXCEPTION_THROW;
+	return defaultValueIndex < 0
+		? nullptr
+		: ValueMetaDataBuilderIpi::build(
+			dataSet,
+			(uint32_t)defaultValueIndex);
 }

@@ -40,14 +40,41 @@ namespace FiftyoneDegrees {
 			class ProfileMetaDataBuilderHash : EntityMetaDataBuilder {
 			public:
 				/**
-				 * Build a new instance of ProfileMetaData from the underlying
-				 * profile provided. The instance returned does not hold a
-				 * reference to the data set or profile, and contains a copy of
-				 * all the meta data.
+				 * Build a new instance of ProfileMetaData from the profile at
+				 * the index provided among the data file's profiles, which
+				 * are in order of profile id.
 				 * @param dataSet pointer to the data set containing the
-				 * component
+				 * profile
+				 * @param profileIndex index of the profile
+				 * @return the new instance, or nullptr when the data set
+				 * gives no profile at the index
+				 */
+				static ProfileMetaData* buildByIndex(
+					fiftyoneDegreesDataSetHash *dataSet,
+					uint32_t profileIndex);
+
+				/**
+				 * Build a new instance of ProfileMetaData from the profile
+				 * with the id provided.
+				 * @param dataSet pointer to the data set containing the
+				 * profile
+				 * @param profileId id of the profile
+				 * @return the new instance, or nullptr when the data set has
+				 * no profile with the id
+				 */
+				static ProfileMetaData* buildById(
+					fiftyoneDegreesDataSetHash *dataSet,
+					uint32_t profileId);
+
+				/**
+				 * Build a new instance of ProfileMetaData from the underlying
+				 * profile provided.
+				 * @deprecated Use buildByIndex or buildById, which read the
+				 * profile in C. Kept for one release, as a public name.
+				 * @param dataSet pointer to the data set containing the profile
 				 * @param profile pointer to the underlying profile to create
 				 * the meta data from
+				 * @return the new instance
 				 */
 				static ProfileMetaData* build(
 					fiftyoneDegreesDataSetHash *dataSet,

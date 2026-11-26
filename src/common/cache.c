@@ -445,13 +445,16 @@ fiftyoneDegreesCacheNode* fiftyoneDegreesCacheGet(
 		// The node was found in the cache, so increment the active count and
 		// remove from the shard's linked list if required.
 		cacheIncremenetCheckAndRemove(node);
-		cache->hits++;
+
+		// The counts are shared by all the shards, each with its own lock, so
+		// they are incremented atomically.
+		INTERLOCK_INC((volatile long*)&cache->hits);
 	}
 	else {
 
 		// The key does not exist so load it, reusing the hash already computed.
 		node = cacheLoad(shard, key, keyHash, exception);
-		cache->misses++;
+		INTERLOCK_INC((volatile long*)&cache->misses);
 	}
 
 #ifndef FIFTYONE_DEGREES_NO_THREADING

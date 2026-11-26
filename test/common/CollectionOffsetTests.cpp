@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 #include <gtest/gtest-param-test.h>
+#include <stdint.h>
 #include "TestUtils_Pointers.hpp"
 #include "../../src/common/collectionKeyTypes.h"
 
@@ -72,7 +73,7 @@ TEST_P(CollectionOffsetTest, DirectWrite) {
         // prepare
         ItemBox item;
         const CollectionKey key {
-            (uint32_t)i,
+            { (uint32_t)i },
             CollectionKeyType_Byte,
         };
         auto const ptr = (const byte *)collection->get(
@@ -99,7 +100,7 @@ TEST_P(CollectionOffsetTest, DirectRead) {
         // prepare
         ItemBox item;
         const CollectionKey key {
-            (uint32_t)i,
+            { (uint32_t)i },
             CollectionKeyType_Byte,
         };
         auto const ptr = (byte *)collection->get(
@@ -121,7 +122,8 @@ static constexpr FileOffsetUnsigned testOffsets[] = {
     0,
     UINT16_MAX,
     UINT16_MAX + 5,
-#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+// A collection that ends past 4GB needs a size_t wider than 32 bits.
+#if defined(FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT) && SIZE_MAX > UINT32_MAX
     UINT32_MAX,
     UINT32_MAX + 7,
 #endif

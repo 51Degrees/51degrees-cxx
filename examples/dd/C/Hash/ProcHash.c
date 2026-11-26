@@ -26,9 +26,17 @@
 #include "../../../../src/dd/hash/hash.h"
 #include "../../../../src/dd/hash/fiftyone.h"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-hash-prochash.c"
+
+#ifndef TEST // Only main uses these, and the tests leave it out.
 static const char *dataDir = "data/device-detection";
 
 static const char *dataFileName = "51Degrees-LiteV4.1.hash";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -89,8 +97,14 @@ static void reportStatus(
  * On a free data file, says on standard error what the Enterprise data file
  * adds and where to ask for a copy.
  */
-static void offerEnterprise(fiftyoneDegreesResourceManager *manager) {
+static void offerEnterprise(
+	fiftyoneDegreesResourceManager *manager,
+	const char *requiredProperties) {
 	DataSetHash *dataset = DataSetHashGet(manager);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stderr,
+		dataset,
+		requiredProperties);
 	if (fiftyoneDegreesExampleHasProperty(dataset, "HardwareVendor") ==
 		false) {
 		fprintf(stderr, "This example is using a free data file. The "
@@ -156,7 +170,7 @@ int fiftyoneDegreesProcHashRun(
 
 		// Standard output holds the processed User-Agents, so the note goes
 		// to standard error.
-		offerEnterprise(&manager);
+		offerEnterprise(&manager, requiredProperties);
 
 		ResourceManagerFree(&manager);
 	}
@@ -177,7 +191,10 @@ int main(int argc, char* argv[]) {
 	StatusCode status = SUCCESS;
 	ConfigHash config = fiftyoneDegreesHashDefaultConfig;
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = fiftyoneDegreesExampleGetFilePath(
@@ -201,6 +218,10 @@ int main(int argc, char* argv[]) {
 		argc > 2 ? argv[2] : "IsMobile,DeviceType,PriceBand",
 		&config);
 	
+	// Standard output holds the results, so where to find out more goes
+	// to standard error.
+	fiftyoneDegreesExampleFindOutMore(stderr, FIFTYONE_DEGREES_EXAMPLE_FILE);
+
 	return exitCode;
 }
 

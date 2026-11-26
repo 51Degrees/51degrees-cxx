@@ -6,9 +6,9 @@ cmake_minimum_required(VERSION 3.24)
 project(InstallCheck LANGUAGES C CXX)
 
 # When given, the version the installed package has to report.
-set(EXPECTED_VERSION "" CACHE STRING "Version the package must report")
-if (EXPECTED_VERSION)
-	find_package(51Degrees ${EXPECTED_VERSION} EXACT CONFIG REQUIRED)
+set(_51DEGREES_EXPECTED_VERSION "" CACHE STRING "Version the package must report")
+if (_51DEGREES_EXPECTED_VERSION)
+	find_package(51Degrees ${_51DEGREES_EXPECTED_VERSION} EXACT CONFIG REQUIRED)
 else()
 	find_package(51Degrees CONFIG REQUIRED)
 endif()

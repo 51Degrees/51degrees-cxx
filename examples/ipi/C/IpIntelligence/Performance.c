@@ -29,6 +29,12 @@
 #include "../../Base/ExampleBase.h"
 
 /**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-c-ipintelligence-performance.c"
+
+/**
  * @example IpIntelligence/Performance.c
  * The example illustrates a "clock-time" benchmark for assessing IP address
  * lookup speed.
@@ -64,6 +70,7 @@
 #define SIZE_OF_VALUE 1000
 #define MAX_EVIDENCE 20
 
+#ifndef TEST // Only main uses these, and the tests leave it out.
 // The ip intelligence data folder from the sub module with lite ip intel data.
 static const char* dataDir = "data/ip-intelligence";
 
@@ -76,6 +83,7 @@ static const char* dataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
 // This file contains the 20,000 random IP formatted as header values.
 static const char* evidenceFileName = "evidence.yml";
+#endif
 
 // Returned by main. Set to 1 when the data file cannot be used.
 static int exitCode = 0;
@@ -255,10 +263,8 @@ static const char* getOrAddSharedString(
 	if (node->value == NULL) {
 		return NULL;
 	}
-	if (strncpy((char*)node->value, target, length) == NULL) {
-		return NULL;
-	}
-	
+	memcpy((char*)node->value, target, length);
+
 	// Add to the linked list or start a new linked list if this is the first.
 	if (perfState->sharedStringFirst == NULL) {
 		perfState->sharedStringFirst = node;
@@ -279,6 +285,7 @@ static const char* getOrAddSharedString(
  */
 static void storeEvidence(KeyValuePair* pairs, uint16_t size, void* state) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	char* ptr;
 	performanceState* perfState = (performanceState*)state;
 
@@ -337,13 +344,11 @@ static void storeEvidence(KeyValuePair* pairs, uint16_t size, void* state) {
 			strlen(pairs[i].value);
 		evidence->items[i].item.value = (const char*)Malloc(
 			sizeof(char) * (evidence->items[i].item.valueLength + 1));
-		ptr = strncpy(
-			(char*)evidence->items[i].item.value,
-			pairs[i].value,
-			evidence->items[i].item.valueLength);
+		ptr = (char*)evidence->items[i].item.value;
 		if (ptr == NULL) {
 			EXCEPTION_THROW
 		}
+		memcpy(ptr, pairs[i].value, evidence->items[i].item.valueLength);
 		*(ptr + evidence->items[i].item.valueLength) = '\0';
 		evidence->items[i].parsedValue = evidence->items[i].item.value;
 	}
@@ -447,8 +452,9 @@ static void runPass(
  * Run IP address lookups using the evidence on a single thread.
  * @param state pointer to the thread state
  */
-void runPerformanceThread(void* state) {
+EXAMPLE_THREAD_RESULT runPerformanceThread(void* state) {
 	EXCEPTION_CREATE;
+	(void)exception; // Not used when exceptions are disabled.
 	threadState *thisState = (threadState*)state;
 
 	// Create an instance of results to access the returned values.
@@ -484,6 +490,7 @@ void runPerformanceThread(void* state) {
 	if (ThreadingGetIsThreadSafe()) {
 		THREAD_EXIT;
 	}
+	return EXAMPLE_THREAD_DONE;
 }
 /**
  * Execute IP address lookups on specified number of threads.
@@ -511,7 +518,7 @@ double runTests(performanceState *state, int passes) {
 		for (thread = 0; thread < state->numberOfThreads; thread++) {
 			THREAD_CREATE(
 				state->threads[thread],
-				(THREAD_ROUTINE)&runPerformanceThread,
+				runPerformanceThread,
 				&state->threadStates[thread]);
 		}
 
@@ -729,7 +736,11 @@ void executeBenchmark(
 	DataSetIpi* dataset = DataSetIpiGet(&state->manager);
 	state->availableProperties = PropertiesGetRequiredPropertyCount(
 		dataset->b.b.available);
-	fiftyoneDegreesExampleCheckDataFile(dataset);
+	fiftyoneDegreesExampleReportEnterpriseProperties(
+		stdout,
+		dataset,
+		properties.string);
+	fiftyoneDegreesExampleCheckDataFile(dataset, FIFTYONE_DEGREES_EXAMPLE_FILE);
 	DataSetIpiRelease(dataset);
 
 	// Normally the benchmark is run twice, the first pass warming the caches.
@@ -1059,7 +1070,8 @@ int main(int argc, char* argv[]) {
 	uint16_t numberOfThreads = DEFAULT_NUMBER_OF_THREADS;
 	int iterations = DEFAULT_ITERATIONS;
 	char *outFile = NULL;
-	const char *envDataFilePath = getenv("_51DEGREES_IPI_PATH");
+	const char *envDataFilePath =
+		fiftyoneDegreesExampleGetDataFilePathFromEnvironment();
 	dataFilePath[0] = '\0';
 	evidenceFilePath[0] = '\0';
 
@@ -1067,12 +1079,22 @@ int main(int argc, char* argv[]) {
 		if (strcmp(argv[i], DATA_OPTION) == 0 ||
 			strcmp(argv[i], DATA_OPTION_SHORT) == 0) {
 			// Set data file path
-			strcpy(dataFilePath, argv[i + 1]);
+			if (fiftyoneDegreesExampleCopyPath(
+				argv[i + 1],
+				dataFilePath,
+				sizeof(dataFilePath)) != SUCCESS) {
+				return 1;
+			}
 		}
 		else if (strcmp(argv[i], IP_ADDRESSES_OPTION) == 0 ||
 			strcmp(argv[i], IP_ADDRESSES_OPTION_SHORT) == 0) {
 			// Set evidence file path
-			strcpy(evidenceFilePath, argv[i + 1]);
+			if (fiftyoneDegreesExampleCopyPath(
+				argv[i + 1],
+				evidenceFilePath,
+				sizeof(evidenceFilePath)) != SUCCESS) {
+				return 1;
+			}
 		}
 		else if (strcmp(argv[i], THREAD_OPTION) == 0 ||
 			strcmp(argv[i], THREAD_OPTION_SHORT) == 0) {
@@ -1135,6 +1157,7 @@ int main(int argc, char* argv[]) {
 			strcmp(argv[i], HELP_OPTION_SHORT) == 0) {
 			// Print the help options
 			printHelp();
+			fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 			return 0;
 		}
 		else if (argv[i][0] == '-') {
@@ -1156,14 +1179,14 @@ int main(int argc, char* argv[]) {
 	if (strlen(dataFilePath) == 0 &&
 		envDataFilePath != NULL && envDataFilePath[0] != '\0') {
 		if (strlen(envDataFilePath) >= sizeof(dataFilePath)) {
-			printf("The data file path in the _51DEGREES_IPI_PATH "
-				"environment variable is too long.\n");
+			printf("The data file path set in the environment is too "
+				"long.\n");
 #ifndef TEST
 			fgetc(stdin);
 #endif
 			return 1;
 		}
-		strcpy(dataFilePath, envDataFilePath);
+		memcpy(dataFilePath, envDataFilePath, strlen(envDataFilePath) + 1);
 	}
 
 	if (strlen(dataFilePath) == 0) {
@@ -1208,7 +1231,7 @@ int main(int argc, char* argv[]) {
 	params.iterations = iterations;
 	params.output = stdout;
 	if (outFile != NULL) {
-		params.resultsOutput = fopen(outFile, "w");
+		params.resultsOutput = fiftyoneDegreesExampleFileOpenWrite(outFile);
 	}
 	else {
 		params.resultsOutput = NULL;
@@ -1221,6 +1244,9 @@ int main(int argc, char* argv[]) {
 	if (outFile != NULL) {
 		fclose(params.resultsOutput);
 	}
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	return exitCode;
 }

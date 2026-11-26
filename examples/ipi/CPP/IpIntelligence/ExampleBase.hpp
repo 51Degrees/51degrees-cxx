@@ -22,6 +22,7 @@
 
 #include <iostream>
 #include <string>
+#include <atomic>
 #include <thread>
 
 #include "../../../../src/common/textfile.h"
@@ -29,15 +30,15 @@
 
 #define THREAD_COUNT 4
 
-static const char *dataDir = "data/ip-intelligence";
+static const char * const dataDir = "data/ip-intelligence";
 
-static const char *dataFileName = "51Degrees-LiteV41.ipi";
+static const char * const dataFileName = "51Degrees-LiteV41.ipi";
 
 // The free ASN data file, far smaller than the Lite file, for the examples
 // that any data file will do for.
-static const char *asnDataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
+static const char * const asnDataFileName = "51Degrees-IPIV4AsnIpiV41.ipi";
 
-static const char *ipAddressFileName = "evidence.yml";
+static const char * const ipAddressFileName = "evidence.yml";
 
 using std::thread;
 using namespace FiftyoneDegrees::Common;
@@ -128,6 +129,37 @@ namespace FiftyoneDegrees {
 					const char *fileName,
 					char *destination,
 					size_t size);
+
+				/**
+				 * The data file path set in the _51DEGREES_IPI_PATH
+				 * environment variable.
+				 * @return the path, or NULL when the variable is unset or
+				 * empty
+				 */
+				static const char *getDataFilePathFromEnvironment();
+
+				/**
+				 * Copies a path, such as a command line argument, to the
+				 * destination. A path too long for the destination is not
+				 * copied, and a message saying so is written to standard
+				 * error.
+				 * @param source path to copy
+				 * @param destination memory to copy the path to
+				 * @param size of the destination in bytes
+				 * @return the status of the copy
+				 */
+				static fiftyoneDegreesStatusCode copyPath(
+					const char *source,
+					char *destination,
+					size_t size);
+
+				/**
+				 * Prints the "Find out more" section that every example
+				 * ends with.
+				 * @param example the example's own source file, which
+				 * every link it prints carries as its utm_content
+				 */
+				static void findOutMore(const char *example);
 			
 			protected:
 				/**
@@ -139,6 +171,13 @@ namespace FiftyoneDegrees {
 				 * @return true when the data file has the property
 				 */
 				bool hasProperty(const char *name) const;
+
+				/**
+				 * Says of each property the engine was asked for that the data
+				 * file does not have that it needs the Enterprise data file, one
+				 * line each, leaving out the properties the free data files hold.
+				 */
+				void reportEnterpriseProperties() const;
 
 				/**
 				 * On a free data file, says what the Enterprise data file adds
@@ -158,7 +197,7 @@ namespace FiftyoneDegrees {
 					 * Construct a new shared state instance.
 					 * @param engine pointer to the engine the threads should
 					 * use
-					 * @param ipAddressFilePath path to the IP Addresses CSV
+					 * @param ipAddressFilePath path to the YAML evidence file
 					 */
 					SharedState(EngineIpi *engine, const string &ipAddressFilePath);
 				
@@ -189,9 +228,9 @@ namespace FiftyoneDegrees {
 					static void processIpAddressesMulti(void *state);
 				
 					EngineIpi *engine;            /**< Pointer to the engine */
-					volatile long threadsFinished; /**< Number of threads that
-																			have finished
-													their processing */
+					/** Number of threads that have finished their processing,
+					counted atomically as the threads finish at the same time */
+					std::atomic<long> threadsFinished{0};
 					string ipAddressFilePath;      /**< Path to the IP Addresses to
 																		process */
 					thread threads[THREAD_COUNT];  /**< Pointers to the running
@@ -236,6 +275,8 @@ namespace FiftyoneDegrees {
 				std::shared_ptr<ConfigIpi> config;
 				/** Properties to initialise the Engine with */
 				std::unique_ptr<RequiredPropertiesConfig> properties;
+				/** The same properties, separated by commas */
+				std::string propertyNames;
 				/** IP Intelligence Engine used for the example */
 				std::unique_ptr<EngineIpi> engine;
 			

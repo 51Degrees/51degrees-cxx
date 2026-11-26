@@ -25,8 +25,8 @@
 #include "../../src/common/evidence.h"
 #include "../../src/common/headers.h"
 
-// Header names
-const char** testEvidenceHeaders_None = new const char*[0];
+// Header names. There are none, so the list is never read.
+const char** testEvidenceHeaders_None = nullptr;
 
 // Class that sets up the headers test structure when there are no headers. 
 // This stops us having to do it multiple times.
@@ -110,10 +110,6 @@ TEST_F(EvidenceWithHeadersTest_NoHeader, Intersection_nh_se_nm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_nh_me_nm[2];
 int intersection_multiple_nh_me_mm_count = 0;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
 bool evidenceHeaderIntersection_nh_me_mm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	if (fiftyoneDegreesHeaderGetIndex(
@@ -125,9 +121,6 @@ bool evidenceHeaderIntersection_nh_me_mm(void *state,
 	}
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 TEST_F(EvidenceWithHeadersTest_NoHeader, Intersection_nh_me_nm) {
 	CreateEvidence(2);
@@ -158,20 +151,12 @@ TEST_F(EvidenceWithHeadersTest_NoHeader, Intersection_nh_me_nm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_nh_ne_nm[2];
 int intersection_nh_ne_nm_count = 0;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#endif
-bool evidenceHeaderIntersection_nh_ne_nm(void *state,
+bool evidenceHeaderIntersection_nh_ne_nm(void * /*state*/,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_nh_ne_nm[intersection_nh_ne_nm_count] = *pair;
 	intersection_nh_ne_nm_count++;
 	return true;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#pragma warning(disable : 4100)
-#endif
 
 TEST_F(EvidenceWithHeadersTest_NoHeader, Intersection_nh_ne_nm) {
 	CreateEvidence(1);

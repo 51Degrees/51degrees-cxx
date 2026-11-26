@@ -25,6 +25,12 @@
 #include "../../C/Hash/ExampleBase.h"
 #include "ExampleBase.hpp"
 
+/**
+ * This example's source file, which every link it prints names as its
+ * utm_content.
+ */
+#define FIFTYONE_DEGREES_EXAMPLE_FILE "examples-cpp-hash-matchmetrics.cpp"
+
 using namespace FiftyoneDegrees::Examples::Hash;
 
 /**
@@ -227,6 +233,7 @@ namespace FiftyoneDegrees {
 					// On the free Lite data file, say what the Enterprise data
 					// file adds and where to ask for a copy.
 					cout << "\n";
+					reportEnterpriseProperties();
 					offerEnterprise(
 						"https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-cxx&utm_content=examples-cpp-hash-matchmetrics.cpp&utm_term=lite-data-file");
 				}
@@ -262,7 +269,10 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesStatusCode status = FIFTYONE_DEGREES_STATUS_SUCCESS;
 	char dataFilePath[FIFTYONE_DEGREES_FILE_MAX_PATH];
 	if (argc > 1) {
-		strcpy(dataFilePath, argv[1]);
+		status = fiftyoneDegreesExampleCopyPath(
+			argv[1],
+			dataFilePath,
+			sizeof(dataFilePath));
 	}
 	else {
 		status = ExampleBase::getFilePath(
@@ -283,6 +293,9 @@ int main(int argc, char* argv[]) {
 	fiftyoneDegreesExampleMemCheck(
 		&params,
 		fiftyoneDegreesExampleCPPMatchMetricsRun);
+
+	// End with where to find out more.
+	fiftyoneDegreesExampleFindOutMore(stdout, FIFTYONE_DEGREES_EXAMPLE_FILE);
 
 	// Wait for a character to be pressed.
 	fgetc(stdin);

@@ -22,25 +22,56 @@
 
 #include "ValueMetaDataCollectionForProfileIpi.hpp"
 #include "fiftyone.h"
+#include "../common/collectionKeyTypes.h"
 
 using namespace FiftyoneDegrees::IpIntelligence;
 
-struct FilterResult {
-	DataSetIpi *dataSet = nullptr;
-	string valueName;
-	Value value { 0, 0, 0 };
-	bool found = false;
-};
+/**
+ * Gets the value index at the position given in the list that follows the
+ * profile. The list follows the packed profile, so it can start at any byte,
+ * and each index is copied out by its position.
+ */
+static uint32_t getValueIndex(const Profile *profile, uint32_t position) {
+	return UnalignedReadUint32(
+		(const byte*)(profile + 1) + (size_t)position * sizeof(uint32_t));
+}
+
+/**
+ * Returns the first position from first up to last whose value index is not
+ * less than the value given, where the value indexes from first to last are
+ * in ascending order, as std::lower_bound does.
+ */
+static uint32_t lowerBound(
+	const Profile *profile,
+	uint32_t first,
+	uint32_t last,
+	uint32_t value) {
+	while (first < last) {
+		const uint32_t middle = first + (last - first) / 2;
+		if (getValueIndex(profile, middle) < value) {
+			first = middle + 1;
+		}
+		else {
+			last = middle;
+		}
+	}
+	return first;
+}
 
 ValueMetaDataCollectionForProfileIpi::ValueMetaDataCollectionForProfileIpi(
 	fiftyoneDegreesResourceManager *manager,
 	ProfileMetaData *profile) : ValueMetaDataCollectionBaseIpi(manager) {
 	EXCEPTION_CREATE;
 	DataReset(&profileItem.data);
-	ProfileGetByIndex(
-		dataSet->profileOffsets,
+	// The key of an IP Intelligence profile is its offset in the profiles
+	// collection.
+	const CollectionKey profileKey = {
+		{ profile->getKey() },
+		CollectionKeyType_Profile,
+	};
+	dataSet->profiles->get(
 		dataSet->profiles,
-		profile->getKey(),
+		&profileKey,
 		&profileItem,
 		exception);
 	EXCEPTION_THROW;
@@ -52,102 +83,70 @@ ValueMetaDataCollectionForProfileIpi::~ValueMetaDataCollectionForProfileIpi() {
 
 ValueMetaData* ValueMetaDataCollectionForProfileIpi::getByIndex(
 	uint32_t index) const {
-	EXCEPTION_CREATE;
-	ValueMetaData *result = nullptr;
-	const Value *value;
-	Item item;
-	DataReset(&item.data);
-	uint32_t valueIndex = ((uint32_t*)(getProfile() + 1))[index];
-	value = ValueGet(
-		dataSet->values,
-		valueIndex,
-		&item,
-		exception);
-	EXCEPTION_THROW;
-	if (value != nullptr) {
-		result = ValueMetaDataBuilderIpi::build(dataSet, value);
-		COLLECTION_RELEASE(dataSet->values, &item);
-	}
-	return result;
-}
-
-bool ValueMetaDataCollectionForProfileIpi::valueFilter(
-	void *state, 
-	fiftyoneDegreesCollectionItem *valueItem) {
-	EXCEPTION_CREATE;
-	Item nameItem;
-	const StoredBinaryValue *valueContent;
-	const Value *value;
-	FilterResult *result = (FilterResult*)state;
-	value = (const Value*)valueItem->data.ptr;
-	PropertyValueType const storedValueType = PropertyGetStoredTypeByIndex(
-		result->dataSet->propertyTypes,
-		value->propertyIndex,
-		exception);
-	EXCEPTION_THROW;
-	DataReset(&nameItem.data);
-	valueContent = ValueGetContent(
-		result->dataSet->strings,
-		value,
-		storedValueType,
-		&nameItem,
-		exception);
-	EXCEPTION_THROW;
-	if (valueContent != nullptr) {
-		const size_t cmpSize = result->valueName.size() + 3;
-		char * const buffer = (char *)Malloc(cmpSize);
-		if (buffer) {
-			StringBuilder builder{ buffer, cmpSize };
-			StringBuilderInit(&builder);
-			if ((StoredBinaryValueCompareWithString(
-				valueContent,
-				storedValueType,
-				result->valueName.c_str(),
-				&builder,
-				exception) == 0) && EXCEPTION_OKAY) {
-				memcpy(&result->value, value, sizeof(Value));
-				result->found = true;
-			}
-			Free(buffer);
-		}
-		COLLECTION_RELEASE(result->dataSet->strings, &nameItem);
-	}
-	COLLECTION_RELEASE(result->dataSet->values, valueItem);
-	return true;
+	const uint32_t valueIndex = getValueIndex(getProfile(), index);
+	return ValueMetaDataBuilderIpi::build(dataSet, valueIndex);
 }
 
 ValueMetaData* ValueMetaDataCollectionForProfileIpi::getByKey(
 	ValueMetaDataKey key) const {
 	EXCEPTION_CREATE;
-	Item propertyItem;
-	const Property *property;
-	uint32_t count;
-	ValueMetaData *result = nullptr;
-	FilterResult state;
-	DataReset(&propertyItem.data);
-	property = PropertyGetByName(
-		dataSet->properties,
-		dataSet->strings,
+	const int propertyIndex = IpiGetPropertyIndex(
+		dataSet,
 		key.getPropertyName().c_str(),
-		&propertyItem,
 		exception);
 	EXCEPTION_THROW;
-	if (property != nullptr) {
-		state.dataSet = dataSet;
-		state.valueName = key.getValueName();
-		count = ProfileIterateValuesForProperty(
-			dataSet->values,
-			getProfile(),
-			property,
-			&state,
-			&valueFilter,
-			exception);
+	if (propertyIndex < 0) {
+		return nullptr;
+	}
+	uint32_t firstValueIndex = 0;
+	uint32_t valueCount = 0;
+	if (IpiGetPropertyValueIndexes(
+		dataSet,
+		(uint32_t)propertyIndex,
+		&firstValueIndex,
+		&valueCount,
+		nullptr,
+		exception) == false) {
 		EXCEPTION_THROW;
-		if (count > 0 && state.found == true) {
-			result = ValueMetaDataBuilderIpi::build(dataSet, &state.value);
+		return nullptr;
+	}
+	// The profile's own values of the property are compared by name, as a
+	// weighted property can hold several values with the same name, and a
+	// search of all the property's values can find another of them. The
+	// profile's value indexes are in ascending order, so its values of the
+	// property are the run within the property's range.
+	const Profile * const profile = getProfile();
+	const uint32_t last = profile->valueCount;
+	const uint32_t begin = lowerBound(profile, 0, last, firstValueIndex);
+	const uint32_t end =
+		lowerBound(profile, begin, last, firstValueIndex + valueCount);
+	const string &valueName = key.getValueName();
+	char buffer[REASONABLE_WKT_STRING_LENGTH];
+	for (uint32_t position = begin; position < end; position++) {
+		const uint32_t valueIndex = getValueIndex(profile, position);
+		char * const text = IpiGetValueText(
+			dataSet,
+			valueIndex,
+			FIFTYONE_DEGREES_VALUE_TEXT_NAME,
+			buffer,
+			sizeof(buffer),
+			exception);
+		if (text == nullptr) {
+			EXCEPTION_THROW;
+			continue;
+		}
+		const bool same = valueName == text;
+		if (text != buffer) {
+			Free(text);
+		}
+		if (same) {
+			return ValueMetaDataBuilderIpi::build(
+				dataSet,
+				valueIndex,
+				key.getPropertyName());
 		}
 	}
-	return result;
+	return nullptr;
 }
 
 uint32_t ValueMetaDataCollectionForProfileIpi::getSize() const {

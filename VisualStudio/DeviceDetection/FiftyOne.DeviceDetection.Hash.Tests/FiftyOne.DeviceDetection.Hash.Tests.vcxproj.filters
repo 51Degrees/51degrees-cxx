@@ -28,6 +28,7 @@
     <ClCompile Include="..\..\..\test\dd\hash\HashMatchMetricsTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashPositionsTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashValueProfilesTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashAnyAlignmentTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashDefaultValueTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashMetaDataTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashDefaultValueReloadTests.cpp" />
@@ -41,6 +42,7 @@
     <ClCompile Include="..\..\..\test\dd\hash\HashConcurrentReadTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashFailedReadTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashDateTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashProductTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashLoadFailureTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashPresetTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\HashShortFileTests.cpp" />
@@ -52,6 +54,7 @@
     <ClCompile Include="..\..\..\test\dd\hash\EngineHashGraphFilterTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\GraphDataFileTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\GraphNodeTests.cpp" />
+    <ClCompile Include="..\..\..\test\dd\hash\HashGraphCycleTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\ResultsHashSerializerTests.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\SimpleEngineTestBase.cpp" />
     <ClCompile Include="..\..\..\test\dd\hash\SimpleEngineTests.cpp" />
@@ -70,6 +73,7 @@
     <ClInclude Include="..\..\..\test\dd\EngineDeviceDetectionTests.hpp" />
     <ClInclude Include="..\..\..\test\dd\EngineDeviceDetectionTestsMacros.hpp" />
     <ClInclude Include="..\..\..\test\dd\ExampleDeviceDetectionTests.hpp" />
+    <ClInclude Include="..\..\..\test\dd\pch.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

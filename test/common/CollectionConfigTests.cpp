@@ -49,7 +49,9 @@ public:
 
 TEST_PROPERTY_EQUAL(CollectionConfigTest, Capacity, , testValues.capacity)
 TEST_PROPERTY_EQUAL(CollectionConfigTest, Concurrency, , testValues.concurrency)
-TEST_PROPERTY_EQUAL(CollectionConfigTest, Loaded, , testValues.loaded)
+TEST_PROPERTY_EQUAL(CollectionConfigTest, Loaded, ,
+	static_cast<uint32_t>(testValues.loaded))
 TEST_PROPERTY_EQUAL(CollectionConfigTestSet, Capacity, , otherTestValues.capacity)
 TEST_PROPERTY_EQUAL(CollectionConfigTestSet, Concurrency, , otherTestValues.concurrency)
-TEST_PROPERTY_EQUAL(CollectionConfigTestSet, Loaded, , otherTestValues.loaded)
+TEST_PROPERTY_EQUAL(CollectionConfigTestSet, Loaded, ,
+	static_cast<uint32_t>(otherTestValues.loaded))

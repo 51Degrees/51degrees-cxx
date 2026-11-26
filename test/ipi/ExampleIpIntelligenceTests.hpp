@@ -27,13 +27,13 @@
 #include <string>
 #include "../../src/common/file.h"
 #include "../common/ExampleTests.hpp"
+#include "../common/EnvironmentVariable.hpp"
 #include "../../src/ipi/ipi.h"
 #include "Constants.hpp"
 
 // Helper to skip temp file tests on CI
 inline bool shouldSkipTempFileTestOnCI(fiftyoneDegreesConfigIpi config) {
-    const char* ci = std::getenv("CI");
-    return ci != nullptr && std::string(ci) == "true" && config.b.useTempFile;
+    return isRunningOnCI() && config.b.useTempFile;
 }
 
 class ExampleIpIntelligenceTest : public ExampleTests {
@@ -43,12 +43,10 @@ public:
     ExampleIpIntelligenceTest(
         const char * const *dataFileNames,
         int dataFileNamesLength,
-        const char *ipAddressFileName,
         const char *evidenceFileName);
 
 protected:
     string dataFilePath;
-    string ipAddressFilePath;
     string evidenceFilePath;
     const char *requiredProperties;
 
@@ -58,6 +56,19 @@ protected:
      */
     string getAsnDataFilePath() {
         return GetFilePath(_dataFolderName, "51Degrees-IPIV4AsnIpiV41.ipi");
+    }
+
+    /**
+     * Points the test at the free ASN data file, leaving the path empty when
+     * it is not present. The path is copied into the room the constructor
+     * reserved, so the change allocates no memory that outlives the test
+     * body. Moving a new string in would hand the fixture memory allocated
+     * after the memory checkpoint that is only freed with the fixture, after
+     * the leak check, which counts it as a leak.
+     */
+    void useAsnDataFile() {
+        const string path = getAsnDataFilePath();
+        dataFilePath = path;
     }
 };
 
