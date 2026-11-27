@@ -24,14 +24,8 @@ endif()
 # Opt-in AddressSanitizer. When ON, applied to compile + link of every target
 # so library code is instrumented, not only the test binary runtime, which
 # ASAN needs to report use-after-free instead of a bare SEGV. Default OFF so
-# production package builds stay ASAN-free. Gated on CMAKE_HOST_WIN32 rather
-# than MSVC/MINGW because this runs before project() and the compiler
-# variables are not yet set.
+# production package builds stay ASAN-free.
 option(_51DEGREES_WITH_ASAN "Build with AddressSanitizer (compile + link)" OFF)
-if (_51DEGREES_WITH_ASAN AND NOT CMAKE_HOST_WIN32)
-	add_compile_options(-fsanitize=address)
-	add_link_options(-fsanitize=address)
-endif()
 
 # Opt-in ThreadSanitizer, applied in the same way. It can't be combined with
 # AddressSanitizer in one build. Debug builds count test coverage, and the
@@ -41,10 +35,6 @@ option(_51DEGREES_WITH_TSAN "Build with ThreadSanitizer (compile + link)" OFF)
 if (_51DEGREES_WITH_TSAN AND _51DEGREES_WITH_ASAN)
 	message(FATAL_ERROR
 		"_51DEGREES_WITH_TSAN and _51DEGREES_WITH_ASAN can't both be ON")
-endif()
-if (_51DEGREES_WITH_TSAN AND NOT CMAKE_HOST_WIN32)
-	add_compile_options(-fsanitize=thread -fprofile-update=atomic)
-	add_link_options(-fsanitize=thread)
 endif()
 
 include(CMakeDependentOption)
@@ -65,6 +55,19 @@ if (NOT _51DEGREES_VERSION)
 endif()
 
 project(51Degrees VERSION ${_51DEGREES_VERSION} LANGUAGES CXX C)
+
+# Settings for every target, here and for coverage below, are added to
+# CMAKE_C_FLAGS and CMAKE_CXX_FLAGS. CMake uses them to compile and to link,
+# and they also reach a project that includes this file. CMake 4.5 and later
+# report add_compile_options, add_link_options and the other directory-wide
+# commands as an author warning.
+if (_51DEGREES_WITH_ASAN AND NOT CMAKE_HOST_WIN32)
+	string(APPEND CMAKE_C_FLAGS " -fsanitize=address")
+	string(APPEND CMAKE_CXX_FLAGS " -fsanitize=address")
+elseif (_51DEGREES_WITH_TSAN AND NOT CMAKE_HOST_WIN32)
+	string(APPEND CMAKE_C_FLAGS " -fsanitize=thread -fprofile-update=atomic")
+	string(APPEND CMAKE_CXX_FLAGS " -fsanitize=thread -fprofile-update=atomic")
+endif()
 
 option(_51DEGREES_BUILD_DEVICE_DETECTION "Build Device Detection" ON)
 option(_51DEGREES_BUILD_IP_INTELLIGENCE "Build IP Intelligence" ON)
@@ -134,7 +137,8 @@ message("-- TESTCOVERAGE_ENABLED=${TESTCOVERAGE_ENABLED}")
 # The tests run on several threads, so GCC updates the coverage counters
 # atomically. Otherwise increments are lost and gcovr reads negative counts.
 if (TESTCOVERAGE_ENABLED AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
-	add_compile_options(-fprofile-update=prefer-atomic)
+	string(APPEND CMAKE_C_FLAGS " -fprofile-update=prefer-atomic")
+	string(APPEND CMAKE_CXX_FLAGS " -fprofile-update=prefer-atomic")
 endif()
 
 if (NOT MSVC)
@@ -193,11 +197,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-if (NOT MSVC)
-	include_directories(/usr/local/include)
-	link_directories(/usr/local/lib)
-endif()
 
 # BUILD_TESTING is true by default, but in some cases it is desirable to turn
 # off the common tests while keeping the product tests.
