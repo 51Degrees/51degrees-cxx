@@ -18,9 +18,9 @@ target_link_libraries(BothProducts fiftyone-hash-c fiftyone-ip-intelligence-c)
 
 foreach (target BothProductsDd BothProductsIpi BothProducts)
 	if (MSVC)
-		target_compile_options(${target} PRIVATE "/W4" "/WX")
+		target_compile_options(${target} PRIVATE "/W4" ${_51DEGREES_WX})
 	else()
-		target_compile_options(${target} PRIVATE "-Wall" "-Wextra" "-Werror")
+		target_compile_options(${target} PRIVATE "-Wall" "-Wextra" ${_51DEGREES_WERROR})
 	endif()
 endforeach()
 
@@ -52,9 +52,9 @@ if (_51DEGREES_CXX_BOTH_PRODUCTS)
 
 	foreach (target BothProductsCxxDd BothProductsCxxIpi BothProductsCxx)
 		if (MSVC)
-			target_compile_options(${target} PRIVATE "/W4" "/WX" "/EHsc")
+			target_compile_options(${target} PRIVATE "/W4" ${_51DEGREES_WX} "/EHsc")
 		else()
-			target_compile_options(${target} PRIVATE "-Wall" "-Wextra" "-Werror")
+			target_compile_options(${target} PRIVATE "-Wall" "-Wextra" ${_51DEGREES_WERROR})
 		endif()
 	endforeach()
 

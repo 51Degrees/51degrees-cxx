@@ -80,6 +80,9 @@ jobs:
           cache: 'true'
 
       - name: Build as the README says, without the tests
+        # A warning fails the build, as it does every build 51Degrees runs.
+        env:
+          _51DEGREES_WARNINGS_AS_ERRORS: 'true'
         run: |
           New-Item -ItemType Directory build | Out-Null
           Push-Location build

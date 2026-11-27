@@ -128,6 +128,7 @@ These options choose what is built:
 | `_51DEGREES_BUILD_EXAMPLES` | `ON` | The examples and the `js-snippet-export` tool. The tests use them, so they are built whenever `BUILD_TESTING` is on |
 | `_51DEGREES_INSTALL` | `ON` when this repository is the top level build | The install rules described in [Installing](#installing) |
 | `_51DEGREES_VERSION` | The nearest version tag in a Git clone, otherwise `0.0.0` | The version the installed package reports |
+| `_51DEGREES_WARNINGS_AS_ERRORS` | `ON` when the environment variable of the same name is `true`, in any case, otherwise `OFF` | Makes compiler warnings errors. 51Degrees' own builds turn it on. Leave it off to build with a compiler newer than the one CI uses, which shows a new warning without stopping the build |
 
 [`docs/names.md`](docs/names.md) lists every CMake option, environment
 variable and secret this repository reads or defines.

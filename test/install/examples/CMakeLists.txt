@@ -9,6 +9,8 @@ project(InstalledExamples LANGUAGES C CXX)
 
 find_package(51Degrees CONFIG REQUIRED)
 
+include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/warnings-as-errors.cmake)
+
 set(_51DEGREES_EXAMPLES "" CACHE PATH "The copy of the examples folder")
 if (NOT IS_DIRECTORY "${_51DEGREES_EXAMPLES}")
 	message(FATAL_ERROR "_51DEGREES_EXAMPLES is not a folder: '${_51DEGREES_EXAMPLES}'")
@@ -24,10 +26,10 @@ function(add_examples folder extension suffix library)
 			add_executable(${name}${suffix} ${file} ${ARGN})
 			target_link_libraries(${name}${suffix} PRIVATE ${library})
 			if (MSVC)
-				target_compile_options(${name}${suffix} PRIVATE /W4 /WX)
+				target_compile_options(${name}${suffix} PRIVATE /W4 ${_51DEGREES_WX})
 			else()
 				target_compile_options(${name}${suffix}
-					PRIVATE -Wall -Wextra -Werror)
+					PRIVATE -Wall -Wextra ${_51DEGREES_WERROR})
 			endif()
 			message(STATUS "Found example '${name}${suffix}'")
 		endif()

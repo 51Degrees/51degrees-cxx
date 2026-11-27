@@ -4,6 +4,10 @@ param(
 $ErrorActionPreference = "Stop"
 $PSNativeCommandUseErrorActionPreference = $true
 
+# A warning fails the build of the package, as the default of the CMake
+# option of the same name.
+$env:_51DEGREES_WARNINGS_AS_ERRORS = 'true'
+
 # The package is the build folder, which install-package.ps1 copies back into
 # the repository for the tests.
 $BuildPath = New-Item -ItemType directory -Path $RepoName/build -Force

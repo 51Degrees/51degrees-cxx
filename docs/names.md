@@ -16,6 +16,7 @@ Add a name here in the same change that first reads it.
 | --- | --- | --- |
 | `_51DEGREES_DD_PATH` | The Device Detection examples, in `examples/dd/C/Hash/ExampleBase.c`, and set by `ci/fetch-assets.ps1` | The path of the Device Detection data file to use in place of the one in `data/device-detection` |
 | `_51DEGREES_IPI_PATH` | The IP Intelligence examples, in `examples/ipi/Base/ExampleBase.c`, and set by `ci/fetch-assets.ps1` | The path of the IP Intelligence data file to use in place of the one in `data/ip-intelligence` |
+| `_51DEGREES_WARNINGS_AS_ERRORS` | `cmake/warnings-as-errors.cmake`, and set to `true` by `ci/build-project.ps1`, `ci/build-package.ps1` and the examples and thread sanitizer workflows | `true`, in any case, to make the CMake option of the same name default to `ON` |
 
 A data file path given as a Device Detection example's first argument comes
 before `_51DEGREES_DD_PATH`.
@@ -52,6 +53,7 @@ workflow of this repository reads a secret by name.
 | `_51DEGREES_EXCEPTIONS_DISABLED` | `OFF` | Defines `FIFTYONE_DEGREES_EXCEPTIONS_DISABLED` |
 | `_51DEGREES_LARGE_DATA_FILE_SUPPORT` | `OFF` | Defines `FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT` for the copy of common that Device Detection uses |
 | `_51DEGREES_REDUCED_FILE` | `OFF` | Defines `FIFTYONE_DEGREES_REDUCED_FILE` for the copy of common that Device Detection uses |
+| `_51DEGREES_WARNINGS_AS_ERRORS` | `ON` when the environment variable of the same name is `true`, otherwise `OFF` | Makes compiler warnings errors, in the libraries, examples, tools and tests, and in `test/install/examples` |
 | `_51DEGREES_WITH_ASAN` | `OFF` | Builds every target with AddressSanitizer |
 | `_51DEGREES_WITH_TSAN` | `OFF` | Builds every target with ThreadSanitizer. Can't be on with `_51DEGREES_WITH_ASAN` |
 | `_51DEGREES_EXPECTED_VERSION` | Empty | In `test/install`, the version the installed package must report |
